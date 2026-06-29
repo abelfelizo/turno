@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# expo
+.expo/
+dist/
+web-build/
+*.orig.*
+
+# native
+ios/
+android/
+
+# env — NUNCA subir claves
+.env
+.env*.local
+
+# misc
+npm-debug.*
+*.log
+.DS_Store
+
+# typescript
+*.tsbuildinfo
+expo-env.d.ts
