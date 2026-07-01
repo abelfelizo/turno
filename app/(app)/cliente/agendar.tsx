@@ -6,7 +6,7 @@ import { getSesion } from '../../../lib/storage'
 import { getPerfilesNegocio, slotsDisponibles, agendarCita } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12 } from '../../../lib/format'
-import { Display, Chip } from '../../../components/ui'
+import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
@@ -77,16 +77,22 @@ export default function Agendar() {
         )}
 
         <Text style={s.sec}>1 · BARBERO</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }} contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
           {perfiles.map((p: any) => {
             const on = perfil?.id === p.id
             return (
               <TouchableOpacity key={p.id} style={[s.bChip, on && s.bChipOn]} onPress={() => { setPerfil(p); setServicio(null); setFecha(''); setHora('') }}>
-                <Text style={[s.bChipT, on && { color: '#fff' }]}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                <Avatar name={p.turno_usuarios?.nombre} uri={p.foto_url} size={48} bg={on ? '#fff' : COLORS.blue} color={on ? COLORS.red : '#fff'} />
+                <Text style={[s.bChipT, on && { color: '#fff' }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                {p.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.especialidad}</Text> : null}
               </TouchableOpacity>
             )
           })}
         </ScrollView>
+
+        {perfil?.mensaje_bienvenida ? (
+          <View style={s.bienvenida}><Text style={s.bienvenidaT}>“{perfil.mensaje_bienvenida}”</Text></View>
+        ) : null}
 
         {perfil && (
           <>
@@ -158,9 +164,12 @@ const s = StyleSheet.create({
   miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  bChip: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  bChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
+  bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
+  bienvenida: { backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14, marginBottom: 20 },
+  bienvenidaT: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
   serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
   servOn: { borderColor: COLORS.red, backgroundColor: COLORS.redLight },
   servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },

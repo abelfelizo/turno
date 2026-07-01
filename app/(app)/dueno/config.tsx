@@ -1,26 +1,62 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio } from '../../../lib/db'
+import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { Display, Avatar } from '../../../components/ui'
 
 export default function Config() {
   const router = useRouter()
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [config, setConfig] = useState<any>(null)
+  const [negocio, setNegocio] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  // marca / contacto del local
+  const [nombre, setNombre] = useState(''); const [slogan, setSlogan] = useState('')
+  const [direccion, setDireccion] = useState(''); const [telefono, setTelefono] = useState(''); const [ig, setIg] = useState('')
+  const [guardandoMarca, setGuardandoMarca] = useState(false)
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setNegocioId(ss.negocio_id)
-    setConfig(await getConfiguracion(ss.negocio_id).catch(() => null))
+    const [cfg, neg] = await Promise.all([
+      getConfiguracion(ss.negocio_id).catch(() => null),
+      getNegocioById(ss.negocio_id).catch(() => null),
+    ])
+    setConfig(cfg); setNegocio(neg)
+    setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
+    setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+
+  async function cambiarLogo() {
+    if (!negocioId) return
+    setSubiendoLogo(true)
+    try {
+      const url = await elegirYSubirImagen('logos', negocioId)
+      if (url) { await actualizarNegocio(negocioId, { logo_url: url }); setNegocio((n: any) => ({ ...n, logo_url: url })) }
+    } catch (e: any) { Alert.alert('No se pudo subir el logo', e.message ?? 'Intenta de nuevo.') }
+    finally { setSubiendoLogo(false) }
+  }
+  async function guardarMarca() {
+    if (!negocioId) return
+    if (!nombre.trim()) { Alert.alert('Falta el nombre', 'El local necesita un nombre.'); return }
+    setGuardandoMarca(true)
+    try {
+      await actualizarNegocio(negocioId, {
+        nombre: nombre.trim(), slogan: slogan.trim(), direccion: direccion.trim(),
+        telefono: telefono.trim(), instagram: ig.trim().replace(/^@/, ''),
+      })
+      Alert.alert('Marca actualizada', 'Los cambios ya son visibles para tus clientes.')
+    } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+    finally { setGuardandoMarca(false) }
+  }
 
   async function toggle(campo: string, valor: boolean) {
     if (!negocioId) return
@@ -44,6 +80,44 @@ export default function Config() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
+
+      <Text style={s.sec}>MARCA Y CONTACTO</Text>
+      <View style={s.marcaCard}>
+        <View style={s.marcaTop}>
+          <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85}>
+            <Avatar name={negocio?.nombre} uri={negocio?.logo_url} size={72} bg={COLORS.carbon} />
+            <View style={s.logoBadge}>
+              {subiendoLogo ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.logoBadgeT}>✎</Text>}
+            </View>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={s.marcaHint}>Toca el logo para cambiarlo.</Text>
+            <Text style={s.flabel}>Nombre del local</Text>
+            <TextInput style={s.input} placeholder="Barbería…" placeholderTextColor={COLORS.textLight} value={nombre} onChangeText={setNombre} />
+          </View>
+        </View>
+
+        <Text style={s.flabel}>Eslogan</Text>
+        <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} value={slogan} onChangeText={setSlogan} />
+
+        <Text style={s.flabel}>Dirección</Text>
+        <TextInput style={s.input} placeholder="Calle, sector, ciudad" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+
+        <View style={s.dosCol}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Teléfono</Text>
+            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={telefono} onChangeText={setTelefono} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Instagram</Text>
+            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+          </View>
+        </View>
+
+        <TouchableOpacity style={s.guardarBtn} onPress={guardarMarca} disabled={guardandoMarca}>
+          {guardandoMarca ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar marca</Text>}
+        </TouchableOpacity>
+      </View>
 
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
       <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
@@ -90,6 +164,16 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12, marginTop: 14 },
+  marcaCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginBottom: 4 },
+  marcaTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
+  marcaHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
+  logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
+  logoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
+  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
+  input: { backgroundColor: COLORS.bg, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
+  dosCol: { flexDirection: 'row', gap: 10 },
+  guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 16 },
+  guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   toggleL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   toggleD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

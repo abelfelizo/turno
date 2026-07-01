@@ -94,7 +94,16 @@ export default function Home() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
 
       <Text style={s.hola}>Hola</Text>
-      <Display size={30} style={{ marginBottom: 18 }}>{negocio?.nombre ?? 'Tu barbería'}</Display>
+      <View style={s.marcaHead}>
+        {negocio?.logo_url ? <Avatar name={negocio?.nombre} uri={negocio.logo_url} size={52} bg={COLORS.carbon} /> : null}
+        <View style={{ flex: 1 }}>
+          <Display size={28}>{negocio?.nombre ?? 'Tu barbería'}</Display>
+          {negocio?.slogan ? <Text style={s.marcaSlogan}>{negocio.slogan}</Text> : null}
+          {negocio?.direccion ? (
+            <View style={s.marcaMetaRow}><Ionicons name="location-outline" size={13} color={COLORS.textLight} /><Text style={s.marcaMeta}>{negocio.direccion}</Text></View>
+          ) : null}
+        </View>
+      </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }} contentContainerStyle={{ gap: 8 }}>
         {negocios.map((n: any) => {
@@ -166,15 +175,16 @@ export default function Home() {
                 return (
                   <View key={p.id} style={s.barbero}>
                     <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
-                      <Avatar name={p.turno_usuarios?.nombre} size={44} />
+                      <Avatar name={p.turno_usuarios?.nombre} uri={p.foto_url} size={44} />
                       <View style={{ flex: 1 }}>
                         <View style={s.nombreRow}>
                           <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
                           <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
                         </View>
+                        {p.especialidad ? <Text style={s.barberoEsp}>{p.especialidad}</Text> : null}
                         <View style={s.estadoRow}>
                           <Dot color={disp ? COLORS.success : COLORS.textLight} />
-                          <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'Ocupado'}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
+                          <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'Ocupado'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
                         </View>
                       </View>
                       <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
@@ -216,6 +226,11 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   hola: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textLight, letterSpacing: 0.4, marginBottom: 4 },
+  marcaHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  marcaSlogan: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
+  marcaMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  marcaMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight },
+  barberoEsp: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 2 },
   tab: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   tabOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   tabT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid, maxWidth: 160 },

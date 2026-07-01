@@ -2,11 +2,12 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario } from '../../../lib/db'
+import { getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario } from '../../../lib/db'
+import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { Display, Avatar } from '../../../components/ui'
 
 const ESTADOS = [
   { k: 'disponible', l: 'Disponible', c: COLORS.success },
@@ -28,6 +29,11 @@ export default function Config() {
   const [hrModal, setHrModal] = useState<any | null>(null)
   const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(18)
   const [busy, setBusy] = useState(false)
+  // perfil público (personalización del barbero)
+  const [esp, setEsp] = useState(''); const [bio, setBio] = useState(''); const [msg, setMsg] = useState('')
+  const [ig, setIg] = useState(''); const [wa, setWa] = useState('')
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false)
+  const [subiendoFoto, setSubiendoFoto] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -37,9 +43,39 @@ export default function Config() {
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
     ])
-    setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setLoading(false)
+    setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
+    setEsp(p?.especialidad ?? ''); setBio(p?.bio ?? ''); setMsg(p?.mensaje_bienvenida ?? '')
+    setIg(p?.instagram ?? ''); setWa(p?.whatsapp ?? '')
+    setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+
+  async function cambiarFoto() {
+    if (!sesion?.perfil_id) return
+    setSubiendoFoto(true)
+    try {
+      const url = await elegirYSubirImagen('barberos', sesion.perfil_id)
+      if (url) { await actualizarPerfil(sesion.perfil_id, { foto_url: url }); setPerfil((p: any) => ({ ...p, foto_url: url })) }
+    } catch (e: any) { Alert.alert('No se pudo subir la foto', e.message ?? 'Intenta de nuevo.') }
+    finally { setSubiendoFoto(false) }
+  }
+  async function guardarPerfil() {
+    if (!sesion?.perfil_id) return
+    setGuardandoPerfil(true)
+    try {
+      await actualizarPerfil(sesion.perfil_id, {
+        especialidad: esp.trim(), bio: bio.trim(), mensaje_bienvenida: msg.trim(),
+        instagram: ig.trim().replace(/^@/, ''), whatsapp: wa.trim(),
+      })
+      Alert.alert('Perfil actualizado', 'Tus clientes verán estos cambios.')
+    } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+    finally { setGuardandoPerfil(false) }
+  }
+  async function toggleDomicilio(v: boolean) {
+    if (!sesion?.perfil_id) return
+    setPerfil((p: any) => ({ ...p, domicilio_activo: v }))
+    await actualizarPerfil(sesion.perfil_id, { domicilio_activo: v }).catch(() => cargar())
+  }
 
   async function setEstado(k: string) {
     if (!sesion?.perfil_id) return
@@ -83,6 +119,52 @@ export default function Config() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
+
+      <Text style={s.sec}>MI PERFIL PÚBLICO</Text>
+      <View style={s.perfilCard}>
+        <View style={s.perfilTop}>
+          <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
+            <Avatar name={perfil?.turno_usuarios?.nombre} uri={perfil?.foto_url} size={72} bg={COLORS.blue} />
+            <View style={s.fotoBadge}>
+              {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
+            </View>
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={s.perfilHint}>Toca la foto para cambiarla.</Text>
+            <Text style={s.flabel}>Especialidad</Text>
+            <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
+          </View>
+        </View>
+
+        <Text style={s.flabel}>Sobre mí</Text>
+        <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} value={bio} onChangeText={setBio} multiline />
+
+        <Text style={s.flabel}>Mensaje de bienvenida</Text>
+        <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} value={msg} onChangeText={setMsg} multiline />
+
+        <View style={s.dosCol}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Instagram</Text>
+            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>WhatsApp</Text>
+            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wa} onChangeText={setWa} />
+          </View>
+        </View>
+
+        <View style={s.domicilioRow}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={s.domicilioL}>Servicio a domicilio</Text>
+            <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
+          </View>
+          <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+        </View>
+
+        <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
+          {guardandoPerfil ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar perfil</Text>}
+        </TouchableOpacity>
+      </View>
 
       <Text style={s.sec}>MI ESTADO</Text>
       <View style={{ gap: 8, marginBottom: 14 }}>
@@ -172,6 +254,18 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  perfilCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginBottom: 18 },
+  perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
+  perfilHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
+  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
+  fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
+  multiline: { minHeight: 64, textAlignVertical: 'top' },
+  dosCol: { flexDirection: 'row', gap: 10 },
+  domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.borderSoft },
+  domicilioL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 14 },
+  guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
   dot: { width: 12, height: 12, borderRadius: 6 },

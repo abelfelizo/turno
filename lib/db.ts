@@ -10,9 +10,18 @@ export async function getNegocioPorCodigo(codigo: string) {
 }
 
 export async function getNegocioById(id: string) {
-  const { data, error } = await supabase.from(T('negocios')).select('*').eq('id', id).single()
+  const { data, error } = await supabase.from(T('negocios')).select('*').eq('id', id).maybeSingle()
   if (error) throw error
   return data
+}
+
+/** Marca/contacto del negocio (dueño). Solo columnas de identidad. */
+export async function actualizarNegocio(negocio_id: string, patch: {
+  nombre?: string; slogan?: string; direccion?: string
+  telefono?: string; instagram?: string; logo_url?: string; color_marca?: string
+}) {
+  const { error } = await supabase.from(T('negocios')).update(patch).eq('id', negocio_id)
+  if (error) throw error
 }
 
 // ── DUEÑO ─────────────────────────────────────────────────────────
@@ -147,13 +156,22 @@ export async function getPerfilesNegocio(negocio_id: string) {
 }
 
 export async function getMiPerfil(usuario_id: string, negocio_id: string) {
-  const { data, error } = await supabase.from(T('perfiles')).select('*').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).single()
+  const { data, error } = await supabase.from(T('perfiles')).select('*').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   if (error) throw error
   return data
 }
 
 export async function actualizarEstadoPerfil(perfil_id: string, estado: string) {
   const { error } = await supabase.from(T('perfiles')).update({ estado_actual: estado }).eq('id', perfil_id)
+  if (error) throw error
+}
+
+/** Identidad pública del barbero. Solo columnas de personalización. */
+export async function actualizarPerfil(perfil_id: string, patch: {
+  bio?: string; especialidad?: string; mensaje_bienvenida?: string
+  instagram?: string; whatsapp?: string; foto_url?: string; domicilio_activo?: boolean
+}) {
+  const { error } = await supabase.from(T('perfiles')).update(patch).eq('id', perfil_id)
   if (error) throw error
 }
 
