@@ -2,9 +2,16 @@ import { supabase } from './supabase'
 
 const T = (tabla: string) => `turno_${tabla}`
 
+/** Normaliza un código tecleado a su forma canónica: MAYÚSCULA + guion tras
+ * las 3 letras del prefijo. Acepta "dem a2b1", "DEMA2B1", "dem-a2b1" → "DEM-A2B1". */
+export function codigoCanonico(entrada: string): string {
+  const limpio = (entrada || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+  return limpio.length > 3 ? `${limpio.slice(0, 3)}-${limpio.slice(3)}` : limpio
+}
+
 // NEGOCIOS
 export async function getNegocioPorCodigo(codigo: string) {
-  const { data, error } = await supabase.from(T('negocios')).select('*').eq('codigo_acceso', codigo.toUpperCase()).maybeSingle()
+  const { data, error } = await supabase.from(T('negocios')).select('*').eq('codigo_acceso', codigoCanonico(codigo)).maybeSingle()
   if (error) throw error
   if (!data) throw new Error('No encontramos un local con ese código. Revísalo e intenta de nuevo.')
   return data
@@ -141,7 +148,7 @@ export async function unirseProfesional(p: {
   rol: 'empleado' | 'barbero_renta'; nombre: string; telefono: string
 }) {
   const { data, error } = await supabase.rpc('turno_unirse_profesional', {
-    p_codigo: p.codigo, p_tipo_servicio: p.tipo_servicio, p_rol: p.rol,
+    p_codigo: codigoCanonico(p.codigo), p_tipo_servicio: p.tipo_servicio, p_rol: p.rol,
     p_nombre: p.nombre, p_telefono: p.telefono,
   })
   if (error) throw error
@@ -150,7 +157,7 @@ export async function unirseProfesional(p: {
 
 export async function unirseCliente(p: { codigo: string; nombre: string; telefono: string }) {
   const { data, error } = await supabase.rpc('turno_unirse_cliente', {
-    p_codigo: p.codigo, p_nombre: p.nombre, p_telefono: p.telefono,
+    p_codigo: codigoCanonico(p.codigo), p_nombre: p.nombre, p_telefono: p.telefono,
   })
   if (error) throw error
   return data
@@ -177,7 +184,7 @@ export async function actualizarIdentidadBarbero(patch: {
 
 /** Busca un barbero por su código (campos públicos). */
 export async function getBarberoPorCodigo(codigo: string) {
-  const { data, error } = await supabase.rpc('turno_barbero_por_codigo', { p_codigo: codigo.toUpperCase() })
+  const { data, error } = await supabase.rpc('turno_barbero_por_codigo', { p_codigo: codigoCanonico(codigo) })
   if (error) throw error
   return (data && data[0]) || null
 }

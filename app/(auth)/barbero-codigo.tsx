@@ -16,7 +16,7 @@ export default function BarberoCodigo() {
     <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Código del local"
       subtitulo="Pídele al dueño el código de acceso de la barbería.">
       <Campo label="Código de acceso" placeholder="ABC123" autoCapitalize="characters"
-        maxLength={6} value={codigo} onChangeText={setCodigo} />
+        maxLength={9} value={codigo} onChangeText={setCodigo} />
       <BotonPrimario texto="Continuar" onPress={continuar} disabled={codigo.trim().length < 4} />
     </OnbScreen>
   )

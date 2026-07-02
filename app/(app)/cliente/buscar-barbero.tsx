@@ -49,7 +49,7 @@ export default function BuscarBarbero() {
         <Text style={s.hint}>Escribe el código que te compartió tu barbero para seguirlo y reservar donde trabaje.</Text>
         <View style={s.buscarRow}>
           <TextInput style={s.input} placeholder="Código del barbero" placeholderTextColor={COLORS.textLight}
-            autoCapitalize="characters" maxLength={6} value={codigo} onChangeText={t => setCodigo(t.toUpperCase())} />
+            autoCapitalize="characters" maxLength={9} value={codigo} onChangeText={t => setCodigo(t.toUpperCase())} />
           <TouchableOpacity style={s.buscarBtn} onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
             {buscando ? <ActivityIndicator color="#fff" /> : <Ionicons name="search" size={20} color="#fff" />}
           </TouchableOpacity>

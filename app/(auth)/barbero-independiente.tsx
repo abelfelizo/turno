@@ -16,7 +16,7 @@ export default function BarberoIndependiente() {
     <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Local donde rentas"
       subtitulo="Como independiente, te unes al local donde trabajas con su código. Pagas tu propia suscripción.">
       <Campo label="Código del local" placeholder="ABC123" autoCapitalize="characters"
-        maxLength={6} value={codigo} onChangeText={setCodigo} />
+        maxLength={9} value={codigo} onChangeText={setCodigo} />
       <BotonPrimario texto="Continuar" onPress={continuar} disabled={codigo.trim().length < 4} />
     </OnbScreen>
   )

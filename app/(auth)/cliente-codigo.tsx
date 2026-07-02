@@ -30,7 +30,7 @@ export default function ClienteCodigo() {
   return (
     <OnbScreen paso="Cliente · 1 de 2" titulo="Entra a tu barbería"
       subtitulo="Pide el código a tu barbería (o usa DEMO01 para probar).">
-      <Campo label="Código del local" placeholder="DEMO01" autoCapitalize="characters" maxLength={6} value={codigo} onChangeText={setCodigo} />
+      <Campo label="Código del local" placeholder="DEMO01" autoCapitalize="characters" maxLength={9} value={codigo} onChangeText={setCodigo} />
       <Campo label="Tu nombre" placeholder="Tu nombre" value={nombre} onChangeText={setNombre} />
       <Campo label="Tu teléfono" placeholder="+1 809 000 0000" keyboardType="phone-pad" value={telefono} onChangeText={setTelefono} />
       <BotonPrimario texto="Continuar" onPress={entrar} cargando={cargando} />
