@@ -2,6 +2,7 @@
   "expo": {
     "name": "Turno",
     "slug": "turno",
+    "owner": "abelfelizo",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -26,6 +27,11 @@
       ["expo-notifications", { "color": "#E5202B" }],
       "expo-asset",
       ["expo-image-picker", { "photosPermission": "Turno usa tus fotos para tu foto de perfil y el logo del local." }]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "267b66a1-2afe-4194-adb1-45855f0dd9e4"
+      }
+    }
   }
 }
