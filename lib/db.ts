@@ -167,10 +167,11 @@ export async function actualizarEstadoPerfil(perfil_id: string, estado: string) 
   if (error) throw error
 }
 
-/** Identidad pública del barbero. Solo columnas de personalización. */
+/** Identidad pública y reglas del barbero. Solo columnas de personalización. */
 export async function actualizarPerfil(perfil_id: string, patch: {
   bio?: string; especialidad?: string; mensaje_bienvenida?: string
-  instagram?: string; whatsapp?: string; foto_url?: string; domicilio_activo?: boolean
+  instagram?: string; whatsapp?: string; foto_url?: string
+  domicilio_activo?: boolean; limite_cola?: number | null
 }) {
   const { error } = await supabase.from(T('perfiles')).update(patch).eq('id', perfil_id)
   if (error) throw error

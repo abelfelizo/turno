@@ -27,7 +27,7 @@ export default function Config() {
   const [svModal, setSvModal] = useState<any | 'nuevo' | null>(null)
   const [svN, setSvN] = useState(''); const [svD, setSvD] = useState(30); const [svP, setSvP] = useState('')
   const [hrModal, setHrModal] = useState<any | null>(null)
-  const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(18)
+  const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(18); const [hrBuf, setHrBuf] = useState(10)
   const [busy, setBusy] = useState(false)
   // perfil público (personalización del barbero)
   const [esp, setEsp] = useState(''); const [bio, setBio] = useState(''); const [msg, setMsg] = useState('')
@@ -76,6 +76,13 @@ export default function Config() {
     setPerfil((p: any) => ({ ...p, domicilio_activo: v }))
     await actualizarPerfil(sesion.perfil_id, { domicilio_activo: v }).catch(() => cargar())
   }
+  async function ajustarLimite(delta: number) {
+    if (!sesion?.perfil_id) return
+    const actual = perfil?.limite_cola ?? 0
+    const v = Math.max(0, Math.min(50, actual + delta))
+    setPerfil((p: any) => ({ ...p, limite_cola: v }))
+    await actualizarPerfil(sesion.perfil_id, { limite_cola: v === 0 ? null : v }).catch(() => cargar())
+  }
 
   async function setEstado(k: string) {
     if (!sesion?.perfil_id) return
@@ -101,13 +108,13 @@ export default function Config() {
   function horarioDe(n: number) { return horarios.find(h => h.dia_semana === n) }
   function abrirHorario(n: number) {
     const h = horarioDe(n)
-    setHrModal({ n, h }); setHrIni(h ? parseInt(h.hora_inicio) : 9); setHrFin(h ? parseInt(h.hora_fin) : 18)
+    setHrModal({ n, h }); setHrIni(h ? parseInt(h.hora_inicio) : 9); setHrFin(h ? parseInt(h.hora_fin) : 18); setHrBuf(h?.tiempo_entre_clientes ?? 10)
   }
   async function guardarHr(activo: boolean) {
     if (!hrModal) return
     setBusy(true)
     try {
-      await guardarHorario({ id: hrModal.h?.id, perfil_id: sesion.perfil_id, dia_semana: hrModal.n, hora_inicio: `${String(hrIni).padStart(2, '0')}:00`, hora_fin: `${String(hrFin).padStart(2, '0')}:00`, activo })
+      await guardarHorario({ id: hrModal.h?.id, perfil_id: sesion.perfil_id, dia_semana: hrModal.n, hora_inicio: `${String(hrIni).padStart(2, '0')}:00`, hora_fin: `${String(hrFin).padStart(2, '0')}:00`, tiempo_entre_clientes: hrBuf, activo })
       setHrModal(null); cargar()
     } catch (e: any) { Alert.alert('Error', e.message) } finally { setBusy(false) }
   }
@@ -201,6 +208,19 @@ export default function Config() {
         )
       })}
 
+      <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
+      <View style={s.regla}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={s.reglaL}>Límite de fila</Text>
+          <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
+        </View>
+        <View style={s.stepCtrl}>
+          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+          <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+        </View>
+      </View>
+
       <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
       {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
@@ -240,6 +260,12 @@ export default function Config() {
             <Text style={s.stepVal}>{hora12(`${String(hrFin).padStart(2, '0')}:00`)}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.min(24, hrFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
+          <Text style={s.flabel}>Minutos entre clientes</Text>
+          <View style={s.stepRow}>
+            <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.max(0, hrBuf - 5))}><Text style={s.stepT}>−</Text></TouchableOpacity>
+            <Text style={s.stepVal}>{hrBuf} min</Text>
+            <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.min(60, hrBuf + 5))}><Text style={s.stepT}>+</Text></TouchableOpacity>
+          </View>
           <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
           <TouchableOpacity style={s.mbtnGhost} onPress={() => guardarHr(false)} disabled={busy}><Text style={s.mbtnGhostT}>Marcar cerrado</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
@@ -266,6 +292,10 @@ const s = StyleSheet.create({
   domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 14 },
   guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  regla: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
+  reglaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  reglaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
   dot: { width: 12, height: 12, borderRadius: 6 },

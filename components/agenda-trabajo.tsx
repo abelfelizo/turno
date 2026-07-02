@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById } from '../lib/db'
+import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaPrivada } from '../lib/db'
 import { hora12 } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
@@ -27,6 +27,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [bloq, setBloq] = useState(false)
   const [bIni, setBIni] = useState(12); const [bFin, setBFin] = useState(13); const [bMotivo, setBMotivo] = useState('')
   const [bEnviando, setBEnviando] = useState(false)
+  const [ficha, setFicha] = useState<any>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -65,6 +66,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     })
     return () => { if (subCola) desuscribir(subCola); if (subCitas) desuscribir(subCitas) }
   }, [cargar])
+
+  // Ficha del cliente llamado (preferencias + nota privada del barbero).
+  const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino')?.cliente_id
+  useEffect(() => {
+    if (!llamadoClienteId || !sesion?.negocio_id) { setFicha(null); return }
+    Promise.all([
+      getPreferenciasCliente(llamadoClienteId, sesion.negocio_id).catch(() => null),
+      sesion?.perfil_id ? getNotaPrivada(sesion.perfil_id, llamadoClienteId).catch(() => '') : Promise.resolve(''),
+    ]).then(([p, nota]) => setFicha({ ...(p || {}), nota }))
+  }, [llamadoClienteId, sesion?.negocio_id, sesion?.perfil_id])
 
   async function llamar() {
     try {
@@ -129,6 +140,20 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
               </TouchableOpacity>
             ) : null}
           </View>
+        </View>
+      )}
+
+      {llamado && ficha && (ficha.tipo_corte || ficha.largo || ficha.barba || ficha.alergias || ficha.notas || ficha.nota) && (
+        <View style={s.ficha}>
+          <Text style={s.fichaTitle}>FICHA DEL CLIENTE</Text>
+          <View style={s.fichaChips}>
+            {ficha.tipo_corte ? <FichaChip l="Corte" v={ficha.tipo_corte} /> : null}
+            {ficha.largo ? <FichaChip l="Largo" v={ficha.largo} /> : null}
+            {ficha.barba ? <FichaChip l="Barba" v={ficha.barba} /> : null}
+          </View>
+          {ficha.alergias ? <Text style={s.fichaAlerta}>⚠ Alergias: {ficha.alergias}</Text> : null}
+          {ficha.notas ? <Text style={s.fichaNota}>Cliente: “{ficha.notas}”</Text> : null}
+          {ficha.nota ? <Text style={s.fichaNotaPriv}>Tu nota: {ficha.nota}</Text> : null}
         </View>
       )}
 
@@ -227,6 +252,20 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   )
 }
 
+function FichaChip({ l, v }: { l: string; v: string }) {
+  return (
+    <View style={fc.chip}>
+      <Text style={fc.l}>{l}</Text>
+      <Text style={fc.v}>{v}</Text>
+    </View>
+  )
+}
+const fc = StyleSheet.create({
+  chip: { backgroundColor: COLORS.surfaceAlt, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  l: { fontFamily: FONTS.semibold, fontSize: 10, color: COLORS.textLight, textTransform: 'uppercase' },
+  v: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink, marginTop: 1 },
+})
+
 function Grupo({ n, l, hl }: { n: number; l: string; hl?: boolean }) {
   return (
     <View style={{ alignItems: 'center' }}>
@@ -255,6 +294,12 @@ const s = StyleSheet.create({
   atenderT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.success },
   avisarBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   avisarT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
+  ficha: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 14 },
+  fichaTitle: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1, marginBottom: 10 },
+  fichaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  fichaAlerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 10 },
+  fichaNota: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 8, fontStyle: 'italic' },
+  fichaNotaPriv: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 6 },
   siguiente: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.red, borderRadius: 14, padding: 16, marginBottom: 16 },
   sigLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   sigName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },
