@@ -2,13 +2,13 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getClientesBarbero, getNotaPrivada, guardarNotaPrivada } from '../../../lib/db'
+import { getMisClientes, getNotaBarbero, guardarNotaBarbero } from '../../../lib/db'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 
 export default function Clientes() {
-  const [perfilId, setPerfilId] = useState<string | null>(null)
+  const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activo, setActivo] = useState<any>(null)
@@ -18,22 +18,22 @@ export default function Clientes() {
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
-    if (!ss?.perfil_id) { setLoading(false); return }
-    setPerfilId(ss.perfil_id)
-    setClientes(await getClientesBarbero(ss.perfil_id).catch(() => []))
+    if (!ss?.usuario_id) { setLoading(false); return }
+    setUsuarioId(ss.usuario_id)
+    setClientes(await getMisClientes().catch(() => []))
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
   async function abrir(c: any) {
     setActivo(c); setNota(''); setCargandoNota(true)
-    if (perfilId) setNota(await getNotaPrivada(perfilId, c.cliente_id).catch(() => '') || '')
+    if (usuarioId) setNota(await getNotaBarbero(usuarioId, c.cliente_id).catch(() => '') || '')
     setCargandoNota(false)
   }
   async function guardar() {
-    if (!perfilId || !activo) return
+    if (!usuarioId || !activo) return
     setGuardando(true)
-    try { await guardarNotaPrivada(perfilId, activo.cliente_id, nota.trim()); setActivo(null) }
+    try { await guardarNotaBarbero(usuarioId, activo.cliente_id, nota.trim()); setActivo(null) }
     catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
     finally { setGuardando(false) }
   }

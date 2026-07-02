@@ -433,6 +433,39 @@ export async function getClientesBarbero(perfil_id: string) {
   return Array.from(map.values())
 }
 
+// ── DATOS QUE SIGUEN AL BARBERO (agregados por persona, todos sus locales) ──
+export async function getMisEstadisticas() {
+  const [agg, vis] = await Promise.all([
+    supabase.rpc('turno_mis_estadisticas'),
+    supabase.rpc('turno_mis_visitas', { p_limit: 20 }),
+  ])
+  if (agg.error) throw agg.error
+  if (vis.error) throw vis.error
+  const a = (agg.data && agg.data[0]) || { total_ingresos: 0, clientes_unicos: 0, total_visitas: 0 }
+  return {
+    totalIngresos: Number(a.total_ingresos || 0),
+    clientesUnicos: Number(a.clientes_unicos || 0),
+    totalVisitas: Number(a.total_visitas || 0),
+    visitas: (vis.data || []).map((v: any) => ({ fecha: v.fecha, origen: v.origen, precio_cobrado: v.precio_cobrado, turno_servicios: { nombre: v.servicio } })),
+  }
+}
+
+export async function getMisClientes() {
+  const { data, error } = await supabase.rpc('turno_mis_clientes')
+  if (error) throw error
+  return (data || []).map((c: any) => ({ cliente_id: c.cliente_id, nombre: c.nombre, telefono: c.telefono, visitas: Number(c.visitas), total: Number(c.total), ultima: c.ultima }))
+}
+
+// Notas privadas a nivel persona (siguen al barbero entre locales).
+export async function getNotaBarbero(usuario_barbero_id: string, cliente_id: string) {
+  const { data } = await supabase.from(T('notas_barbero')).select('nota').eq('usuario_barbero_id', usuario_barbero_id).eq('cliente_id', cliente_id).maybeSingle()
+  return data?.nota || ''
+}
+export async function guardarNotaBarbero(usuario_barbero_id: string, cliente_id: string, nota: string) {
+  const { error } = await supabase.from(T('notas_barbero')).upsert({ usuario_barbero_id, cliente_id, nota }, { onConflict: 'usuario_barbero_id,cliente_id' })
+  if (error) throw error
+}
+
 export async function getEstadisticasBarbero(perfil_id: string) {
   const { data, error } = await supabase.from(T('historial_visitas')).select('precio_cobrado, origen, fecha, cliente_id, turno_servicios(nombre)').eq('perfil_id', perfil_id)
   if (error) throw error

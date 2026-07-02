@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getEstadisticasBarbero, getNegocioById } from '../../../lib/db'
+import { getMisEstadisticas, getNegocioById } from '../../../lib/db'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
@@ -18,7 +18,7 @@ export default function Stats() {
     const ss = await getSesion()
     if (!ss?.perfil_id) { setLoading(false); return }
     const [st, neg] = await Promise.all([
-      getEstadisticasBarbero(ss.perfil_id).catch(() => null),
+      getMisEstadisticas().catch(() => null),
       ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
     ])
     setData(st); setMoneda(neg?.moneda ?? '')

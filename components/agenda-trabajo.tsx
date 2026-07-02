@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaPrivada } from '../lib/db'
+import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero } from '../lib/db'
 import { hora12, fechaLarga } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
@@ -73,9 +73,9 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     if (!llamadoClienteId || !sesion?.negocio_id) { setFicha(null); return }
     Promise.all([
       getPreferenciasCliente(llamadoClienteId, sesion.negocio_id).catch(() => null),
-      sesion?.perfil_id ? getNotaPrivada(sesion.perfil_id, llamadoClienteId).catch(() => '') : Promise.resolve(''),
+      sesion?.usuario_id ? getNotaBarbero(sesion.usuario_id, llamadoClienteId).catch(() => '') : Promise.resolve(''),
     ]).then(([p, nota]) => setFicha({ ...(p || {}), nota }))
-  }, [llamadoClienteId, sesion?.negocio_id, sesion?.perfil_id])
+  }, [llamadoClienteId, sesion?.negocio_id, sesion?.usuario_id])
 
   async function llamar() {
     try {
