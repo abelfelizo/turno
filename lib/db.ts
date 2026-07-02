@@ -4,8 +4,9 @@ const T = (tabla: string) => `turno_${tabla}`
 
 // NEGOCIOS
 export async function getNegocioPorCodigo(codigo: string) {
-  const { data, error } = await supabase.from(T('negocios')).select('*').eq('codigo_acceso', codigo.toUpperCase()).single()
+  const { data, error } = await supabase.from(T('negocios')).select('*').eq('codigo_acceso', codigo.toUpperCase()).maybeSingle()
   if (error) throw error
+  if (!data) throw new Error('No encontramos un local con ese código. Revísalo e intenta de nuevo.')
   return data
 }
 
@@ -60,7 +61,7 @@ export async function getEstadisticasNegocio(negocio_id: string) {
 }
 
 export async function getConfiguracion(negocio_id: string) {
-  const { data, error } = await supabase.from(T('configuracion_negocio')).select('*').eq('negocio_id', negocio_id).single()
+  const { data, error } = await supabase.from(T('configuracion_negocio')).select('*').eq('negocio_id', negocio_id).maybeSingle()
   if (error) throw error
   return data
 }
@@ -101,7 +102,7 @@ export async function getMisNegociosCliente(usuario_id: string) {
 }
 
 export async function getUsuario(id: string) {
-  const { data, error } = await supabase.from(T('usuarios')).select('*').eq('id', id).single()
+  const { data, error } = await supabase.from(T('usuarios')).select('*').eq('id', id).maybeSingle()
   if (error) throw error
   return data
 }
@@ -375,7 +376,7 @@ export async function salirDeCola(cola_id: string) {
 
 // PREFERENCIAS
 export async function getPreferenciasCliente(usuario_id: string, negocio_id: string) {
-  const { data } = await supabase.from(T('preferencias_cliente')).select('*').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).single()
+  const { data } = await supabase.from(T('preferencias_cliente')).select('*').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   return data
 }
 
@@ -416,7 +417,7 @@ export async function getEstadisticasBarbero(perfil_id: string) {
 
 // NOTAS PRIVADAS
 export async function getNotaPrivada(perfil_id: string, cliente_id: string) {
-  const { data } = await supabase.from(T('notas_privadas')).select('nota').eq('perfil_id', perfil_id).eq('cliente_id', cliente_id).single()
+  const { data } = await supabase.from(T('notas_privadas')).select('nota').eq('perfil_id', perfil_id).eq('cliente_id', cliente_id).maybeSingle()
   return data?.nota || ''
 }
 
@@ -427,6 +428,6 @@ export async function guardarNotaPrivada(perfil_id: string, cliente_id: string, 
 
 // PUNTOS
 export async function getPuntos(usuario_id: string, negocio_id: string) {
-  const { data } = await supabase.from(T('puntos')).select('puntos_totales, puntos_canjeados').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).single()
+  const { data } = await supabase.from(T('puntos')).select('puntos_totales, puntos_canjeados').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   return data
 }
