@@ -4,6 +4,7 @@ import { getSesion } from '../../../lib/storage'
 import { getColaActiva } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
+import { fechaLarga } from '../../../lib/format'
 import { Display, Avatar } from '../../../components/ui'
 import AgendaTrabajo from '../../../components/agenda-trabajo'
 
@@ -49,7 +50,7 @@ function ColaLocal() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
-      <Text style={s.kicker}>{new Date().toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+      <Text style={s.kicker}>{fechaLarga()}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>Cola del local</Display>
 
       {cola.length === 0 && <Text style={s.empty}>No hay nadie en la cola ahora mismo.</Text>}

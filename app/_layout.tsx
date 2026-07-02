@@ -7,6 +7,7 @@ import {
   PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
 import { COLORS } from '../constants'
+import { ErrorBoundary } from '../components/error-boundary'
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -15,5 +16,5 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
   })
   if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={COLORS.red} size="large" /></View>
-  return (<><StatusBar style="light" /><Stack screenOptions={{ headerShown: false }} /></>)
+  return (<ErrorBoundary><StatusBar style="light" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>)
 }

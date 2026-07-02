@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaPrivada } from '../lib/db'
-import { hora12 } from '../lib/format'
+import { hora12, fechaLarga } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
@@ -112,7 +112,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
-      <Text style={s.kicker}>{new Date().toLocaleDateString('es-DO', { weekday: 'long', day: 'numeric', month: 'long' })}</Text>
+      <Text style={s.kicker}>{fechaLarga()}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
 
       <View style={s.colaBox}>

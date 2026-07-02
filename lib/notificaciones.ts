@@ -46,7 +46,7 @@ export async function registrarPush(): Promise<string | null> {
     return token
   } catch (e) {
     // Esperado en Expo Go / simulador / sin permiso. No es un error fatal.
-    console.log('[push] no disponible:', (e as Error)?.message)
+    if (__DEV__) console.log('[push] no disponible:', (e as Error)?.message)
     return null
   }
 }
@@ -66,6 +66,6 @@ export async function enviarPush(
       body: { usuario_id: usuarioId, titulo, cuerpo, data },
     })
   } catch (e) {
-    console.log('[push] no se pudo enviar:', (e as Error)?.message)
+    if (__DEV__) console.log('[push] no se pudo enviar:', (e as Error)?.message)
   }
 }
