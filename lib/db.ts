@@ -46,6 +46,13 @@ export async function updateConfiguracion(negocio_id: string, patch: Record<stri
   const { error } = await supabase.from(T('configuracion_negocio')).update(patch).eq('negocio_id', negocio_id)
   if (error) throw error
 }
+/** Asientos que cubre el dueño (empleados activos + dueños que atienden). */
+export async function getAsientosNegocio(negocio_id: string): Promise<number> {
+  const { data, error } = await supabase.rpc('turno_asientos_negocio', { p_negocio: negocio_id })
+  if (error) throw error
+  return Number(data ?? 0)
+}
+
 export async function getEstadisticasNegocio(negocio_id: string) {
   const hoy = new Date().toISOString().split('T')[0]
   const { data, error } = await supabase.from(T('historial_visitas')).select('precio_cobrado, cliente_id, fecha').eq('negocio_id', negocio_id)

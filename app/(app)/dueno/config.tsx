@@ -2,10 +2,11 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
-import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
+import { planDueno } from '../../../lib/pricing'
+import { SUSCRIPCION, COLORS, FONTS, DEV_LOGIN } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 
 export default function Config() {
@@ -13,6 +14,7 @@ export default function Config() {
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
+  const [asientos, setAsientos] = useState(0)
   const [loading, setLoading] = useState(true)
   // marca / contacto del local
   const [nombre, setNombre] = useState(''); const [slogan, setSlogan] = useState('')
@@ -24,11 +26,12 @@ export default function Config() {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setNegocioId(ss.negocio_id)
-    const [cfg, neg] = await Promise.all([
+    const [cfg, neg, asi] = await Promise.all([
       getConfiguracion(ss.negocio_id).catch(() => null),
       getNegocioById(ss.negocio_id).catch(() => null),
+      getAsientosNegocio(ss.negocio_id).catch(() => 0),
     ])
-    setConfig(cfg); setNegocio(neg)
+    setConfig(cfg); setNegocio(neg); setAsientos(asi)
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setLoading(false)
@@ -119,6 +122,29 @@ export default function Config() {
         </TouchableOpacity>
       </View>
 
+      <Text style={s.sec}>SUSCRIPCIÓN</Text>
+      {(() => {
+        const plan = planDueno(asientos)
+        return (
+          <View style={s.susCard}>
+            <View style={s.susTop}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.susTitulo}>{plan.titulo}</Text>
+                <Text style={s.susDetalle}>{plan.detalle}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={s.susMonto}>{plan.montoTexto}</Text>
+                {plan.topado ? <Text style={s.susTope}>tope</Text> : null}
+              </View>
+            </View>
+            <View style={s.susFoot}>
+              <Text style={s.susFootT}>Asientos: {asientos} · {SUSCRIPCION.moneda} {SUSCRIPCION.minimo} c/u, tope {SUSCRIPCION.moneda} {SUSCRIPCION.maximo}</Text>
+            </View>
+            <Text style={s.susNota}>El pago dentro de la app se habilitará próximamente.</Text>
+          </View>
+        )
+      })()}
+
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
       <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
       <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
@@ -174,6 +200,15 @@ const s = StyleSheet.create({
   dosCol: { flexDirection: 'row', gap: 10 },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 16 },
   guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  susCard: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 4 },
+  susTop: { flexDirection: 'row', alignItems: 'flex-start' },
+  susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, paddingRight: 10 },
+  susMonto: { fontFamily: FONTS.display, fontSize: 24, color: '#fff' },
+  susTope: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.red, letterSpacing: 1 },
+  susFoot: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 14, paddingTop: 12 },
+  susFootT: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
   toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   toggleL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   toggleD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

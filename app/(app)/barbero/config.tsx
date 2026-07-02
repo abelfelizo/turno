@@ -2,10 +2,11 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario } from '../../../lib/db'
+import { getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
+import { planIndependiente, planCubierto } from '../../../lib/pricing'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 
@@ -34,16 +35,19 @@ export default function Config() {
   const [ig, setIg] = useState(''); const [wa, setWa] = useState('')
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [subiendoFoto, setSubiendoFoto] = useState(false)
+  const [rolMembresia, setRolMembresia] = useState<string | null>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [p, sv, hr] = await Promise.all([
+    const [p, sv, hr, mems] = await Promise.all([
       getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
+      getMisMembresias(ss.usuario_id).catch(() => []),
     ])
     setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
+    setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     setEsp(p?.especialidad ?? ''); setBio(p?.bio ?? ''); setMsg(p?.mensaje_bienvenida ?? '')
     setIg(p?.instagram ?? ''); setWa(p?.whatsapp ?? '')
     setLoading(false)
@@ -208,6 +212,20 @@ export default function Config() {
         )
       })}
 
+      <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
+      {(() => {
+        const plan = rolMembresia === 'barbero_renta' ? planIndependiente() : planCubierto()
+        return (
+          <View style={s.susCard}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.susTitulo}>{plan.titulo}</Text>
+              <Text style={s.susDetalle}>{plan.detalle}</Text>
+            </View>
+            <Text style={s.susMonto}>{plan.montoTexto}</Text>
+          </View>
+        )
+      })()}
+
       <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
       <View style={s.regla}>
         <View style={{ flex: 1, paddingRight: 12 }}>
@@ -292,6 +310,10 @@ const s = StyleSheet.create({
   domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 14 },
   guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 14, padding: 16, marginBottom: 8 },
+  susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
+  susMonto: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
   regla: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   reglaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   reglaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

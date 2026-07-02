@@ -100,3 +100,18 @@ export const TIEMPOS_DEFAULT = {
   gracia_cita_min: 5,
   aviso_turno_min: 20,
 } as const
+
+// ── Suscripción (modelo "por asiento con tope") ───────────────────
+// El cliente es gratis. El barbero independiente paga el mínimo.
+// El dueño paga mínimo × asientos (empleados + él mismo si atiende),
+// topado en el máximo. Un dueño-barbero solo paga el mínimo.
+// ⚠️ MONTOS PLACEHOLDER: ajústalos a tu mercado. En IAP, el precio real
+// lo define el producto de App Store / Google Play; estos valores son
+// para mostrar el plan y calcular asientos en la app.
+export const SUSCRIPCION = {
+  minimo: 500,        // precio por asiento / por barbero independiente
+  maximo: 2000,       // tope mensual del dueño
+  moneda: 'RD$',
+  periodo: 'mes',
+  dias_prueba: 30,
+} as const
