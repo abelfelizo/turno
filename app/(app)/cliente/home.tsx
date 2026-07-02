@@ -175,13 +175,13 @@ export default function Home() {
                 return (
                   <View key={p.id} style={s.barbero}>
                     <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
-                      <Avatar name={p.turno_usuarios?.nombre} uri={p.foto_url} size={44} />
+                      <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} />
                       <View style={{ flex: 1 }}>
                         <View style={s.nombreRow}>
                           <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
                           <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
                         </View>
-                        {p.especialidad ? <Text style={s.barberoEsp}>{p.especialidad}</Text> : null}
+                        {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
                         <View style={s.estadoRow}>
                           <Dot color={disp ? COLORS.success : COLORS.textLight} />
                           <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'Ocupado'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>

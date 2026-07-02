@@ -158,9 +158,28 @@ export async function unirseCliente(p: { codigo: string; nombre: string; telefon
 
 // PERFILES
 export async function getPerfilesNegocio(negocio_id: string) {
-  const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
+  const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
   if (error) throw error
   return data || []
+}
+
+// ── IDENTIDAD DEL BARBERO (nivel persona; sigue al barbero entre locales) ──
+/** Actualiza la identidad propia. Texto '' limpia, undefined/null conserva. */
+export async function actualizarIdentidadBarbero(patch: {
+  foto_url?: string; bio?: string; especialidad?: string; instagram?: string; whatsapp?: string
+}) {
+  const { error } = await supabase.rpc('turno_actualizar_identidad_barbero', {
+    p_foto: patch.foto_url ?? null, p_bio: patch.bio ?? null, p_especialidad: patch.especialidad ?? null,
+    p_instagram: patch.instagram ?? null, p_whatsapp: patch.whatsapp ?? null,
+  })
+  if (error) throw error
+}
+
+/** Busca un barbero por su código (campos públicos). */
+export async function getBarberoPorCodigo(codigo: string) {
+  const { data, error } = await supabase.rpc('turno_barbero_por_codigo', { p_codigo: codigo.toUpperCase() })
+  if (error) throw error
+  return (data && data[0]) || null
 }
 
 export async function getMiPerfil(usuario_id: string, negocio_id: string) {

@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias } from '../../../lib/db'
+import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
@@ -21,6 +21,7 @@ export default function Config() {
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
   const [perfil, setPerfil] = useState<any>(null)
+  const [usuario, setUsuario] = useState<any>(null)
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,16 +41,19 @@ export default function Config() {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [p, sv, hr, mems] = await Promise.all([
+    const [u, p, sv, hr, mems] = await Promise.all([
+      getMiUsuario().catch(() => null),
       getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
       getMisMembresias(ss.usuario_id).catch(() => []),
     ])
-    setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
+    setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
-    setEsp(p?.especialidad ?? ''); setBio(p?.bio ?? ''); setMsg(p?.mensaje_bienvenida ?? '')
-    setIg(p?.instagram ?? ''); setWa(p?.whatsapp ?? '')
+    // Identidad (persona, sigue al barbero): foto/bio/especialidad/contactos.
+    setEsp(u?.especialidad ?? ''); setBio(u?.bio ?? ''); setIg(u?.instagram ?? ''); setWa(u?.whatsapp ?? '')
+    // Mensaje de bienvenida: por local (se queda en el perfil).
+    setMsg(p?.mensaje_bienvenida ?? '')
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -59,7 +63,7 @@ export default function Config() {
     setSubiendoFoto(true)
     try {
       const url = await elegirYSubirImagen('barberos', sesion.perfil_id)
-      if (url) { await actualizarPerfil(sesion.perfil_id, { foto_url: url }); setPerfil((p: any) => ({ ...p, foto_url: url })) }
+      if (url) { await actualizarIdentidadBarbero({ foto_url: url }); setUsuario((u: any) => ({ ...u, foto_url: url })) }
     } catch (e: any) { Alert.alert('No se pudo subir la foto', e.message ?? 'Intenta de nuevo.') }
     finally { setSubiendoFoto(false) }
   }
@@ -67,11 +71,13 @@ export default function Config() {
     if (!sesion?.perfil_id) return
     setGuardandoPerfil(true)
     try {
-      await actualizarPerfil(sesion.perfil_id, {
-        especialidad: esp.trim(), bio: bio.trim(), mensaje_bienvenida: msg.trim(),
+      // Identidad → persona (sigue al barbero). Mensaje de bienvenida → local.
+      await actualizarIdentidadBarbero({
+        especialidad: esp.trim(), bio: bio.trim(),
         instagram: ig.trim().replace(/^@/, ''), whatsapp: wa.trim(),
       })
-      Alert.alert('Perfil actualizado', 'Tus clientes verán estos cambios.')
+      await actualizarPerfil(sesion.perfil_id, { mensaje_bienvenida: msg.trim() })
+      Alert.alert('Perfil actualizado', 'Tus clientes verán estos cambios en cualquier local.')
     } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
     finally { setGuardandoPerfil(false) }
   }
@@ -135,13 +141,19 @@ export default function Config() {
       <View style={s.perfilCard}>
         <View style={s.perfilTop}>
           <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
-            <Avatar name={perfil?.turno_usuarios?.nombre} uri={perfil?.foto_url} size={72} bg={COLORS.blue} />
+            <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} bg={COLORS.blue} />
             <View style={s.fotoBadge}>
               {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.perfilHint}>Toca la foto para cambiarla.</Text>
+            {usuario?.codigo_barbero ? (
+              <View style={s.codigoBox}>
+                <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
+                <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
+                <Text style={s.codigoHint}>Compártelo: tus clientes te siguen a donde trabajes.</Text>
+              </View>
+            ) : null}
             <Text style={s.flabel}>Especialidad</Text>
             <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
           </View>
@@ -301,6 +313,10 @@ const s = StyleSheet.create({
   perfilCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginBottom: 18 },
   perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   perfilHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
+  codigoBox: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 12, marginBottom: 10 },
+  codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
+  codigoVal: { fontFamily: FONTS.display, fontSize: 22, color: '#fff', letterSpacing: 3, marginTop: 2 },
+  codigoHint: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
   fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
   fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
   multiline: { minHeight: 64, textAlignVertical: 'top' },

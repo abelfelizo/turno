@@ -88,9 +88,9 @@ export default function Agendar() {
             const on = perfil?.id === p.id
             return (
               <TouchableOpacity key={p.id} style={[s.bChip, on && s.bChipOn]} onPress={() => { setPerfil(p); setServicio(null); setFecha(''); setHora('') }}>
-                <Avatar name={p.turno_usuarios?.nombre} uri={p.foto_url} size={48} bg={on ? '#fff' : COLORS.blue} color={on ? COLORS.red : '#fff'} />
+                <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={48} bg={on ? '#fff' : COLORS.blue} color={on ? COLORS.red : '#fff'} />
                 <Text style={[s.bChipT, on && { color: '#fff' }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
-                {p.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.especialidad}</Text> : null}
+                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
               </TouchableOpacity>
             )
           })}
