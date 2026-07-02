@@ -3,9 +3,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, getNegocioById } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12 } from '../../../lib/format'
+import { hora12, dinero } from '../../../lib/format'
 import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -32,7 +32,13 @@ export default function Agendar() {
   useEffect(() => {
     (async () => {
       const ss = await getSesion()
-      if (ss?.negocio_id) { const ps = await getPerfilesNegocio(ss.negocio_id) as any[]; setPerfiles(ps) }
+      if (ss?.negocio_id) {
+        const [ps, neg] = await Promise.all([
+          getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
+          getNegocioById(ss.negocio_id).catch(() => null),
+        ])
+        setPerfiles(ps); setNegocio(neg)
+      }
       setLoading(false)
     })()
   }, [])
@@ -72,7 +78,7 @@ export default function Agendar() {
               <Text style={s.miniName}>{servicio.nombre}</Text>
               <Text style={s.miniMeta}>con {perfil?.turno_usuarios?.nombre ?? '—'} · {servicio.duracion_min} min</Text>
             </View>
-            <Text style={s.miniPrice}>{servicio.precio}</Text>
+            <Text style={s.miniPrice}>{dinero(servicio.precio, negocio?.moneda)}</Text>
           </View>
         )}
 
@@ -102,7 +108,7 @@ export default function Agendar() {
               return (
                 <TouchableOpacity key={sv.id} style={[s.serv, on && s.servOn]} onPress={() => { setServicio(sv); setFecha(''); setHora('') }}>
                   <View><Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                  <Text style={s.servPrice}>{sv.precio}</Text>
+                  <Text style={s.servPrice}>{dinero(sv.precio, negocio?.moneda)}</Text>
                 </TouchableOpacity>
               )
             })}

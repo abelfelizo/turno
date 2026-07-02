@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import { supabase } from './supabase'
+import { reportError } from './reporting'
 
 // Cómo se muestran las notificaciones con la app en primer plano.
 Notifications.setNotificationHandler({
@@ -45,7 +46,8 @@ export async function registrarPush(): Promise<string | null> {
     await supabase.rpc('turno_guardar_push_token', { p_token: token, p_plataforma: Platform.OS })
     return token
   } catch (e) {
-    // Esperado en Expo Go / simulador / sin permiso. No es un error fatal.
+    // Esperado en Expo Go / simulador / sin permiso. No es un error fatal:
+    // no se reporta, solo se loguea en desarrollo.
     if (__DEV__) console.log('[push] no disponible:', (e as Error)?.message)
     return null
   }
@@ -66,6 +68,6 @@ export async function enviarPush(
       body: { usuario_id: usuarioId, titulo, cuerpo, data },
     })
   } catch (e) {
-    if (__DEV__) console.log('[push] no se pudo enviar:', (e as Error)?.message)
+    reportError(e, { where: 'enviarPush', usuarioId })
   }
 }

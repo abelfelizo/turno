@@ -1,21 +1,27 @@
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getEstadisticasNegocio, getPerfilesNegocio } from '../../../lib/db'
+import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById } from '../../../lib/db'
+import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 
 export default function Stats() {
   const [stats, setStats] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
+  const [moneda, setMoneda] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
-    const [st, ps] = await Promise.all([getEstadisticasNegocio(ss.negocio_id).catch(() => null), getPerfilesNegocio(ss.negocio_id).catch(() => [])])
-    setStats(st); setPerfiles(ps as any[]); setLoading(false); setRefreshing(false)
+    const [st, ps, neg] = await Promise.all([
+      getEstadisticasNegocio(ss.negocio_id).catch(() => null),
+      getPerfilesNegocio(ss.negocio_id).catch(() => []),
+      getNegocioById(ss.negocio_id).catch(() => null),
+    ])
+    setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? ''); setLoading(false); setRefreshing(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -28,8 +34,8 @@ export default function Stats() {
 
       <View style={s.bigCard}>
         <Text style={s.bigLbl}>INGRESOS TOTALES</Text>
-        <Text style={s.bigNum}>{stats?.ingresosTotal ?? 0}</Text>
-        <Text style={s.bigSub}>{stats?.ingresosHoy ?? 0} hoy</Text>
+        <Text style={s.bigNum}>{dinero(stats?.ingresosTotal ?? 0, moneda)}</Text>
+        <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy</Text>
       </View>
 
       <View style={s.grid}>

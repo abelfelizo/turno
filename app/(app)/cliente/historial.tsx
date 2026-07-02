@@ -1,13 +1,15 @@
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getHistorialCliente, getMisResenas, crearResena } from '../../../lib/db'
+import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
+import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
 
 export default function Historial() {
   const [visitas, setVisitas] = useState<any[]>([])
   const [resenadas, setResenadas] = useState<string[]>([])
+  const [moneda, setMoneda] = useState('')
   const [loading, setLoading] = useState(true)
   const [activa, setActiva] = useState<any>(null)
   const [rating, setRating] = useState(0)
@@ -17,11 +19,12 @@ export default function Historial() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [h, r] = await Promise.all([
+    const [h, r, neg] = await Promise.all([
       getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMisResenas(ss.usuario_id).catch(() => []),
+      getNegocioById(ss.negocio_id).catch(() => null),
     ])
-    setVisitas(h as any[]); setResenadas(r as string[]); setLoading(false)
+    setVisitas(h as any[]); setResenadas(r as string[]); setMoneda(neg?.moneda ?? ''); setLoading(false)
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
@@ -54,7 +57,7 @@ export default function Historial() {
                 {ya ? <Text style={s.calificado}>✓ Calificado</Text>
                     : <TouchableOpacity onPress={() => { setActiva(item); setRating(0); setComentario('') }}><Text style={s.calificar}>★ Calificar</Text></TouchableOpacity>}
               </View>
-              <Text style={s.precio}>{item.precio_cobrado}</Text>
+              <Text style={s.precio}>{dinero(item.precio_cobrado, moneda)}</Text>
             </View>
           )
         }}

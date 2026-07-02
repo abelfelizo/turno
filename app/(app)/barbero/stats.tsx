@@ -1,7 +1,8 @@
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getEstadisticasBarbero } from '../../../lib/db'
+import { getEstadisticasBarbero, getNegocioById } from '../../../lib/db'
+import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
 
@@ -9,13 +10,18 @@ const ORIGEN: Record<string, string> = { cita: 'Cita', cola_digital: 'Fila digit
 
 export default function Stats() {
   const [data, setData] = useState<any>(null)
+  const [moneda, setMoneda] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.perfil_id) { setLoading(false); return }
-    setData(await getEstadisticasBarbero(ss.perfil_id).catch(() => null))
+    const [st, neg] = await Promise.all([
+      getEstadisticasBarbero(ss.perfil_id).catch(() => null),
+      ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
+    ])
+    setData(st); setMoneda(neg?.moneda ?? '')
     setLoading(false); setRefreshing(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -32,7 +38,7 @@ export default function Stats() {
 
       <View style={s.bigCard}>
         <Text style={s.bigLbl}>INGRESOS TOTALES</Text>
-        <Text style={s.bigNum}>{data?.totalIngresos ?? 0}</Text>
+        <Text style={s.bigNum}>{dinero(data?.totalIngresos ?? 0, moneda)}</Text>
       </View>
 
       <View style={s.grid}>
@@ -49,7 +55,7 @@ export default function Stats() {
             <Text style={s.rowName}>{v.turno_servicios?.nombre ?? 'Servicio'}</Text>
             <Text style={s.rowMeta}>{v.fecha} · {ORIGEN[v.origen] ?? v.origen}</Text>
           </View>
-          <Text style={s.rowPrecio}>{v.precio_cobrado}</Text>
+          <Text style={s.rowPrecio}>{dinero(v.precio_cobrado, moneda)}</Text>
         </View>
       ))}
     </ScrollView>

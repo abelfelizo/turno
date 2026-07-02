@@ -2,8 +2,9 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { getSesion, limpiarSesion, guardarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil } from '../../../lib/db'
+import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
+import { dinero } from '../../../lib/format'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
 import { Avatar, KV } from '../../../components/ui'
 
@@ -21,6 +22,7 @@ export default function Perfil() {
   const [puntos, setPuntos] = useState<any>(null)
   const [config, setConfig] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
+  const [negocio, setNegocio] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   const cargar = useCallback(async () => {
@@ -28,13 +30,14 @@ export default function Perfil() {
     const u = await getMiUsuario().catch(() => null)
     setUsuario(u)
     if (u && ss?.negocio_id) {
-      const [pr, pt, cfg, hist] = await Promise.all([
+      const [pr, pt, cfg, hist, neg] = await Promise.all([
         getPreferenciasCliente(u.id, ss.negocio_id).catch(() => null),
         getPuntos(u.id, ss.negocio_id).catch(() => null),
         getConfiguracion(ss.negocio_id).catch(() => null),
         getHistorialCliente(u.id, ss.negocio_id).catch(() => []),
+        getNegocioById(ss.negocio_id).catch(() => null),
       ])
-      setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[])
+      setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
     }
     setLoading(false)
   }, [])
@@ -63,7 +66,6 @@ export default function Perfil() {
   const totalGastado = historial.reduce((sum, h) => sum + Number(h.precio_cobrado || 0), 0)
   const barberoFav = masFrecuente(historial, h => h.turno_perfiles?.turno_usuarios?.nombre)
   const servicioFav = masFrecuente(historial, h => h.turno_servicios?.nombre)
-  const moneda = historial[0]?.turno_servicios ? '' : ''
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60 }} showsVerticalScrollIndicator={false}>
@@ -92,7 +94,7 @@ export default function Perfil() {
       <Text style={s.sec}>TUS NÚMEROS</Text>
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNum}>{historial.length}</Text><Text style={s.mLbl}>Visitas</Text></View>
-        <View style={s.metric}><Text style={s.mNum}>{moneda}{totalGastado}</Text><Text style={s.mLbl}>Gastado</Text></View>
+        <View style={s.metric}><Text style={s.mNum}>{dinero(totalGastado, negocio?.moneda)}</Text><Text style={s.mLbl}>Gastado</Text></View>
       </View>
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNumSm} numberOfLines={1}>{barberoFav ?? '—'}</Text><Text style={s.mLbl}>Barbero favorito</Text></View>

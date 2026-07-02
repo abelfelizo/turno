@@ -10,7 +10,7 @@ import {
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12 } from '../../../lib/format'
+import { hora12, dinero } from '../../../lib/format'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
 
 const TIPO_LABEL: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
@@ -168,7 +168,7 @@ export default function Home() {
                 .map((sv: any) => (
                   <TouchableOpacity key={sv.id} style={s.servSolo} disabled={enviando} onPress={() => pedir(undefined, sv.id)}>
                     <Text style={s.servNombre}>{sv.nombre}</Text>
-                    <Text style={s.precio}>{negocio?.moneda} {sv.precio}</Text>
+                    <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
                   </TouchableOpacity>))
             : perfiles.map((p: any) => {
                 const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
@@ -192,7 +192,7 @@ export default function Home() {
                     {abierto && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
                       <TouchableOpacity key={sv.id} style={s.servicio} disabled={enviando} onPress={() => pedir(p.id, sv.id)}>
                         <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                        <Text style={s.precio}>{negocio?.moneda} {sv.precio}</Text>
+                        <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
                       </TouchableOpacity>))}
                   </View>)
               })}
@@ -213,7 +213,7 @@ export default function Home() {
           {historial.slice(0, 4).map((h: any) => (
             <View key={h.id} style={s.histItem}>
               <View style={{ flex: 1 }}><Text style={s.histServ}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text><Text style={s.histMeta}>{h.fecha} · {h.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text></View>
-              <Text style={s.histPrecio}>{negocio?.moneda} {h.precio_cobrado}</Text>
+              <Text style={s.histPrecio}>{dinero(h.precio_cobrado, negocio?.moneda)}</Text>
             </View>
           ))}
         </>

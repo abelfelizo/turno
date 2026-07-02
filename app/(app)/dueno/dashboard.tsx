@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
+import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 
@@ -73,7 +74,7 @@ export default function Dashboard() {
       {/* Stats rápidas */}
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNum}>{stats?.atendidosHoy ?? 0}</Text><Text style={s.mLbl}>Atendidos hoy</Text></View>
-        <View style={s.metric}><Text style={s.mNum}>{stats?.ingresosHoy ?? 0}</Text><Text style={s.mLbl}>Ingresos hoy</Text></View>
+        <View style={s.metric}><Text style={s.mNum}>{dinero(stats?.ingresosHoy ?? 0, negocio?.moneda)}</Text><Text style={s.mLbl}>Ingresos hoy</Text></View>
       </View>
 
       {/* Cola del local */}

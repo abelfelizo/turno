@@ -1,6 +1,7 @@
 import { Component, ReactNode } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { COLORS, FONTS } from '../constants'
+import { reportError } from '../lib/reporting'
 
 type Props = { children: ReactNode }
 type State = { error: Error | null }
@@ -17,8 +18,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    // Punto único para enganchar reporting (Sentry, etc.) en el futuro.
-    console.error('ErrorBoundary capturó:', error)
+    reportError(error, { boundary: 'root' })
   }
 
   reset = () => this.setState({ error: null })
