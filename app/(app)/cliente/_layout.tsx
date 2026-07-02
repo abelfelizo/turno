@@ -18,6 +18,7 @@ export default function ClienteLayout() {
       <Tabs.Screen name="perfil" options={{ tabBarLabel: 'Perfil', tabBarIcon: ic('person-outline') }} />
       <Tabs.Screen name="agendar" options={{ href: null }} />
       <Tabs.Screen name="preferencias" options={{ href: null }} />
+      <Tabs.Screen name="buscar-barbero" options={{ href: null }} />
     </Tabs>
   )
 }

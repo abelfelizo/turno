@@ -182,6 +182,19 @@ export async function getBarberoPorCodigo(codigo: string) {
   return (data && data[0]) || null
 }
 
+/** Locales donde trabaja un barbero (para que el cliente lo reserve). */
+export async function getBarberoNegocios(usuario_id: string) {
+  const { data, error } = await supabase.rpc('turno_barbero_negocios', { p_usuario: usuario_id })
+  if (error) throw error
+  return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
+}
+
+/** El cliente se suma a un local para poder reservar allí. */
+export async function seguirBarberoEnNegocio(negocio_id: string) {
+  const { error } = await supabase.rpc('turno_agregar_negocio_cliente', { p_negocio: negocio_id })
+  if (error) throw error
+}
+
 export async function getMiPerfil(usuario_id: string, negocio_id: string) {
   const { data, error } = await supabase.from(T('perfiles')).select('*').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   if (error) throw error
