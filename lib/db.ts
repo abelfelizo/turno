@@ -416,6 +416,37 @@ export async function getMiTurnoActivo(cliente_id: string, negocio_id: string) {
   return data
 }
 
+/** Todos los turnos activos del cliente (uno por tipo de servicio, R1). */
+export async function getMisTurnosActivos(cliente_id: string, negocio_id: string) {
+  const { data, error } = await supabase.from(T('cola'))
+    .select('*, turno_servicios(nombre, duracion_min, precio), turno_perfiles(turno_usuarios(nombre))')
+    .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id)
+    .in('estado', ['en_fila', 'llamado', 'en_camino'])
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+
+/** Último turno del cliente si terminó en expirado (R9), para avisarle. */
+export async function getTurnoExpirado(cliente_id: string, negocio_id: string) {
+  const { data, error } = await supabase.from(T('cola'))
+    .select('id, estado, expira_at, turno_servicios(nombre), turno_perfiles(turno_usuarios(nombre))')
+    .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id).eq('estado', 'expirado')
+    .order('expira_at', { ascending: false }).limit(1).maybeSingle()
+  if (error) throw error
+  // Solo relevante si expiró hace poco (última hora)
+  if (data?.expira_at && Date.now() - new Date(data.expira_at).getTime() < 3600_000) return data
+  return null
+}
+
+/** Resumen de la fila antes de entrar (R3): personas delante y espera estimada. */
+export async function getResumenFila(negocio_id: string, perfil_id?: string): Promise<{ delante: number; espera_min: number }> {
+  const { data, error } = await supabase.rpc('turno_resumen_fila', { p_negocio: negocio_id, p_perfil: perfil_id ?? null })
+  if (error) throw error
+  const r = (data && data[0]) || { delante: 0, espera_min: 0 }
+  return { delante: Number(r.delante ?? 0), espera_min: Number(r.espera_min ?? 0) }
+}
+
 /** Cliente abandona la cola (caso 17). */
 export async function salirDeCola(cola_id: string) {
   await actualizarEstadoCola(cola_id, 'abandonado')

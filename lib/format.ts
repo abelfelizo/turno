@@ -18,6 +18,14 @@ export function dinero(monto?: number | string | null, moneda = ''): string {
   return `${moneda ? moneda + ' ' : ''}${num.toLocaleString()}`.trim()
 }
 
+/** Fecha "YYYY-MM-DD" en hora LOCAL (no UTC). Evita que de noche "hoy" salte a mañana. */
+export function fechaISOLocal(d: Date = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
 /** Formatea una hora "HH:MM" o "HH:MM:SS" a 12 horas con AM/PM. */
 export function hora12(t?: string | null): string {
   if (!t) return ''

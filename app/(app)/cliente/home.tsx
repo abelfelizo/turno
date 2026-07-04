@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
-  getNegocioById, getPerfilesNegocio, getMiTurnoActivo, entrarACola, getMisCitas,
+  getNegocioById, getPerfilesNegocio, getMiTurnoActivo, getMisCitas,
   getRatingsNegocio, confirmarCita, cancelarCita, getMisNegociosCliente, getConfiguracion,
   getPuntos, getHistorialCliente,
 } from '../../../lib/db'
@@ -12,6 +12,7 @@ import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero } from '../../../lib/format'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
+import HojaFila from '../../../components/hoja-fila'
 
 const TIPO_LABEL: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
 
@@ -39,7 +40,7 @@ export default function Home() {
   const [expandido, setExpandido] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [enviando, setEnviando] = useState(false)
+  const [hoja, setHoja] = useState<any>(null)   // selección para la hoja de confirmación de fila
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -70,12 +71,10 @@ export default function Home() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, negocio_id }); setExpandido(null); setLoading(true); cargar()
   }
-  async function pedir(perfil_id: string | undefined, servicio_id: string) {
-    if (!sesion?.negocio_id) return
-    setEnviando(true)
-    try { await entrarACola({ negocio_id: sesion.negocio_id, servicio_id, tipo_cola: 'digital', perfil_id }); await cargar(); router.push('/(app)/cliente/turno') }
-    catch (e: any) { Alert.alert('No se pudo pedir turno', e.message ?? 'Intenta de nuevo.') }
-    finally { setEnviando(false) }
+  // Abre la hoja de confirmación (R3) en vez de entrar a la fila de un toque.
+  function pedir(perfil: any | undefined, servicio: any) {
+    if (!sesion?.negocio_id || !negocio) return
+    setHoja({ negocio, perfil, servicio })
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -159,46 +158,43 @@ export default function Home() {
         <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
       </TouchableOpacity>
 
-      {!turno && (
-        <>
-          <Text style={s.sec}>FILA DIGITAL · ENTRA AHORA</Text>
-          {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
-          {porDueno
-            ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
-                .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
-                .map((sv: any) => (
-                  <TouchableOpacity key={sv.id} style={s.servSolo} disabled={enviando} onPress={() => pedir(undefined, sv.id)}>
-                    <Text style={s.servNombre}>{sv.nombre}</Text>
+      <Text style={s.sec}>FILA DIGITAL · ENTRA AHORA</Text>
+      {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
+      {porDueno
+        ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
+            .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
+            .map((sv: any) => (
+              <TouchableOpacity key={sv.id} style={s.servSolo} onPress={() => pedir(undefined, sv)}>
+                <Text style={s.servNombre}>{sv.nombre}</Text>
+                <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
+              </TouchableOpacity>))
+        : perfiles.map((p: any) => {
+            const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
+            return (
+              <View key={p.id} style={s.barbero}>
+                <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
+                  <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} />
+                  <View style={{ flex: 1 }}>
+                    <View style={s.nombreRow}>
+                      <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                      <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
+                    </View>
+                    {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
+                    <View style={s.estadoRow}>
+                      <Dot color={disp ? COLORS.success : COLORS.textLight} />
+                      <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'En descanso'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
+                    </View>
+                  </View>
+                  <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
+                </TouchableOpacity>
+                {abierto && !disp && <Text style={s.noDisp}>No recibe turnos ahora mismo. Puedes agendar una cita.</Text>}
+                {abierto && disp && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
+                  <TouchableOpacity key={sv.id} style={s.servicio} onPress={() => pedir(p, sv)}>
+                    <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
                     <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
-                  </TouchableOpacity>))
-            : perfiles.map((p: any) => {
-                const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
-                return (
-                  <View key={p.id} style={s.barbero}>
-                    <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
-                      <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} />
-                      <View style={{ flex: 1 }}>
-                        <View style={s.nombreRow}>
-                          <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-                          <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
-                        </View>
-                        {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
-                        <View style={s.estadoRow}>
-                          <Dot color={disp ? COLORS.success : COLORS.textLight} />
-                          <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'Ocupado'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
-                        </View>
-                      </View>
-                      <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
-                    </TouchableOpacity>
-                    {abierto && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
-                      <TouchableOpacity key={sv.id} style={s.servicio} disabled={enviando} onPress={() => pedir(p.id, sv.id)}>
-                        <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                        <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
-                      </TouchableOpacity>))}
-                  </View>)
-              })}
-        </>
-      )}
+                  </TouchableOpacity>))}
+              </View>)
+          })}
 
       {config?.puntos_activos && (
         <TouchableOpacity style={s.pts} onPress={() => router.push('/(app)/cliente/perfil')}>
@@ -219,6 +215,13 @@ export default function Home() {
           ))}
         </>
       )}
+
+      <HojaFila
+        seleccion={hoja}
+        visible={!!hoja}
+        onClose={() => setHoja(null)}
+        onEntrado={() => { setHoja(null); cargar(); router.push('/(app)/cliente/turno') }}
+      />
     </ScrollView>
   )
 }
@@ -232,6 +235,7 @@ const s = StyleSheet.create({
   marcaMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   marcaMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight },
   barberoEsp: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 2 },
+  noDisp: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, paddingHorizontal: 4, paddingTop: 10 },
   tab: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   tabOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   tabT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid, maxWidth: 160 },
