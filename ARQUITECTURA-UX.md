@@ -82,29 +82,53 @@ Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
 - **Stats** — selector de período (**Hoy / 7 días / 30 días / Todo**): ingresos (+comparación vs. período anterior), visitas, clientes nuevos vs. recurrentes, ticket promedio, desglose por servicio y por origen (cita/fila/walk-in), horas pico, **su rating y últimas reseñas**, no-shows recibidos.
 - **Perfil** — identidad pública (foto, bio, especialidad, contactos, código), **Mis reglas** (R10: límite fila, buffer, anticipación, re-visita, puntos propios si es renta R6, domicilio), estado (disponible/descanso), suscripción, cuenta.
 
-### DUEÑO — 5 tabs
+### BARBERÍA (rol interno `dueno`) — 4 tabs + conmutador de modo
 ```
-[Dashboard]   [Equipo]   [Mi agenda*]   [Stats]   [Config]
+Header: [Barbería | Mi silla]  ← conmutador, solo si el dueño atiende
+[Dashboard]   [Equipo]   [Stats]   [Config]
 ```
-(*solo si atiende; si no, 4 tabs)
+"Mi silla" cambia al **panel Barbero completo** (5 tabs de barbero). Así el
+dueño-barbero tiene todas las opciones de ambos roles, no un recorte.
 - **Dashboard** — código del local compartible; hoy en números; **cola del local como lista viva con nombres** (quién, con quién, servicio, espera) y, si `asignacion_por_dueno`, botón **Asignar a…** por entrada; alertas (solicitudes pendientes, barberos en descanso).
-- **Equipo** (nueva, se separa del dashboard) — solicitudes de ingreso (aprobar/rechazar), lista de barberos (estado, ocupación de hoy, rating, tipo empleado/renta), contacto WhatsApp.
-- **Mi agenda** — la agenda de trabajo compartida (igual que barbero).
+- **Equipo** (nueva, se separa del dashboard) — botón **"Agregar barbero"** (invitación con código por WhatsApp, pre-etiquetada empleado/renta); solicitudes de ingreso (aprobar/rechazar); lista de barberos (tipo empleado/renta, estado, ocupación de hoy, rating, WhatsApp, **desvincular**).
 - **Stats** — mismos períodos que barbero + ranking por barbero, ocupación de sillas, ingresos del local.
 - **Config** — marca y contacto, funciones del local (puntos, asignación, doble servicio), tiempos, suscripción (asientos/monto), cuenta.
 
-### El panel del dueño, escenario por escenario
+### Terminología: el panel se llama "Barbería"
+
+En toda la UI, donde hoy dice "Dueño" debe decir **"Barbería"** (el panel
+representa al negocio, no un título personal): "Panel de la barbería", botón
+dev "Barbería", etc. El rol interno en BD sigue siendo `dueno` (no se migra).
+
+### El panel Barbería, escenario por escenario
 
 La app resuelve el panel según dos datos: la membresía `dueno` y si tiene perfil
-propio (`perfil_id` ⇒ atiende). Qué ve cada tipo de dueño:
+propio (`perfil_id` ⇒ atiende).
 
-| | Dueño-barbero (atiende) | Dueño solo empleados | Dueño solo rentas | Mixto |
+**Regla del dueño-barbero: tiene TODO lo de ambos roles.** No basta con
+incrustarle "Mi agenda": debe tener el panel Barbería completo **y** el panel
+Barbero completo (agenda, calendario, clientes con seguimiento, stats de su
+silla, su perfil público con código). Solución de navegación: **conmutador de
+modo** en el header — `[Barbería | Mi silla]` — que alterna entre los dos
+juegos de pestañas sin cerrar sesión. Quien no atiende, no ve el conmutador.
+
+| | Dueño-barbero (atiende) | Solo empleados | Solo rentas | Mixto |
 |---|---|---|---|---|
-| **Dashboard** | Local: código, hoy, cola con nombres, alertas | Igual | Igual | Igual |
-| **Equipo** | Su equipo | Empleados | Rentas (etiquetados: pagan su plan) | Ambos, etiquetados |
-| **Mi agenda** | ✅ Su agenda de trabajo personal (su cola, sus citas, walk-in, bloqueos — lo mismo que ve un barbero) | ❌ No aparece | ❌ No aparece | Según atienda |
-| **Stats** | **Dos vistas: "Mi silla" (sus ingresos personales) + "El local"** | El local (ingresos = suyos) | El local **separando**: volumen de rentas (informativo, NO es su ingreso) | Ingresos de empleados (suyos) + volumen de rentas (informativo) |
+| **Modo Barbería** | Completo (5 tabs) | Completo | Completo | Completo |
+| **Modo Mi silla** | ✅ Panel barbero COMPLETO (Agenda, Calendario, Clientes, Stats de silla, Perfil con su código) | ❌ Sin conmutador | ❌ Sin conmutador | Según atienda |
+| **Stats (modo Barbería)** | El local | El local (ingresos = suyos) | El local **separando**: volumen de rentas (informativo, NO es su ingreso) | Ingresos de empleados (suyos) + volumen de rentas (informativo) |
 | **Config → Suscripción** | mínimo × (1 + empleados), tope | mínimo × empleados, tope | **mínimo** (cuota de gestión) | mínimo × (él + empleados), tope; rentas aparte |
+
+### Agregar barbero / agregar barbería (altas activas, no solo pasivas)
+
+Hoy el alta es 100% pasiva: el barbero debe conseguir el código y la barbería
+solo espera la solicitud. Deben existir las dos direcciones:
+- **Barbería → Equipo → "Agregar barbero":** comparte el código/link de
+  invitación por WhatsApp ("Únete a mi barbería en Turno con el código X"),
+  indicando si será empleado o renta. La solicitud entrante llega pre-etiquetada.
+- **Barbero → Perfil → Mis locales → "Agregar barbería":** escribe el código del
+  local (con preview R8), elige empleado/renta, envía solicitud. (Es la misma
+  puerta del 2º local de la sección 3b.)
 
 Correcciones que esto exige (hoy NO se cumplen):
 - **Stats del dueño rentista infladas:** `getEstadisticasNegocio` suma TODO el
