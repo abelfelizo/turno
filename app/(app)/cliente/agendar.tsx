@@ -1,22 +1,23 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { useEffect, useState } from 'react'
-import { useRouter, Stack } from 'expo-router'
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, getNegocioById } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, getNegocioById, getHorariosPerfil, cancelarCita } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12, dinero } from '../../../lib/format'
+import { hora12, dinero, fechaISOLocal } from '../../../lib/format'
 import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
-  const out: { fecha: string; dia: string; num: number }[] = []
-  for (let i = 0; i < n; i++) { const d = new Date(); d.setDate(d.getDate() + i); out.push({ fecha: d.toISOString().split('T')[0], dia: DIAS[d.getDay()], num: d.getDate() }) }
+  const out: { fecha: string; dia: string; num: number; wd: number }[] = []
+  for (let i = 0; i < n; i++) { const d = new Date(); d.setDate(d.getDate() + i); out.push({ fecha: fechaISOLocal(d), dia: DIAS[d.getDay()], num: d.getDate(), wd: d.getDay() }) }
   return out
 }
 
 export default function Agendar() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ perfil?: string; servicio?: string; reagendar?: string }>()
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [negocio, setNegocio] = useState<any>(null)
   const [perfil, setPerfil] = useState<any>(null)
@@ -24,6 +25,7 @@ export default function Agendar() {
   const [fecha, setFecha] = useState('')
   const [slots, setSlots] = useState<string[]>([])
   const [hora, setHora] = useState('')
+  const [diasActivos, setDiasActivos] = useState<Set<number> | null>(null)
   const [loading, setLoading] = useState(true)
   const [cargandoSlots, setCargandoSlots] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -38,10 +40,27 @@ export default function Agendar() {
           getNegocioById(ss.negocio_id).catch(() => null),
         ])
         setPerfiles(ps); setNegocio(neg)
+        // Preselección al reprogramar
+        if (params.perfil) {
+          const p = ps.find((x: any) => x.id === params.perfil)
+          if (p) {
+            setPerfil(p)
+            const sv = (p.turno_servicios ?? []).find((x: any) => x.id === params.servicio)
+            if (sv) setServicio(sv)
+          }
+        }
       }
       setLoading(false)
     })()
   }, [])
+
+  // Días en que el barbero trabaja (para deshabilitar los cerrados)
+  useEffect(() => {
+    if (!perfil) { setDiasActivos(null); return }
+    getHorariosPerfil(perfil.id).then((hs: any[]) => {
+      setDiasActivos(new Set(hs.filter(h => h.activo).map(h => h.dia_semana)))
+    }).catch(() => setDiasActivos(null))
+  }, [perfil])
 
   useEffect(() => {
     if (!perfil || !servicio || !fecha) { setSlots([]); return }
@@ -54,7 +73,8 @@ export default function Agendar() {
     setEnviando(true)
     try {
       await agendarCita(perfil.id, servicio.id, fecha, hora)
-      Alert.alert('Cita agendada', `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
+      if (params.reagendar) await cancelarCita(params.reagendar).catch(() => {})   // reprogramar: cancela la vieja
+      Alert.alert(params.reagendar ? 'Cita reprogramada' : 'Cita agendada', `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
     } catch (e: any) { Alert.alert('No se pudo agendar', e.message ?? 'Intenta otro horario.') }
     finally { setEnviando(false) }
   }
@@ -121,10 +141,11 @@ export default function Agendar() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {dias.map(d => {
                 const on = fecha === d.fecha
+                const cerrado = diasActivos != null && !diasActivos.has(d.wd)
                 return (
-                  <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d.fecha)}>
-                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }]}>{d.dia}</Text>
-                    <Text style={[s.diaNum, on && { color: '#fff' }]}>{d.num}</Text>
+                  <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn, cerrado && s.diaOff]} disabled={cerrado} onPress={() => setFecha(d.fecha)}>
+                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
+                    <Text style={[s.diaNum, on && { color: '#fff' }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -183,6 +204,7 @@ const s = StyleSheet.create({
   servPrice: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
   dia: { width: 58, height: 66, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  diaOff: { opacity: 0.4, backgroundColor: COLORS.surfaceAlt },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
   diaNum: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

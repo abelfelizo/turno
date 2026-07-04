@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { fechaISOLocal } from './format'
 
 const T = (tabla: string) => `turno_${tabla}`
 
@@ -61,7 +62,7 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
 }
 
 export async function getEstadisticasNegocio(negocio_id: string) {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaISOLocal()
   const { data, error } = await supabase.from(T('historial_visitas')).select('precio_cobrado, cliente_id, fecha').eq('negocio_id', negocio_id)
   if (error) throw error
   const v = (data || []) as any[]
@@ -273,7 +274,7 @@ export async function registrarFisico(p: { negocio_id: string; perfil_id: string
 
 // CITAS
 export async function getCitasHoy(perfil_id: string) {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaISOLocal()
   const { data, error } = await supabase.from(T('citas')).select('*, turno_usuarios!cliente_id(nombre, telefono, no_shows, llegadas_tarde), turno_servicios!servicio_id(nombre, duracion_min, precio)').eq('perfil_id', perfil_id).eq('fecha', hoy).order('hora_inicio')
   if (error) throw error
   return data || []
@@ -303,7 +304,7 @@ export async function agendarCita(perfil_id: string, servicio_id: string, fecha:
 
 /** Próximas citas del cliente (creada/confirmada/no_confirmada/en_camino). */
 export async function getMisCitas(cliente_id: string, negocio_id: string) {
-  const hoy = new Date().toISOString().split('T')[0]
+  const hoy = fechaISOLocal()
   const { data, error } = await supabase.from(T('citas'))
     .select('*, turno_servicios!servicio_id(nombre, precio), turno_perfiles!perfil_id(turno_usuarios(nombre))')
     .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id)

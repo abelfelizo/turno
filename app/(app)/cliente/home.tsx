@@ -79,7 +79,6 @@ export default function Home() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
-  const proxima = citas[0]
   const porDueno = !!config?.asignacion_por_dueno
   const porVisita = config?.puntos_por_visita || 1
   const metaPts = porVisita * (config?.visitas_para_gratis || 10)
@@ -126,27 +125,31 @@ export default function Home() {
         </TouchableOpacity>
       )}
 
-      {proxima && (
-        <View style={s.cita}>
+      {citas.length > 0 && <Text style={s.sec}>TUS CITAS</Text>}
+      {citas.map((cita: any, i: number) => (
+        <View key={cita.id} style={s.cita}>
           <View style={s.citaIcon}><Ionicons name="calendar" size={22} color={COLORS.red} /></View>
           <View style={{ flex: 1 }}>
             <View style={s.citaTop}>
-              <Text style={s.citaKick}>PRÓXIMA CITA</Text>
-              <Text style={s.citaCd}>{cuentaRegresiva(proxima.fecha, proxima.hora_inicio)}</Text>
+              <Text style={s.citaKick}>{i === 0 ? 'PRÓXIMA CITA' : 'CITA'}</Text>
+              <Text style={s.citaCd}>{cuentaRegresiva(cita.fecha, cita.hora_inicio)}</Text>
             </View>
-            <Text style={s.citaServ}>{proxima.turno_servicios?.nombre}</Text>
-            <Text style={s.citaMeta}>{proxima.fecha} · {hora12(proxima.hora_inicio)} · {proxima.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
+            <Text style={s.citaServ}>{cita.turno_servicios?.nombre}</Text>
+            <Text style={s.citaMeta}>{cita.fecha} · {hora12(cita.hora_inicio)} · {cita.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
             <View style={s.citaAcc}>
-              {(proxima.estado === 'creada' || proxima.estado === 'no_confirmada')
-                ? <TouchableOpacity style={s.citaBtn} onPress={async () => { await confirmarCita(proxima.id); cargar() }}><Text style={s.citaBtnT}>Confirmar</Text></TouchableOpacity>
+              {(cita.estado === 'creada' || cita.estado === 'no_confirmada')
+                ? <TouchableOpacity style={s.citaBtn} onPress={async () => { await confirmarCita(cita.id); cargar() }}><Text style={s.citaBtnT}>Confirmar</Text></TouchableOpacity>
                 : <Badge tone="success">Confirmada</Badge>}
-              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(proxima.id); cargar() } }])}>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: cita.perfil_id, servicio: cita.servicio_id, reagendar: cita.id } })}>
+                <Text style={s.citaReprog}>Reprogramar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); cargar() } }])}>
                 <Text style={s.citaCancel}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      )}
+      ))}
 
       <Text style={s.sec}>RESERVAR CITA</Text>
       <TouchableOpacity style={s.reservar} onPress={() => router.push('/(app)/cliente/agendar')}>
@@ -257,6 +260,7 @@ const s = StyleSheet.create({
   citaAcc: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
   citaBtn: { backgroundColor: COLORS.red, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   citaBtnT: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13 },
+  citaReprog: { fontFamily: FONTS.semibold, color: COLORS.blue, fontSize: 13 },
   citaCancel: { fontFamily: FONTS.semibold, color: COLORS.textLight, fontSize: 13 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 20, textAlign: 'center' },

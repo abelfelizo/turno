@@ -86,6 +86,22 @@ export default function Dashboard() {
           <Grupo n={n3} l="Físico" />
           <Grupo n={cola.length} l="Total" hl />
         </View>
+        {cola.length > 0 && (
+          <View style={s.colaLista}>
+            {cola.map((c: any, i: number) => (
+              <View key={c.id} style={s.colaRow}>
+                <Text style={s.colaPos}>{i + 1}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.colaName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                  <Text style={s.colaServ}>{c.turno_servicios?.nombre ?? 'Servicio'}{c.turno_servicios?.duracion_min ? ` · ${c.turno_servicios.duracion_min} min` : ''}</Text>
+                </View>
+                <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }]}>
+                  {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : 'En camino'}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Solicitudes pendientes */}
@@ -127,6 +143,12 @@ const s = StyleSheet.create({
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 22 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
   colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
+  colaLista: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6 },
+  colaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
+  colaPos: { fontFamily: FONTS.display, fontSize: 20, color: 'rgba(255,255,255,0.4)', width: 24, textAlign: 'center' },
+  colaName: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  colaServ: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  colaEstado: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   sol: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
