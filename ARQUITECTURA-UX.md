@@ -93,6 +93,51 @@ Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
 - **Stats** — mismos períodos que barbero + ranking por barbero, ocupación de sillas, ingresos del local.
 - **Config** — marca y contacto, funciones del local (puntos, asignación, doble servicio), tiempos, suscripción (asientos/monto), cuenta.
 
+### El panel del dueño, escenario por escenario
+
+La app resuelve el panel según dos datos: la membresía `dueno` y si tiene perfil
+propio (`perfil_id` ⇒ atiende). Qué ve cada tipo de dueño:
+
+| | Dueño-barbero (atiende) | Dueño solo empleados | Dueño solo rentas | Mixto |
+|---|---|---|---|---|
+| **Dashboard** | Local: código, hoy, cola con nombres, alertas | Igual | Igual | Igual |
+| **Equipo** | Su equipo | Empleados | Rentas (etiquetados: pagan su plan) | Ambos, etiquetados |
+| **Mi agenda** | ✅ Su agenda de trabajo personal (su cola, sus citas, walk-in, bloqueos — lo mismo que ve un barbero) | ❌ No aparece | ❌ No aparece | Según atienda |
+| **Stats** | **Dos vistas: "Mi silla" (sus ingresos personales) + "El local"** | El local (ingresos = suyos) | El local **separando**: volumen de rentas (informativo, NO es su ingreso) | Ingresos de empleados (suyos) + volumen de rentas (informativo) |
+| **Config → Suscripción** | mínimo × (1 + empleados), tope | mínimo × empleados, tope | **mínimo** (cuota de gestión) | mínimo × (él + empleados), tope; rentas aparte |
+
+Correcciones que esto exige (hoy NO se cumplen):
+- **Stats del dueño rentista infladas:** `getEstadisticasNegocio` suma TODO el
+  historial del local — un dueño que solo renta sillas ve como "ingresos" dinero
+  que es de sus rentas. Separar ingresos propios (empleados + su silla) del
+  volumen de rentas.
+- **El dueño-barbero no ve sus stats personales** de silla por separado (solo las
+  del local). Añadir la vista "Mi silla".
+- En Equipo, cada barbero debe mostrar su tipo (empleado/renta) porque cambia
+  quién paga y de quién es el ingreso.
+
+## 3b. Ciclo de vida: altas y bajas (hoy solo existen las altas, y solo en onboarding)
+
+Auditoría del flujo agregar/quitar en los tres perfiles:
+
+| Actor | Acción | Hoy | Debe existir |
+|---|---|---|---|
+| Cliente | Agregar barbería | ✅ "+" en Inicio (con R8) | — |
+| Cliente | **Salirse de una barbería** | ❌ No existe (la membresía queda para siempre) | Perfil → Mis locales → "Salir de este local" (membresía `activo=false`; historial se conserva) |
+| Barbero | Unirse a un local | ⚠️ Solo durante el onboarding | — |
+| Barbero | **Unirse a un 2º local** (multi-local) | ❌ No existe ninguna puerta post-onboarding — el multi-local que soporta el código de barbero no tiene entrada | Perfil → Mis locales → "Trabajar en otro local" (código del local → solicitud → aprobación del dueño) |
+| Barbero | **Salirse de un local** (renuncia / deja la silla) | ❌ No existe | Perfil → Mis locales → "Dejar este local": perfil `activo=false`; citas futuras se cancelan con aviso a los clientes; historial y clientela lo siguen (ya son por persona) |
+| Dueño | Crear barbería | ⚠️ Solo en onboarding | Perfil → "Crear otro local" (multi-local del dueño) + selector de local |
+| Dueño | Aprobar/rechazar solicitudes | ✅ Dashboard | Se muda a Equipo |
+| Dueño | **Desvincular a un barbero activo** (se fue, lo despidió) | ❌ NO EXISTE — solo se puede rechazar pendientes | Equipo → barbero → "Desvincular": perfil y membresía `activo=false`; citas futuras canceladas + push a clientes; su historial lo acompaña. Confirmación fuerte |
+| Dueño | **Cerrar/desactivar el local** | ❌ Sin UI (la columna `activo` existe) | Config → zona peligrosa: "Cerrar local" (avisa a clientes y equipo; los rentas conservan su cuenta/código) |
+| Todos | **Eliminar cuenta** | ❌ No existe — **obligatorio para publicar en App Store y Google Play** | Perfil → "Eliminar mi cuenta" (baja lógica + borrado de datos personales) |
+
+Reglas comunes de toda baja: (1) nunca borrar historial — bajas lógicas
+(`activo=false`); (2) toda baja con citas/turnos futuros los cancela y notifica;
+(3) la identidad y clientela del barbero le pertenecen y lo siguen (código de
+barbero); (4) confirmación explícita con consecuencias enumeradas.
+
 ### Convenciones de estados (aplican a TODAS las pantallas)
 
 Cada pantalla del rediseño debe definir sus 5 estados — el diseño visual debe
@@ -138,11 +183,14 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
 7. **Asignación por dueño:** RPC `turno_asignar_cola(cola_id, perfil_id)` (dueño only).
 8. **R4:** RPC/flujo reprogramar (cancela + crea atómico, conserva historial).
 9. **Stats por período:** RPCs con `desde/hasta` + desgloses (servicio, origen, hora) para barbero y negocio; rating propio del barbero.
-10. Pendientes ya detectados en la revisión de código: **tipo_usuario no se promueve a 'profesional'** en upserts (bloquea el código de barbero), **zona horaria del negocio** (todas las comparaciones de ventanas/fechas deben usar la TZ del local, no UTC), normalización de códigos server-side, limpieza de columnas/funciones muertas.
+10. **Ciclo de vida (3b):** RPCs `turno_salir_local` (cliente), `turno_dejar_local` (barbero: desactiva perfil + cancela citas futuras + notifica), `turno_desvincular_barbero` (dueño, mismo efecto), `turno_cerrar_local` (dueño), `turno_eliminar_cuenta` (baja lógica + limpieza de datos personales; requisito de tiendas). Reusar `turno_unirse_profesional` para el 2º local (ya es idempotente por negocio) con pantalla post-onboarding.
+11. **Stats del dueño separadas:** `getEstadisticasNegocio` debe separar ingresos propios (empleados + silla del dueño) del volumen de rentas (join membresías por rol), y añadir la vista "mi silla" para el dueño-barbero.
+12. Pendientes ya detectados en la revisión de código: **tipo_usuario no se promueve a 'profesional'** en upserts (bloquea el código de barbero), **zona horaria del negocio** (todas las comparaciones de ventanas/fechas deben usar la TZ del local, no UTC), normalización de códigos server-side, limpieza de columnas/funciones muertas.
 
 ## 6. Fases de implementación sugeridas
 
 - **F1 · Núcleo del dolor del piloto:** R3 (hoja de confirmación) + R1 (turno por tipo) + pedir desde Mi turno + lista con nombres en dashboard dueño + R4 (citas visibles/reprogramar) + R9 (expirado visible) + fixes de tipo_usuario y timezone.
 - **F2 · Vivo y proactivo:** push server-side + R2 (gating + push de cercanía) + recordatorios de cita + aprobación de barbero en vivo + deep links.
+- **F2b · Ciclo de vida:** bajas en los tres perfiles (salir de local, dejar local, desvincular barbero, cerrar local), unirse a 2º local, crear 2º local, eliminar cuenta (requisito de tiendas), y stats del dueño separadas (propias vs. rentas + "mi silla").
 - **F3 · Crecimiento:** R5 (grupos) + R7 (re-engagement) + R6 (puntos por renta) + canje + asignación por dueño + stats por período + código del barbero expuesto + calendario/bloqueos.
 - **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla.
