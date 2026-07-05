@@ -213,8 +213,8 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
 
 ## 6. Fases de implementación sugeridas
 
-- **F1 · Núcleo del dolor del piloto:** R3 (hoja de confirmación) + R1 (turno por tipo) + pedir desde Mi turno + lista con nombres en dashboard dueño + R4 (citas visibles/reprogramar) + R9 (expirado visible) + fixes de tipo_usuario y timezone.
-- **F2 · Vivo y proactivo:** push server-side + R2 (gating + push de cercanía) + recordatorios de cita + aprobación de barbero en vivo + deep links.
-- **F2b · Ciclo de vida:** bajas en los tres perfiles (salir de local, dejar local, desvincular barbero, cerrar local), unirse a 2º local, crear 2º local, eliminar cuenta (requisito de tiendas), y stats del dueño separadas (propias vs. rentas + "mi silla").
-- **F3 · Crecimiento:** R5 (grupos) + R7 (re-engagement) + R6 (puntos por renta) + canje + asignación por dueño + stats por período + código del barbero expuesto + calendario/bloqueos.
-- **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla.
+- **F1 · Núcleo del dolor del piloto ✅ HECHO:** R3 (hoja de confirmación) + R1 (turno por tipo) + pedir desde Mi turno + lista con nombres en dashboard dueño + R4 (citas visibles/reprogramar) + R9 (expirado visible) + fixes de tipo_usuario y timezone. _(migraciones 26–27)_
+- **F2 · Vivo y proactivo ✅ HECHO (con salvedad):** R2 (gating de "voy en camino" server-side) + push en eventos (llamar, aprobar) + aprobación de barbero en vivo (realtime) + deep links. **Salvedad:** el push _programado_ desde la BD (recordatorios por cron) requiere `pg_net`, ausente en este proyecto compartido; los recordatorios de cita quedan pendientes de esa infra (o de disparo desde un servicio externo). _(migración 28)_
+- **F2b · Ciclo de vida ✅ HECHO:** bajas en los tres perfiles (salir de local, dejar local, desvincular barbero, cerrar local), eliminar cuenta (requisito de tiendas) y stats del dueño separadas (propias vs. rentas). _Pendiente menor:_ unirse/crear 2º local post-onboarding y el conmutador "Mi silla" del dueño-barbero. _(migración 28)_
+- **F3 · Crecimiento ✅ HECHO (parcial):** R7 (re-engagement) + R6 (puntos por renta) + canje (emitir/aplicar) + asignación por dueño + stats por período + código del barbero expuesto (header de agenda). **Fuera de alcance:** R5 (reservas grupales) choca con el índice único `(cliente_id, tipo_servicio)` de R1 y necesita rediseño de la invariante, no un parche; calendario/bloqueos por rango queda para una iteración de agenda. _(migración 29)_
+- **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla. _(pendiente)_
