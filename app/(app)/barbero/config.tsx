@@ -93,6 +93,17 @@ export default function Config() {
     setPerfil((p: any) => ({ ...p, limite_cola: v }))
     await actualizarPerfil(sesion.perfil_id, { limite_cola: v === 0 ? null : v }).catch(() => cargar())
   }
+  async function togglePuntos(v: boolean) {
+    if (!sesion?.perfil_id) return
+    setPerfil((p: any) => ({ ...p, puntos_activos: v }))
+    await actualizarPerfil(sesion.perfil_id, { puntos_activos: v }).catch(() => cargar())
+  }
+  async function ajustarPuntos(campo: 'puntos_por_visita' | 'puntos_meta' | 'revisita_dias', delta: number, min: number, max: number, def: number) {
+    if (!sesion?.perfil_id) return
+    const v = Math.max(min, Math.min(max, (perfil?.[campo] ?? def) + delta))
+    setPerfil((p: any) => ({ ...p, [campo]: v }))
+    await actualizarPerfil(sesion.perfil_id, { [campo]: v }).catch(() => cargar())
+  }
 
   async function setEstado(k: string) {
     if (!sesion?.perfil_id) return
@@ -266,6 +277,52 @@ export default function Config() {
           <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
           <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
           <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+        </View>
+      </View>
+
+      {rolMembresia === 'barbero_renta' && (
+        <>
+          <Text style={[s.sec, { marginTop: 18 }]}>MIS PUNTOS DE FIDELIDAD</Text>
+          <View style={s.regla}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.reglaL}>Puntos propios</Text>
+              <Text style={s.reglaD}>Tú premias a tus clientes, no el local.</Text>
+            </View>
+            <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+          </View>
+          {perfil?.puntos_activos && (
+            <>
+              <View style={s.regla}>
+                <Text style={s.reglaL}>Puntos por visita</Text>
+                <View style={s.stepCtrl}>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', -1, 1, 20, 1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{perfil?.puntos_por_visita ?? 1}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', 1, 1, 20, 1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                </View>
+              </View>
+              <View style={s.regla}>
+                <Text style={s.reglaL}>Visitas para premio</Text>
+                <View style={s.stepCtrl}>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 10)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 10}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 10)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                </View>
+              </View>
+            </>
+          )}
+        </>
+      )}
+
+      <Text style={[s.sec, { marginTop: 18 }]}>RECORDATORIO DE RE-VISITA</Text>
+      <View style={s.regla}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={s.reglaL}>Marcar "por recuperar"</Text>
+          <Text style={s.reglaD}>Clientes sin venir hace {perfil?.revisita_dias ?? 30} días aparecen para darles seguimiento.</Text>
+        </View>
+        <View style={s.stepCtrl}>
+          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', -5, 5, 180, 30)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+          <Text style={s.stepVal}>{perfil?.revisita_dias ?? 30}d</Text>
+          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', 5, 5, 180, 30)}><Text style={s.stepT}>+</Text></TouchableOpacity>
         </View>
       </View>
 

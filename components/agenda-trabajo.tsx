@@ -1,7 +1,7 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero } from '../lib/db'
+import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
@@ -17,7 +17,9 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sesion, setSesion] = useState<any>(null)
+  const [usuario, setUsuario] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
+  const [vale, setVale] = useState<any>(null)
   const [servicios, setServicios] = useState<any[]>([])
   const [walkin, setWalkin] = useState(false)
   const [wNombre, setWNombre] = useState('')
@@ -32,8 +34,8 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg] = await Promise.all([getCitasHoy(ss.perfil_id), getColaActiva(ss.negocio_id!, ss.perfil_id), getServiciosPerfil(ss.perfil_id).catch(() => []), getNegocioById(ss.negocio_id!).catch(() => null)])
-    setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg); setLoading(false); setRefreshing(false)
+    const [c, q, sv, neg, u] = await Promise.all([getCitasHoy(ss.perfil_id), getColaActiva(ss.negocio_id!, ss.perfil_id), getServiciosPerfil(ss.perfil_id).catch(() => []), getNegocioById(ss.negocio_id!).catch(() => null), getMiUsuario().catch(() => null)])
+    setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg); setUsuario(u); setLoading(false); setRefreshing(false)
   }, [])
 
   async function agregarFisico() {
@@ -70,12 +72,19 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
   const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino')?.cliente_id
   useEffect(() => {
-    if (!llamadoClienteId || !sesion?.negocio_id) { setFicha(null); return }
+    if (!llamadoClienteId || !sesion?.negocio_id) { setFicha(null); setVale(null); return }
     Promise.all([
       getPreferenciasCliente(llamadoClienteId, sesion.negocio_id).catch(() => null),
       sesion?.usuario_id ? getNotaBarbero(sesion.usuario_id, llamadoClienteId).catch(() => '') : Promise.resolve(''),
-    ]).then(([p, nota]) => setFicha({ ...(p || {}), nota }))
+      getCanjeActivoCliente(llamadoClienteId, sesion.negocio_id).catch(() => null),
+    ]).then(([p, nota, v]) => { setFicha({ ...(p || {}), nota }); setVale(v) })
   }, [llamadoClienteId, sesion?.negocio_id, sesion?.usuario_id])
+
+  async function aplicarVale() {
+    if (!vale) return
+    try { await aplicarCanje(vale.id); setVale(null); Alert.alert('Vale aplicado', 'El premio se descontó del cobro.') }
+    catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+  }
 
   async function llamar() {
     try {
@@ -115,6 +124,18 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       <Text style={s.kicker}>{fechaLarga()}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
 
+      {usuario?.codigo_barbero ? (
+        <View style={s.codigoCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
+            <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
+          </View>
+          <TouchableOpacity style={s.codigoShare} onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
+            <Ionicons name="share-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       <View style={s.colaBox}>
         <Text style={s.colaTitle}>COLA AHORA</Text>
         <View style={s.colaStats}>
@@ -141,6 +162,13 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
             ) : null}
           </View>
         </View>
+      )}
+
+      {llamado && vale && (
+        <TouchableOpacity style={s.valeBar} onPress={aplicarVale}>
+          <Ionicons name="ticket" size={18} color="#fff" />
+          <Text style={s.valeBarT}>Tiene un vale de premio · toca para aplicarlo al cobro</Text>
+        </TouchableOpacity>
       )}
 
       {llamado && ficha && (ficha.tipo_corte || ficha.largo || ficha.barba || ficha.alergias || ficha.notas || ficha.nota) && (
@@ -283,6 +311,12 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
+  codigoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 14, padding: 14, marginBottom: 14 },
+  codigoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
+  codigoVal: { fontFamily: FONTS.display, fontSize: 26, color: '#fff', letterSpacing: 3, marginTop: 2 },
+  codigoShare: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
+  valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
   colaStats: { flexDirection: 'row', justifyContent: 'space-between' },

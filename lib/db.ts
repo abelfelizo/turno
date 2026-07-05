@@ -223,6 +223,8 @@ export async function actualizarPerfil(perfil_id: string, patch: {
   bio?: string; especialidad?: string; mensaje_bienvenida?: string
   instagram?: string; whatsapp?: string; foto_url?: string
   domicilio_activo?: boolean; limite_cola?: number | null
+  puntos_activos?: boolean; puntos_por_visita?: number | null; puntos_meta?: number | null
+  revisita_dias?: number
 }) {
   const { error } = await supabase.from(T('perfiles')).update(patch).eq('id', perfil_id)
   if (error) throw error
@@ -553,6 +555,65 @@ export async function guardarNotaPrivada(perfil_id: string, cliente_id: string, 
 export async function getPuntos(usuario_id: string, negocio_id: string) {
   const { data } = await supabase.from(T('puntos')).select('puntos_totales, puntos_canjeados').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   return data
+}
+
+// ── F3 · CANJE DE PUNTOS (vales) ──────────────────────────────────────────────
+/** Cliente emite un vale al llegar a la meta (descuenta puntos). */
+export async function emitirCanje(negocio_id: string) {
+  const { data, error } = await supabase.rpc('turno_emitir_canje', { p_negocio: negocio_id })
+  if (error) throw error
+  return data
+}
+/** Barbero/dueño aplica el vale al cobrar. */
+export async function aplicarCanje(canje_id: string) {
+  const { error } = await supabase.rpc('turno_aplicar_canje', { p_canje: canje_id })
+  if (error) throw error
+}
+/** Vales activos (sin usar) del cliente en un negocio. */
+export async function getMisCanjesActivos(usuario_id: string, negocio_id: string) {
+  const { data, error } = await supabase.from(T('canjes')).select('*')
+    .eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).eq('estado', 'vale')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
+/** Vale activo de un cliente (lo ve el barbero/dueño al cobrar). */
+export async function getCanjeActivoCliente(cliente_id: string, negocio_id: string) {
+  const { data } = await supabase.from(T('canjes')).select('*')
+    .eq('usuario_id', cliente_id).eq('negocio_id', negocio_id).eq('estado', 'vale')
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  return data
+}
+
+// ── F3 · ASIGNACIÓN POR DUEÑO ─────────────────────────────────────────────────
+/** El dueño asigna una entrada de la cola a un barbero concreto. */
+export async function asignarCola(cola_id: string, perfil_id: string) {
+  const { error } = await supabase.rpc('turno_asignar_cola', { p_cola: cola_id, p_perfil: perfil_id })
+  if (error) throw error
+}
+
+// ── F3 · R7 CLIENTES POR RECUPERAR ───────────────────────────────────────────
+export async function getClientesPorRecuperar(perfil_id: string) {
+  const { data, error } = await supabase.rpc('turno_clientes_por_recuperar', { p_perfil: perfil_id })
+  if (error) throw error
+  return (data || []).map((c: any) => ({ cliente_id: c.cliente_id, nombre: c.nombre, telefono: c.telefono, ultima: c.ultima, dias: Number(c.dias) }))
+}
+
+// ── F3 · STATS POR PERÍODO ───────────────────────────────────────────────────
+export type StatsPeriodo = { ingresos: number; visitas: number; clientes: number; ticket: number }
+function mapPeriodo(data: any): StatsPeriodo {
+  const r = (data && data[0]) || {}
+  return { ingresos: Number(r.ingresos ?? 0), visitas: Number(r.visitas ?? 0), clientes: Number(r.clientes ?? 0), ticket: Number(r.ticket ?? 0) }
+}
+export async function getStatsPeriodoNegocio(negocio_id: string, desde: string, hasta: string): Promise<StatsPeriodo> {
+  const { data, error } = await supabase.rpc('turno_stats_periodo_negocio', { p_negocio: negocio_id, p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return mapPeriodo(data)
+}
+export async function getStatsPeriodoPerfil(perfil_id: string, desde: string, hasta: string): Promise<StatsPeriodo> {
+  const { data, error } = await supabase.rpc('turno_stats_periodo_perfil', { p_perfil: perfil_id, p_desde: desde, p_hasta: hasta })
+  if (error) throw error
+  return mapPeriodo(data)
 }
 
 // ── CICLO DE VIDA · bajas lógicas (nunca se borra historial) ──────────────────

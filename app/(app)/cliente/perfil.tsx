@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getSesion, limpiarSesion, guardarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta } from '../../../lib/db'
+import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
@@ -24,6 +25,8 @@ export default function Perfil() {
   const [historial, setHistorial] = useState<any[]>([])
   const [negocio, setNegocio] = useState<any>(null)
   const [locales, setLocales] = useState<any[]>([])
+  const [canjes, setCanjes] = useState<any[]>([])
+  const [canjeando, setCanjeando] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const cargar = useCallback(async () => {
@@ -40,6 +43,7 @@ export default function Perfil() {
       ])
       setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
       setLocales(await getMisNegociosCliente(u.id).catch(() => []))
+      setCanjes(await getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []))
     }
     setLoading(false)
   }, [])
@@ -57,6 +61,17 @@ export default function Perfil() {
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
       } },
     ])
+  }
+
+  async function canjear() {
+    const ss = await getSesion(); if (!ss?.negocio_id) return
+    setCanjeando(true)
+    try {
+      await emitirCanje(ss.negocio_id)
+      Alert.alert('¡Premio canjeado!', 'Generamos tu vale. Muéstralo al barbero cuando te cobre.')
+      cargar()
+    } catch (e: any) { Alert.alert('No se pudo canjear', e.message ?? 'Intenta de nuevo.') }
+    finally { setCanjeando(false) }
   }
 
   function eliminarMiCuenta() {
@@ -108,9 +123,26 @@ export default function Perfil() {
             <View style={s.fidelHead}><Text style={s.fidelTitle}>FIDELIDAD</Text><Text style={s.fidelNum}>{enCiclo} / {meta} pts</Text></View>
             <View style={s.barBg}><View style={[s.barFill, { width: `${pct}%` }]} /></View>
             <View style={s.fidelFoot}><Text style={s.fidelMeta}>Meta: corte gratis</Text><Text style={s.fidelFaltan}>{faltan === 0 ? '¡Disponible!' : `Faltan ${faltan} visita${faltan === 1 ? '' : 's'}`}</Text></View>
+            {faltan === 0 && (
+              <TouchableOpacity style={s.canjearBtn} onPress={canjear} disabled={canjeando}>
+                {canjeando ? <ActivityIndicator color={COLORS.carbon} /> : <Text style={s.canjearT}>Canjear premio</Text>}
+              </TouchableOpacity>
+            )}
           </View>
         )
       })()}
+
+      {canjes.length > 0 && (
+        <View style={s.vales}>
+          <Text style={s.valesT}>VALES DISPONIBLES</Text>
+          {canjes.map((c: any) => (
+            <View key={c.id} style={s.vale}>
+              <Ionicons name="ticket" size={18} color={COLORS.red} />
+              <Text style={s.valeT}>Corte gratis · muéstralo al cobrar</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <Text style={s.sec}>TUS NÚMEROS</Text>
       <View style={s.metrics}>
@@ -172,6 +204,12 @@ const s = StyleSheet.create({
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   fidelMeta: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
+  canjearBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 14 },
+  canjearT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.carbon },
+  vales: { backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 22 },
+  valesT: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1, marginBottom: 10 },
+  vale: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  valeT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 10 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   editar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 10 },

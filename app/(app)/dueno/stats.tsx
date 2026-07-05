@@ -1,21 +1,33 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById } from '../../../lib/db'
-import { dinero } from '../../../lib/format'
+import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById, getStatsPeriodoNegocio, type StatsPeriodo } from '../../../lib/db'
+import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+
+const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }] as const
+type PeriodoK = typeof PERIODOS[number]['k']
+function desdeDe(p: PeriodoK): string {
+  if (p === 'hoy') return fechaISOLocal()
+  if (p === '7d') return fechaISOLocal(new Date(Date.now() - 6 * 864e5))
+  return fechaISOLocal(new Date(Date.now() - 29 * 864e5))
+}
 
 export default function Stats() {
   const [stats, setStats] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [moneda, setMoneda] = useState('')
+  const [periodo, setPeriodo] = useState<PeriodoK>('7d')
+  const [pstats, setPstats] = useState<StatsPeriodo | null>(null)
+  const [negocioId, setNegocioId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
+    setNegocioId(ss.negocio_id)
     const [st, ps, neg] = await Promise.all([
       getEstadisticasNegocio(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
@@ -24,6 +36,11 @@ export default function Stats() {
     setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? ''); setLoading(false); setRefreshing(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+
+  useEffect(() => {
+    if (!negocioId) return
+    getStatsPeriodoNegocio(negocioId, desdeDe(periodo), fechaISOLocal()).then(setPstats).catch(() => setPstats(null))
+  }, [negocioId, periodo])
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
@@ -48,10 +65,18 @@ export default function Stats() {
         </View>
       )}
 
+      <View style={s.periodos}>
+        {PERIODOS.map(p => (
+          <TouchableOpacity key={p.k} style={[s.periodo, periodo === p.k && s.periodoOn]} onPress={() => setPeriodo(p.k)}>
+            <Text style={[s.periodoT, periodo === p.k && s.periodoTOn]}>{p.l}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Text style={s.periodoLbl}>Movimiento del local · {PERIODOS.find(p => p.k === periodo)?.l.toLowerCase()}</Text>
       <View style={s.grid}>
-        <Metric n={stats?.totalVisitas ?? 0} l="Visitas" />
-        <Metric n={stats?.clientesUnicos ?? 0} l="Clientes" />
-        <Metric n={stats?.atendidosHoy ?? 0} l="Hoy" />
+        <Metric n={dinero(pstats?.ingresos ?? 0, moneda)} l="Movimiento" />
+        <Metric n={pstats?.visitas ?? 0} l="Visitas" />
+        <Metric n={pstats?.clientes ?? 0} l="Clientes" />
       </View>
 
       <Text style={s.sec}>EQUIPO · {perfiles.length}</Text>
@@ -69,8 +94,8 @@ export default function Stats() {
   )
 }
 
-function Metric({ n, l }: { n: number; l: string }) {
-  return <View style={s.metric}><Text style={s.mNum}>{n}</Text><Text style={s.mLbl}>{l}</Text></View>
+function Metric({ n, l }: { n: number | string; l: string }) {
+  return <View style={s.metric}><Text style={s.mNum} numberOfLines={1}>{n}</Text><Text style={s.mLbl}>{l}</Text></View>
 }
 
 const s = StyleSheet.create({
@@ -84,6 +109,12 @@ const s = StyleSheet.create({
   rentaLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1 },
   rentaSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
   rentaNum: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.textMid },
+  periodos: { flexDirection: 'row', gap: 6, marginBottom: 10 },
+  periodo: { flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  periodoOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  periodoT: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid },
+  periodoTOn: { color: '#fff' },
+  periodoLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 10 },
   grid: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14 },
   mNum: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.ink },

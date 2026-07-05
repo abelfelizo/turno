@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [cola, setCola] = useState<any[]>([])
   const [solicitudes, setSolicitudes] = useState<any[]>([])
   const [equipo, setEquipo] = useState<any[]>([])
+  const [config, setConfig] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -23,14 +24,15 @@ export default function Dashboard() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
-    const [neg, q, sol, st, eq] = await Promise.all([
+    const [neg, q, sol, st, eq, cfg] = await Promise.all([
       getNegocioById(ss.negocio_id),
       getColaActiva(ss.negocio_id).catch(() => []),
       getSolicitudesPendientes(ss.negocio_id).catch(() => []),
       getEstadisticasNegocio(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
+      getConfiguracion(ss.negocio_id).catch(() => null),
     ])
-    setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[])
+    setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[]); setConfig(cfg)
     setLoading(false); setRefreshing(false)
   }, [])
 
@@ -52,6 +54,15 @@ export default function Dashboard() {
     Alert.alert('Rechazar', `¿Rechazar a ${p.turno_usuarios?.nombre ?? 'este profesional'}?`, [
       { text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { try { await rechazarPerfil(p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
     ])
+  }
+  function asignar(item: any) {
+    const opciones = equipo.filter((p: any) => p.tipo_servicio === item.tipo_servicio || !item.tipo_servicio)
+    if (opciones.length === 0) { Alert.alert('Sin barberos', 'No hay profesionales activos para asignar.'); return }
+    Alert.alert('Asignar a…', `${item.turno_usuarios?.nombre ?? 'Cliente'} · ${item.turno_servicios?.nombre ?? ''}`,
+      [...opciones.map((p: any) => ({
+        text: p.turno_usuarios?.nombre ?? 'Profesional',
+        onPress: async () => { try { await asignarCola(item.id, p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } },
+      })), { text: 'Cancelar', style: 'cancel' as const }])
   }
   function desvincular(p: any) {
     Alert.alert('Desvincular barbero',
@@ -113,9 +124,11 @@ export default function Dashboard() {
                   <Text style={s.colaName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
                   <Text style={s.colaServ}>{c.turno_servicios?.nombre ?? 'Servicio'}{c.turno_servicios?.duracion_min ? ` · ${c.turno_servicios.duracion_min} min` : ''}</Text>
                 </View>
-                <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }]}>
-                  {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : 'En camino'}
-                </Text>
+                {config?.asignacion_por_dueno && c.estado === 'en_fila'
+                  ? <TouchableOpacity style={s.asignar} onPress={() => asignar(c)}><Text style={s.asignarT}>Asignar</Text></TouchableOpacity>
+                  : <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }]}>
+                      {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : 'En camino'}
+                    </Text>}
               </View>
             ))}
           </View>
@@ -180,6 +193,8 @@ const s = StyleSheet.create({
   colaName: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   colaServ: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
   colaEstado: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  asignar: { backgroundColor: COLORS.red, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
+  asignarT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   sol: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },

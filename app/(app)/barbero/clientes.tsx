@@ -2,7 +2,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getMisClientes, getNotaBarbero, guardarNotaBarbero } from '../../../lib/db'
+import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar } from '../../../lib/db'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
@@ -10,6 +10,8 @@ import { Display, Avatar } from '../../../components/ui'
 export default function Clientes() {
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [clientes, setClientes] = useState<any[]>([])
+  const [recuperar, setRecuperar] = useState<any[]>([])
+  const [seg, setSeg] = useState<'todos' | 'recuperar'>('todos')
   const [loading, setLoading] = useState(true)
   const [activo, setActivo] = useState<any>(null)
   const [nota, setNota] = useState('')
@@ -20,7 +22,11 @@ export default function Clientes() {
     const ss = await getSesion()
     if (!ss?.usuario_id) { setLoading(false); return }
     setUsuarioId(ss.usuario_id)
-    setClientes(await getMisClientes().catch(() => []))
+    const [cl, rec] = await Promise.all([
+      getMisClientes().catch(() => []),
+      ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
+    ])
+    setClientes(cl); setRecuperar(rec as any[])
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -42,21 +48,46 @@ export default function Clientes() {
 
   return (
     <View style={s.container}>
-      <Display size={30} style={{ marginBottom: 18 }}>Clientes</Display>
-      <FlatList
-        data={clientes} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<Text style={s.empty}>Aún no has atendido clientes.</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={s.row} onPress={() => abrir(item)}>
-            <Avatar name={item.nombre} size={44} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.name}>{item.nombre}</Text>
-              <Text style={s.meta}>{item.visitas} visita{item.visitas === 1 ? '' : 's'} · última {item.ultima}</Text>
+      <Display size={30} style={{ marginBottom: 14 }}>Clientes</Display>
+
+      <View style={s.segs}>
+        <TouchableOpacity style={[s.seg, seg === 'todos' && s.segOn]} onPress={() => setSeg('todos')}><Text style={[s.segT, seg === 'todos' && s.segTOn]}>Todos</Text></TouchableOpacity>
+        <TouchableOpacity style={[s.seg, seg === 'recuperar' && s.segOn]} onPress={() => setSeg('recuperar')}><Text style={[s.segT, seg === 'recuperar' && s.segTOn]}>Por recuperar{recuperar.length ? ` · ${recuperar.length}` : ''}</Text></TouchableOpacity>
+      </View>
+
+      {seg === 'todos' ? (
+        <FlatList
+          data={clientes} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<Text style={s.empty}>Aún no has atendido clientes.</Text>}
+          renderItem={({ item }) => (
+            <TouchableOpacity style={s.row} onPress={() => abrir(item)}>
+              <Avatar name={item.nombre} size={44} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.name}>{item.nombre}</Text>
+                <Text style={s.meta}>{item.visitas} visita{item.visitas === 1 ? '' : 's'} · última {item.ultima}</Text>
+              </View>
+              <Text style={s.total}>{item.total}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      ) : (
+        <FlatList
+          data={recuperar} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
+          ListEmptyComponent={<Text style={s.empty}>Nadie por recuperar. Tus clientes vienen seguido 💈</Text>}
+          renderItem={({ item }) => (
+            <View style={s.row}>
+              <Avatar name={item.nombre} size={44} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.name}>{item.nombre}</Text>
+                <Text style={s.meta}>Hace {item.dias} días · última {item.ultima}</Text>
+              </View>
+              {item.telefono && item.telefono !== '-' ? (
+                <TouchableOpacity style={s.wa} onPress={() => escribirCliente(item.telefono, item.nombre)}><Ionicons name="logo-whatsapp" size={20} color={COLORS.success} /></TouchableOpacity>
+              ) : null}
             </View>
-            <Text style={s.total}>{item.total}</Text>
-          </TouchableOpacity>
-        )}
-      />
+          )}
+        />
+      )}
 
       <Modal visible={!!activo} transparent animationType="slide" onRequestClose={() => setActivo(null)}>
         <View style={s.modalBg}>
@@ -90,6 +121,11 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 72 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
+  segs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  seg: { flex: 1, paddingVertical: 10, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  segOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  segT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid },
+  segTOn: { color: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
