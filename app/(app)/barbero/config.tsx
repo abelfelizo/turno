@@ -1,8 +1,9 @@
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta } from '../../../lib/db'
+import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
@@ -37,6 +38,9 @@ export default function Config() {
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [rolMembresia, setRolMembresia] = useState<string | null>(null)
+  const [locales, setLocales] = useState<any[]>([])
+  const [localModal, setLocalModal] = useState(false)
+  const [lcCodigo, setLcCodigo] = useState(''); const [lcRol, setLcRol] = useState<'empleado' | 'barbero_renta'>('barbero_renta'); const [lcBusy, setLcBusy] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -50,6 +54,7 @@ export default function Config() {
     ])
     setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
+    if (ss.usuario_id) setLocales(await getBarberoNegocios(ss.usuario_id).catch(() => []))
     // Identidad (persona, sigue al barbero): foto/bio/especialidad/contactos.
     setEsp(u?.especialidad ?? ''); setBio(u?.bio ?? ''); setIg(u?.instagram ?? ''); setWa(u?.whatsapp ?? '')
     // Mensaje de bienvenida: por local (se queda en el perfil).
@@ -141,6 +146,24 @@ export default function Config() {
   }
   async function volverCliente() { const ss = await getSesion(); if (!ss) return; await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/(app)/cliente/home') }
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+
+  async function cambiarLocal(l: any) {
+    const ss = await getSesion(); if (!ss || l.negocio_id === ss.negocio_id) return
+    await guardarSesion({ ...ss, negocio_id: l.negocio_id, perfil_id: l.perfil_id })
+    setLoading(true); cargar()
+  }
+  async function unirseAOtroLocal() {
+    if (!lcCodigo.trim()) { Alert.alert('Falta el código', 'Escribe el código del local.'); return }
+    if (!usuario || !perfil) return
+    setLcBusy(true)
+    try {
+      await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: lcRol, nombre: usuario.nombre, telefono: usuario.telefono })
+      setLocalModal(false); setLcCodigo('')
+      Alert.alert('Solicitud enviada', 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
+      cargar()
+    } catch (e: any) { Alert.alert('No se pudo enviar', e.message ?? 'Revisa el código.') }
+    finally { setLcBusy(false) }
+  }
 
   function dejarEsteLocal() {
     if (!sesion?.perfil_id) return
@@ -326,11 +349,44 @@ export default function Config() {
         </View>
       </View>
 
+      <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
+      {locales.map((l: any) => {
+        const activo = l.negocio_id === sesion?.negocio_id
+        return (
+          <TouchableOpacity key={l.negocio_id} style={[s.local, activo && s.localOn]} onPress={() => cambiarLocal(l)} disabled={activo}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.localN}>{l.nombre}</Text>
+              <Text style={s.localE}>{activo ? 'Local activo' : 'Toca para cambiar'}</Text>
+            </View>
+            {activo ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} /> : <Ionicons name="swap-horizontal" size={20} color={COLORS.textLight} />}
+          </TouchableOpacity>
+        )
+      })}
+      <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
+        <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
+      </TouchableOpacity>
+
       <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
       {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
       <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
       <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+
+      {/* Modal: trabajar en otro local */}
+      <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
+        <View style={s.mbg}><View style={s.modal}>
+          <Display size={22}>Trabajar en otro local</Display>
+          <Text style={s.flabel}>Código del local</Text>
+          <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} value={lcCodigo} onChangeText={setLcCodigo} />
+          <Text style={s.flabel}>¿Cómo entras?</Text>
+          <View style={s.rolRow}>
+            <TouchableOpacity style={[s.rolChip, lcRol === 'barbero_renta' && s.rolChipOn]} onPress={() => setLcRol('barbero_renta')}><Text style={[s.rolChipT, lcRol === 'barbero_renta' && { color: '#fff' }]}>Rento silla</Text></TouchableOpacity>
+            <TouchableOpacity style={[s.rolChip, lcRol === 'empleado' && s.rolChipOn]} onPress={() => setLcRol('empleado')}><Text style={[s.rolChipT, lcRol === 'empleado' && { color: '#fff' }]}>Empleado</Text></TouchableOpacity>
+          </View>
+          <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
+          <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
+        </View></View>
+      </Modal>
 
       {/* Modal servicio */}
       <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
@@ -425,6 +481,16 @@ const s = StyleSheet.create({
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   dev: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
   devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
+  local: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  localOn: { borderColor: COLORS.success },
+  localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  localE: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 13, marginBottom: 8 },
+  otroLocalT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.red },
+  rolRow: { flexDirection: 'row', gap: 10 },
+  rolChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center' },
+  rolChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  rolChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   dejar: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.dangerLight, borderRadius: 12, marginBottom: 8 },
   dejarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
   salir: { padding: 16, alignItems: 'center' },

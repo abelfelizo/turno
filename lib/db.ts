@@ -308,6 +308,15 @@ export async function agendarCita(perfil_id: string, servicio_id: string, fecha:
   return data
 }
 
+/** R5: reserva N espacios consecutivos con el mismo barbero (grupo). */
+export async function agendarGrupo(perfil_id: string, servicio_id: string, fecha: string, hora: string, personas: number) {
+  const { data, error } = await supabase.rpc('turno_agendar_grupo', {
+    p_perfil: perfil_id, p_servicio: servicio_id, p_fecha: fecha, p_hora: hora, p_personas: personas,
+  })
+  if (error) throw error
+  return data
+}
+
 /** Próximas citas del cliente (creada/confirmada/no_confirmada/en_camino). */
 export async function getMisCitas(cliente_id: string, negocio_id: string) {
   const hoy = fechaISOLocal()

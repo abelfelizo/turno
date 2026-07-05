@@ -54,6 +54,38 @@ export async function registrarPush(): Promise<string | null> {
 }
 
 /**
+ * Programa recordatorios LOCALES para las próximas citas del cliente (T-24h y
+ * T-2h). No necesita servidor ni push remoto: los agenda el propio dispositivo.
+ * Reemplaza los programados anteriores en cada llamada. Nunca lanza.
+ */
+export async function programarRecordatoriosCitas(
+  citas: { fecha: string; hora_inicio: string; servicio?: string }[],
+): Promise<void> {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync()
+    const ahora = Date.now()
+    for (const c of citas) {
+      const inicio = new Date(`${c.fecha}T${c.hora_inicio}`).getTime()
+      if (isNaN(inicio)) continue
+      for (const [mins, txt] of [[1440, 'mañana'], [120, 'en 2 horas']] as const) {
+        const cuando = inicio - mins * 60000
+        if (cuando <= ahora + 60000) continue   // ya pasó o demasiado cerca
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'Recordatorio de cita',
+            body: `Tu cita es ${txt}${c.servicio ? `: ${c.servicio}` : ''}.`,
+            data: { tipo: 'cita' },
+          },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(cuando) },
+        })
+      }
+    }
+  } catch (e) {
+    if (__DEV__) console.log('[recordatorios] no disponible:', (e as Error)?.message)
+  }
+}
+
+/**
  * Envía un push a un usuario (vía edge function turno-enviar-push).
  * Fire-and-forget: nunca lanza, solo loguea.
  */

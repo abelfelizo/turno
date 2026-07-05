@@ -9,6 +9,7 @@ import {
   getPuntos, getHistorialCliente,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
+import { programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero } from '../../../lib/format'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
@@ -57,6 +58,7 @@ export default function Home() {
     ])
     setNegocio(neg); setPerfiles(perf as any[]); setTurno(t); setCitas(cs as any[])
     setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setPuntos(pts); setHistorial(hist as any[])
+    programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
   }, [])
 
