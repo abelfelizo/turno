@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias } from '../../../lib/db'
+import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
@@ -131,6 +131,24 @@ export default function Config() {
   async function volverCliente() { const ss = await getSesion(); if (!ss) return; await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/(app)/cliente/home') }
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
 
+  function dejarEsteLocal() {
+    if (!sesion?.perfil_id) return
+    Alert.alert('Dejar este local',
+      'Se cancelarán tus citas futuras y saldrás de la fila. Tu identidad, historial y clientela te siguen (tu código de barbero no cambia).',
+      [{ text: 'No' }, { text: 'Sí, dejar el local', style: 'destructive', onPress: async () => {
+        try { await dejarLocal(sesion.perfil_id); const ss = await getSesion(); if (ss) await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
+  }
+  function eliminarMiCuenta() {
+    Alert.alert('Eliminar cuenta',
+      'Esto borra tus datos personales, cancela tus citas y turnos futuros y desvincula tus perfiles. No se puede deshacer.',
+      [{ text: 'Cancelar' }, { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
+  }
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   return (
@@ -253,7 +271,9 @@ export default function Config() {
 
       <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
       {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
+      <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
+      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
 
       {/* Modal servicio */}
       <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
@@ -348,8 +368,12 @@ const s = StyleSheet.create({
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   dev: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
   devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
+  dejar: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.dangerLight, borderRadius: 12, marginBottom: 8 },
+  dejarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
   salir: { padding: 16, alignItems: 'center' },
   salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
+  eliminar: { padding: 12, alignItems: 'center', marginBottom: 12 },
+  eliminarT: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, textDecorationLine: 'underline' },
   mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },

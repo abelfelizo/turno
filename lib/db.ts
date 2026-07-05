@@ -61,17 +61,21 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
   return Number(data ?? 0)
 }
 
+/** Stats del negocio con ingresos propios (empleados + silla del dueño)
+ * separados del volumen de rentas (informativo, no es ingreso del dueño). */
 export async function getEstadisticasNegocio(negocio_id: string) {
-  const hoy = fechaISOLocal()
-  const { data, error } = await supabase.from(T('historial_visitas')).select('precio_cobrado, cliente_id, fecha').eq('negocio_id', negocio_id)
+  const { data, error } = await supabase.rpc('turno_estadisticas_negocio', { p_negocio: negocio_id })
   if (error) throw error
-  const v = (data || []) as any[]
-  const hoyV = v.filter(x => x.fecha === hoy)
+  const r = (data && data[0]) || ({} as any)
+  const propios = Number(r.ingresos_propios ?? 0)
   return {
-    ingresosTotal: v.reduce((s, x) => s + Number(x.precio_cobrado || 0), 0),
-    ingresosHoy: hoyV.reduce((s, x) => s + Number(x.precio_cobrado || 0), 0),
-    atendidosHoy: hoyV.length, totalVisitas: v.length,
-    clientesUnicos: new Set(v.map(x => x.cliente_id)).size,
+    ingresosPropios: propios,
+    ingresosRenta: Number(r.ingresos_renta ?? 0),
+    ingresosTotal: propios,                 // "ingresos del local" = propios
+    ingresosHoy: Number(r.ingresos_hoy ?? 0),
+    atendidosHoy: Number(r.atendidos_hoy ?? 0),
+    totalVisitas: Number(r.total_visitas ?? 0),
+    clientesUnicos: Number(r.clientes_unicos ?? 0),
   }
 }
 
@@ -387,11 +391,18 @@ export async function llamarSiguiente(negocio_id: string, perfil_id?: string) {
   return data // fila de cola llamada, o null si no hay
 }
 
-/** Cliente confirma "voy en camino" (caso 6). */
+/** Cliente confirma "voy en camino" (caso 6). Gating R2 lo valida el servidor. */
 export async function confirmarCamino(cola_id: string) {
   const { data, error } = await supabase.rpc('turno_confirmar_camino', { p_cola: cola_id })
   if (error) throw error
   return data
+}
+
+/** R2: ¿ya puede confirmar "voy en camino"? (llamado, o <= umbral delante). */
+export async function puedeConfirmar(cola_id: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('turno_puede_confirmar', { p_cola: cola_id })
+  if (error) throw error
+  return !!data
 }
 
 /** ETA en minutos para un turno en cola (caso 10). */
@@ -542,4 +553,31 @@ export async function guardarNotaPrivada(perfil_id: string, cliente_id: string, 
 export async function getPuntos(usuario_id: string, negocio_id: string) {
   const { data } = await supabase.from(T('puntos')).select('puntos_totales, puntos_canjeados').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
   return data
+}
+
+// ── CICLO DE VIDA · bajas lógicas (nunca se borra historial) ──────────────────
+/** Cliente sale de una barbería (conserva su historial). */
+export async function salirLocal(negocio_id: string) {
+  const { error } = await supabase.rpc('turno_salir_local', { p_negocio: negocio_id })
+  if (error) throw error
+}
+/** Barbero deja su silla: cancela citas/cola futuras, desactiva perfil y membresía. */
+export async function dejarLocal(perfil_id: string) {
+  const { error } = await supabase.rpc('turno_dejar_local', { p_perfil: perfil_id })
+  if (error) throw error
+}
+/** Dueño desvincula a un barbero de su local (mismo efecto, iniciado por el negocio). */
+export async function desvincularBarbero(perfil_id: string) {
+  const { error } = await supabase.rpc('turno_desvincular_barbero', { p_perfil: perfil_id })
+  if (error) throw error
+}
+/** Dueño cierra el local (baja lógica + cancela lo futuro). */
+export async function cerrarLocal(negocio_id: string) {
+  const { error } = await supabase.rpc('turno_cerrar_local', { p_negocio: negocio_id })
+  if (error) throw error
+}
+/** Eliminar la cuenta (requisito de tiendas): baja lógica + anonimización. */
+export async function eliminarCuenta() {
+  const { error } = await supabase.rpc('turno_eliminar_cuenta')
+  if (error) throw error
 }

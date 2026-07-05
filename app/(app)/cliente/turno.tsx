@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola,
-  getPerfilesNegocio, getNegocioById, getConfiguracion,
+  getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
@@ -15,6 +15,7 @@ import HojaFila from '../../../components/hoja-fila'
 export default function MiTurno() {
   const [turnos, setTurnos] = useState<any[]>([])
   const [etas, setEtas] = useState<Record<string, number | null>>({})
+  const [puede, setPuede] = useState<Record<string, boolean>>({})
   const [expirado, setExpirado] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
@@ -36,8 +37,12 @@ export default function MiTurno() {
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     const map: Record<string, number | null> = {}
-    for (const t of ts as any[]) if (t.estado === 'en_fila') map[t.id] = await etaCola(t.id).catch(() => null)
-    setEtas(map)
+    const pmap: Record<string, boolean> = {}
+    for (const t of ts as any[]) {
+      if (t.estado === 'en_fila') map[t.id] = await etaCola(t.id).catch(() => null)
+      pmap[t.id] = await puedeConfirmar(t.id).catch(() => false)   // gating R2
+    }
+    setEtas(map); setPuede(pmap)
     setLoading(false); setRefreshing(false)
   }, [])
 
@@ -102,9 +107,11 @@ export default function MiTurno() {
             </View>
             <View style={s.acciones}>
               {(t.estado === 'en_fila' || llamado) && (
-                <TouchableOpacity style={s.cta} onPress={() => voy(t)} disabled={accion === t.id}>
-                  {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Voy en camino</Text>}
-                </TouchableOpacity>
+                puede[t.id]
+                  ? <TouchableOpacity style={s.cta} onPress={() => voy(t)} disabled={accion === t.id}>
+                      {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Voy en camino</Text>}
+                    </TouchableOpacity>
+                  : <View style={s.ctaOff}><Ionicons name="lock-closed" size={14} color={COLORS.textLight} /><Text style={s.ctaOffT}>Se activa cuando estés cerca</Text></View>
               )}
               <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>
             </View>
@@ -160,6 +167,8 @@ const s = StyleSheet.create({
   acciones: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   cta: { flex: 1, backgroundColor: COLORS.red, borderRadius: 12, padding: 14, alignItems: 'center' },
   ctaT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  ctaOff: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14 },
+  ctaOffT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
   salir: { padding: 14, alignItems: 'center' },
   salirT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },

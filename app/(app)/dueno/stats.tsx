@@ -33,10 +33,20 @@ export default function Stats() {
       <Display size={30} style={{ marginBottom: 18 }}>Estadísticas</Display>
 
       <View style={s.bigCard}>
-        <Text style={s.bigLbl}>INGRESOS TOTALES</Text>
-        <Text style={s.bigNum}>{dinero(stats?.ingresosTotal ?? 0, moneda)}</Text>
-        <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy</Text>
+        <Text style={s.bigLbl}>INGRESOS DEL LOCAL</Text>
+        <Text style={s.bigNum}>{dinero(stats?.ingresosPropios ?? 0, moneda)}</Text>
+        <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy · empleados y tu silla</Text>
       </View>
+
+      {(stats?.ingresosRenta ?? 0) > 0 && (
+        <View style={s.rentaCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rentaLbl}>VOLUMEN DE RENTAS</Text>
+            <Text style={s.rentaSub}>Ingreso de tus barberos rentados — informativo, no es tuyo.</Text>
+          </View>
+          <Text style={s.rentaNum}>{dinero(stats?.ingresosRenta ?? 0, moneda)}</Text>
+        </View>
+      )}
 
       <View style={s.grid}>
         <Metric n={stats?.totalVisitas ?? 0} l="Visitas" />
@@ -70,6 +80,10 @@ const s = StyleSheet.create({
   bigLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   bigNum: { fontFamily: FONTS.display, fontSize: 48, color: '#fff', marginTop: 6 },
   bigSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 2 },
+  rentaCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 12 },
+  rentaLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1 },
+  rentaSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
+  rentaNum: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.textMid },
   grid: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14 },
   mNum: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.ink },

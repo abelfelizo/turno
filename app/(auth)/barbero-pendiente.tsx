@@ -1,13 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'expo-router'
 import { OnbScreen, BotonPrimario } from '../../components/onb'
 import { TouchableOpacity, Text, StyleSheet } from 'react-native'
 import { cerrarSesion } from '../../lib/auth'
+import { getSesion } from '../../lib/storage'
+import { suscribirPerfil, desuscribir } from '../../lib/realtime'
 import { COLORS } from '../../constants'
 
 export default function BarberoPendiente() {
   const router = useRouter()
   const [verificando, setVerificando] = useState(false)
+
+  // Aprobación en vivo: cuando el dueño te aprueba, avanzas solo (sin recargar a mano).
+  useEffect(() => {
+    let sub: any
+    getSesion().then(ss => {
+      if (!ss?.perfil_id) return
+      sub = suscribirPerfil(ss.perfil_id, (payload: any) => {
+        if (payload?.new?.aprobado) router.replace('/')
+      })
+    })
+    return () => { if (sub) desuscribir(sub) }
+  }, [router])
 
   async function salir() {
     await cerrarSesion()
@@ -16,7 +30,7 @@ export default function BarberoPendiente() {
 
   return (
     <OnbScreen titulo="Solicitud enviada ⏳"
-      subtitulo="El dueño del local debe aprobarte. Te avisaremos cuando puedas empezar a atender. Vuelve a verificar más tarde.">
+      subtitulo="El dueño del local debe aprobarte. En cuanto lo haga, esta pantalla avanza sola y te llega una notificación. También puedes verificar a mano.">
       <BotonPrimario texto="Verificar estado" cargando={verificando}
         onPress={() => { setVerificando(true); router.replace('/') }} />
       <TouchableOpacity style={s.link} onPress={salir}>

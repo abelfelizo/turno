@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero } from '../lib/db'
-import { hora12, fechaLarga } from '../lib/format'
+import { hora12, fechaLarga, fechaISOLocal } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
@@ -49,7 +49,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   async function guardarBloqueo() {
     setBEnviando(true)
     try {
-      const hoy = new Date().toISOString().split('T')[0]
+      const hoy = fechaISOLocal()
       await crearBloqueo({ perfil_id: sesion.perfil_id, fecha: hoy, hora_inicio: `${String(bIni).padStart(2, '0')}:00`, hora_fin: `${String(bFin).padStart(2, '0')}:00`, motivo: bMotivo.trim() || undefined })
       setBloq(false); setBMotivo(''); Alert.alert('Hora bloqueada', 'Ese rango no estará disponible para citas hoy.')
     } catch (e: any) { Alert.alert('No se pudo bloquear', e.message ?? 'Intenta de nuevo.') }
@@ -62,7 +62,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     getSesion().then(ss => {
       if (!ss?.perfil_id) return
       subCola = suscribirCola(ss.negocio_id!, () => cargar())
-      subCitas = suscribirCitas(ss.perfil_id!, new Date().toISOString().split('T')[0], () => cargar())
+      subCitas = suscribirCitas(ss.perfil_id!, fechaISOLocal(), () => cargar())
     })
     return () => { if (subCola) desuscribir(subCola); if (subCitas) desuscribir(subCitas) }
   }, [cargar])

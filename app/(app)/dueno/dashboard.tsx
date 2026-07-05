@@ -2,7 +2,8 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero } from '../../../lib/db'
+import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [negocio, setNegocio] = useState<any>(null)
   const [cola, setCola] = useState<any[]>([])
   const [solicitudes, setSolicitudes] = useState<any[]>([])
+  const [equipo, setEquipo] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -21,13 +23,14 @@ export default function Dashboard() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
-    const [neg, q, sol, st] = await Promise.all([
+    const [neg, q, sol, st, eq] = await Promise.all([
       getNegocioById(ss.negocio_id),
       getColaActiva(ss.negocio_id).catch(() => []),
       getSolicitudesPendientes(ss.negocio_id).catch(() => []),
       getEstadisticasNegocio(ss.negocio_id).catch(() => null),
+      getPerfilesNegocio(ss.negocio_id).catch(() => []),
     ])
-    setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st)
+    setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[])
     setLoading(false); setRefreshing(false)
   }, [])
 
@@ -39,12 +42,27 @@ export default function Dashboard() {
   }, [cargar])
 
   async function aprobar(p: any) {
-    try { await aprobarPerfil(p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) }
+    try {
+      await aprobarPerfil(p.id)
+      if (p.usuario_id) enviarPush(p.usuario_id, 'Te aprobaron', `Ya puedes atender en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'agenda' })
+      cargar()
+    } catch (e: any) { Alert.alert('Error', e.message) }
   }
   function rechazar(p: any) {
     Alert.alert('Rechazar', `¿Rechazar a ${p.turno_usuarios?.nombre ?? 'este profesional'}?`, [
       { text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { try { await rechazarPerfil(p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
     ])
+  }
+  function desvincular(p: any) {
+    Alert.alert('Desvincular barbero',
+      `¿Sacar a ${p.turno_usuarios?.nombre ?? 'este barbero'} del local? Se cancelarán sus citas futuras y saldrá de la fila. Su historial y clientela lo acompañan.`,
+      [{ text: 'No' }, { text: 'Sí, desvincular', style: 'destructive', onPress: async () => {
+        try {
+          await desvincularBarbero(p.id)
+          if (p.usuario_id) enviarPush(p.usuario_id, 'Te desvincularon', `Ya no atiendes en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'agenda' })
+          cargar()
+        } catch (e: any) { Alert.alert('Error', e.message) }
+      } }])
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -118,6 +136,19 @@ export default function Dashboard() {
           <TouchableOpacity style={s.aprobar} onPress={() => aprobar(p)}><Text style={s.aprobarT}>Aprobar</Text></TouchableOpacity>
         </View>
       ))}
+
+      {/* Equipo activo (con desvincular) */}
+      {equipo.length > 0 && <Text style={s.sec}>EQUIPO · {equipo.length}</Text>}
+      {equipo.map((p: any) => (
+        <View key={p.id} style={s.sol}>
+          <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+            <Text style={s.solMeta}>{TIPO[p.tipo_servicio] ?? 'Barbería'} · {p.estado_actual === 'disponible' ? 'Disponible' : 'En descanso'}</Text>
+          </View>
+          <TouchableOpacity style={s.desvincular} onPress={() => desvincular(p)}><Ionicons name="person-remove-outline" size={18} color={COLORS.danger} /></TouchableOpacity>
+        </View>
+      ))}
     </ScrollView>
   )
 }
@@ -155,6 +186,7 @@ const s = StyleSheet.create({
   solName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   solMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   rechazar: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
+  desvincular: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
   aprobar: { backgroundColor: COLORS.success, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   aprobarT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
 })

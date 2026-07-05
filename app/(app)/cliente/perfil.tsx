@@ -1,8 +1,8 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { getSesion, limpiarSesion, guardarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById } from '../../../lib/db'
+import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
@@ -23,6 +23,7 @@ export default function Perfil() {
   const [config, setConfig] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
   const [negocio, setNegocio] = useState<any>(null)
+  const [locales, setLocales] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const cargar = useCallback(async () => {
@@ -38,6 +39,7 @@ export default function Perfil() {
         getNegocioById(ss.negocio_id).catch(() => null),
       ])
       setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
+      setLocales(await getMisNegociosCliente(u.id).catch(() => []))
     }
     setLoading(false)
   }, [])
@@ -46,6 +48,25 @@ export default function Perfil() {
   useFocusEffect(useCallback(() => { cargar() }, [cargar]))
 
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+
+  function salirDeLocal(l: any) {
+    Alert.alert('Salir del local', `¿Salir de ${l.nombre}? Podrás volver con el código. Tu historial se conserva.`, [
+      { text: 'No' },
+      { text: 'Sí, salir', style: 'destructive', onPress: async () => {
+        try { await salirLocal(l.negocio_id); router.replace('/') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } },
+    ])
+  }
+
+  function eliminarMiCuenta() {
+    Alert.alert('Eliminar cuenta',
+      'Esto borra tus datos personales y cancela tus turnos y citas futuras. No se puede deshacer.',
+      [{ text: 'Cancelar' }, { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
+  }
 
   async function entrarBarbero() {
     const ss = await getSesion(); if (!ss?.negocio_id) return
@@ -112,6 +133,18 @@ export default function Perfil() {
         <KV k="Notas" v={prefs?.notas || '—'} />
       </View>
 
+      {locales.length > 0 && (
+        <>
+          <Text style={s.sec}>MIS LOCALES</Text>
+          {locales.map((l: any) => (
+            <View key={l.negocio_id} style={s.localRow}>
+              <Text style={s.localN}>{l.nombre}</Text>
+              <TouchableOpacity onPress={() => salirDeLocal(l)}><Text style={s.localSalir}>Salir</Text></TouchableOpacity>
+            </View>
+          ))}
+        </>
+      )}
+
       {DEV_LOGIN && (
         <View style={s.devRow}>
           <TouchableOpacity style={[s.dev, { flex: 1 }]} onPress={entrarBarbero}><Text style={s.devT}>Barbero (dev)</Text></TouchableOpacity>
@@ -119,6 +152,7 @@ export default function Perfil() {
         </View>
       )}
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
+      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
     </ScrollView>
   )
 }
@@ -150,6 +184,11 @@ const s = StyleSheet.create({
   devRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
   dev: { padding: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
   devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
-  salir: { padding: 16, alignItems: 'center' },
+  localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
+  localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  localSalir: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
+  salir: { padding: 16, alignItems: 'center', marginTop: 8 },
   salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
+  eliminar: { padding: 12, alignItems: 'center', marginBottom: 12 },
+  eliminarT: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, textDecorationLine: 'underline' },
 })

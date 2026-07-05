@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { planDueno } from '../../../lib/pricing'
@@ -77,6 +77,16 @@ export default function Config() {
     await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/(app)/cliente/home')
   }
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+
+  function cerrarEsteLocal() {
+    if (!negocioId) return
+    Alert.alert('Cerrar local',
+      'El local dejará de aparecer, se cancelarán las citas futuras y se vaciará la fila. Se avisará a clientes y equipo. Esta acción no debe tomarse a la ligera.',
+      [{ text: 'Cancelar' }, { text: 'Cerrar local', style: 'destructive', onPress: async () => {
+        try { await cerrarLocal(negocioId); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
+  }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
@@ -158,6 +168,12 @@ export default function Config() {
       <Text style={s.sec}>CUENTA</Text>
       {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
+
+      <Text style={[s.sec, { color: COLORS.danger }]}>ZONA PELIGROSA</Text>
+      <TouchableOpacity style={s.cerrarLocal} onPress={cerrarEsteLocal}>
+        <Text style={s.cerrarLocalT}>Cerrar este local</Text>
+        <Text style={s.cerrarLocalD}>Baja definitiva del negocio. Los barberos rentados conservan su cuenta.</Text>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -221,4 +237,7 @@ const s = StyleSheet.create({
   devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   salir: { padding: 16, alignItems: 'center' },
   salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
+  cerrarLocal: { backgroundColor: COLORS.dangerLight, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 14, padding: 16, marginBottom: 20 },
+  cerrarLocalT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
+  cerrarLocalD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 3 },
 })
