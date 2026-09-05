@@ -5,7 +5,9 @@
   "scripts": {
     "start": "expo start",
     "ios": "expo start --ios",
-    "android": "expo start --android"
+    "android": "expo start --android",
+    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo-google-fonts/anton": "^0.4.2",

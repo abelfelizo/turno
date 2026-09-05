@@ -8,8 +8,9 @@ import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
 import { planIndependiente, planCubierto } from '../../../lib/pricing'
-import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
+import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+import CambiarRol from '../../../components/cambiar-rol'
 
 const ESTADOS = [
   { k: 'disponible', l: 'Disponible', c: COLORS.success },
@@ -144,7 +145,6 @@ export default function Config() {
       setHrModal(null); cargar()
     } catch (e: any) { Alert.alert('Error', e.message) } finally { setBusy(false) }
   }
-  async function volverCliente() { const ss = await getSesion(); if (!ss) return; await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/(app)/cliente/home') }
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
 
   async function cambiarLocal(l: any) {
@@ -366,8 +366,10 @@ export default function Config() {
         <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
       </TouchableOpacity>
 
+      <CambiarRol />
+
       <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
-      {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
+      
       <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
       <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
@@ -479,8 +481,6 @@ const s = StyleSheet.create({
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  dev: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
-  devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
   localOn: { borderColor: COLORS.success },
   localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },

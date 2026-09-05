@@ -1,6 +1,6 @@
-// ⚠️ TEMPORAL: cuando es true, el login muestra "Entrar en modo prueba" (cuenta fija)
-// y oculta el alta por correo/OTP. Poner en false para reactivar el correo.
-export const DEV_LOGIN = true
+// Login de producción: alta por correo con código OTP. El antiguo "modo prueba"
+// (cuenta fija dev@turno.test) se eliminó por seguridad — daba acceso de dueño a
+// cualquiera con el APK. Para cambiar de panel se usa <CambiarRol />.
 
 // Sistema visual NAVAJA · Barber Co. — rojo primario, azul secundario,
 // blanco y negro carbón. Tokens del handoff "Sistema Barbería".

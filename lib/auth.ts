@@ -34,18 +34,6 @@ export async function verificarCodigo(email: string, token: string): Promise<Ses
   return data.session
 }
 
-// ⚠️ TEMPORAL (modo desarrollo): entrar sin OTP de correo usando una cuenta fija.
-// Para revertir: borrar esta función, quitar el botón en login.tsx y reactivar el
-// formulario de correo (DEV_LOGIN=false en constants), y borrar el usuario dev@turno.test.
-export async function entrarModoPrueba(): Promise<Session> {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: 'dev@turno.test', password: 'turno1234',
-  })
-  if (error) throw error
-  if (!data.session) throw new Error('No se pudo iniciar sesión de prueba')
-  return data.session
-}
-
 export async function cerrarSesion() {
   await supabase.auth.signOut()
 }

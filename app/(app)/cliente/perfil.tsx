@@ -2,12 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getSesion, limpiarSesion, guardarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
+import { getSesion, limpiarSesion } from '../../../lib/storage'
+import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
 import { dinero } from '../../../lib/format'
-import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
+import { COLORS, FONTS } from '../../../constants'
 import { Avatar, KV } from '../../../components/ui'
+import CambiarRol from '../../../components/cambiar-rol'
 
 function masFrecuente(arr: any[], key: (x: any) => string | undefined): string | null {
   const m: Record<string, number> = {}
@@ -81,20 +82,6 @@ export default function Perfil() {
         try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
       } }])
-  }
-
-  async function entrarBarbero() {
-    const ss = await getSesion(); if (!ss?.negocio_id) return
-    const perfil = await getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null)
-    if (!perfil) return
-    await guardarSesion({ ...ss, rol: 'empleado', perfil_id: perfil.id })
-    router.replace('/(app)/barbero/agenda')
-  }
-  async function entrarDueno() {
-    const ss = await getSesion(); if (!ss?.negocio_id) return
-    const perfil = await getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null) // dueño que también atiende
-    await guardarSesion({ ...ss, rol: 'dueno', perfil_id: perfil?.id })
-    router.replace('/(app)/dueno/dashboard')
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -177,12 +164,8 @@ export default function Perfil() {
         </>
       )}
 
-      {DEV_LOGIN && (
-        <View style={s.devRow}>
-          <TouchableOpacity style={[s.dev, { flex: 1 }]} onPress={entrarBarbero}><Text style={s.devT}>Barbero (dev)</Text></TouchableOpacity>
-          <TouchableOpacity style={[s.dev, { flex: 1 }]} onPress={entrarDueno}><Text style={s.devT}>Dueño (dev)</Text></TouchableOpacity>
-        </View>
-      )}
+      <CambiarRol />
+
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
       <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
     </ScrollView>
@@ -219,9 +202,6 @@ const s = StyleSheet.create({
   mNumSm: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
   box: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4, marginTop: 10, marginBottom: 24 },
-  devRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  dev: { padding: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
-  devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
   localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   localSalir: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },

@@ -5,7 +5,7 @@ import { getAuthSession } from '../lib/auth'
 import { getMiUsuario, getMisMembresias, getMiPerfil } from '../lib/db'
 import { guardarSesion, limpiarSesion } from '../lib/storage'
 import { registrarPush } from '../lib/notificaciones'
-import { COLORS, DEV_LOGIN } from '../constants'
+import { COLORS } from '../constants'
 import type { RolUsuario } from '../types'
 
 export default function Index() {
@@ -29,10 +29,8 @@ export default function Index() {
         router.replace('/(auth)/welcome')
         return
       }
-      // En modo prueba (dev) arrancar siempre como cliente (hub para cambiar de rol).
-      // En real: preferir la membresía de dueño si existe.
-      const m = (DEV_LOGIN ? membresias.find((x: any) => x.rol === 'cliente') : null)
-        ?? membresias.find((x: any) => x.rol === 'dueno') ?? membresias[0]
+      // Panel inicial: se prefiere dueño; desde ahí se cambia con <CambiarRol />.
+      const m = membresias.find((x: any) => x.rol === 'dueno') ?? membresias[0]
       const rol = m.rol as RolUsuario
       let perfil_id: string | undefined
       if (rol !== 'cliente') {

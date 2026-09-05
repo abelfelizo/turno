@@ -111,6 +111,28 @@ export async function getMisMembresias(usuario_id: string) {
   return data || []
 }
 
+/** Todos los roles reales del usuario, con su local y perfil, para el
+ * conmutador de panel (cliente / barbería / mi silla). No depende de DEV_LOGIN. */
+export async function getMisRoles(usuario_id: string) {
+  const [mems, perfs] = await Promise.all([
+    supabase.from(T('membresias')).select('rol, negocio_id, turno_negocios(nombre)').eq('usuario_id', usuario_id).eq('activo', true),
+    supabase.from(T('perfiles')).select('id, negocio_id, aprobado').eq('usuario_id', usuario_id).eq('activo', true),
+  ])
+  if (mems.error) throw mems.error
+  const perfilDe = new Map<string, any>()
+  for (const p of (perfs.data ?? []) as any[]) perfilDe.set(p.negocio_id, p)
+  return ((mems.data ?? []) as any[]).map(m => {
+    const perfil = perfilDe.get(m.negocio_id)
+    return {
+      rol: m.rol as string,
+      negocio_id: m.negocio_id as string,
+      negocio: (m as any).turno_negocios?.nombre ?? 'Local',
+      perfil_id: perfil?.id as string | undefined,
+      aprobado: perfil ? !!perfil.aprobado : true,
+    }
+  })
+}
+
 /** Barberías donde el usuario es cliente (para el selector de local). */
 export async function getMisNegociosCliente(usuario_id: string) {
   const { data, error } = await supabase.from(T('membresias'))

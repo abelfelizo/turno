@@ -1,8 +1,8 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { enviarCodigo, verificarCodigo, entrarModoPrueba } from '../../lib/auth'
-import { COLORS, FONTS, DEV_LOGIN } from '../../constants'
+import { enviarCodigo, verificarCodigo } from '../../lib/auth'
+import { COLORS, FONTS } from '../../constants'
 import { Display, Pole } from '../../components/ui'
 
 export default function Login() {
@@ -12,12 +12,6 @@ export default function Login() {
   const [codigo, setCodigo] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  async function entrarPrueba() {
-    setCargando(true)
-    try { await entrarModoPrueba(); router.replace('/') }
-    catch (e: any) { Alert.alert('No se pudo entrar', e.message ?? 'Intenta de nuevo.') }
-    finally { setCargando(false) }
-  }
   async function pedirCodigo() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { Alert.alert('Email inválido', 'Escribe un correo válido.'); return }
     setCargando(true)
@@ -44,14 +38,7 @@ export default function Login() {
       <Text style={s.kicker}>App de reservas · Barbería</Text>
       <Display size={68} color="#fff" style={{ lineHeight: 64 }}>Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
 
-      {DEV_LOGIN ? (
-        <>
-          <Text style={s.sub}>Modo prueba activo. El alta por correo está desactivada temporalmente.</Text>
-          <TouchableOpacity style={s.btn} onPress={entrarPrueba} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Entrar en modo prueba</Text>}
-          </TouchableOpacity>
-        </>
-      ) : paso === 'email' ? (
+      {paso === 'email' ? (
         <>
           <Text style={s.sub}>Entra con tu correo. Te enviaremos un código.</Text>
           <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}

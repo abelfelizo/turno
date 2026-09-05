@@ -6,8 +6,9 @@ import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegoci
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { planDueno } from '../../../lib/pricing'
-import { SUSCRIPCION, COLORS, FONTS, DEV_LOGIN } from '../../../constants'
+import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+import CambiarRol from '../../../components/cambiar-rol'
 
 export default function Config() {
   const router = useRouter()
@@ -71,10 +72,6 @@ export default function Config() {
     const v = Math.max(min, Math.min(max, (config[campo] ?? 0) + delta))
     setConfig((c: any) => ({ ...c, [campo]: v }))
     await updateConfiguracion(negocioId, { [campo]: v }).catch(() => cargar())
-  }
-  async function volverCliente() {
-    const ss = await getSesion(); if (!ss) return
-    await guardarSesion({ ...ss, rol: 'cliente', perfil_id: undefined }); router.replace('/(app)/cliente/home')
   }
   async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
 
@@ -165,8 +162,10 @@ export default function Config() {
       <Stepper label="Ventana de llegada" suf="min" value={config?.ventana_llegada_min ?? 10} onMinus={() => ajustar('ventana_llegada_min', -5, 5, 60)} onPlus={() => ajustar('ventana_llegada_min', 5, 5, 60)} />
       <Stepper label="Gracia de cita" suf="min" value={config?.gracia_cita_min ?? 5} onMinus={() => ajustar('gracia_cita_min', -5, 0, 30)} onPlus={() => ajustar('gracia_cita_min', 5, 0, 30)} />
 
+      <CambiarRol />
+
       <Text style={s.sec}>CUENTA</Text>
-      {DEV_LOGIN && <TouchableOpacity style={s.dev} onPress={volverCliente}><Text style={s.devT}>Volver a cliente (dev)</Text></TouchableOpacity>}
+      
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
 
       <Text style={[s.sec, { color: COLORS.danger }]}>ZONA PELIGROSA</Text>
@@ -233,8 +232,6 @@ const s = StyleSheet.create({
   stepBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   stepBtnT: { fontFamily: FONTS.bold, fontSize: 20, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink, minWidth: 56, textAlign: 'center' },
-  dev: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
-  devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   salir: { padding: 16, alignItems: 'center' },
   salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
   cerrarLocal: { backgroundColor: COLORS.dangerLight, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 14, padding: 16, marginBottom: 20 },
