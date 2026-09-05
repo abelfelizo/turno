@@ -223,4 +223,19 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
   - **Barbero multi-local:** selector de local activo + "Trabajar en otro local" (reusa `unirse_profesional`).
 - **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla. _(pendiente — único bloque restante)_
 
+## 7. Riesgos de producción (revisión de julio)
+
+| # | Riesgo | Estado |
+|---|--------|--------|
+| P1 | **Backdoor de desarrollo**: `entrarModoPrueba()` daba acceso de **dueño** a cualquiera con el APK, con la credencial en texto plano y commiteada. F2b había ampliado el daño posible (cerrar local, desvincular, eliminar cuenta). | ✅ Cerrado: función eliminada, `DEV_LOGIN` fuera, contraseña rotada |
+| P2 | **Cero pruebas automatizadas** sobre un motor de cola concurrente con invariantes reales. Todo se validaba con `tsc` (tipos) + prueba manual. | ✅ `supabase/tests/motor_cola.test.sql`, 12 casos, 12/12 verde |
+| P3 | **Entrega de correo del OTP.** El login de producción es correo + código. El SMTP interno de Supabase está **fuertemente limitado** (pocos envíos/hora) y en muchos proyectos solo entrega a miembros del equipo. Si es el caso, un cliente real **no recibe el código y no puede entrar**: la app muere en la pantalla de login. | ⚠️ **Verificar antes del piloto** — configurar SMTP propio (Resend/SendGrid) en Auth → SMTP Settings |
+| P4 | **Fricción del correo en RD.** Los clientes de barbería usan más WhatsApp que correo. El OTP por email puede frenar la adopción aunque funcione técnicamente. | 📌 Anotado: decidir OTP por teléfono/WhatsApp (requiere proveedor SMS, coste) antes de abrir a clientes |
+| P5 | **Pagos / suscripción**: el modelo está diseñado (`lib/pricing.ts`, asientos con tope) pero **no hay cobro implementado**. No se puede monetizar el piloto. | 📌 Pendiente de decisión de negocio |
+
+**Regla que deja P2:** cualquier cambio a `turno_entrar_a_cola`,
+`turno_llamar_siguiente`, `turno_confirmar_camino`, `turno_expirar_llamados` o
+`turno_agendar_grupo` debe correr la suite antes de darse por bueno. La primera
+corrida ya encontró un bug de producción (reserva grupal rota por una FK).
+
 **Pendientes menores conocidos (no bloquean F4):** dueño "crear otro local" (reusar onboarding), conmutador `[Barbería | Mi silla]` (el dueño ya tiene pestaña "Mi agenda"), calendario/bloqueos por rango, y recordatorios de re-visita/otros push **programados** desde servidor (requieren `pg_net`, ausente en la BD compartida).
