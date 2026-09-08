@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # El proyecto resuelve dependencias con --legacy-peer-deps (React 19 vs
+      # peers de radix/expo-router). El lockfile se generó con esa bandera.
+      - run: npm ci --legacy-peer-deps
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit

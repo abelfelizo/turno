@@ -4,14 +4,16 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
-  getNegocioById, getPerfilesNegocio, getMiTurnoActivo, entrarACola, getMisCitas,
+  getNegocioById, getPerfilesNegocio, getMiTurnoActivo, getMisCitas,
   getRatingsNegocio, confirmarCita, cancelarCita, getMisNegociosCliente, getConfiguracion,
   getPuntos, getHistorialCliente,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
+import { programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12 } from '../../../lib/format'
+import { hora12, dinero } from '../../../lib/format'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
+import HojaFila from '../../../components/hoja-fila'
 
 const TIPO_LABEL: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
 
@@ -39,7 +41,7 @@ export default function Home() {
   const [expandido, setExpandido] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [enviando, setEnviando] = useState(false)
+  const [hoja, setHoja] = useState<any>(null)   // selección para la hoja de confirmación de fila
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -56,6 +58,7 @@ export default function Home() {
     ])
     setNegocio(neg); setPerfiles(perf as any[]); setTurno(t); setCitas(cs as any[])
     setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setPuntos(pts); setHistorial(hist as any[])
+    programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
   }, [])
 
@@ -70,17 +73,14 @@ export default function Home() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, negocio_id }); setExpandido(null); setLoading(true); cargar()
   }
-  async function pedir(perfil_id: string | undefined, servicio_id: string) {
-    if (!sesion?.negocio_id) return
-    setEnviando(true)
-    try { await entrarACola({ negocio_id: sesion.negocio_id, servicio_id, tipo_cola: 'digital', perfil_id }); await cargar(); router.push('/(app)/cliente/turno') }
-    catch (e: any) { Alert.alert('No se pudo pedir turno', e.message ?? 'Intenta de nuevo.') }
-    finally { setEnviando(false) }
+  // Abre la hoja de confirmación (R3) en vez de entrar a la fila de un toque.
+  function pedir(perfil: any | undefined, servicio: any) {
+    if (!sesion?.negocio_id || !negocio) return
+    setHoja({ negocio, perfil, servicio })
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
-  const proxima = citas[0]
   const porDueno = !!config?.asignacion_por_dueno
   const porVisita = config?.puntos_por_visita || 1
   const metaPts = porVisita * (config?.visitas_para_gratis || 10)
@@ -94,7 +94,16 @@ export default function Home() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
 
       <Text style={s.hola}>Hola</Text>
-      <Display size={30} style={{ marginBottom: 18 }}>{negocio?.nombre ?? 'Tu barbería'}</Display>
+      <View style={s.marcaHead}>
+        {negocio?.logo_url ? <Avatar name={negocio?.nombre} uri={negocio.logo_url} size={52} bg={COLORS.carbon} /> : null}
+        <View style={{ flex: 1 }}>
+          <Display size={28}>{negocio?.nombre ?? 'Tu barbería'}</Display>
+          {negocio?.slogan ? <Text style={s.marcaSlogan}>{negocio.slogan}</Text> : null}
+          {negocio?.direccion ? (
+            <View style={s.marcaMetaRow}><Ionicons name="location-outline" size={13} color={COLORS.textLight} /><Text style={s.marcaMeta}>{negocio.direccion}</Text></View>
+          ) : null}
+        </View>
+      </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18 }} contentContainerStyle={{ gap: 8 }}>
         {negocios.map((n: any) => {
@@ -106,6 +115,7 @@ export default function Home() {
           )
         })}
         <TouchableOpacity style={s.tabMas} onPress={() => router.push('/(auth)/cliente-codigo')}><Ionicons name="add" size={20} color={COLORS.red} /></TouchableOpacity>
+        <TouchableOpacity style={s.tabMas} onPress={() => router.push('/(app)/cliente/buscar-barbero')}><Ionicons name="person-add-outline" size={18} color={COLORS.blue} /></TouchableOpacity>
       </ScrollView>
 
       {turno && (
@@ -117,27 +127,31 @@ export default function Home() {
         </TouchableOpacity>
       )}
 
-      {proxima && (
-        <View style={s.cita}>
+      {citas.length > 0 && <Text style={s.sec}>TUS CITAS</Text>}
+      {citas.map((cita: any, i: number) => (
+        <View key={cita.id} style={s.cita}>
           <View style={s.citaIcon}><Ionicons name="calendar" size={22} color={COLORS.red} /></View>
           <View style={{ flex: 1 }}>
             <View style={s.citaTop}>
-              <Text style={s.citaKick}>PRÓXIMA CITA</Text>
-              <Text style={s.citaCd}>{cuentaRegresiva(proxima.fecha, proxima.hora_inicio)}</Text>
+              <Text style={s.citaKick}>{i === 0 ? 'PRÓXIMA CITA' : 'CITA'}</Text>
+              <Text style={s.citaCd}>{cuentaRegresiva(cita.fecha, cita.hora_inicio)}</Text>
             </View>
-            <Text style={s.citaServ}>{proxima.turno_servicios?.nombre}</Text>
-            <Text style={s.citaMeta}>{proxima.fecha} · {hora12(proxima.hora_inicio)} · {proxima.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
+            <Text style={s.citaServ}>{cita.turno_servicios?.nombre}</Text>
+            <Text style={s.citaMeta}>{cita.fecha} · {hora12(cita.hora_inicio)} · {cita.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
             <View style={s.citaAcc}>
-              {(proxima.estado === 'creada' || proxima.estado === 'no_confirmada')
-                ? <TouchableOpacity style={s.citaBtn} onPress={async () => { await confirmarCita(proxima.id); cargar() }}><Text style={s.citaBtnT}>Confirmar</Text></TouchableOpacity>
+              {(cita.estado === 'creada' || cita.estado === 'no_confirmada')
+                ? <TouchableOpacity style={s.citaBtn} onPress={async () => { await confirmarCita(cita.id); cargar() }}><Text style={s.citaBtnT}>Confirmar</Text></TouchableOpacity>
                 : <Badge tone="success">Confirmada</Badge>}
-              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(proxima.id); cargar() } }])}>
+              <TouchableOpacity onPress={() => router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: cita.perfil_id, servicio: cita.servicio_id, reagendar: cita.id } })}>
+                <Text style={s.citaReprog}>Reprogramar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); cargar() } }])}>
                 <Text style={s.citaCancel}>Cancelar</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      )}
+      ))}
 
       <Text style={s.sec}>RESERVAR CITA</Text>
       <TouchableOpacity style={s.reservar} onPress={() => router.push('/(app)/cliente/agendar')}>
@@ -149,45 +163,43 @@ export default function Home() {
         <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
       </TouchableOpacity>
 
-      {!turno && (
-        <>
-          <Text style={s.sec}>FILA DIGITAL · ENTRA AHORA</Text>
-          {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
-          {porDueno
-            ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
-                .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
-                .map((sv: any) => (
-                  <TouchableOpacity key={sv.id} style={s.servSolo} disabled={enviando} onPress={() => pedir(undefined, sv.id)}>
-                    <Text style={s.servNombre}>{sv.nombre}</Text>
-                    <Text style={s.precio}>{negocio?.moneda} {sv.precio}</Text>
-                  </TouchableOpacity>))
-            : perfiles.map((p: any) => {
-                const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
-                return (
-                  <View key={p.id} style={s.barbero}>
-                    <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
-                      <Avatar name={p.turno_usuarios?.nombre} size={44} />
-                      <View style={{ flex: 1 }}>
-                        <View style={s.nombreRow}>
-                          <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-                          <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
-                        </View>
-                        <View style={s.estadoRow}>
-                          <Dot color={disp ? COLORS.success : COLORS.textLight} />
-                          <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'Ocupado'}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
-                        </View>
-                      </View>
-                      <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
-                    </TouchableOpacity>
-                    {abierto && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
-                      <TouchableOpacity key={sv.id} style={s.servicio} disabled={enviando} onPress={() => pedir(p.id, sv.id)}>
-                        <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                        <Text style={s.precio}>{negocio?.moneda} {sv.precio}</Text>
-                      </TouchableOpacity>))}
-                  </View>)
-              })}
-        </>
-      )}
+      <Text style={s.sec}>FILA DIGITAL · ENTRA AHORA</Text>
+      {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
+      {porDueno
+        ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
+            .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
+            .map((sv: any) => (
+              <TouchableOpacity key={sv.id} style={s.servSolo} onPress={() => pedir(undefined, sv)}>
+                <Text style={s.servNombre}>{sv.nombre}</Text>
+                <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
+              </TouchableOpacity>))
+        : perfiles.map((p: any) => {
+            const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
+            return (
+              <View key={p.id} style={s.barbero}>
+                <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
+                  <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} />
+                  <View style={{ flex: 1 }}>
+                    <View style={s.nombreRow}>
+                      <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                      <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
+                    </View>
+                    {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
+                    <View style={s.estadoRow}>
+                      <Dot color={disp ? COLORS.success : COLORS.textLight} />
+                      <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'En descanso'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
+                    </View>
+                  </View>
+                  <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
+                </TouchableOpacity>
+                {abierto && !disp && <Text style={s.noDisp}>No recibe turnos ahora mismo. Puedes agendar una cita.</Text>}
+                {abierto && disp && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
+                  <TouchableOpacity key={sv.id} style={s.servicio} onPress={() => pedir(p, sv)}>
+                    <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
+                    <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
+                  </TouchableOpacity>))}
+              </View>)
+          })}
 
       {config?.puntos_activos && (
         <TouchableOpacity style={s.pts} onPress={() => router.push('/(app)/cliente/perfil')}>
@@ -203,11 +215,18 @@ export default function Home() {
           {historial.slice(0, 4).map((h: any) => (
             <View key={h.id} style={s.histItem}>
               <View style={{ flex: 1 }}><Text style={s.histServ}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text><Text style={s.histMeta}>{h.fecha} · {h.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text></View>
-              <Text style={s.histPrecio}>{negocio?.moneda} {h.precio_cobrado}</Text>
+              <Text style={s.histPrecio}>{dinero(h.precio_cobrado, negocio?.moneda)}</Text>
             </View>
           ))}
         </>
       )}
+
+      <HojaFila
+        seleccion={hoja}
+        visible={!!hoja}
+        onClose={() => setHoja(null)}
+        onEntrado={() => { setHoja(null); cargar(); router.push('/(app)/cliente/turno') }}
+      />
     </ScrollView>
   )
 }
@@ -216,6 +235,12 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   hola: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textLight, letterSpacing: 0.4, marginBottom: 4 },
+  marcaHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  marcaSlogan: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
+  marcaMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+  marcaMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight },
+  barberoEsp: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 2 },
+  noDisp: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, paddingHorizontal: 4, paddingTop: 10 },
   tab: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   tabOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   tabT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid, maxWidth: 160 },
@@ -237,6 +262,7 @@ const s = StyleSheet.create({
   citaAcc: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
   citaBtn: { backgroundColor: COLORS.red, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   citaBtnT: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13 },
+  citaReprog: { fontFamily: FONTS.semibold, color: COLORS.blue, fontSize: 13 },
   citaCancel: { fontFamily: FONTS.semibold, color: COLORS.textLight, fontSize: 13 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 20, textAlign: 'center' },

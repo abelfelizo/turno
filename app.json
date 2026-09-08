@@ -2,7 +2,8 @@
   "expo": {
     "name": "Turno",
     "slug": "turno",
-    "version": "1.0.0",
+    "owner": "abelfelizo",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "turno",
@@ -14,17 +15,36 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.turno.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
-      "package": "com.turno.app"
+      "package": "com.turno.app",
+      "versionCode": 3
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-notifications", { "color": "#E5202B" }],
-      "expo-asset"
-    ]
+      [
+        "expo-notifications",
+        {
+          "color": "#E5202B"
+        }
+      ],
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Turno usa tus fotos para tu foto de perfil y el logo del local."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "267b66a1-2afe-4194-adb1-45855f0dd9e4"
+      }
+    }
   }
 }

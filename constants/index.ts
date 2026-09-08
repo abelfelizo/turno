@@ -1,6 +1,6 @@
-// ⚠️ TEMPORAL: cuando es true, el login muestra "Entrar en modo prueba" (cuenta fija)
-// y oculta el alta por correo/OTP. Poner en false para reactivar el correo.
-export const DEV_LOGIN = true
+// Login de producción: alta por correo con código OTP. El antiguo "modo prueba"
+// (cuenta fija dev@turno.test) se eliminó por seguridad — daba acceso de dueño a
+// cualquiera con el APK. Para cambiar de panel se usa <CambiarRol />.
 
 // Sistema visual NAVAJA · Barber Co. — rojo primario, azul secundario,
 // blanco y negro carbón. Tokens del handoff "Sistema Barbería".
@@ -99,4 +99,21 @@ export const TIEMPOS_DEFAULT = {
   ventana_llegada_min: 10,
   gracia_cita_min: 5,
   aviso_turno_min: 20,
+} as const
+
+// ── Suscripción (modelo "por asiento, con piso y tope") ───────────
+// El cliente es gratis. El barbero independiente paga el mínimo.
+// El dueño paga mínimo × asientos (empleados + él mismo si atiende),
+// con PISO en el mínimo y TOPE en el máximo: todo dueño paga al menos el
+// mínimo (cuota de gestión del local), incluso el rentista que no atiende.
+// Un dueño-barbero solo paga el mínimo.
+// ⚠️ MONTOS PLACEHOLDER: ajústalos a tu mercado. En IAP, el precio real
+// lo define el producto de App Store / Google Play; estos valores son
+// para mostrar el plan y calcular asientos en la app.
+export const SUSCRIPCION = {
+  minimo: 500,        // precio por asiento / por barbero independiente
+  maximo: 2000,       // tope mensual del dueño
+  moneda: 'RD$',
+  periodo: 'mes',
+  dias_prueba: 30,
 } as const

@@ -28,7 +28,9 @@ export default function ClientePrefs() {
         }
       }
       resetBorrador()
-      router.replace('/(app)/cliente/home')
+      // "/" en vez del home directo: index.tsx resuelve y guarda la sesión.
+      // Sin eso el cliente entraba a un home sin negocio_id, es decir, vacío.
+      router.replace('/')
     } catch (e: any) {
       Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.')
     } finally { setCargando(false) }

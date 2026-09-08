@@ -3,7 +3,7 @@
  * Rojo primario, azul secundario, blanco, negro carbón. Display = Anton.
  */
 import { ReactNode } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp } from 'react-native'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants'
 
@@ -61,7 +61,10 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
   )
 }
 
-export function Avatar({ name, size = 48, color = '#fff', bg = COLORS.blue }: { name?: string; size?: number; color?: string; bg?: string }) {
+export function Avatar({ name, size = 48, color = '#fff', bg = COLORS.blue, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
+  if (uri) {
+    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, borderRadius: 14, backgroundColor: bg }]} />
+  }
   return (
     <View style={[s.avatar, { width: size, height: size, borderRadius: 14, backgroundColor: bg }]}>
       <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>

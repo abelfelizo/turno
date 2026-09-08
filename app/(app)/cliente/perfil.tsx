@@ -1,11 +1,14 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
-import { getSesion, limpiarSesion, guardarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getMiPerfil } from '../../../lib/db'
+import { Ionicons } from '@expo/vector-icons'
+import { getSesion, limpiarSesion } from '../../../lib/storage'
+import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
-import { COLORS, FONTS, DEV_LOGIN } from '../../../constants'
+import { dinero } from '../../../lib/format'
+import { COLORS, FONTS } from '../../../constants'
 import { Avatar, KV } from '../../../components/ui'
+import CambiarRol from '../../../components/cambiar-rol'
 
 function masFrecuente(arr: any[], key: (x: any) => string | undefined): string | null {
   const m: Record<string, number> = {}
@@ -21,6 +24,10 @@ export default function Perfil() {
   const [puntos, setPuntos] = useState<any>(null)
   const [config, setConfig] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
+  const [negocio, setNegocio] = useState<any>(null)
+  const [locales, setLocales] = useState<any[]>([])
+  const [canjes, setCanjes] = useState<any[]>([])
+  const [canjeando, setCanjeando] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const cargar = useCallback(async () => {
@@ -28,13 +35,16 @@ export default function Perfil() {
     const u = await getMiUsuario().catch(() => null)
     setUsuario(u)
     if (u && ss?.negocio_id) {
-      const [pr, pt, cfg, hist] = await Promise.all([
+      const [pr, pt, cfg, hist, neg] = await Promise.all([
         getPreferenciasCliente(u.id, ss.negocio_id).catch(() => null),
         getPuntos(u.id, ss.negocio_id).catch(() => null),
         getConfiguracion(ss.negocio_id).catch(() => null),
         getHistorialCliente(u.id, ss.negocio_id).catch(() => []),
+        getNegocioById(ss.negocio_id).catch(() => null),
       ])
-      setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[])
+      setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
+      setLocales(await getMisNegociosCliente(u.id).catch(() => []))
+      setCanjes(await getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []))
     }
     setLoading(false)
   }, [])
@@ -42,20 +52,43 @@ export default function Perfil() {
   useEffect(() => { cargar() }, [cargar])
   useFocusEffect(useCallback(() => { cargar() }, [cargar]))
 
-  async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
-
-  async function entrarBarbero() {
-    const ss = await getSesion(); if (!ss?.negocio_id) return
-    const perfil = await getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null)
-    if (!perfil) return
-    await guardarSesion({ ...ss, rol: 'empleado', perfil_id: perfil.id })
-    router.replace('/(app)/barbero/agenda')
+  function salir() {
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir? Necesitarás un código nuevo para volver a entrar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
+        await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login')
+      } },
+    ])
   }
-  async function entrarDueno() {
+
+  function salirDeLocal(l: any) {
+    Alert.alert('Salir del local', `¿Salir de ${l.nombre}? Podrás volver con el código. Tu historial se conserva.`, [
+      { text: 'No' },
+      { text: 'Sí, salir', style: 'destructive', onPress: async () => {
+        try { await salirLocal(l.negocio_id); router.replace('/') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } },
+    ])
+  }
+
+  async function canjear() {
     const ss = await getSesion(); if (!ss?.negocio_id) return
-    const perfil = await getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null) // dueño que también atiende
-    await guardarSesion({ ...ss, rol: 'dueno', perfil_id: perfil?.id })
-    router.replace('/(app)/dueno/dashboard')
+    setCanjeando(true)
+    try {
+      await emitirCanje(ss.negocio_id)
+      Alert.alert('¡Premio canjeado!', 'Generamos tu vale. Muéstralo al barbero cuando te cobre.')
+      cargar()
+    } catch (e: any) { Alert.alert('No se pudo canjear', e.message ?? 'Intenta de nuevo.') }
+    finally { setCanjeando(false) }
+  }
+
+  function eliminarMiCuenta() {
+    Alert.alert('Eliminar cuenta',
+      'Esto borra tus datos personales y cancela tus turnos y citas futuras. No se puede deshacer.',
+      [{ text: 'Cancelar' }, { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+        catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -63,7 +96,6 @@ export default function Perfil() {
   const totalGastado = historial.reduce((sum, h) => sum + Number(h.precio_cobrado || 0), 0)
   const barberoFav = masFrecuente(historial, h => h.turno_perfiles?.turno_usuarios?.nombre)
   const servicioFav = masFrecuente(historial, h => h.turno_servicios?.nombre)
-  const moneda = historial[0]?.turno_servicios ? '' : ''
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60 }} showsVerticalScrollIndicator={false}>
@@ -85,14 +117,31 @@ export default function Perfil() {
             <View style={s.fidelHead}><Text style={s.fidelTitle}>FIDELIDAD</Text><Text style={s.fidelNum}>{enCiclo} / {meta} pts</Text></View>
             <View style={s.barBg}><View style={[s.barFill, { width: `${pct}%` }]} /></View>
             <View style={s.fidelFoot}><Text style={s.fidelMeta}>Meta: corte gratis</Text><Text style={s.fidelFaltan}>{faltan === 0 ? '¡Disponible!' : `Faltan ${faltan} visita${faltan === 1 ? '' : 's'}`}</Text></View>
+            {faltan === 0 && (
+              <TouchableOpacity style={s.canjearBtn} onPress={canjear} disabled={canjeando}>
+                {canjeando ? <ActivityIndicator color={COLORS.carbon} /> : <Text style={s.canjearT}>Canjear premio</Text>}
+              </TouchableOpacity>
+            )}
           </View>
         )
       })()}
 
+      {canjes.length > 0 && (
+        <View style={s.vales}>
+          <Text style={s.valesT}>VALES DISPONIBLES</Text>
+          {canjes.map((c: any) => (
+            <View key={c.id} style={s.vale}>
+              <Ionicons name="ticket" size={18} color={COLORS.red} />
+              <Text style={s.valeT}>Corte gratis · muéstralo al cobrar</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <Text style={s.sec}>TUS NÚMEROS</Text>
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNum}>{historial.length}</Text><Text style={s.mLbl}>Visitas</Text></View>
-        <View style={s.metric}><Text style={s.mNum}>{moneda}{totalGastado}</Text><Text style={s.mLbl}>Gastado</Text></View>
+        <View style={s.metric}><Text style={s.mNum}>{dinero(totalGastado, negocio?.moneda)}</Text><Text style={s.mLbl}>Gastado</Text></View>
       </View>
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNumSm} numberOfLines={1}>{barberoFav ?? '—'}</Text><Text style={s.mLbl}>Barbero favorito</Text></View>
@@ -110,13 +159,22 @@ export default function Perfil() {
         <KV k="Notas" v={prefs?.notas || '—'} />
       </View>
 
-      {DEV_LOGIN && (
-        <View style={s.devRow}>
-          <TouchableOpacity style={[s.dev, { flex: 1 }]} onPress={entrarBarbero}><Text style={s.devT}>Barbero (dev)</Text></TouchableOpacity>
-          <TouchableOpacity style={[s.dev, { flex: 1 }]} onPress={entrarDueno}><Text style={s.devT}>Dueño (dev)</Text></TouchableOpacity>
-        </View>
+      {locales.length > 0 && (
+        <>
+          <Text style={s.sec}>MIS LOCALES</Text>
+          {locales.map((l: any) => (
+            <View key={l.negocio_id} style={s.localRow}>
+              <Text style={s.localN}>{l.nombre}</Text>
+              <TouchableOpacity onPress={() => salirDeLocal(l)}><Text style={s.localSalir}>Salir</Text></TouchableOpacity>
+            </View>
+          ))}
+        </>
       )}
+
+      <CambiarRol />
+
       <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
+      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
     </ScrollView>
   )
 }
@@ -136,6 +194,12 @@ const s = StyleSheet.create({
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   fidelMeta: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
+  canjearBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 14 },
+  canjearT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.carbon },
+  vales: { backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 22 },
+  valesT: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1, marginBottom: 10 },
+  vale: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  valeT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 10 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   editar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 10 },
@@ -145,9 +209,11 @@ const s = StyleSheet.create({
   mNumSm: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
   box: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 4, marginTop: 10, marginBottom: 24 },
-  devRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  dev: { padding: 12, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, marginBottom: 8 },
-  devT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
-  salir: { padding: 16, alignItems: 'center' },
+  localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
+  localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  localSalir: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
+  salir: { padding: 16, alignItems: 'center', marginTop: 8 },
   salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
+  eliminar: { padding: 12, alignItems: 'center', marginBottom: 12 },
+  eliminarT: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, textDecorationLine: 'underline' },
 })

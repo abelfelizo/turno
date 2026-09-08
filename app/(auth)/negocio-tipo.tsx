@@ -16,12 +16,12 @@ export default function NegocioTipo() {
 
   return (
     <OnbScreen paso="Tu barbería · 1 de 3" titulo="¿Cómo trabaja tu local?"
-      subtitulo="Esto define cómo se organizan los barberos y los cobros.">
-      <Opcion label="Espacios rentados"
-        desc="Cada barbero es independiente y paga su suscripción."
+      subtitulo="Define quién decide los precios y los horarios. Se puede cambiar después en Config.">
+      <Opcion label="Alquilo asientos"
+        desc="Cada barbero trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción."
         seleccionado={tipo === 'espacios_rentados'} onPress={() => setTipo('espacios_rentados')} />
-      <Opcion label="Empleados"
-        desc="Los barberos trabajan para ti y tú pagas por ellos."
+      <Opcion label="Tengo empleados"
+        desc="Trabajan para ti: tú pones los servicios, los precios y los horarios, y cubres su suscripción."
         seleccionado={tipo === 'empleados'} onPress={() => setTipo('empleados')} />
       <BotonPrimario texto="Continuar" onPress={continuar} disabled={!tipo} />
     </OnbScreen>

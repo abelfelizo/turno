@@ -164,9 +164,14 @@ export interface HistorialVisita {
 }
 
 // ==================== SESION LOCAL ====================
+/** Panel activo. Un dueño que atiende tiene UNA membresía pero DOS paneles:
+ *  el del negocio ("barberia") y el de su propia silla ("silla"). */
+export type PanelActivo = 'cliente' | 'barberia' | 'silla'
+
 export interface SesionLocal {
   usuario_id: string
   perfil_id?: string
   negocio_id?: string
   rol: RolUsuario
+  panel?: PanelActivo
 }

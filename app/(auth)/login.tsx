@@ -1,8 +1,9 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { enviarCodigo, verificarCodigo, entrarModoPrueba } from '../../lib/auth'
-import { COLORS, FONTS, DEV_LOGIN } from '../../constants'
+import { enviarCodigo, verificarCodigo } from '../../lib/auth'
+import { COLORS, FONTS } from '../../constants'
 import { Display, Pole } from '../../components/ui'
 
 export default function Login() {
@@ -12,12 +13,6 @@ export default function Login() {
   const [codigo, setCodigo] = useState('')
   const [cargando, setCargando] = useState(false)
 
-  async function entrarPrueba() {
-    setCargando(true)
-    try { await entrarModoPrueba(); router.replace('/') }
-    catch (e: any) { Alert.alert('No se pudo entrar', e.message ?? 'Intenta de nuevo.') }
-    finally { setCargando(false) }
-  }
   async function pedirCodigo() {
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) { Alert.alert('Email inválido', 'Escribe un correo válido.'); return }
     setCargando(true)
@@ -26,7 +21,9 @@ export default function Login() {
     finally { setCargando(false) }
   }
   async function confirmar() {
-    if (codigo.trim().length < 6) { Alert.alert('Código incompleto', 'Ingresa los 6 dígitos.'); return }
+    // El largo del OTP es configurable en Supabase (6–10). No lo cableamos:
+    // basta con exigir el mínimo y dejar que el servidor valide el resto.
+    if (codigo.trim().length < 6) { Alert.alert('Código incompleto', 'Escribe el código completo que te enviamos.'); return }
     setCargando(true)
     try { await verificarCodigo(email, codigo); router.replace('/') }
     catch (e: any) { Alert.alert('Código incorrecto', e.message ?? 'Revisa el código.') }
@@ -35,6 +32,7 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.c}>
+      <StatusBar style="light" />
       <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
         <View style={s.logo}><Text style={s.logoT}>N</Text></View>
@@ -42,18 +40,13 @@ export default function Login() {
       </View>
 
       <Text style={s.kicker}>App de reservas · Barbería</Text>
-      <Display size={68} color="#fff" style={{ lineHeight: 64 }}>Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
+      {/* Sin override de lineHeight: Display ya usa size×1.18, que Anton necesita
+          para no recortar los ascendentes (un 64 sobre fuente 68 cortaba "RESERVA"). */}
+      <Display size={68} color="#fff">Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
 
-      {DEV_LOGIN ? (
+      {paso === 'email' ? (
         <>
-          <Text style={s.sub}>Modo prueba activo. El alta por correo está desactivada temporalmente.</Text>
-          <TouchableOpacity style={s.btn} onPress={entrarPrueba} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Entrar en modo prueba</Text>}
-          </TouchableOpacity>
-        </>
-      ) : paso === 'email' ? (
-        <>
-          <Text style={s.sub}>Entra con tu correo. Te enviaremos un código.</Text>
+          <Text style={s.sub}>Entra o crea tu cuenta con tu correo. Te enviaremos un código.</Text>
           <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}
             autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={pedirCodigo} disabled={cargando}>
@@ -63,8 +56,9 @@ export default function Login() {
       ) : (
         <>
           <Text style={s.sub}>Ingresa el código que enviamos a {email}</Text>
-          <TextInput style={[s.input, s.code]} placeholder="000000" placeholderTextColor={COLORS.textLight}
-            keyboardType="number-pad" maxLength={6} value={codigo} onChangeText={setCodigo} editable={!cargando} />
+          <TextInput style={[s.input, s.code]} placeholder="––––––" placeholderTextColor={COLORS.textLight}
+            keyboardType="number-pad" maxLength={10} value={codigo}
+            onChangeText={t => setCodigo(t.replace(/\D/g, ''))} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={confirmar} disabled={cargando}>
             {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Confirmar</Text>}
           </TouchableOpacity>
@@ -85,7 +79,7 @@ const s = StyleSheet.create({
   kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
   input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 12, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
-  code: { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: FONTS.bold },
+  code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
   btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 17, alignItems: 'center' },
   btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },

@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
 import { COLORS, FONTS } from '../../constants'
 import { cerrarSesion } from '../../lib/auth'
@@ -9,6 +10,7 @@ export default function Welcome() {
   async function salir() { await cerrarSesion(); router.replace('/(auth)/login') }
   return (
     <View style={s.c}>
+      <StatusBar style="light" />
       <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
         <View style={s.logo}><Text style={s.logoT}>N</Text></View>

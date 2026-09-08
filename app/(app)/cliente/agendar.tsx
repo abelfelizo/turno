@@ -1,22 +1,23 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
 import { useEffect, useState } from 'react'
-import { useRouter, Stack } from 'expo-router'
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12 } from '../../../lib/format'
-import { Display, Chip } from '../../../components/ui'
+import { hora12, dinero, fechaISOLocal } from '../../../lib/format'
+import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
-  const out: { fecha: string; dia: string; num: number }[] = []
-  for (let i = 0; i < n; i++) { const d = new Date(); d.setDate(d.getDate() + i); out.push({ fecha: d.toISOString().split('T')[0], dia: DIAS[d.getDay()], num: d.getDate() }) }
+  const out: { fecha: string; dia: string; num: number; wd: number }[] = []
+  for (let i = 0; i < n; i++) { const d = new Date(); d.setDate(d.getDate() + i); out.push({ fecha: fechaISOLocal(d), dia: DIAS[d.getDay()], num: d.getDate(), wd: d.getDay() }) }
   return out
 }
 
 export default function Agendar() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ perfil?: string; servicio?: string; reagendar?: string }>()
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [negocio, setNegocio] = useState<any>(null)
   const [perfil, setPerfil] = useState<any>(null)
@@ -24,6 +25,8 @@ export default function Agendar() {
   const [fecha, setFecha] = useState('')
   const [slots, setSlots] = useState<string[]>([])
   const [hora, setHora] = useState('')
+  const [personas, setPersonas] = useState(1)
+  const [diasActivos, setDiasActivos] = useState<Set<number> | null>(null)
   const [loading, setLoading] = useState(true)
   const [cargandoSlots, setCargandoSlots] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -32,10 +35,33 @@ export default function Agendar() {
   useEffect(() => {
     (async () => {
       const ss = await getSesion()
-      if (ss?.negocio_id) { const ps = await getPerfilesNegocio(ss.negocio_id) as any[]; setPerfiles(ps) }
+      if (ss?.negocio_id) {
+        const [ps, neg] = await Promise.all([
+          getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
+          getNegocioById(ss.negocio_id).catch(() => null),
+        ])
+        setPerfiles(ps); setNegocio(neg)
+        // Preselección al reprogramar
+        if (params.perfil) {
+          const p = ps.find((x: any) => x.id === params.perfil)
+          if (p) {
+            setPerfil(p)
+            const sv = (p.turno_servicios ?? []).find((x: any) => x.id === params.servicio)
+            if (sv) setServicio(sv)
+          }
+        }
+      }
       setLoading(false)
     })()
   }, [])
+
+  // Días en que el barbero trabaja (para deshabilitar los cerrados)
+  useEffect(() => {
+    if (!perfil) { setDiasActivos(null); return }
+    getHorariosPerfil(perfil.id).then((hs: any[]) => {
+      setDiasActivos(new Set(hs.filter(h => h.activo).map(h => h.dia_semana)))
+    }).catch(() => setDiasActivos(null))
+  }, [perfil])
 
   useEffect(() => {
     if (!perfil || !servicio || !fecha) { setSlots([]); return }
@@ -47,8 +73,17 @@ export default function Agendar() {
     if (!perfil || !servicio || !fecha || !hora) return
     setEnviando(true)
     try {
-      await agendarCita(perfil.id, servicio.id, fecha, hora)
-      Alert.alert('Cita agendada', `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
+      if (params.reagendar) {
+        await agendarCita(perfil.id, servicio.id, fecha, hora)
+        await cancelarCita(params.reagendar).catch(() => {})   // reprogramar: cancela la vieja
+      } else if (personas > 1) {
+        await agendarGrupo(perfil.id, servicio.id, fecha, hora, personas)   // R5: N espacios seguidos
+      } else {
+        await agendarCita(perfil.id, servicio.id, fecha, hora)
+      }
+      const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
+      const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`
+      Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
     } catch (e: any) { Alert.alert('No se pudo agendar', e.message ?? 'Intenta otro horario.') }
     finally { setEnviando(false) }
   }
@@ -72,21 +107,27 @@ export default function Agendar() {
               <Text style={s.miniName}>{servicio.nombre}</Text>
               <Text style={s.miniMeta}>con {perfil?.turno_usuarios?.nombre ?? '—'} · {servicio.duracion_min} min</Text>
             </View>
-            <Text style={s.miniPrice}>{servicio.precio}</Text>
+            <Text style={s.miniPrice}>{dinero(servicio.precio, negocio?.moneda)}</Text>
           </View>
         )}
 
         <Text style={s.sec}>1 · BARBERO</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 22 }} contentContainerStyle={{ gap: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
           {perfiles.map((p: any) => {
             const on = perfil?.id === p.id
             return (
               <TouchableOpacity key={p.id} style={[s.bChip, on && s.bChipOn]} onPress={() => { setPerfil(p); setServicio(null); setFecha(''); setHora('') }}>
-                <Text style={[s.bChipT, on && { color: '#fff' }]}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={48} bg={on ? '#fff' : COLORS.blue} color={on ? COLORS.red : '#fff'} />
+                <Text style={[s.bChipT, on && { color: '#fff' }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
               </TouchableOpacity>
             )
           })}
         </ScrollView>
+
+        {perfil?.mensaje_bienvenida ? (
+          <View style={s.bienvenida}><Text style={s.bienvenidaT}>“{perfil.mensaje_bienvenida}”</Text></View>
+        ) : null}
 
         {perfil && (
           <>
@@ -96,11 +137,25 @@ export default function Agendar() {
               return (
                 <TouchableOpacity key={sv.id} style={[s.serv, on && s.servOn]} onPress={() => { setServicio(sv); setFecha(''); setHora('') }}>
                   <View><Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                  <Text style={s.servPrice}>{sv.precio}</Text>
+                  <Text style={s.servPrice}>{dinero(sv.precio, negocio?.moneda)}</Text>
                 </TouchableOpacity>
               )
             })}
           </>
+        )}
+
+        {servicio && !params.reagendar && (
+          <View style={s.personas}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.personasL}>¿Para cuántas personas?</Text>
+              <Text style={s.personasD}>Reserva espacios seguidos con el mismo barbero (tú + acompañantes).</Text>
+            </View>
+            <View style={s.stepRow2}>
+              <TouchableOpacity style={s.stepBtn} onPress={() => { setPersonas(p => Math.max(1, p - 1)); setHora('') }}><Text style={s.stepT}>−</Text></TouchableOpacity>
+              <Text style={s.stepVal}>{personas}</Text>
+              <TouchableOpacity style={s.stepBtn} onPress={() => { setPersonas(p => Math.min(6, p + 1)); setHora('') }}><Text style={s.stepT}>+</Text></TouchableOpacity>
+            </View>
+          </View>
         )}
 
         {servicio && (
@@ -109,10 +164,11 @@ export default function Agendar() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {dias.map(d => {
                 const on = fecha === d.fecha
+                const cerrado = diasActivos != null && !diasActivos.has(d.wd)
                 return (
-                  <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d.fecha)}>
-                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }]}>{d.dia}</Text>
-                    <Text style={[s.diaNum, on && { color: '#fff' }]}>{d.num}</Text>
+                  <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn, cerrado && s.diaOff]} disabled={cerrado} onPress={() => setFecha(d.fecha)}>
+                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
+                    <Text style={[s.diaNum, on && { color: '#fff' }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -139,7 +195,7 @@ export default function Agendar() {
       {hora ? (
         <View style={s.ctaWrap}>
           <TouchableOpacity style={s.cta} onPress={confirmar} disabled={enviando}>
-            {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Confirmar cita · {hora12(hora)}</Text>}
+            {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>{personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'} · {hora12(hora)}</Text>}
           </TouchableOpacity>
         </View>
       ) : null}
@@ -158,16 +214,27 @@ const s = StyleSheet.create({
   miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  bChip: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  bChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
+  bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
+  bienvenida: { backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14, marginBottom: 20 },
+  bienvenidaT: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
   serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
   servOn: { borderColor: COLORS.red, backgroundColor: COLORS.redLight },
   servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrice: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
+  personas: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: 22 },
+  personasL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  personasD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
+  stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
+  stepVal: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.ink, minWidth: 22, textAlign: 'center' },
   dia: { width: 58, height: 66, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  diaOff: { opacity: 0.4, backgroundColor: COLORS.surfaceAlt },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
   diaNum: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

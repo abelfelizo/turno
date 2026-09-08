@@ -3,10 +3,10 @@ import { useRouter } from 'expo-router'
 import { View, ActivityIndicator } from 'react-native'
 import { getAuthSession } from '../lib/auth'
 import { getMiUsuario, getMisMembresias, getMiPerfil } from '../lib/db'
-import { guardarSesion, limpiarSesion } from '../lib/storage'
+import { guardarSesion, limpiarSesion, getSesion } from '../lib/storage'
 import { registrarPush } from '../lib/notificaciones'
-import { COLORS, DEV_LOGIN } from '../constants'
-import type { RolUsuario } from '../types'
+import { COLORS } from '../constants'
+import type { RolUsuario, PanelActivo } from '../types'
 
 export default function Index() {
   const router = useRouter()
@@ -29,9 +29,10 @@ export default function Index() {
         router.replace('/(auth)/welcome')
         return
       }
-      // En modo prueba (dev) arrancar siempre como cliente (hub para cambiar de rol).
-      // En real: preferir la membresía de dueño si existe.
-      const m = (DEV_LOGIN ? membresias.find((x: any) => x.rol === 'cliente') : null)
+      // Se respeta el panel que el usuario eligió con <CambiarRol />; si no hay
+      // ninguno guardado, se prefiere el de dueño.
+      const previa = await getSesion()
+      const m = membresias.find((x: any) => x.negocio_id === previa?.negocio_id)
         ?? membresias.find((x: any) => x.rol === 'dueno') ?? membresias[0]
       const rol = m.rol as RolUsuario
       let perfil_id: string | undefined
@@ -43,11 +44,17 @@ export default function Index() {
           router.replace('/(auth)/barbero-pendiente'); return
         }
       }
-      await guardarSesion({ usuario_id: usuario.id, negocio_id: m.negocio_id, perfil_id, rol })
+      // Panel: se conserva el elegido si sigue siendo posible. Un dueño que
+      // atiende puede estar en "silla" aunque su rol siga siendo 'dueno'.
+      let panel: PanelActivo = rol === 'cliente' ? 'cliente' : rol === 'dueno' ? 'barberia' : 'silla'
+      if (previa?.panel === 'silla' && perfil_id) panel = 'silla'
+      else if (previa?.panel === 'barberia' && rol === 'dueno') panel = 'barberia'
+
+      await guardarSesion({ usuario_id: usuario.id, negocio_id: m.negocio_id, perfil_id, rol, panel })
       registrarPush() // fire-and-forget: registra/actualiza el token push del usuario
 
-      if (rol === 'cliente') router.replace('/(app)/cliente/home')
-      else if (rol === 'dueno') router.replace('/(app)/dueno/dashboard')
+      if (panel === 'cliente') router.replace('/(app)/cliente/home')
+      else if (panel === 'barberia') router.replace('/(app)/dueno/dashboard')
       else router.replace('/(app)/barbero/agenda')
     })().catch(() => router.replace('/(auth)/login'))
   }, [])

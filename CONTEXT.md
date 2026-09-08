@@ -1,10 +1,44 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: 2026-06-24.
+> Última actualización: 2026-07-02.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + cola digital para barberías** (LatAm, foco República Dominicana). 4 roles: `cliente`, `empleado` (barbero), `barbero_renta` (independiente), `dueno`. Identidad visual = sistema **NAVAJA** (rojo `#E5202B` CTA, azul `#1646E0` secundario, carbón `#16171C`, canvas `#F6F5F2`; fuentes Anton + Plus Jakarta Sans).
+
+## REGLA INVARIABLE: la barbería es la matriz
+Un barbero **nunca** existe suelto: siempre está enlazado a al menos una barbería.
+Garantizado en BD (`negocio_id` NOT NULL en `turno_perfiles`, `turno_membresias`,
+`turno_citas`, `turno_cola`) y en el onboarding (el barbero solo entra con el código
+de un local; para ser "independiente total" crea su propia barbería como dueño).
+El **código de barbero** (ver abajo) es solo una capa de descubrimiento: identifica al
+barbero y su historial lo sigue, pero **reservar siempre pasa por una barbería**
+(`turno_barbero_negocios` solo devuelve locales con perfil activo/aprobado).
+No romper esto.
+
+## Códigos (local y barbero) — se generan solos en BD
+- **Código de barbería** (`turno_negocios.codigo_acceso`): lo crea `turno_gen_codigo()`
+  al crear el local. 6 chars `A–Z`+`0–9`, único entre negocios. El dueño lo comparte
+  para que barberos y clientes se unan.
+- **Código de barbero** (`turno_usuarios.codigo_barbero`): lo asigna el trigger
+  `turno_asignar_codigo_barbero` cuando el usuario se vuelve `profesional` (los clientes
+  no reciben). 6 chars `A–Z`+`0–9`, único entre usuarios. Backfill hecho.
+- Ambos: se guardan/buscan en MAYÚSCULA; colisiones evitadas con reintento.
+
+## Novedades de esta sesión (además de lo de abajo)
+- **Suscripción** (modelo "por asiento, con piso y tope"): cliente gratis; barbero
+  independiente paga el mínimo; empleado lo cubre el dueño; dueño paga
+  `clamp(mínimo×asientos, mínimo, máximo)` → todo dueño paga al menos el mínimo.
+  Lógica en `lib/pricing.ts` + `turno_asientos_negocio`; montos placeholder en
+  `constants.SUSCRIPCION`. Cobro real por IAP pendiente (cuentas de tienda + RevenueCat).
+- **Identidad del barbero a nivel persona** (foto/bio/especialidad/contactos en
+  `turno_usuarios`, no en el perfil) + **código de barbero** compartible.
+- **Datos que siguen al barbero**: estadísticas, clientes y notas privadas agregados por
+  persona (`turno_mis_*`, `turno_notas_barbero`).
+- **Cliente encuentra al barbero por su código** (`cliente/buscar-barbero`).
+- Correcciones: motor de cola (cita bloquea solo su ventana), `.single()`→`.maybeSingle()`,
+  ErrorBoundary, moneda consistente (`lib/format.dinero`), CI de typecheck.
+- Migraciones 15–21. Todo en el PR #2 (rama `claude/app-status-2o0mdy`).
 
 ## Estado actual (alto nivel)
 **Funcionalmente completa para los 4 roles. Lista para piloto cerrado.** Lo que falta es infraestructura de lanzamiento, no pantallas.
