@@ -26,6 +26,20 @@ export function fechaISOLocal(d: Date = new Date()): string {
   return `${y}-${m}-${dd}`
 }
 
+/** "YYYY-MM-DD" → Date LOCAL. `new Date(iso)` lo leería como UTC y en América
+ *  eso adelanta el día entero: la agenda mostraría mañana creyendo que es hoy. */
+export function fechaDeISO(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+/** Suma (o resta) días sobre una fecha ISO local. */
+export function sumarDias(iso: string, n: number): string {
+  const d = fechaDeISO(iso)
+  d.setDate(d.getDate() + n)
+  return fechaISOLocal(d)
+}
+
 /** Formatea una hora "HH:MM" o "HH:MM:SS" a 12 horas con AM/PM. */
 export function hora12(t?: string | null): string {
   if (!t) return ''

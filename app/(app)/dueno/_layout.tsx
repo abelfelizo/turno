@@ -13,7 +13,9 @@ export default function DuenoLayout() {
       tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
     }}>
       <Tabs.Screen name="dashboard" options={{ tabBarLabel: 'Mi local', tabBarIcon: ic('storefront-outline') }} />
-      <Tabs.Screen name="agenda" options={{ tabBarLabel: 'Mi agenda', tabBarIcon: ic('calendar-outline') }} />
+      {/* "Cola", no "Mi agenda": en este panel se ve el LOCAL. La agenda
+          personal del dueño que atiende vive en el panel "Mi silla". */}
+      <Tabs.Screen name="agenda" options={{ tabBarLabel: 'Cola', tabBarIcon: ic('people-outline') }} />
       <Tabs.Screen name="stats" options={{ tabBarLabel: 'Stats', tabBarIcon: ic('stats-chart-outline') }} />
       <Tabs.Screen name="config" options={{ tabBarLabel: 'Config', tabBarIcon: ic('settings-outline') }} />
     </Tabs>

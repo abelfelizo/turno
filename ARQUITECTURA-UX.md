@@ -84,11 +84,18 @@ Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
 
 ### BARBERÍA (rol interno `dueno`) — 4 tabs + conmutador de modo
 ```
-Header: [Barbería | Mi silla]  ← conmutador, solo si el dueño atiende
-[Dashboard]   [Equipo]   [Stats]   [Config]
+Distintivo de panel (píldora de color) ← toca para cambiar; solo si hay más de un panel
+[Mi local]   [Cola]   [Stats]   [Config]
 ```
 "Mi silla" cambia al **panel Barbero completo** (5 tabs de barbero). Así el
 dueño-barbero tiene todas las opciones de ambos roles, no un recorte.
+
+**Los paneles no se solapan** (bug del piloto, sep-2026): la pestaña de la
+barbería se llamaba "Mi agenda" y renderizaba la agenda *personal* cuando el
+dueño atendía. El distintivo decía BARBERÍA y en pantalla salía la silla.
+Ahora la pestaña es **Cola** y siempre muestra el local entero; la agenda
+personal existe únicamente en el panel "Mi silla", al que se llega con un
+acceso directo desde la cola.
 - **Dashboard** — código del local compartible; hoy en números; **cola del local como lista viva con nombres** (quién, con quién, servicio, espera) y, si `asignacion_por_dueno`, botón **Asignar a…** por entrada; alertas (solicitudes pendientes, barberos en descanso).
 - **Equipo** (nueva, se separa del dashboard) — botón **"Agregar barbero"** (invitación con código por WhatsApp, pre-etiquetada empleado/renta); solicitudes de ingreso (aprobar/rechazar); lista de barberos (tipo empleado/renta, estado, ocupación de hoy, rating, WhatsApp, **desvincular**).
 - **Stats** — mismos períodos que barbero + ranking por barbero, ocupación de sillas, ingresos del local.
@@ -221,6 +228,10 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
   - **R5 citas grupales:** reserva de N espacios seguidos con el mismo barbero (padre + hijos), enlazados por `grupo_id`. Sólo aplica a **citas** — la parte de **cola** sigue fuera porque choca con el índice único `(cliente_id, tipo_servicio)` de R1 y necesita rediseño de la invariante. _(migración 31)_
   - **Recordatorios de cita:** locales, agendados por el dispositivo (T-24h/T-2h) — no necesitan `pg_net`.
   - **Barbero multi-local:** selector de local activo + "Trabajar en otro local" (reusa `unirse_profesional`).
+- **F3c · Gestión real de la fila y la agenda ✅ HECHO** _(migraciones 35–36)_:
+  - **Otros días:** el barbero ya no está atrapado en "hoy". Selector de día (ayer + 3 semanas) con punto en los días que tienen citas; bloquear hora funciona sobre el día elegido y los bloqueos por fin **se ven** en la agenda (antes se creaban a ciegas).
+  - **Modificar turnos:** subir/bajar un puesto, llamar a alguien concreto fuera de orden, devolver a la fila un llamado por error, cambiar el servicio y **sacar de la fila** al que se fue del local. El orden es la pareja `(prioridad, posicion)`, así que mover intercambia las dos columnas. Todo con la misma autorización: es mi silla, o soy dueño del local.
+  - **"Sin cita" ya no crea clientes fantasma:** atender a alguien que llega caminando **ocupa la silla** el tiempo del servicio (bloqueo desde ahora). Con eso `turno_slots_disponibles` deja de ofrecer esa hora y `turno_eta` suma la espera real; antes el de la cola digital veía "0 min" con el barbero a mitad de un corte. `turno_registrar_fisico` se conserva pero la app ya no lo usa.
 - **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla. _(pendiente — único bloque restante)_
 
 ## 7. Riesgos de producción (revisión de julio)
@@ -228,7 +239,7 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
 | # | Riesgo | Estado |
 |---|--------|--------|
 | P1 | **Backdoor de desarrollo**: `entrarModoPrueba()` daba acceso de **dueño** a cualquiera con el APK, con la credencial en texto plano y commiteada. F2b había ampliado el daño posible (cerrar local, desvincular, eliminar cuenta). | ✅ Cerrado: función eliminada, `DEV_LOGIN` fuera, contraseña rotada |
-| P2 | **Cero pruebas automatizadas** sobre un motor de cola concurrente con invariantes reales. Todo se validaba con `tsc` (tipos) + prueba manual. | ✅ `supabase/tests/motor_cola.test.sql`, 12 casos, 12/12 verde |
+| P2 | **Cero pruebas automatizadas** sobre un motor de cola concurrente con invariantes reales. Todo se validaba con `tsc` (tipos) + prueba manual. | ✅ `supabase/tests/motor_cola.test.sql`, 22 casos, 22/22 verde |
 | P3 | **Envío del OTP.** El SMTP interno de Supabase estaba limitado a **2 correos/hora** (confirmado en los logs). | ✅ Resuelto: SMTP propio con Brevo (`smtp-relay.brevo.com:587`), límite subido a 30. `/magiclink` responde 200. La clave SMTP caduca el **7-sep-2027** |
 | P3b | **Entregabilidad: los correos caen en SPAM.** El remitente es una dirección `@gmail.com` enviada desde Brevo → SPF/DKIM no alinean con `gmail.com`. Un cliente real no rebusca en spam: pide turno, no recibe el código y abandona. **El piloto no es viable así.** | 🔴 **Bloqueante** — requiere dominio propio + subdominio verificado en Brevo (SPF/DKIM/DMARC) y `Sender email` en ese dominio |
 | P4 | **Fricción del correo en RD.** Los clientes de barbería usan más WhatsApp que correo. El OTP por email puede frenar la adopción aunque funcione técnicamente. | 📌 Anotado: decidir OTP por teléfono/WhatsApp (requiere proveedor SMS, coste) antes de abrir a clientes |

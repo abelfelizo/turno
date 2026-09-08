@@ -1,8 +1,13 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion } from '../lib/db'
-import { hora12, fechaLarga, fechaISOLocal } from '../lib/format'
+import {
+  getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
+  actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
+  getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
+  moverEnCola, llamarA, sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
+} from '../lib/db'
+import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
@@ -11,10 +16,20 @@ import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
 import PanelBadge from './panel-badge'
 
+/** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
+const DIAS_ADELANTE = 20
+
+/** Hora local "HH:MM:SS", para comparar contra los bloqueos del día. */
+function horaAhora() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:00`
+}
+
 /** Agenda de trabajo: la usa el barbero y el dueño-que-atiende. Opera sobre sesion.perfil_id. */
 export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: string }) {
   const [citas, setCitas] = useState<any[]>([])
   const [cola, setCola] = useState<any[]>([])
+  const [bloqueos, setBloqueos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [sesion, setSesion] = useState<any>(null)
@@ -22,43 +37,72 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [negocio, setNegocio] = useState<any>(null)
   const [vale, setVale] = useState<any>(null)
   const [servicios, setServicios] = useState<any[]>([])
-  const [walkin, setWalkin] = useState(false)
   const [wEnviando, setWEnviando] = useState(false)
-  const [bloq, setBloq] = useState(false)
   const [bIni, setBIni] = useState(12); const [bFin, setBFin] = useState(13); const [bMotivo, setBMotivo] = useState('')
   const [bEnviando, setBEnviando] = useState(false)
   const [ficha, setFicha] = useState<any>(null)
 
+  // Una sola hoja inferior para todo. Encadenar dos <Modal> en iOS deja el
+  // segundo sin presentar cuando el primero todavía se está cerrando.
+  type Hoja =
+    | { tipo: 'acciones'; item: any }
+    | { tipo: 'sacar'; item: any }
+    | { tipo: 'servicios'; modo: 'ocupar' }
+    | { tipo: 'servicios'; modo: 'cambiar'; item: any }
+    | { tipo: 'bloqueo' }
+  const [hoja, setHoja] = useState<Hoja | null>(null)
+
+  const hoy = fechaISOLocal()
+  const [fecha, setFecha] = useState(hoy)
+  const [conteo, setConteo] = useState<Record<string, number>>({})
+  const esHoy = fecha === hoy
+
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u] = await Promise.all([getCitasHoy(ss.perfil_id), getColaActiva(ss.negocio_id!, ss.perfil_id), getServiciosPerfil(ss.perfil_id).catch(() => []), getNegocioById(ss.negocio_id!).catch(() => null), getMiUsuario().catch(() => null)])
-    setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg); setUsuario(u); setLoading(false); setRefreshing(false)
-  }, [])
+    const [c, q, sv, neg, u, cnt, bl] = await Promise.all([
+      getCitasFecha(ss.perfil_id, fecha),
+      getColaActiva(ss.negocio_id!, ss.perfil_id),
+      getServiciosPerfil(ss.perfil_id).catch(() => []),
+      getNegocioById(ss.negocio_id!).catch(() => null),
+      getMiUsuario().catch(() => null),
+      getConteoCitasRango(ss.perfil_id, sumarDias(hoy, -1), sumarDias(hoy, DIAS_ADELANTE)).catch(() => ({})),
+      getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
+    ])
+    setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
+    setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[])
+    setLoading(false); setRefreshing(false)
+  }, [fecha, hoy])
 
-  /** Walk-in en dos toques: eliges servicio y confirmas. Nada de teclear con
-   *  tijera en mano — el barbero puede renombrar después si hace falta. */
-  function agregarFisico(sv: any) {
-    const etiqueta = `Sin cita · ${hora12(new Date().toTimeString().slice(0, 5))}`
-    Alert.alert('Cliente sin cita', `Agregar a la fila para ${sv.nombre}?`, [
+  /** Sin cita = la silla queda tomada por lo que dura el servicio. No se crea
+   *  ningún cliente: lo que importa es que esa hora deje de ofrecerse y que la
+   *  cola digital sume esa espera. */
+  function ocuparSilla(sv: any) {
+    Alert.alert('Cliente sin cita', `Ocupar tu silla ${sv.duracion_min} min para ${sv.nombre}?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Agregar', onPress: async () => {
+      { text: 'Ocupar', onPress: async () => {
         setWEnviando(true)
         try {
-          await registrarFisico({ negocio_id: sesion.negocio_id, perfil_id: sesion.perfil_id, servicio_id: sv.id, nombre: etiqueta })
-          setWalkin(false); cargar()
-        } catch (e: any) { Alert.alert('No se pudo agregar', e.message ?? 'Intenta de nuevo.') }
+          await ocuparAhora(sesion.perfil_id, sv.id)
+          setHoja(null); cargar()
+        } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
         finally { setWEnviando(false) }
       } },
     ])
   }
 
+  async function cambiarServicio(item: any, sv: any) {
+    setWEnviando(true)
+    try { await cambiarServicioCola(item.id, sv.id); setHoja(null); cargar() }
+    catch (e: any) { Alert.alert('No se pudo cambiar', e.message ?? 'Intenta de nuevo.') }
+    finally { setWEnviando(false) }
+  }
+
   async function guardarBloqueo() {
     setBEnviando(true)
     try {
-      const hoy = fechaISOLocal()
-      await crearBloqueo({ perfil_id: sesion.perfil_id, fecha: hoy, hora_inicio: `${String(bIni).padStart(2, '0')}:00`, hora_fin: `${String(bFin).padStart(2, '0')}:00`, motivo: bMotivo.trim() || undefined })
-      setBloq(false); setBMotivo(''); Alert.alert('Hora bloqueada', 'Ese rango no estará disponible para citas hoy.')
+      await crearBloqueo({ perfil_id: sesion.perfil_id, fecha, hora_inicio: `${String(bIni).padStart(2, '0')}:00`, hora_fin: `${String(bFin).padStart(2, '0')}:00`, motivo: bMotivo.trim() || undefined })
+      setHoja(null); setBMotivo(''); cargar()
     } catch (e: any) { Alert.alert('No se pudo bloquear', e.message ?? 'Intenta de nuevo.') }
     finally { setBEnviando(false) }
   }
@@ -69,10 +113,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     getSesion().then(ss => {
       if (!ss?.perfil_id) return
       subCola = suscribirCola(ss.negocio_id!, () => cargar())
-      subCitas = suscribirCitas(ss.perfil_id!, fechaISOLocal(), () => cargar())
+      subCitas = suscribirCitas(ss.perfil_id!, fecha, () => cargar())
     })
     return () => { if (subCola) desuscribir(subCola); if (subCitas) desuscribir(subCitas) }
-  }, [cargar])
+  }, [cargar, fecha])
 
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
   const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')?.cliente_id
@@ -91,27 +135,34 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
   }
 
+  function avisarLlamado(r: any) {
+    if (r?.cliente_id) enviarPush(r.cliente_id, 'Es tu turno', `Acércate a ${negocio?.nombre ?? 'el local'}, ya casi te toca.`, { tipo: 'turno' })
+  }
+
   async function llamar() {
     try {
       const r = await llamarSiguiente(sesion.negocio_id, sesion.perfil_id)
-      if (!r) { Alert.alert('Sin cola', 'Nadie esperando o hay una cita confirmada en curso.') }
-      else if (r.cliente_id) {
-        enviarPush(r.cliente_id, 'Es tu turno', `Acércate a ${negocio?.nombre ?? 'el local'}, ya casi te toca.`, { tipo: 'turno' })
-      }
+      if (!r) Alert.alert('Sin cola', 'Nadie esperando o hay una cita confirmada en curso.')
+      else avisarLlamado(r)
       cargar()
     } catch (e: any) { Alert.alert('No se pudo llamar', e.message ?? 'Intenta de nuevo.') }
+  }
+
+  // ── Gestión de la fila ────────────────────────────────────────
+  async function op(fn: () => Promise<any>, err = 'No se pudo') {
+    setHoja(null)
+    try { await fn(); cargar() } catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
   }
   function empezarCorte(item: any) {
     Alert.alert('Empezar', `¿Sentar a ${item.turno_usuarios?.nombre ?? 'este cliente'} en la silla?`, [
       { text: 'No' },
-      { text: 'Sí, empezar', onPress: async () => {
-        try { await iniciarAtencion(item.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) }
-      } },
+      { text: 'Sí, empezar', onPress: () => op(() => iniciarAtencion(item.id)) },
     ])
   }
   function atenderCola(item: any) {
     Alert.alert('Atender', `¿Marcar a ${item.turno_usuarios?.nombre ?? 'cliente'} como atendido?`, [
-      { text: 'No' }, { text: 'Sí', onPress: async () => { try { await actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() }); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
+      { text: 'No' },
+      { text: 'Sí', onPress: () => op(() => actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() })) },
     ])
   }
   function accionCita(c: any) {
@@ -120,6 +171,12 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     if (c.estado === 'creada') opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: async () => { await actualizarEstadoCita(c.id, 'no_llego'); cargar() } })
     if (c.turno_usuarios?.telefono) opts.unshift({ text: 'Recordar por WhatsApp', onPress: () => recordarCita(c.turno_usuarios.telefono, c.turno_usuarios?.nombre ?? 'cliente', c.hora_inicio, negocio?.nombre ?? 'tu barbería') })
     Alert.alert(c.turno_usuarios?.nombre ?? 'Cita', `${c.turno_servicios?.nombre} · ${hora12(c.hora_inicio)}`, opts)
+  }
+  function quitarBloqueo(b: any) {
+    Alert.alert(b.motivo || 'Bloqueo', `${hora12(b.hora_inicio)} – ${hora12(b.hora_fin)}`, [
+      { text: 'Cerrar', style: 'cancel' },
+      { text: 'Liberar esta hora', style: 'destructive', onPress: () => op(() => borrarBloqueo(b.id), 'No se pudo liberar') },
+    ])
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator color={COLORS.red} size="large" /></View>
@@ -130,12 +187,15 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')
   const enFila = cola.filter(c => c.estado === 'en_fila')
   const badgeCita = (e: string) => e === 'confirmada' ? 'success' : e === 'no_llego' || e === 'no_confirmada' ? 'red' : e === 'en_camino' ? 'blue' : 'gray'
+  const ahora = horaAhora()
+  const ocupado = esHoy ? bloqueos.find(b => b.hora_inicio <= ahora && b.hora_fin > ahora) : null
+  const dias = Array.from({ length: DIAS_ADELANTE + 2 }, (_, i) => sumarDias(hoy, i - 1))
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
-      <Text style={s.kicker}>{fechaLarga()}</Text>
+      <Text style={s.kicker}>{fechaLarga(fechaDeISO(fecha))}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
 
       {usuario?.codigo_barbero ? (
@@ -150,85 +210,132 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         </View>
       ) : null}
 
-      <View style={s.colaBox}>
-        <Text style={s.colaTitle}>COLA AHORA</Text>
-        <View style={s.colaStats}>
-          <Grupo n={n1} l="Prioritario" />
-          <Grupo n={n2} l="Digital" />
-          <Grupo n={n3} l="Físico" />
-          <Grupo n={cola.length} l="Total" hl />
-        </View>
-      </View>
+      {/* Selector de día: la agenda no es solo hoy. El puntito marca los días
+          que ya tienen citas, para no ir a ciegas uno por uno. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.diasWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+        {dias.map(d => {
+          const on = d === fecha
+          const dd = fechaDeISO(d)
+          return (
+            <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}>
+              <Text style={[s.diaSem, on && s.diaTxtOn]}>{d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
+              <Text style={[s.diaNum, on && s.diaTxtOn]}>{dd.getDate()}</Text>
+              <View style={[s.diaDot, conteo[d] ? (on ? s.diaDotOn : s.diaDotHay) : null]} />
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
 
-      {llamado && (
-        <View style={s.llamado}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.llamadoLbl}>{llamado.estado === 'atendiendo' ? 'EN LA SILLA' : llamado.estado === 'en_camino' ? 'EN CAMINO' : 'LLAMADO'}</Text>
-            <Text style={s.llamadoName}>{llamado.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-            <Text style={s.llamadoServ}>{llamado.turno_servicios?.nombre}</Text>
-          </View>
-          <View style={{ gap: 6, alignItems: 'flex-end' }}>
-            {llamado.estado === 'atendiendo'
-              ? <TouchableOpacity style={s.atenderBtn} onPress={() => atenderCola(llamado)}><Text style={s.atenderT}>Terminar</Text></TouchableOpacity>
-              : <TouchableOpacity style={s.atenderBtn} onPress={() => empezarCorte(llamado)}><Text style={s.atenderT}>Empezar</Text></TouchableOpacity>}
-            {llamado.turno_usuarios?.telefono ? (
-              <TouchableOpacity style={s.avisarBtn} onPress={() => avisarTurno(llamado.turno_usuarios.telefono, llamado.turno_usuarios?.nombre ?? 'cliente', negocio?.nombre ?? 'el local')}>
-                <Ionicons name="logo-whatsapp" size={14} color="#fff" /><Text style={s.avisarT}>Avisar</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
+      {!esHoy && (
+        <View style={s.avisoDia}>
+          <Ionicons name="calendar-outline" size={16} color={COLORS.textMid} />
+          <Text style={s.avisoDiaT}>Estás viendo otro día. La fila en vivo es solo de hoy.</Text>
         </View>
       )}
 
-      {llamado && vale && (
-        <TouchableOpacity style={s.valeBar} onPress={aplicarVale}>
-          <Ionicons name="ticket" size={18} color="#fff" />
-          <Text style={s.valeBarT}>Tiene un vale de premio · toca para aplicarlo al cobro</Text>
-        </TouchableOpacity>
-      )}
-
-      {llamado && ficha && (ficha.tipo_corte || ficha.largo || ficha.barba || ficha.alergias || ficha.notas || ficha.nota) && (
-        <View style={s.ficha}>
-          <Text style={s.fichaTitle}>FICHA DEL CLIENTE</Text>
-          <View style={s.fichaChips}>
-            {ficha.tipo_corte ? <FichaChip l="Corte" v={ficha.tipo_corte} /> : null}
-            {ficha.largo ? <FichaChip l="Largo" v={ficha.largo} /> : null}
-            {ficha.barba ? <FichaChip l="Barba" v={ficha.barba} /> : null}
-          </View>
-          {ficha.alergias ? <Text style={s.fichaAlerta}>⚠ Alergias: {ficha.alergias}</Text> : null}
-          {ficha.notas ? <Text style={s.fichaNota}>Cliente: “{ficha.notas}”</Text> : null}
-          {ficha.nota ? <Text style={s.fichaNotaPriv}>Tu nota: {ficha.nota}</Text> : null}
-        </View>
-      )}
-
-      {enFila.length > 0 && !llamado && (
-        <TouchableOpacity style={s.siguiente} onPress={llamar}>
-          <View>
-            <Text style={s.sigLbl}>SIGUIENTE</Text>
-            <Text style={s.sigName}>{enFila[0].turno_usuarios?.nombre ?? 'Cliente'}</Text>
-            <Text style={s.sigServ}>{enFila[0].turno_servicios?.nombre}</Text>
-          </View>
-          <View style={s.llamarBtn}><Text style={s.llamarT}>Llamar</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></View>
-        </TouchableOpacity>
-      )}
-
-      {enFila.length > 0 && (
+      {esHoy && (
         <>
-          <Text style={s.sec}>EN FILA · {enFila.length}</Text>
-          {enFila.map((q, i) => (
-            <View key={q.id} style={s.row}>
-              <View style={s.pos}><Text style={s.posT}>{i + 1}</Text></View>
+          <View style={s.colaBox}>
+            <Text style={s.colaTitle}>COLA AHORA</Text>
+            <View style={s.colaStats}>
+              <Grupo n={n1} l="Prioritario" />
+              <Grupo n={n2} l="Digital" />
+              <Grupo n={n3} l="Físico" />
+              <Grupo n={cola.length} l="Total" hl />
+            </View>
+          </View>
+
+          {ocupado && (
+            <View style={s.ocupado}>
+              <Ionicons name="cut" size={18} color="#fff" />
               <View style={{ flex: 1 }}>
-                <Text style={s.rowName}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                <Text style={s.rowServ}>{q.turno_servicios?.nombre} · {q.prioridad === 3 ? 'Físico' : 'Digital'}</Text>
+                <Text style={s.ocupadoLbl}>SILLA OCUPADA · {ocupado.motivo || 'bloqueo'}</Text>
+                <Text style={s.ocupadoT}>Hasta {hora12(ocupado.hora_fin)}</Text>
+              </View>
+              <TouchableOpacity style={s.ocupadoBtn} onPress={() => op(() => liberarAhora(ocupado.id), 'No se pudo liberar')}>
+                <Text style={s.ocupadoBtnT}>Terminé</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {llamado && (
+            <View style={s.llamado}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.llamadoLbl}>{llamado.estado === 'atendiendo' ? 'EN LA SILLA' : llamado.estado === 'en_camino' ? 'EN CAMINO' : 'LLAMADO'}</Text>
+                <Text style={s.llamadoName}>{llamado.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                <Text style={s.llamadoServ}>{llamado.turno_servicios?.nombre}</Text>
+              </View>
+              <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                {llamado.estado === 'atendiendo'
+                  ? <TouchableOpacity style={s.atenderBtn} onPress={() => atenderCola(llamado)}><Text style={s.atenderT}>Terminar</Text></TouchableOpacity>
+                  : <TouchableOpacity style={s.atenderBtn} onPress={() => empezarCorte(llamado)}><Text style={s.atenderT}>Empezar</Text></TouchableOpacity>}
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {llamado.turno_usuarios?.telefono ? (
+                    <TouchableOpacity style={s.avisarBtn} onPress={() => avisarTurno(llamado.turno_usuarios.telefono, llamado.turno_usuarios?.nombre ?? 'cliente', negocio?.nombre ?? 'el local')}>
+                      <Ionicons name="logo-whatsapp" size={14} color="#fff" /><Text style={s.avisarT}>Avisar</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  <TouchableOpacity style={s.masBtn} onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
+                    <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          ))}
+          )}
+
+          {llamado && vale && (
+            <TouchableOpacity style={s.valeBar} onPress={aplicarVale}>
+              <Ionicons name="ticket" size={18} color="#fff" />
+              <Text style={s.valeBarT}>Tiene un vale de premio · toca para aplicarlo al cobro</Text>
+            </TouchableOpacity>
+          )}
+
+          {llamado && ficha && (ficha.tipo_corte || ficha.largo || ficha.barba || ficha.alergias || ficha.notas || ficha.nota) && (
+            <View style={s.ficha}>
+              <Text style={s.fichaTitle}>FICHA DEL CLIENTE</Text>
+              <View style={s.fichaChips}>
+                {ficha.tipo_corte ? <FichaChip l="Corte" v={ficha.tipo_corte} /> : null}
+                {ficha.largo ? <FichaChip l="Largo" v={ficha.largo} /> : null}
+                {ficha.barba ? <FichaChip l="Barba" v={ficha.barba} /> : null}
+              </View>
+              {ficha.alergias ? <Text style={s.fichaAlerta}>⚠ Alergias: {ficha.alergias}</Text> : null}
+              {ficha.notas ? <Text style={s.fichaNota}>Cliente: “{ficha.notas}”</Text> : null}
+              {ficha.nota ? <Text style={s.fichaNotaPriv}>Tu nota: {ficha.nota}</Text> : null}
+            </View>
+          )}
+
+          {enFila.length > 0 && !llamado && (
+            <TouchableOpacity style={s.siguiente} onPress={llamar}>
+              <View>
+                <Text style={s.sigLbl}>SIGUIENTE</Text>
+                <Text style={s.sigName}>{enFila[0].turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                <Text style={s.sigServ}>{enFila[0].turno_servicios?.nombre}</Text>
+              </View>
+              <View style={s.llamarBtn}><Text style={s.llamarT}>Llamar</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></View>
+            </TouchableOpacity>
+          )}
+
+          {enFila.length > 0 && (
+            <>
+              <Text style={s.sec}>EN FILA · {enFila.length}</Text>
+              <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>
+              {enFila.map((q, i) => (
+                <TouchableOpacity key={q.id} style={s.row} onPress={() => setHoja({ tipo: 'acciones', item: q })}>
+                  <View style={s.pos}><Text style={s.posT}>{i + 1}</Text></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.rowName}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                    <Text style={s.rowServ}>{q.turno_servicios?.nombre} · {q.prioridad === 3 ? 'Físico' : 'Digital'}</Text>
+                  </View>
+                  <Ionicons name="ellipsis-vertical" size={18} color={COLORS.textLight} />
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
         </>
       )}
 
-      <Text style={s.sec}>CITAS DE HOY</Text>
-      {citas.length === 0 && <Text style={s.empty}>Sin citas para hoy</Text>}
+      <Text style={s.sec}>{esHoy ? 'CITAS DE HOY' : `CITAS · ${fechaDeISO(fecha).toLocaleDateString('es', { day: 'numeric', month: 'long' })}`}</Text>
+      {citas.length === 0 && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
         <TouchableOpacity key={c.id} style={s.row} onPress={() => accionCita(c)}>
           <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
@@ -240,57 +347,146 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         </TouchableOpacity>
       ))}
 
-      <TouchableOpacity style={s.walkin} onPress={() => setWalkin(true)}><Ionicons name="add" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text></TouchableOpacity>
-      <TouchableOpacity style={s.bloquear} onPress={() => setBloq(true)}><Ionicons name="lock-closed-outline" size={16} color={COLORS.textMid} /><Text style={s.bloquearT}>Bloquear hora</Text></TouchableOpacity>
+      {bloqueos.length > 0 && (
+        <>
+          <Text style={s.sec}>HORAS BLOQUEADAS</Text>
+          {bloqueos.map((b: any) => (
+            <TouchableOpacity key={b.id} style={s.rowBloq} onPress={() => quitarBloqueo(b)}>
+              <Ionicons name="lock-closed" size={16} color={COLORS.textMid} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowName}>{hora12(b.hora_inicio)} – {hora12(b.hora_fin)}</Text>
+                <Text style={s.rowServ}>{b.motivo || 'Bloqueado'}</Text>
+              </View>
+              <Ionicons name="close-circle-outline" size={20} color={COLORS.textLight} />
+            </TouchableOpacity>
+          ))}
+        </>
+      )}
 
-      <Modal visible={walkin} transparent animationType="slide" onRequestClose={() => setWalkin(false)}>
+      {esHoy && (
+        <TouchableOpacity style={s.walkin} onPress={() => setHoja({ tipo: 'servicios', modo: 'ocupar' })}>
+          <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
+        </TouchableOpacity>
+      )}
+      <TouchableOpacity style={s.bloquear} onPress={() => setHoja({ tipo: 'bloqueo' })}>
+        <Ionicons name="lock-closed-outline" size={16} color={COLORS.textMid} />
+        <Text style={s.bloquearT}>Bloquear hora{esHoy ? '' : ' de este día'}</Text>
+      </TouchableOpacity>
+
+      {/* Una sola hoja para todo lo que se abre desde esta pantalla. */}
+      <Modal visible={!!hoja} transparent animationType="slide" onRequestClose={() => setHoja(null)}>
         <View style={s.modalBg}>
           <View style={s.modal}>
-            <Display size={22}>Cliente sin cita</Display>
-            <Text style={s.modalSub}>Toca el servicio y confirma. Entra a la fila por orden de llegada.</Text>
-            {wEnviando ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 24 }} /> : servicios.length === 0
-              ? <Text style={s.empty}>Primero crea un servicio en tu configuración.</Text>
-              : servicios.map((sv: any) => (
-                  <TouchableOpacity key={sv.id} style={s.wServ} onPress={() => agregarFisico(sv)}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.wServN}>{sv.nombre}</Text>
-                      <Text style={s.wServD}>{sv.duracion_min} min</Text>
-                    </View>
-                    <Ionicons name="add-circle" size={28} color={COLORS.red} />
-                  </TouchableOpacity>
-                ))}
-            <TouchableOpacity onPress={() => setWalkin(false)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
+
+            {hoja?.tipo === 'acciones' && (() => {
+              const it = hoja.item
+              const enEspera = it.estado === 'en_fila'
+              return (
+                <>
+                  <Display size={22}>{it.turno_usuarios?.nombre ?? 'Turno'}</Display>
+                  <Text style={s.modalSub}>{it.turno_servicios?.nombre}{enEspera ? '' : ` · ${String(it.estado).replace('_', ' ')}`}</Text>
+                  {enEspera ? (
+                    <>
+                      {!llamado && <Opcion icon="megaphone-outline" t="Llamarlo ahora" d="Se salta el orden" onPress={() => op(async () => { const r = await llamarA(it.id); avisarLlamado(r) }, 'No se pudo llamar')} />}
+                      <Opcion icon="arrow-up" t="Subir un puesto" onPress={() => op(() => moverEnCola(it.id, -1), 'No se pudo mover')} />
+                      <Opcion icon="arrow-down" t="Bajar un puesto" onPress={() => op(() => moverEnCola(it.id, 1), 'No se pudo mover')} />
+                    </>
+                  ) : (
+                    <Opcion icon="return-down-back" t="Devolver a la fila" d="Deshace el llamado y conserva su puesto" onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
+                  )}
+                  <Opcion icon="swap-horizontal" t="Cambiar servicio" d="Pidió otra cosa" onPress={() => setHoja({ tipo: 'servicios', modo: 'cambiar', item: it })} />
+                  <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo onPress={() => setHoja({ tipo: 'sacar', item: it })} />
+                  <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
+                </>
+              )
+            })()}
+
+            {hoja?.tipo === 'sacar' && (
+              <>
+                <Display size={22}>¿Sacarlo de la fila?</Display>
+                <Text style={s.modalSub}>
+                  {hoja.item.turno_usuarios?.nombre ?? 'Este cliente'} deja de estar en la fila y los demás suben.
+                  Si es un cliente de la app, su turno se cierra y podrá volver a entrar cuando quiera.
+                </Text>
+                <TouchableOpacity style={s.peligroBtn} onPress={() => op(() => sacarDeCola(hoja.item.id), 'No se pudo sacar')}>
+                  <Text style={s.peligroT}>Sí, sacarlo</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: hoja.item })}><Text style={s.modalCerrar}>Volver</Text></TouchableOpacity>
+              </>
+            )}
+
+            {hoja?.tipo === 'servicios' && (
+              <>
+                <Display size={22}>{hoja.modo === 'cambiar' ? 'Cambiar servicio' : 'Cliente sin cita'}</Display>
+                <Text style={s.modalSub}>
+                  {hoja.modo === 'cambiar'
+                    ? 'El turno pasa a este servicio: cambian la duración y el cobro.'
+                    : 'Toca el servicio y tu silla queda ocupada ese tiempo. Nadie podrá reservarte encima y la cola digital contará esa espera.'}
+                </Text>
+                {wEnviando ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 24 }} /> : servicios.length === 0
+                  ? <Text style={s.empty}>Primero crea un servicio en tu configuración.</Text>
+                  : servicios.map((sv: any) => (
+                      <TouchableOpacity key={sv.id} style={s.wServ}
+                        onPress={() => hoja.modo === 'cambiar' ? cambiarServicio((hoja as any).item, sv) : ocuparSilla(sv)}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.wServN}>{sv.nombre}</Text>
+                          <Text style={s.wServD}>{sv.duracion_min} min</Text>
+                        </View>
+                        <Ionicons name={hoja.modo === 'cambiar' ? 'swap-horizontal' : 'time-outline'} size={28} color={COLORS.red} />
+                      </TouchableOpacity>
+                    ))}
+                <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
+              </>
+            )}
+
+            {hoja?.tipo === 'bloqueo' && (
+              <>
+                <Display size={22}>Bloquear hora</Display>
+                <Text style={s.modalSub}>{fechaLarga(fechaDeISO(fecha))}. Ese rango no se ofrecerá para citas.</Text>
+                <Text style={s.flabel}>Desde</Text>
+                <View style={s.stepRow}>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => setBIni(Math.max(0, bIni - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{hora12(`${String(bIni).padStart(2, '0')}:00`)}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => setBIni(Math.min(23, bIni + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                </View>
+                <Text style={s.flabel}>Hasta</Text>
+                <View style={s.stepRow}>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => setBFin(Math.max(bIni + 1, bFin - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{hora12(`${String(bFin).padStart(2, '0')}:00`)}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => setBFin(Math.min(24, bFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                </View>
+                <Text style={s.flabel}>Motivo (opcional)</Text>
+                <TextInput style={s.input} placeholder="Almuerzo, descanso…" placeholderTextColor={COLORS.textLight} value={bMotivo} onChangeText={setBMotivo} />
+                <TouchableOpacity style={s.modalBtn} onPress={guardarBloqueo} disabled={bEnviando}>{bEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnT}>Bloquear</Text>}</TouchableOpacity>
+                <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
+              </>
+            )}
+
           </View>
         </View>
       </Modal>
 
-      <Modal visible={bloq} transparent animationType="slide" onRequestClose={() => setBloq(false)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
-            <Display size={22}>Bloquear hora</Display>
-            <Text style={s.modalSub}>Hoy. Ese rango no se ofrecerá para citas.</Text>
-            <Text style={s.flabel}>Desde</Text>
-            <View style={s.stepRow}>
-              <TouchableOpacity style={s.stepBtn} onPress={() => setBIni(Math.max(0, bIni - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-              <Text style={s.stepVal}>{hora12(`${String(bIni).padStart(2, '0')}:00`)}</Text>
-              <TouchableOpacity style={s.stepBtn} onPress={() => setBIni(Math.min(23, bIni + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
-            </View>
-            <Text style={s.flabel}>Hasta</Text>
-            <View style={s.stepRow}>
-              <TouchableOpacity style={s.stepBtn} onPress={() => setBFin(Math.max(bIni + 1, bFin - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-              <Text style={s.stepVal}>{hora12(`${String(bFin).padStart(2, '0')}:00`)}</Text>
-              <TouchableOpacity style={s.stepBtn} onPress={() => setBFin(Math.min(24, bFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
-            </View>
-            <Text style={s.flabel}>Motivo (opcional)</Text>
-            <TextInput style={s.input} placeholder="Almuerzo, descanso…" placeholderTextColor={COLORS.textLight} value={bMotivo} onChangeText={setBMotivo} />
-            <TouchableOpacity style={s.modalBtn} onPress={guardarBloqueo} disabled={bEnviando}>{bEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnT}>Bloquear</Text>}</TouchableOpacity>
-            <TouchableOpacity onPress={() => setBloq(false)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   )
 }
+
+function Opcion({ icon, t, d, rojo, onPress }: { icon: any; t: string; d?: string; rojo?: boolean; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={op.row} onPress={onPress}>
+      <Ionicons name={icon} size={20} color={rojo ? COLORS.red : COLORS.ink} />
+      <View style={{ flex: 1 }}>
+        <Text style={[op.t, rojo && { color: COLORS.red }]}>{t}</Text>
+        {d ? <Text style={op.d}>{d}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={COLORS.textLight} />
+    </TouchableOpacity>
+  )
+}
+const op = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 15, marginBottom: 8 },
+  t: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  d: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+})
 
 function FichaChip({ l, v }: { l: string; v: string }) {
   return (
@@ -327,11 +523,27 @@ const s = StyleSheet.create({
   codigoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   codigoVal: { fontFamily: FONTS.display, fontSize: 26, color: '#fff', letterSpacing: 3, marginTop: 2 },
   codigoShare: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  diasWrap: { marginBottom: 14 },
+  dia: { width: 54, alignItems: 'center', paddingVertical: 9, borderRadius: 13, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
+  diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  diaSem: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 0.5 },
+  diaNum: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink, marginTop: 1 },
+  diaTxtOn: { color: '#fff' },
+  diaDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: 'transparent' },
+  diaDotHay: { backgroundColor: COLORS.red },
+  diaDotOn: { backgroundColor: '#fff' },
+  avisoDia: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 14 },
+  avisoDiaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
   colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
+  ocupado: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 14, padding: 14, marginBottom: 14 },
+  ocupadoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.75)', letterSpacing: 1 },
+  ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
+  ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  ocupadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   llamado: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success, borderRadius: 14, padding: 16, marginBottom: 14 },
   llamadoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   llamadoName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },
@@ -340,6 +552,7 @@ const s = StyleSheet.create({
   atenderT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.success },
   avisarBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
   avisarT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
+  masBtn: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, justifyContent: 'center' },
   ficha: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 14 },
   fichaTitle: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1, marginBottom: 10 },
   fichaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -353,8 +566,10 @@ const s = StyleSheet.create({
   llamarBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   llamarT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
+  secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
+  rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   pos: { width: 42, height: 42, borderRadius: 12, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   posT: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink },
   rowName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
@@ -372,11 +587,9 @@ const s = StyleSheet.create({
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 4 },
   input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink, marginBottom: 10 },
-  servChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  servChip: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 11, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.surface },
-  servChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  servChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   modalBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },
+  peligroBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
+  peligroT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   modalBtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   wServ: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 10 },
   wServN: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },

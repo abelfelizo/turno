@@ -4,6 +4,9 @@
 -- Cubre las invariantes que los tipos NO pueden atrapar: orden de la fila,
 -- un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2), límite de
 -- fila, orden de llamado, autorización de stats, bajas y citas grupales.
+-- También la gestión manual de la fila (mover, llamar a uno, devolver, sacar,
+-- y que un cliente no pueda tocar la fila de otro) y la silla ocupada por un
+-- cliente sin cita, que tiene que descontarse del ETA.
 --
 -- CÓMO CORRE: todo ocurre dentro de un bloque que SIEMPRE termina con RAISE,
 -- de modo que la transacción se revierte entera. No deja ni un registro en la
@@ -25,7 +28,8 @@ declare
   -- acumuladores
   n int := 0; ok int := 0; fallos text := ''; c text;
   -- scratch
-  r record; v_bool boolean; v_int int; v_int2 int; v_uuid uuid;
+  r record; v_bool boolean; v_int int; v_int2 int; v_uuid uuid; v_uuid2 uuid;
+  v_id1 uuid; v_id2 uuid; v_bloq uuid; c2_estado text;
 begin
   -- ── FIXTURES ───────────────────────────────────────────────────────────────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -219,6 +223,111 @@ begin
      group by posicion having count(*) > 1 limit 1;
     if v_int is null then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — hay posiciones duplicadas en la cola'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── PREPARACIÓN · fila limpia y horario, para la gestión de turnos ───────
+  update turno_cola set estado = 'atendido'
+   where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+  update turno_perfiles set activo = true where id = p_barb;
+  insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
+  select p_barb, d, time '08:00', time '20:00', true, 10 from generate_series(0,6) d;
+
+  -- ── CASO 15 · mover a alguien un puesto arriba lo pone delante ───────────
+  -- El orden es la pareja (prioridad, posicion), no la posición sola: mover
+  -- tiene que intercambiar LAS DOS o el cambio no se ve en la fila.
+  n:=n+1; c:='fila · subir un puesto cambia el orden';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id1 := r.id;
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id2 := r.id;
+
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    perform turno_mover_en_cola(v_id2, -1);
+    select id into v_uuid from turno_cola
+     where negocio_id = v_neg and estado = 'en_fila' order by prioridad, posicion limit 1;
+    if v_uuid = v_id2 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — el primero de la fila no es el que se subió'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 16 · llamar a alguien concreto, saltando el orden ───────────────
+  n:=n+1; c:='fila · llamar a uno concreto';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    select * into r from turno_llamar_a(v_id1);
+    if r.estado = 'llamado' and r.llamado_at is not null then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — estado = '||coalesce(r.estado,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 17 · devolver a la fila deshace el llamado ──────────────────────
+  n:=n+1; c:='fila · devolver a la fila';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    select * into r from turno_devolver_a_fila(v_id1);
+    if r.estado = 'en_fila' and r.llamado_at is null then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — quedó en '||coalesce(r.estado,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 18 · sacar de la fila al que se fue del local ───────────────────
+  n:=n+1; c:='fila · sacar a alguien que se fue';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    perform turno_sacar_de_cola(v_id1);
+    select estado into c2_estado from turno_cola where id = v_id1;
+    if c2_estado = 'abandonado' then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — quedó en '||coalesce(c2_estado,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 19 · un cliente NO puede tocar la fila de otro ──────────────────
+  -- Las RPC son SECURITY DEFINER: sin este chequeo cualquiera con sesión podría
+  -- sacar de la fila a los clientes de una barbería a la que solo pertenece.
+  n:=n+1; c:='fila · un cliente no puede sacar a otro';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+    begin
+      perform turno_sacar_de_cola(v_id2);
+      fallos := fallos || E'\n  ✗ '||c||' — un cliente sacó de la fila a otro';
+    exception when others then ok:=ok+1;
+    end;
+  end;
+
+  -- ── CASO 20 · "sin cita" ocupa la silla por el tiempo del servicio ───────
+  n:=n+1; c:='sin cita · ocupa la silla 30+10 min';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    select * into r from turno_ocupar_ahora(p_barb, s_corte); v_bloq := r.id;
+    v_int := round(extract(epoch from (r.hora_fin - r.hora_inicio)) / 60);
+    if v_int between 39 and 41 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — el bloqueo duró '||v_int||' min'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 21 · el ETA cuenta la silla ocupada ─────────────────────────────
+  -- Sin esto el cliente de la cola digital ve "0 min" mientras el barbero está
+  -- a mitad de un corte, llega, y se queda de pie.
+  n:=n+1; c:='eta · suma el tiempo de la silla ocupada';
+  begin
+    select turno_eta(v_id2) into v_int;
+    if coalesce(v_int, 0) >= 30 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — eta = '||coalesce(v_int::text,'NULL')||' min con la silla ocupada'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 22 · liberar la silla al terminar antes ─────────────────────────
+  n:=n+1; c:='sin cita · liberar la silla al terminar';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    perform turno_liberar_ahora(v_bloq);
+    select turno_min_ocupada(p_barb) into v_int;
+    -- <= 1: liberar deja un piso de un minuto a propósito, para no dejar nunca
+    -- un bloqueo con hora_fin por debajo de hora_inicio.
+    if coalesce(v_int, 0) <= 1 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — la silla sigue ocupada '||v_int||' min'; end if;
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 

@@ -312,7 +312,36 @@ export async function crearBloqueo(b: { perfil_id: string; fecha: string; hora_i
   if (error) throw error
 }
 
-// WALK-IN (cliente físico sin app)
+export async function getBloqueosFecha(perfil_id: string, fecha: string) {
+  const { data, error } = await supabase.from(T('bloqueos')).select('*').eq('perfil_id', perfil_id).eq('fecha', fecha).order('hora_inicio')
+  if (error) throw error
+  return data || []
+}
+
+export async function borrarBloqueo(id: string) {
+  const { error } = await supabase.from(T('bloqueos')).delete().eq('id', id)
+  if (error) throw error
+}
+
+// SIN CITA = la silla se ocupa por el tiempo del servicio. No se crea ningún
+// cliente fantasma: lo que el sistema necesita saber es hasta cuándo está
+// tomada la silla, para no ofrecer esa hora ni mentir con el ETA.
+export async function ocuparAhora(perfil_id: string, servicio_id: string, motivo?: string) {
+  const { data, error } = await supabase.rpc('turno_ocupar_ahora', {
+    p_perfil: perfil_id, p_servicio: servicio_id, p_motivo: motivo ?? null,
+  })
+  if (error) throw error
+  return data
+}
+
+/** Terminó antes: libera el resto del tiempo reservado. */
+export async function liberarAhora(bloqueo_id: string) {
+  const { error } = await supabase.rpc('turno_liberar_ahora', { p_bloqueo: bloqueo_id })
+  if (error) throw error
+}
+
+// WALK-IN heredado (mete al cliente físico en la fila). La app ya no lo usa;
+// se conserva porque la base y las pruebas lo siguen cubriendo.
 export async function registrarFisico(p: { negocio_id: string; perfil_id: string; servicio_id: string; nombre: string; telefono?: string }) {
   const { data, error } = await supabase.rpc('turno_registrar_fisico', {
     p_negocio: p.negocio_id, p_perfil: p.perfil_id, p_servicio: p.servicio_id, p_nombre: p.nombre, p_telefono: p.telefono ?? '',
@@ -322,11 +351,28 @@ export async function registrarFisico(p: { negocio_id: string; perfil_id: string
 }
 
 // CITAS
-export async function getCitasHoy(perfil_id: string) {
-  const hoy = fechaISOLocal()
-  const { data, error } = await supabase.from(T('citas')).select('*, turno_usuarios!cliente_id(nombre, telefono, no_shows, llegadas_tarde), turno_servicios!servicio_id(nombre, duracion_min, precio)').eq('perfil_id', perfil_id).eq('fecha', hoy).order('hora_inicio')
+/** Citas del barbero en una fecha concreta (ISO local). */
+export async function getCitasFecha(perfil_id: string, fecha: string) {
+  const { data, error } = await supabase.from(T('citas')).select('*, turno_usuarios!cliente_id(nombre, telefono, no_shows, llegadas_tarde), turno_servicios!servicio_id(nombre, duracion_min, precio)').eq('perfil_id', perfil_id).eq('fecha', fecha).order('hora_inicio')
   if (error) throw error
   return data || []
+}
+
+export async function getCitasHoy(perfil_id: string) {
+  return getCitasFecha(perfil_id, fechaISOLocal())
+}
+
+/** Cuántas citas vivas hay por día en un rango → { '2026-09-08': 3, … }.
+ *  Alimenta los puntitos del selector de días: sin esto el barbero tiene que
+ *  ir día por día a ciegas para saber dónde tiene trabajo. */
+export async function getConteoCitasRango(perfil_id: string, desde: string, hasta: string) {
+  const { data, error } = await supabase.from(T('citas')).select('fecha')
+    .eq('perfil_id', perfil_id).gte('fecha', desde).lte('fecha', hasta)
+    .in('estado', ['creada', 'confirmada', 'no_confirmada', 'en_camino'])
+  if (error) throw error
+  const map: Record<string, number> = {}
+  for (const c of (data ?? []) as any[]) map[c.fecha] = (map[c.fecha] ?? 0) + 1
+  return map
 }
 
 export async function actualizarEstadoCita(cita_id: string, estado: string, extra?: Record<string, any>) {
@@ -462,6 +508,40 @@ export async function puedeConfirmar(cola_id: string): Promise<boolean> {
 /** El barbero marca que empezó el corte (el cliente pasa a la silla). */
 export async function iniciarAtencion(cola_id: string) {
   const { data, error } = await supabase.rpc('turno_iniciar_atencion', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
+// ── GESTIÓN DE LA FILA (el barbero corrige la realidad) ──────────
+/** Sube (-1) o baja (+1) un puesto en la fila. */
+export async function moverEnCola(cola_id: string, delta: -1 | 1) {
+  const { error } = await supabase.rpc('turno_mover_en_cola', { p_cola: cola_id, p_delta: delta })
+  if (error) throw error
+}
+
+/** Llama a alguien concreto, saltando el orden. */
+export async function llamarA(cola_id: string) {
+  const { data, error } = await supabase.rpc('turno_llamar_a', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
+/** Lo saca de la fila (se fue, no llegó, se equivocó de silla). */
+export async function sacarDeCola(cola_id: string) {
+  const { error } = await supabase.rpc('turno_sacar_de_cola', { p_cola: cola_id })
+  if (error) throw error
+}
+
+/** Deshace un llamado: vuelve a esperar sin perder su puesto. */
+export async function devolverAFila(cola_id: string) {
+  const { data, error } = await supabase.rpc('turno_devolver_a_fila', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
+/** Corrige el servicio de un turno ya en la fila. */
+export async function cambiarServicioCola(cola_id: string, servicio_id: string) {
+  const { data, error } = await supabase.rpc('turno_cambiar_servicio', { p_cola: cola_id, p_servicio: servicio_id })
   if (error) throw error
   return data
 }

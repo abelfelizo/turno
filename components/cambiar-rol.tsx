@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'expo-router'
+import { useState, useCallback } from 'react'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
@@ -41,7 +41,9 @@ export default function CambiarRol() {
     setActual({ panel: ss.panel, negocio_id: ss.negocio_id })
     setOpciones(await getMisRoles(ss.usuario_id).catch(() => []))
   }, [])
-  useEffect(() => { cargar() }, [cargar])
+  // Al enfocar, no solo al montar: si la pantalla ya estaba viva, el
+  // distintivo se quedaba mostrando el panel anterior.
+  useFocusEffect(useCallback(() => { cargar() }, [cargar]))
 
   if (opciones.length < 2) return null
 
