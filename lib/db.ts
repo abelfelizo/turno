@@ -252,6 +252,13 @@ export async function getBarberoNegocios(usuario_id: string) {
   return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
 }
 
+/** El dueño cambia la modalidad del LOCAL. Realinea a todo el equipo: dejar
+ *  membresías con la modalidad vieja sería peor que no cambiar nada. */
+export async function cambiarTipoNegocio(negocio_id: string, tipo: 'empleados' | 'espacios_rentados') {
+  const { error } = await supabase.rpc('turno_cambiar_tipo_negocio', { p_negocio: negocio_id, p_tipo: tipo })
+  if (error) throw error
+}
+
 /** El dueño cambia la modalidad de una persona de su equipo (local mixto:
  *  barbería de empleados que además alquila un asiento). Solo el dueño. */
 export async function cambiarModalidad(perfil_id: string, rol: 'empleado' | 'barbero_renta') {

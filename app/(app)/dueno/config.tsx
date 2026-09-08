@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal, cambiarTipoNegocio } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { planDueno } from '../../../lib/pricing'
@@ -16,6 +16,7 @@ export default function Config() {
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
+  const [tipoBusy, setTipoBusy] = useState(false)
   const [asientos, setAsientos] = useState(0)
   const [loading, setLoading] = useState(true)
   // marca / contacto del local
@@ -39,6 +40,28 @@ export default function Config() {
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+
+
+  /** Cambiar la modalidad realinea a todo el equipo: dejar a la mitad con las
+   *  reglas viejas sería peor que no cambiar nada. Por eso se avisa antes. */
+  function pedirCambioTipo(tipo: 'empleados' | 'espacios_rentados') {
+    if (!negocioId || negocio?.tipo === tipo) return
+    const aEmpleados = tipo === 'empleados'
+    Alert.alert(
+      aEmpleados ? 'Pasar a empleados' : 'Pasar a asientos alquilados',
+      aEmpleados
+        ? 'Todo tu equipo pasa a ser empleado: a partir de ahora los servicios, los precios y los horarios los pones tú, y cubres su suscripción.'
+        : 'Todo tu equipo pasa a pagar su asiento: cada barbero decidirá sus servicios, sus precios y su horario, y pagará su propia suscripción.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cambiar', onPress: async () => {
+          setTipoBusy(true)
+          try { await cambiarTipoNegocio(negocioId, tipo); setNegocio((n: any) => ({ ...n, tipo })) }
+          catch (e: any) { Alert.alert('No se pudo cambiar', e.message ?? 'Intenta de nuevo.') }
+          finally { setTipoBusy(false) }
+        } },
+      ])
+  }
 
   async function cambiarLogo() {
     if (!negocioId) return
@@ -161,6 +184,26 @@ export default function Config() {
         )
       })()}
 
+      {/* De esta elección cuelga quién decide precios y horarios de todo el
+          equipo (R11). Se hacía una sola vez en el onboarding y no se podía
+          deshacer: equivocarse dejaba el local atrapado. */}
+      <Text style={s.sec}>CÓMO TRABAJA TU LOCAL</Text>
+      <View style={s.modRow}>
+        <TouchableOpacity style={[s.modChip, negocio?.tipo === 'espacios_rentados' && s.modChipOn]}
+          onPress={() => pedirCambioTipo('espacios_rentados')} disabled={tipoBusy}>
+          <Text style={[s.modChipT, negocio?.tipo === 'espacios_rentados' && { color: '#fff' }]}>Alquilo asientos</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.modChip, negocio?.tipo === 'empleados' && s.modChipOn]}
+          onPress={() => pedirCambioTipo('empleados')} disabled={tipoBusy}>
+          <Text style={[s.modChipT, negocio?.tipo === 'empleados' && { color: '#fff' }]}>Tengo empleados</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={s.modNota}>
+        {negocio?.tipo === 'empleados'
+          ? 'Tus barberos trabajan para ti: los servicios, los precios y el horario los pones tú, y cubres su suscripción.'
+          : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
+      </Text>
+
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
       <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
       <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
@@ -223,6 +266,11 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12, marginTop: 14 },
+  modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  modChip: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 12, alignItems: 'center', backgroundColor: COLORS.surface },
+  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
+  modNota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 4 },
   marcaCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginBottom: 4 },
   marcaTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   marcaHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
