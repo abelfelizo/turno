@@ -29,8 +29,11 @@ export default function NegocioConfig() {
         telefono: telefono.trim(),
       })
       resetBorrador()
+      // Ir a "/" y no al panel directo: index.tsx resuelve membresías, rol y
+      // perfil y GUARDA la sesión. Saltárselo dejaba el panel sin negocio_id
+      // y por tanto vacío, aunque los datos estuvieran bien creados.
       Alert.alert('¡Listo! 🎉', `Tu código de acceso es:\n\n${neg.codigo_acceso}\n\nCompártelo con tus barberos y clientes.`,
-        [{ text: 'Ir al panel', onPress: () => router.replace('/(app)/dueno/dashboard') }])
+        [{ text: 'Ir al panel', onPress: () => router.replace('/') }])
     } catch (e: any) {
       Alert.alert('No se pudo crear', e.message ?? 'Intenta de nuevo.')
     } finally { setCargando(false) }
