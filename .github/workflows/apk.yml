@@ -1,0 +1,68 @@
+# APK de prueba
+#
+# Compila el APK en los servidores de EAS y deja el enlace de instalación en el
+# resumen del run. Existe porque probar la app no debería exigir una
+# computadora: se dispara desde el navegador del móvil (pestaña Actions → Run
+# workflow) y devuelve un enlace que se abre en el mismo teléfono.
+#
+# REQUISITO (una sola vez): el secreto EXPO_TOKEN del repositorio.
+#   1. expo.dev → Account settings → Access tokens → Create token → copiar.
+#   2. github.com/abelfelizo/turno → Settings → Secrets and variables →
+#      Actions → New repository secret → nombre EXPO_TOKEN → pegar.
+#
+# OJO: GitHub solo muestra el botón "Run workflow" para archivos que existan en
+# la rama por defecto. Mientras esto viva solo en la rama de trabajo, el botón
+# no aparece.
+
+name: APK de prueba
+
+on:
+  workflow_dispatch:
+    inputs:
+      perfil:
+        description: Perfil de eas.json
+        type: choice
+        options: [preview, production]
+        default: preview
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      # Misma bandera que CI: el lockfile se generó con --legacy-peer-deps.
+      - run: npm ci --legacy-peer-deps
+
+      - name: Compilar APK
+        run: |
+          set -o pipefail
+          eas build --platform android --profile "${{ inputs.perfil }}" \
+            --non-interactive --json --wait > build.json
+
+      # El resumen se lee bien desde el móvil; el log crudo no.
+      - name: Enlace de instalación
+        if: always()
+        run: |
+          if [ ! -s build.json ]; then
+            echo "## La compilación no llegó a producir un APK" >> "$GITHUB_STEP_SUMMARY"
+            echo "Revisa el log de este run: casi siempre es el secreto EXPO_TOKEN sin configurar." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node -e '
+            const b = require("./build.json");
+            const x = Array.isArray(b) ? b[0] : b;
+            const apk = x?.artifacts?.applicationArchiveUrl || x?.artifacts?.buildUrl || "";
+            const pagina = x?.id ? `https://expo.dev/accounts/abelfelizo/projects/turno/builds/${x.id}` : "";
+            const out = apk
+              ? `## APK listo\n\n**[Descargar e instalar](${apk})**\n\nÁbrelo en el Android y acepta instalar de origen desconocido.\n\n${pagina ? `Página del build: ${pagina}` : ""}\n`
+              : `## Sin artefacto\n\nEl build terminó sin APK. ${pagina ? `Detalles: ${pagina}` : ""}\n`;
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, out);
+          '
