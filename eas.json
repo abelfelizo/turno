@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -19,6 +20,7 @@
       }
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "ios": {
         "simulator": false
@@ -32,6 +34,7 @@
       }
     },
     "preview-sim": {
+      "channel": "preview",
       "distribution": "internal",
       "ios": {
         "simulator": true
@@ -42,6 +45,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://pphnaasmirbnuilgzfeo.supabase.co",
