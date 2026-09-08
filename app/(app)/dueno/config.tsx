@@ -73,7 +73,14 @@ export default function Config() {
     setConfig((c: any) => ({ ...c, [campo]: v }))
     await updateConfiguracion(negocioId, { [campo]: v }).catch(() => cargar())
   }
-  async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+  function salir() {
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir? Necesitarás un código nuevo para volver a entrar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
+        await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login')
+      } },
+    ])
+  }
 
   function cerrarEsteLocal() {
     if (!negocioId) return
@@ -158,9 +165,15 @@ export default function Config() {
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
 
       <Text style={s.sec}>TIEMPOS</Text>
-      <Stepper label="Anticipación mínima" suf="h" value={config?.anticipacion_minima_horas ?? 2} onMinus={() => ajustar('anticipacion_minima_horas', -1, 0, 48)} onPlus={() => ajustar('anticipacion_minima_horas', 1, 0, 48)} />
-      <Stepper label="Ventana de llegada" suf="min" value={config?.ventana_llegada_min ?? 10} onMinus={() => ajustar('ventana_llegada_min', -5, 5, 60)} onPlus={() => ajustar('ventana_llegada_min', 5, 5, 60)} />
-      <Stepper label="Gracia de cita" suf="min" value={config?.gracia_cita_min ?? 5} onMinus={() => ajustar('gracia_cita_min', -5, 0, 30)} onPlus={() => ajustar('gracia_cita_min', 5, 0, 30)} />
+      <Stepper label="Reservar con antelación"
+        desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
+        suf="h" value={config?.anticipacion_minima_horas ?? 2} onMinus={() => ajustar('anticipacion_minima_horas', -1, 0, 48)} onPlus={() => ajustar('anticipacion_minima_horas', 1, 0, 48)} />
+      <Stepper label="Tiempo para llegar"
+        desc={`Cuando llamas a alguien de la fila, tiene ${config?.ventana_llegada_min ?? 10} minutos para aparecer antes de perder el turno.`}
+        suf="min" value={config?.ventana_llegada_min ?? 10} onMinus={() => ajustar('ventana_llegada_min', -5, 5, 60)} onPlus={() => ajustar('ventana_llegada_min', 5, 5, 60)} />
+      <Stepper label="Tolerancia de retraso"
+        desc={`Esperas ${config?.gracia_cita_min ?? 5} minutos a quien tiene cita antes de darla por perdida.`}
+        suf="min" value={config?.gracia_cita_min ?? 5} onMinus={() => ajustar('gracia_cita_min', -5, 0, 30)} onPlus={() => ajustar('gracia_cita_min', 5, 0, 30)} />
 
       <CambiarRol />
 
@@ -188,10 +201,13 @@ function Toggle({ label, desc, value, onChange }: { label: string; desc: string;
     </View>
   )
 }
-function Stepper({ label, value, suf, onMinus, onPlus }: { label: string; value: number; suf: string; onMinus: () => void; onPlus: () => void }) {
+function Stepper({ label, desc, value, suf, onMinus, onPlus }: { label: string; desc?: string; value: number; suf: string; onMinus: () => void; onPlus: () => void }) {
   return (
     <View style={s.stepper}>
-      <Text style={s.toggleL}>{label}</Text>
+      <View style={{ flex: 1, paddingRight: 12 }}>
+        <Text style={s.toggleL}>{label}</Text>
+        {desc ? <Text style={s.toggleD}>{desc}</Text> : null}
+      </View>
       <View style={s.stepCtrl}>
         <TouchableOpacity style={s.stepBtn} onPress={onMinus}><Text style={s.stepBtnT}>−</Text></TouchableOpacity>
         <Text style={s.stepVal}>{value} {suf}</Text>

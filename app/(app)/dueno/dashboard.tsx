@@ -150,8 +150,19 @@ export default function Dashboard() {
         </View>
       ))}
 
-      {/* Equipo activo (con desvincular) */}
-      {equipo.length > 0 && <Text style={s.sec}>EQUIPO · {equipo.length}</Text>}
+      {/* Alta activa: invitar a un barbero con el código del local */}
+      <Text style={s.sec}>EQUIPO{equipo.length ? ` · ${equipo.length}` : ''}</Text>
+      <TouchableOpacity style={s.agregar} onPress={() => Share.share({
+        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Trabajo en una barbería" y entra con este código:\n\n${negocio?.codigo_acceso}\n\nCuando envíes la solicitud te apruebo desde mi panel.`,
+      })}>
+        <View style={s.agregarIcon}><Ionicons name="person-add-outline" size={20} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.agregarT}>Agregar barbero</Text>
+          <Text style={s.agregarD}>Comparte el código por WhatsApp. Al solicitar, lo apruebas aquí.</Text>
+        </View>
+        <Ionicons name="share-outline" size={20} color={COLORS.textLight} />
+      </TouchableOpacity>
+
       {equipo.map((p: any) => (
         <View key={p.id} style={s.sol}>
           <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
@@ -202,6 +213,10 @@ const s = StyleSheet.create({
   solMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   rechazar: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
   desvincular: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
+  agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed', borderRadius: 14, padding: 14, marginBottom: 10 },
+  agregarIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.blue, alignItems: 'center', justifyContent: 'center' },
+  agregarT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  agregarD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   aprobar: { backgroundColor: COLORS.success, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   aprobarT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
 })

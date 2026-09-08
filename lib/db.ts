@@ -111,9 +111,19 @@ export async function getMisMembresias(usuario_id: string) {
   return data || []
 }
 
-/** Todos los roles reales del usuario, con su local y perfil, para el
- * conmutador de panel (cliente / barbería / mi silla). No depende de DEV_LOGIN. */
-export async function getMisRoles(usuario_id: string) {
+export type OpcionPanel = {
+  panel: 'cliente' | 'barberia' | 'silla'
+  rol: string
+  negocio_id: string
+  negocio: string
+  perfil_id?: string
+  aprobado: boolean
+}
+
+/** Paneles a los que el usuario puede entrar, para el conmutador.
+ * OJO: no es uno por membresía. Un dueño que atiende tiene UNA membresía
+ * (`dueno`) pero DOS paneles: la barbería y su propia silla. */
+export async function getMisRoles(usuario_id: string): Promise<OpcionPanel[]> {
   const [mems, perfs] = await Promise.all([
     supabase.from(T('membresias')).select('rol, negocio_id, turno_negocios(nombre)').eq('usuario_id', usuario_id).eq('activo', true),
     supabase.from(T('perfiles')).select('id, negocio_id, aprobado').eq('usuario_id', usuario_id).eq('activo', true),
@@ -121,16 +131,27 @@ export async function getMisRoles(usuario_id: string) {
   if (mems.error) throw mems.error
   const perfilDe = new Map<string, any>()
   for (const p of (perfs.data ?? []) as any[]) perfilDe.set(p.negocio_id, p)
-  return ((mems.data ?? []) as any[]).map(m => {
+
+  const out: OpcionPanel[] = []
+  for (const m of (mems.data ?? []) as any[]) {
     const perfil = perfilDe.get(m.negocio_id)
-    return {
+    const base = {
       rol: m.rol as string,
       negocio_id: m.negocio_id as string,
       negocio: (m as any).turno_negocios?.nombre ?? 'Local',
       perfil_id: perfil?.id as string | undefined,
       aprobado: perfil ? !!perfil.aprobado : true,
     }
-  })
+    if (m.rol === 'cliente') { out.push({ ...base, panel: 'cliente' }); continue }
+    if (m.rol === 'dueno') {
+      out.push({ ...base, panel: 'barberia' })
+      // El dueño-barbero también entra a su silla (servicios, horarios, agenda).
+      if (perfil) out.push({ ...base, panel: 'silla' })
+      continue
+    }
+    if (perfil) out.push({ ...base, panel: 'silla' })
+  }
+  return out
 }
 
 /** Barberías donde el usuario es cliente (para el selector de local). */

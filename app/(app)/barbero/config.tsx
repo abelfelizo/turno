@@ -145,7 +145,14 @@ export default function Config() {
       setHrModal(null); cargar()
     } catch (e: any) { Alert.alert('Error', e.message) } finally { setBusy(false) }
   }
-  async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+  function salir() {
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir? Necesitarás un código nuevo para volver a entrar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
+        await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login')
+      } },
+    ])
+  }
 
   async function cambiarLocal(l: any) {
     const ss = await getSesion(); if (!ss || l.negocio_id === ss.negocio_id) return

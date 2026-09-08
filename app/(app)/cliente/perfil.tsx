@@ -52,7 +52,14 @@ export default function Perfil() {
   useEffect(() => { cargar() }, [cargar])
   useFocusEffect(useCallback(() => { cargar() }, [cargar]))
 
-  async function salir() { await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
+  function salir() {
+    Alert.alert('Cerrar sesión', '¿Seguro que quieres salir? Necesitarás un código nuevo para volver a entrar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Cerrar sesión', style: 'destructive', onPress: async () => {
+        await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login')
+      } },
+    ])
+  }
 
   function salirDeLocal(l: any) {
     Alert.alert('Salir del local', `¿Salir de ${l.nombre}? Podrás volver con el código. Tu historial se conserva.`, [
