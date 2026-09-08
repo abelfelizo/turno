@@ -195,6 +195,33 @@ begin
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
+  -- ── CASO 13 · el walk-in debe rellenar tipo_servicio ─────────────────────
+  -- Sin esto R1 no cubre a los clientes sin cita: en Postgres los NULL no
+  -- colisionan en un índice único, así que se podrían duplicar sin límite.
+  n:=n+1; c:='walk-in · rellena tipo_servicio';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    select * into r from turno_registrar_fisico(v_neg, p_barb, s_corte, 'Sin cita', '');
+    if r.tipo_servicio = 'barbero' then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — tipo_servicio = '||coalesce(r.tipo_servicio,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 14 · la posición no se recicla al llamar a alguien ──────────────
+  -- Antes se calculaba max(posicion)+1 mirando solo 'en_fila': al pasar alguien
+  -- a llamado/en_camino el máximo caía y el siguiente reusaba su posición.
+  n:=n+1; c:='fila · la posición no se recicla tras llamar';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+    perform turno_registrar_fisico(v_neg, p_barb, s_corte, 'Otro sin cita', '');
+    select count(*) into v_int from turno_cola
+     where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino')
+     group by posicion having count(*) > 1 limit 1;
+    if v_int is null then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — hay posiciones duplicadas en la cola'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ─────────────────────
   raise exception E'\n═══ MOTOR DE COLA · % / % casos OK ═══%',
     ok, n, case when fallos = '' then E'\n  TODO VERDE' else fallos end;
