@@ -36,7 +36,9 @@ export default function Login() {
       </View>
 
       <Text style={s.kicker}>App de reservas · Barbería</Text>
-      <Display size={68} color="#fff" style={{ lineHeight: 64 }}>Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
+      {/* Sin override de lineHeight: Display ya usa size×1.18, que Anton necesita
+          para no recortar los ascendentes (un 64 sobre fuente 68 cortaba "RESERVA"). */}
+      <Display size={68} color="#fff">Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
 
       {paso === 'email' ? (
         <>
