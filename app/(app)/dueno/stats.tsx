@@ -5,6 +5,7 @@ import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById, getStatsPer
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+import PanelBadge from '../../../components/panel-badge'
 
 const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }] as const
 type PeriodoK = typeof PERIODOS[number]['k']
@@ -47,6 +48,7 @@ export default function Stats() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
+      <PanelBadge />
       <Display size={30} style={{ marginBottom: 18 }}>Estadísticas</Display>
 
       <View style={s.bigCard}>

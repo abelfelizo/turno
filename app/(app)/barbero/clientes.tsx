@@ -6,6 +6,7 @@ import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecup
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+import PanelBadge from '../../../components/panel-badge'
 
 export default function Clientes() {
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
@@ -48,6 +49,7 @@ export default function Clientes() {
 
   return (
     <View style={s.container}>
+      <PanelBadge />
       <Display size={30} style={{ marginBottom: 14 }}>Clientes</Display>
 
       <View style={s.segs}>

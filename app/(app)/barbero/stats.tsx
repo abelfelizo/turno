@@ -5,6 +5,7 @@ import { getMisEstadisticas, getNegocioById, getStatsPeriodoPerfil, type StatsPe
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
+import PanelBadge from '../../../components/panel-badge'
 
 const ORIGEN: Record<string, string> = { cita: 'Cita', cola_digital: 'Fila digital', cola_fisica: 'Fila física', cola_prioritaria: 'Prioritario' }
 const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }, { k: 'todo', l: 'Todo' }] as const
@@ -56,6 +57,7 @@ export default function Stats() {
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
+      <PanelBadge />
       <Display size={30} style={{ marginBottom: 14 }}>Estadísticas</Display>
 
       <View style={s.periodos}>

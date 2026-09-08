@@ -9,6 +9,7 @@ import { planDueno } from '../../../lib/pricing'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
+import PanelBadge from '../../../components/panel-badge'
 
 export default function Config() {
   const router = useRouter()
@@ -96,6 +97,7 @@ export default function Config() {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
+      <PanelBadge />
       <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
 
       <Text style={s.sec}>MARCA Y CONTACTO</Text>

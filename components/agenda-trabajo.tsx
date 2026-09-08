@@ -9,6 +9,7 @@ import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
 import { getSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
+import PanelBadge from './panel-badge'
 
 /** Agenda de trabajo: la usa el barbero y el dueño-que-atiende. Opera sobre sesion.perfil_id. */
 export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: string }) {
@@ -125,6 +126,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
+      <PanelBadge />
       <Text style={s.kicker}>{fechaLarga()}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
 
