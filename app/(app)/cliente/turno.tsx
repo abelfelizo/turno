@@ -89,7 +89,8 @@ export default function MiTurno() {
       {turnos.map((t: any) => {
         const llamado = t.estado === 'llamado'
         const enCamino = t.estado === 'en_camino'
-        const heroBg = llamado ? COLORS.success : enCamino ? COLORS.blue : COLORS.carbon
+        const atendiendo = t.estado === 'atendiendo'
+        const heroBg = atendiendo ? COLORS.blue : llamado ? COLORS.success : enCamino ? COLORS.blue : COLORS.carbon
         return (
           <View key={t.id} style={s.turnoCard}>
             <View style={[s.hero, { backgroundColor: heroBg }]}>
@@ -100,20 +101,21 @@ export default function MiTurno() {
               </>)}
               {llamado && (<><Text style={s.heroBig}>¡Es tu turno!</Text><Text style={s.heroLabel}>Ve al local ahora</Text></>)}
               {enCamino && (<><Text style={s.heroBig}>Vas en camino</Text><Text style={s.heroLabel}>El barbero te espera</Text></>)}
+              {atendiendo && (<><Text style={s.heroBig}>Te están atendiendo</Text><Text style={s.heroLabel}>Disfruta tu corte ✂️</Text></>)}
             </View>
             <View style={s.detalle}>
               <Text style={s.dServ}>{t.turno_servicios?.nombre}</Text>
               <Text style={s.dMeta}>{t.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'} · {t.turno_servicios?.duracion_min ?? '—'} min · {t.estado.replace('_', ' ')}</Text>
             </View>
             <View style={s.acciones}>
-              {(t.estado === 'en_fila' || llamado) && (
+              {!atendiendo && (t.estado === 'en_fila' || llamado) && (
                 puede[t.id]
                   ? <TouchableOpacity style={s.cta} onPress={() => voy(t)} disabled={accion === t.id}>
                       {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Voy en camino</Text>}
                     </TouchableOpacity>
                   : <View style={s.ctaOff}><Ionicons name="lock-closed" size={14} color={COLORS.textLight} /><Text style={s.ctaOffT}>Se activa cuando estés cerca</Text></View>
               )}
-              <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>
+              {!atendiendo && <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>}
             </View>
           </View>
         )

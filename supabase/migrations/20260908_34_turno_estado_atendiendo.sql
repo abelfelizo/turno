@@ -1,0 +1,10 @@
+-- Estado "atendiendo": faltaba el tramo en que el cliente está en la silla.
+-- Antes se saltaba de en_camino a atendido, así que nadie sabía quién se está
+-- cortando ahora ni cuánto lleva. Detectado usando la app en el piloto.
+--
+-- Al añadir un estado activo hay que revisarlo TODO: el índice único de R1 y
+-- cada función que enumera los estados activos. Si no, R1 deja de proteger
+-- mientras el cliente está en la silla y las posiciones se vuelven a reciclar.
+--
+-- (Contenido idéntico al aplicado con apply_migration: ver turno_estado_atendiendo.)
+-- Ver la migración aplicada en el historial de Supabase: turno_estado_atendiendo

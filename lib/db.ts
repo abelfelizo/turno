@@ -416,7 +416,7 @@ export async function crearCita(cita: {
 
 // COLA
 export async function getColaActiva(negocio_id: string, perfil_id?: string) {
-  let query = supabase.from(T('cola')).select('*, turno_usuarios(nombre, telefono), turno_servicios(nombre, duracion_min)').eq('negocio_id', negocio_id).in('estado', ['en_fila','llamado','en_camino']).order('prioridad').order('posicion')
+  let query = supabase.from(T('cola')).select('*, turno_usuarios(nombre, telefono), turno_servicios(nombre, duracion_min)').eq('negocio_id', negocio_id).in('estado', ['en_fila','llamado','en_camino','atendiendo']).order('prioridad').order('posicion')
   if (perfil_id) query = query.eq('perfil_id', perfil_id)
   const { data, error } = await query
   if (error) throw error
@@ -459,6 +459,13 @@ export async function puedeConfirmar(cola_id: string): Promise<boolean> {
   return !!data
 }
 
+/** El barbero marca que empezó el corte (el cliente pasa a la silla). */
+export async function iniciarAtencion(cola_id: string) {
+  const { data, error } = await supabase.rpc('turno_iniciar_atencion', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
 /** ETA en minutos para un turno en cola (caso 10). */
 export async function etaCola(cola_id: string): Promise<number | null> {
   const { data, error } = await supabase.rpc('turno_eta', { p_cola: cola_id })
@@ -476,7 +483,7 @@ export async function getMiTurnoActivo(cliente_id: string, negocio_id: string) {
   const { data, error } = await supabase.from(T('cola'))
     .select('*, turno_servicios(nombre, duracion_min, precio), turno_perfiles(turno_usuarios(nombre))')
     .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id)
-    .in('estado', ['en_fila', 'llamado', 'en_camino'])
+    .in('estado', ['en_fila', 'llamado', 'en_camino', 'atendiendo'])
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (error) throw error
   return data
@@ -487,7 +494,7 @@ export async function getMisTurnosActivos(cliente_id: string, negocio_id: string
   const { data, error } = await supabase.from(T('cola'))
     .select('*, turno_servicios(nombre, duracion_min, precio), turno_perfiles(turno_usuarios(nombre))')
     .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id)
-    .in('estado', ['en_fila', 'llamado', 'en_camino'])
+    .in('estado', ['en_fila', 'llamado', 'en_camino', 'atendiendo'])
     .order('created_at', { ascending: false })
   if (error) throw error
   return data || []

@@ -1,7 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje } from '../lib/db'
+import { getCitasHoy, getColaActiva, llamarSiguiente, actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, registrarFisico, crearBloqueo, getNegocioById, getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
@@ -75,7 +75,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   }, [cargar])
 
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
-  const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino')?.cliente_id
+  const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')?.cliente_id
   useEffect(() => {
     if (!llamadoClienteId || !sesion?.negocio_id) { setFicha(null); setVale(null); return }
     Promise.all([
@@ -101,6 +101,14 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       cargar()
     } catch (e: any) { Alert.alert('No se pudo llamar', e.message ?? 'Intenta de nuevo.') }
   }
+  function empezarCorte(item: any) {
+    Alert.alert('Empezar', `¿Sentar a ${item.turno_usuarios?.nombre ?? 'este cliente'} en la silla?`, [
+      { text: 'No' },
+      { text: 'Sí, empezar', onPress: async () => {
+        try { await iniciarAtencion(item.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) }
+      } },
+    ])
+  }
   function atenderCola(item: any) {
     Alert.alert('Atender', `¿Marcar a ${item.turno_usuarios?.nombre ?? 'cliente'} como atendido?`, [
       { text: 'No' }, { text: 'Sí', onPress: async () => { try { await actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() }); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
@@ -119,7 +127,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const n1 = cola.filter(c => c.prioridad === 1).length
   const n2 = cola.filter(c => c.prioridad === 2).length
   const n3 = cola.filter(c => c.prioridad === 3).length
-  const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino')
+  const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')
   const enFila = cola.filter(c => c.estado === 'en_fila')
   const badgeCita = (e: string) => e === 'confirmada' ? 'success' : e === 'no_llego' || e === 'no_confirmada' ? 'red' : e === 'en_camino' ? 'blue' : 'gray'
 
@@ -155,12 +163,14 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       {llamado && (
         <View style={s.llamado}>
           <View style={{ flex: 1 }}>
-            <Text style={s.llamadoLbl}>{llamado.estado === 'en_camino' ? 'EN CAMINO' : 'LLAMADO'}</Text>
+            <Text style={s.llamadoLbl}>{llamado.estado === 'atendiendo' ? 'EN LA SILLA' : llamado.estado === 'en_camino' ? 'EN CAMINO' : 'LLAMADO'}</Text>
             <Text style={s.llamadoName}>{llamado.turno_usuarios?.nombre ?? 'Cliente'}</Text>
             <Text style={s.llamadoServ}>{llamado.turno_servicios?.nombre}</Text>
           </View>
           <View style={{ gap: 6, alignItems: 'flex-end' }}>
-            <TouchableOpacity style={s.atenderBtn} onPress={() => atenderCola(llamado)}><Text style={s.atenderT}>Atender</Text></TouchableOpacity>
+            {llamado.estado === 'atendiendo'
+              ? <TouchableOpacity style={s.atenderBtn} onPress={() => atenderCola(llamado)}><Text style={s.atenderT}>Terminar</Text></TouchableOpacity>
+              : <TouchableOpacity style={s.atenderBtn} onPress={() => empezarCorte(llamado)}><Text style={s.atenderT}>Empezar</Text></TouchableOpacity>}
             {llamado.turno_usuarios?.telefono ? (
               <TouchableOpacity style={s.avisarBtn} onPress={() => avisarTurno(llamado.turno_usuarios.telefono, llamado.turno_usuarios?.nombre ?? 'cliente', negocio?.nombre ?? 'el local')}>
                 <Ionicons name="logo-whatsapp" size={14} color="#fff" /><Text style={s.avisarT}>Avisar</Text>
