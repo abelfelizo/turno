@@ -6,7 +6,9 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
-    "test:db": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
+    "test:db": "npm run test:db:cola && npm run test:db:autonomia",
+    "test:db:cola": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
+    "test:db:autonomia": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/autonomia.test.sql",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

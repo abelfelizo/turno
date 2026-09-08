@@ -215,7 +215,15 @@ export async function unirseCliente(p: { codigo: string; nombre: string; telefon
 export async function getPerfilesNegocio(negocio_id: string) {
   const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
   if (error) throw error
-  return data || []
+  // El rol vive en la membresía, no en el perfil, y el dueño lo necesita para
+  // saber a quién puede ponerle servicios y horario (empleado) y a quién no
+  // (barbero_renta, que es autónomo).
+  const { data: mem } = await supabase.from(T('membresias')).select('usuario_id, rol')
+    .eq('negocio_id', negocio_id).eq('activo', true)
+    .in('rol', ['empleado', 'barbero_renta', 'dueno'])
+  const rol: Record<string, string> = {}
+  for (const m of (mem ?? []) as any[]) if (!rol[m.usuario_id] || m.rol === 'dueno') rol[m.usuario_id] = m.rol
+  return (data || []).map((p: any) => ({ ...p, rol: rol[p.usuario_id] ?? null }))
 }
 
 // ── IDENTIDAD DEL BARBERO (nivel persona; sigue al barbero entre locales) ──

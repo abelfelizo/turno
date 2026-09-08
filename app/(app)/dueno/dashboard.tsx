@@ -2,7 +2,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getSesion } from '../../../lib/storage'
+import { getSesion, guardarSesion } from '../../../lib/storage'
 import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
@@ -69,6 +69,14 @@ export default function Dashboard() {
         onPress: async () => { try { await asignarCola(item.id, p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } },
       })), { text: 'Cancelar', style: 'cancel' as const }])
   }
+  // Cambiar de panel es cambiar la sesión, no solo navegar: si solo navegas,
+  // el distintivo sigue diciendo BARBERÍA sobre la pantalla de la silla.
+  async function irAMiSilla() {
+    const ss = await getSesion(); if (!ss) return
+    await guardarSesion({ ...ss, panel: 'silla' })
+    router.replace('/(app)/barbero/agenda')
+  }
+
   function desvincular(p: any) {
     Alert.alert('Desvincular barbero',
       `¿Sacar a ${p.turno_usuarios?.nombre ?? 'este barbero'} del local? Se cancelarán sus citas futuras y saldrá de la fila. Su historial y clientela lo acompañan.`,
@@ -146,7 +154,7 @@ export default function Dashboard() {
 
       {/* El dueño que atiende llega a su propia silla desde aquí (servicios, horarios) */}
       {perfilPropio && (
-        <TouchableOpacity style={s.silla} onPress={() => router.replace('/(app)/barbero/agenda')}>
+        <TouchableOpacity style={s.silla} onPress={irAMiSilla}>
           <View style={s.sillaIcon}><Ionicons name="cut-outline" size={20} color="#fff" /></View>
           <View style={{ flex: 1 }}>
             <Text style={s.sillaT}>Mi silla</Text>
@@ -187,10 +195,16 @@ export default function Dashboard() {
       {equipo.map((p: any) => (
         <View key={p.id} style={s.sol}>
           <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
-          <View style={{ flex: 1 }}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push({
+            pathname: '/(app)/dueno/barbero',
+            params: { perfil: p.id, nombre: p.turno_usuarios?.nombre ?? 'Barbero', rol: p.rol ?? '' },
+          } as any)}>
             <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-            <Text style={s.solMeta}>{TIPO[p.tipo_servicio] ?? 'Barbería'} · {p.estado_actual === 'disponible' ? 'Disponible' : 'En descanso'}</Text>
-          </View>
+            <Text style={s.solMeta}>
+              {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Dueño' : 'Empleado'}
+              {' · '}{p.estado_actual === 'disponible' ? 'Disponible' : 'En descanso'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.desvincular} onPress={() => desvincular(p)}><Ionicons name="person-remove-outline" size={18} color={COLORS.danger} /></TouchableOpacity>
         </View>
       ))}

@@ -24,6 +24,7 @@ Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
 | R8 | **Unirse a un local** | Escribes el código y te une a ciegas | Al escribir el código se muestra el local ("Te vas a unir a **Barbería Demo**") y confirmas |
 | R9 | **Turno expirado** | Desaparece en silencio ("no tienes turno activo") | Estado visible "Tu turno expiró" + push + opción de reentrar |
 | R10 | **Reglas del barbero** | Límite de fila + buffer + horarios + estado | Panel amplio: anticipación propia de citas, días de descanso/vacaciones por rango, recordatorio de re-visita (R7), puntos propios (R6), domicilio, límite de fila, buffer |
+| R11 | **Quién decide servicios y horarios** | Cualquier barbero se pone sus servicios, precios y horario — el empleado incluido; y el dueño **no** puede tocárselos (RLS lo bloqueaba) | El barbero es **autónomo por defecto** (`barbero_renta`, y el dueño que atiende). La excepción es el **empleado**: ahí manda la barbería, que edita sus servicios y su jornada desde Equipo. Los **bloqueos** (almuerzo, un rato fuera) siguen siendo del barbero en todos los casos: solo quitan disponibilidad, nunca la inventan |
 
 ## 2. Auditoría de exposición (existe vs. visible)
 
@@ -232,6 +233,7 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
   - **Otros días:** el barbero ya no está atrapado en "hoy". Selector de día (ayer + 3 semanas) con punto en los días que tienen citas; bloquear hora funciona sobre el día elegido y los bloqueos por fin **se ven** en la agenda (antes se creaban a ciegas).
   - **Modificar turnos:** subir/bajar un puesto, llamar a alguien concreto fuera de orden, devolver a la fila un llamado por error, cambiar el servicio y **sacar de la fila** al que se fue del local. El orden es la pareja `(prioridad, posicion)`, así que mover intercambia las dos columnas. Todo con la misma autorización: es mi silla, o soy dueño del local.
   - **"Sin cita" ya no crea clientes fantasma:** atender a alguien que llega caminando **ocupa la silla** el tiempo del servicio (bloqueo desde ahora). Con eso `turno_slots_disponibles` deja de ofrecer esa hora y `turno_eta` suma la espera real; antes el de la cola digital veía "0 min" con el barbero a mitad de un corte. `turno_registrar_fisico` se conserva pero la app ya no lo usa.
+- **F3d · Autonomía del barbero ✅ HECHO** _(migración 37)_: aplicada la regla R11. Las políticas RLS de `turno_servicios` y `turno_horarios` pasan de `turno_es_mi_perfil` a "es mi perfil **y** soy autónomo, o soy dueño del local". El empleado ve sus servicios y su horario en solo lectura, con el nombre del local; el dueño los edita desde **Mi local → Equipo → (tocar a la persona)**. Los bloqueos quedan abiertos a ambos. Suite propia: `supabase/tests/autonomia.test.sql`, 7 casos, 7/7 verde — corre con `set local role authenticated` porque si no, RLS ni se evalúa y la prueba no probaría nada.
 - **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla. _(pendiente — único bloque restante)_
 
 ## 7. Riesgos de producción (revisión de julio)

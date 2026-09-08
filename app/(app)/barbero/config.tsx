@@ -40,6 +40,7 @@ export default function Config() {
   const [guardandoPerfil, setGuardandoPerfil] = useState(false)
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [rolMembresia, setRolMembresia] = useState<string | null>(null)
+  const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
   const [locales, setLocales] = useState<any[]>([])
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcRol, setLcRol] = useState<'empleado' | 'barbero_renta'>('barbero_renta'); const [lcBusy, setLcBusy] = useState(false)
@@ -56,7 +57,11 @@ export default function Config() {
     ])
     setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
-    if (ss.usuario_id) setLocales(await getBarberoNegocios(ss.usuario_id).catch(() => []))
+    if (ss.usuario_id) {
+      const locs = await getBarberoNegocios(ss.usuario_id).catch(() => [])
+      setLocales(locs as any[])
+      setNegocioNombre((locs as any[]).find((l: any) => l.negocio_id === ss.negocio_id)?.nombre ?? null)
+    }
     // Identidad (persona, sigue al barbero): foto/bio/especialidad/contactos.
     setEsp(u?.especialidad ?? ''); setBio(u?.bio ?? ''); setIg(u?.instagram ?? ''); setWa(u?.whatsapp ?? '')
     // Mensaje de bienvenida: por local (se queda en el perfil).
@@ -133,6 +138,9 @@ export default function Config() {
     setServicios(prev => prev.map(x => x.id === sv.id ? { ...x, activo: !x.activo } : x))
     await actualizarServicio(sv.id, { activo: !sv.activo }).catch(() => cargar())
   }
+  // Regla de producto: el barbero decide lo suyo salvo que sea empleado.
+  const empleado = rolMembresia === 'empleado'
+
   function horarioDe(n: number) { return horarios.find(h => h.dia_semana === n) }
   function abrirHorario(n: number) {
     const h = horarioDe(n)
@@ -263,22 +271,31 @@ export default function Config() {
         })}
       </View>
 
-      <View style={s.secRow}><Text style={s.sec}>MIS SERVICIOS</Text><TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity></View>
+      {/* El barbero es autónomo salvo que sea EMPLEADO: ahí los servicios y el
+          horario los pone la barbería, y aquí solo se consultan. */}
+      <View style={s.secRow}>
+        <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
+        {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
+      </View>
+      {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el dueño.</Text>}
       {servicios.map((sv: any) => (
         <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
             <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
           </TouchableOpacity>
           <Text style={s.servPrecio}>{sv.precio}</Text>
-          <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+          {empleado
+            ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
+            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
         </View>
       ))}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>MIS HORARIOS</Text>
+      <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
+      {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
       {DIAS.map(d => {
         const h = horarioDe(d.n); const abierto = h && h.activo
         return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)}>
+          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
             <Text style={s.diaL}>{d.l}</Text>
             <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>{abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}</Text>
           </TouchableOpacity>
@@ -487,6 +504,8 @@ const s = StyleSheet.create({
   servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
+  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
