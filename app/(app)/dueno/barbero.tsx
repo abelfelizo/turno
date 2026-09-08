@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad } from '../../../lib/db'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
@@ -25,6 +25,7 @@ const DIAS = [
 export default function BarberoDelLocal() {
   const router = useRouter()
   const { perfil, nombre, rol } = useLocalSearchParams<{ perfil: string; nombre?: string; rol?: string }>()
+  const [modalidad, setModalidad] = useState<string>(rol ?? 'empleado')
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -36,6 +37,15 @@ export default function BarberoDelLocal() {
   const [hrModal, setHrModal] = useState<null | { n: number; h?: any }>(null)
   const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(19); const [hrBuf, setHrBuf] = useState(10)
   const [hrBusy, setHrBusy] = useState(false)
+  const [modBusy, setModBusy] = useState(false)
+
+  async function aplicarModalidad(nuevo: 'empleado' | 'barbero_renta') {
+    if (nuevo === modalidad) return
+    setModBusy(true)
+    try { await cambiarModalidad(perfil, nuevo); setModalidad(nuevo) }
+    catch (e: any) { Alert.alert('No se pudo cambiar', e.message ?? 'Intenta de nuevo.') }
+    finally { setModBusy(false) }
+  }
 
   const cargar = useCallback(async () => {
     if (!perfil) { setLoading(false); return }
@@ -93,7 +103,7 @@ export default function BarberoDelLocal() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
-  const autonomo = rol === 'barbero_renta'
+  const autonomo = modalidad === 'barbero_renta'
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 40 }}>
@@ -102,16 +112,23 @@ export default function BarberoDelLocal() {
       </TouchableOpacity>
       <Display size={28} style={{ marginBottom: 6 }}>{nombre || 'Barbero'}</Display>
 
-      {autonomo ? (
-        <View style={s.avisoRenta}>
-          <Ionicons name="information-circle-outline" size={18} color={COLORS.textMid} />
-          <Text style={s.avisoRentaT}>
-            Renta su espacio, así que sus servicios y su horario los decide él. Aquí solo los consultas.
-          </Text>
-        </View>
-      ) : (
-        <Text style={s.sub}>Es empleado del local: sus servicios, precios y jornada los pones tú.</Text>
-      )}
+      {/* La modalidad la hereda del tipo del local, pero una barbería de
+          empleados puede alquilar un asiento suelto. Ese cambio es del dueño:
+          el barbero nunca se lo concede a sí mismo. */}
+      <Text style={s.flabelTop}>CÓMO TRABAJA AQUÍ</Text>
+      <View style={s.modRow}>
+        <TouchableOpacity style={[s.modChip, !autonomo && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
+          <Text style={[s.modChipT, !autonomo && { color: '#fff' }]}>Empleado</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
+          <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={s.sub}>
+        {autonomo
+          ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
+          : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
+      </Text>
 
       <View style={s.secRow}>
         <Text style={s.sec}>SERVICIOS</Text>
@@ -202,8 +219,11 @@ const s = StyleSheet.create({
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   volverT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
-  avisoRenta: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 18 },
-  avisoRentaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, lineHeight: 17 },
+  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
+  modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  modChip: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
+  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 12 },

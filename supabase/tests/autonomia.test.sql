@@ -18,11 +18,15 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
 declare
-  v_neg uuid; v_cod text := 'AUT-' || substr(md5(random()::text), 1, 4);
+  v_neg uuid; -- upper(): turno_gen_codigo genera los códigos en mayúsculas y
+  -- turno_unirse_profesional busca con upper(). Un fixture en minúsculas no
+  -- encontraría nunca su propio local.
+  v_cod text := 'AUT-' || upper(substr(md5(random()::text), 1, 4));
   a_due uuid := gen_random_uuid(); a_emp uuid := gen_random_uuid(); a_ren uuid := gen_random_uuid();
   u_due uuid; u_emp uuid; u_ren uuid;
   p_due uuid; p_emp uuid; p_ren uuid;
-  n int := 0; ok int := 0; fallos text := ''; c text; v_int int;
+  a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text;
+  n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text;
 begin
   -- ── FIXTURES · un local con dueño-que-atiende, un empleado y un rentado ────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -119,6 +123,62 @@ begin
     reset role;
     if v_int = 0 then ok:=ok+1; else fallos := fallos || E'\n  x '||c||' - cambio '||v_int||' filas'; end if;
   exception when others then reset role; ok:=ok+1;
+  end;
+
+  -- ── FIXTURES 2 · un local de la otra modalidad y un barbero nuevo ─────────
+  v_cod2 := 'REN-' || upper(substr(md5(random()::text), 1, 4));
+  insert into turno_negocios (nombre,tipo,codigo_acceso,moneda,activo)
+    values ('Test Rentados','espacios_rentados',v_cod2,'DOP',true) returning id into v_neg2;
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+  values (a_new,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','an_'||v_cod||'@turno.test','',now(),now());
+  insert into turno_usuarios (nombre,telefono,tipo_usuario,auth_id) values ('Nuevo','','profesional',a_new) returning id into u_new;
+
+  -- ── CASO 8 · el local de empleados impone su modalidad ────────────────────
+  -- Antes de la migración 38 el rol llegaba desde el cliente: bastaba con pedir
+  -- 'barbero_renta' para entrar como autónomo a un local donde manda el dueño.
+  n:=n+1; c:='alta · pedir renta en un local de empleados NO cuela';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_new::text)::text, true);
+    perform turno_unirse_profesional(v_cod, 'barbero', 'barbero_renta', 'Nuevo', '');
+    select rol into v_rol from turno_membresias
+     where usuario_id = u_new and negocio_id = v_neg and rol in ('empleado','barbero_renta');
+    if v_rol = 'empleado' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - quedo como '||coalesce(v_rol,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
+  end;
+
+  -- ── CASO 9 · y el de asientos alquilados también ──────────────────────────
+  n:=n+1; c:='alta · pedir empleado en un local de asientos NO cuela';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_new::text)::text, true);
+    perform turno_unirse_profesional(v_cod2, 'barbero', 'empleado', 'Nuevo', '');
+    select rol into v_rol from turno_membresias
+     where usuario_id = u_new and negocio_id = v_neg2 and rol in ('empleado','barbero_renta');
+    if v_rol = 'barbero_renta' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - quedo como '||coalesce(v_rol,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
+  end;
+
+  -- ── CASO 10 · el local mixto lo decide el dueño ───────────────────────────
+  n:=n+1; c:='mixto · el dueño SI puede pasar a un empleado a renta';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+    perform turno_cambiar_modalidad(p_emp, 'barbero_renta');
+    if turno_perfil_autonomo(p_emp) then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - siguio sin ser autonomo'; end if;
+    perform turno_cambiar_modalidad(p_emp, 'empleado');   -- se deja como estaba
+  exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
+  end;
+
+  -- ── CASO 11 · pero el barbero no se la concede a sí mismo ─────────────────
+  n:=n+1; c:='mixto · el barbero NO puede cambiarse la modalidad';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+    perform turno_cambiar_modalidad(p_emp, 'barbero_renta');
+    fallos := fallos || E'\n  x '||c||' - se ascendio solo';
+  exception when others then
+    if sqlerrm like '%no autorizado%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
   end;
 
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ──────────────────────

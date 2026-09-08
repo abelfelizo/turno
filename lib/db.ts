@@ -252,6 +252,13 @@ export async function getBarberoNegocios(usuario_id: string) {
   return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
 }
 
+/** El dueño cambia la modalidad de una persona de su equipo (local mixto:
+ *  barbería de empleados que además alquila un asiento). Solo el dueño. */
+export async function cambiarModalidad(perfil_id: string, rol: 'empleado' | 'barbero_renta') {
+  const { error } = await supabase.rpc('turno_cambiar_modalidad', { p_perfil: perfil_id, p_rol: rol })
+  if (error) throw error
+}
+
 /** El cliente se suma a un local para poder reservar allí. */
 export async function seguirBarberoEnNegocio(negocio_id: string) {
   const { error } = await supabase.rpc('turno_agregar_negocio_cliente', { p_negocio: negocio_id })

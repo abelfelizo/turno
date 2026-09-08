@@ -29,7 +29,7 @@ export default function BarberoPerfil() {
   }
 
   return (
-    <OnbScreen paso="Tu trabajo · 4 de 4" titulo="Tu perfil"
+    <OnbScreen paso="Tu trabajo · 3 de 3" titulo="Tu perfil"
       subtitulo="Así te verán el dueño y los clientes.">
       <Campo label="Tu nombre" placeholder="Tu nombre" value={nombre} onChangeText={setNombre} />
       <Campo label="Tu teléfono" placeholder="+1 809 000 0000" keyboardType="phone-pad" value={telefono} onChangeText={setTelefono} />

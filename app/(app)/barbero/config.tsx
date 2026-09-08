@@ -43,7 +43,7 @@ export default function Config() {
   const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
   const [locales, setLocales] = useState<any[]>([])
   const [localModal, setLocalModal] = useState(false)
-  const [lcCodigo, setLcCodigo] = useState(''); const [lcRol, setLcRol] = useState<'empleado' | 'barbero_renta'>('barbero_renta'); const [lcBusy, setLcBusy] = useState(false)
+  const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -173,7 +173,7 @@ export default function Config() {
     if (!usuario || !perfil) return
     setLcBusy(true)
     try {
-      await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: lcRol, nombre: usuario.nombre, telefono: usuario.telefono })
+      await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
       setLocalModal(false); setLcCodigo('')
       Alert.alert('Solicitud enviada', 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
       cargar()
@@ -406,11 +406,9 @@ export default function Config() {
           <Display size={22}>Trabajar en otro local</Display>
           <Text style={s.flabel}>Código del local</Text>
           <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} value={lcCodigo} onChangeText={setLcCodigo} />
-          <Text style={s.flabel}>¿Cómo entras?</Text>
-          <View style={s.rolRow}>
-            <TouchableOpacity style={[s.rolChip, lcRol === 'barbero_renta' && s.rolChipOn]} onPress={() => setLcRol('barbero_renta')}><Text style={[s.rolChipT, lcRol === 'barbero_renta' && { color: '#fff' }]}>Rento silla</Text></TouchableOpacity>
-            <TouchableOpacity style={[s.rolChip, lcRol === 'empleado' && s.rolChipOn]} onPress={() => setLcRol('empleado')}><Text style={[s.rolChipT, lcRol === 'empleado' && { color: '#fff' }]}>Empleado</Text></TouchableOpacity>
-          </View>
+          {/* Ya no se pregunta "¿empleado o rento silla?": la modalidad la pone
+              el local y el servidor la deriva de su tipo. */}
+          <Text style={s.nota}>Si el local alquila asientos entrarás como independiente; si trabaja con empleados, como empleado. Lo define la barbería.</Text>
           <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
         </View></View>
@@ -505,6 +503,7 @@ const s = StyleSheet.create({
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
   deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },

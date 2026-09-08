@@ -11,11 +11,11 @@ export default function BarberoTipo() {
   function continuar() {
     resetBorrador()
     borrador.tipoServicio = tipo
-    router.push('/(auth)/barbero-situacion')
+    router.push('/(auth)/barbero-codigo')
   }
 
   return (
-    <OnbScreen paso="Tu trabajo · 1 de 4" titulo="¿A qué te dedicas?"
+    <OnbScreen paso="Tu trabajo · 1 de 3" titulo="¿A qué te dedicas?"
       subtitulo="Elige el tipo de servicio que ofreces.">
       <Opcion label="Barbería" desc="Cortes, barba, arreglos."
         seleccionado={tipo === 'barbero'} onPress={() => setTipo('barbero')} />
