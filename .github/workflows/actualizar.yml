@@ -1,0 +1,64 @@
+# Publicar actualización (OTA)
+#
+# Manda los cambios de JS al teléfono que ya tiene el APK instalado, sin
+# recompilar y sin que nadie reinstale nada. La app la descarga al arrancar y
+# la aplica en el arranque siguiente.
+#
+# NO sirve para cambios nativos (una librería nueva con código nativo, un
+# plugin de app.json, subir de SDK). Para eso hace falta un APK nuevo: se sube
+# "version" en app.json y se dispara el workflow "APK de prueba". La política
+# runtimeVersion=appVersion lo garantiza — si las versiones no coinciden, el
+# teléfono ignora la actualización en vez de romperse.
+#
+# Requiere el mismo secreto EXPO_TOKEN que el APK.
+
+name: Publicar actualización
+
+on:
+  workflow_dispatch:
+    inputs:
+      canal:
+        description: Canal (tiene que coincidir con el del APK instalado)
+        type: choice
+        options: [preview, production]
+        default: preview
+      mensaje:
+        description: Qué cambia (aparece en el historial de Expo)
+        type: string
+        default: Cambios desde GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci --legacy-peer-deps
+
+      # Si el bundle no compila, mejor fallar aquí que dejar a los teléfonos
+      # descargando una actualización rota.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Publicar
+        run: |
+          eas update --branch "${{ inputs.canal }}" \
+            --message "${{ inputs.mensaje }}" --non-interactive
+
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo "## Actualización publicada en \`${{ inputs.canal }}\`"
+            echo ""
+            echo "${{ inputs.mensaje }}"
+            echo ""
+            echo "Abre y cierra la app dos veces: la primera la descarga, la segunda la aplica."
+          } >> "$GITHUB_STEP_SUMMARY"

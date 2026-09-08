@@ -4,6 +4,13 @@
     "slug": "turno",
     "owner": "abelfelizo",
     "version": "1.2.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/267b66a1-2afe-4194-adb1-45855f0dd9e4",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "turno",
