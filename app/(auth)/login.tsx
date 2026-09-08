@@ -20,7 +20,9 @@ export default function Login() {
     finally { setCargando(false) }
   }
   async function confirmar() {
-    if (codigo.trim().length < 6) { Alert.alert('Código incompleto', 'Ingresa los 6 dígitos.'); return }
+    // El largo del OTP es configurable en Supabase (6–10). No lo cableamos:
+    // basta con exigir el mínimo y dejar que el servidor valide el resto.
+    if (codigo.trim().length < 6) { Alert.alert('Código incompleto', 'Escribe el código completo que te enviamos.'); return }
     setCargando(true)
     try { await verificarCodigo(email, codigo); router.replace('/') }
     catch (e: any) { Alert.alert('Código incorrecto', e.message ?? 'Revisa el código.') }
@@ -42,7 +44,7 @@ export default function Login() {
 
       {paso === 'email' ? (
         <>
-          <Text style={s.sub}>Entra con tu correo. Te enviaremos un código.</Text>
+          <Text style={s.sub}>Entra o crea tu cuenta con tu correo. Te enviaremos un código.</Text>
           <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}
             autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={pedirCodigo} disabled={cargando}>
@@ -52,8 +54,9 @@ export default function Login() {
       ) : (
         <>
           <Text style={s.sub}>Ingresa el código que enviamos a {email}</Text>
-          <TextInput style={[s.input, s.code]} placeholder="000000" placeholderTextColor={COLORS.textLight}
-            keyboardType="number-pad" maxLength={6} value={codigo} onChangeText={setCodigo} editable={!cargando} />
+          <TextInput style={[s.input, s.code]} placeholder="––––––" placeholderTextColor={COLORS.textLight}
+            keyboardType="number-pad" maxLength={10} value={codigo}
+            onChangeText={t => setCodigo(t.replace(/\D/g, ''))} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={confirmar} disabled={cargando}>
             {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Confirmar</Text>}
           </TouchableOpacity>
@@ -74,7 +77,7 @@ const s = StyleSheet.create({
   kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
   input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 12, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
-  code: { textAlign: 'center', letterSpacing: 8, fontSize: 24, fontFamily: FONTS.bold },
+  code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
   btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 17, alignItems: 'center' },
   btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },
