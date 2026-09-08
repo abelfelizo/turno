@@ -41,5 +41,5 @@ export default function RootLayout() {
   }, [router])
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={COLORS.red} size="large" /></View>
-  return (<ErrorBoundary><StatusBar style="light" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>)
+  return (<ErrorBoundary><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>)
 }

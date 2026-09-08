@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola } from '../../../lib/db'
@@ -12,11 +13,13 @@ import { Display, Avatar } from '../../../components/ui'
 const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
 
 export default function Dashboard() {
+  const router = useRouter()
   const [negocio, setNegocio] = useState<any>(null)
   const [cola, setCola] = useState<any[]>([])
   const [solicitudes, setSolicitudes] = useState<any[]>([])
   const [equipo, setEquipo] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
+  const [perfilPropio, setPerfilPropio] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -24,6 +27,7 @@ export default function Dashboard() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
+    setPerfilPropio(ss.perfil_id ?? null)
     const [neg, q, sol, st, eq, cfg] = await Promise.all([
       getNegocioById(ss.negocio_id),
       getColaActiva(ss.negocio_id).catch(() => []),
@@ -133,7 +137,22 @@ export default function Dashboard() {
             ))}
           </View>
         )}
+        {cola.length === 0 && (
+          <Text style={s.colaVacia}>Nadie en la fila ahora mismo. Cuando un cliente entre —desde la app o como walk-in— aparecerá aquí con su nombre y servicio.</Text>
+        )}
       </View>
+
+      {/* El dueño que atiende llega a su propia silla desde aquí (servicios, horarios) */}
+      {perfilPropio && (
+        <TouchableOpacity style={s.silla} onPress={() => router.replace('/(app)/barbero/agenda')}>
+          <View style={s.sillaIcon}><Ionicons name="cut-outline" size={20} color="#fff" /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.sillaT}>Mi silla</Text>
+            <Text style={s.sillaD}>Tu agenda, tus servicios y tus horarios como barbero.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+        </TouchableOpacity>
+      )}
 
       {/* Solicitudes pendientes */}
       <Text style={s.sec}>SOLICITUDES{solicitudes.length ? ` · ${solicitudes.length}` : ''}</Text>
@@ -213,6 +232,11 @@ const s = StyleSheet.create({
   solMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   rechazar: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
   desvincular: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
+  colaVacia: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 16, lineHeight: 19 },
+  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 22 },
+  sillaIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' },
+  sillaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  sillaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed', borderRadius: 14, padding: 14, marginBottom: 10 },
   agregarIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.blue, alignItems: 'center', justifyContent: 'center' },
   agregarT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },

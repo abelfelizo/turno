@@ -1,4 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { enviarCodigo, verificarCodigo } from '../../lib/auth'
@@ -31,6 +32,7 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.c}>
+      <StatusBar style="light" />
       <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
         <View style={s.logo}><Text style={s.logoT}>N</Text></View>

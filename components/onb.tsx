@@ -1,4 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TextInputProps } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
 import { ReactNode } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -9,6 +10,7 @@ export function OnbScreen({ titulo, subtitulo, children, paso }: { titulo: strin
   const router = useRouter()
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: COLORS.carbon }}>
+      <StatusBar style="light" />
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <TouchableOpacity style={s.back} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
           <Ionicons name="chevron-back" size={22} color="#fff" />

@@ -22,9 +22,6 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [vale, setVale] = useState<any>(null)
   const [servicios, setServicios] = useState<any[]>([])
   const [walkin, setWalkin] = useState(false)
-  const [wNombre, setWNombre] = useState('')
-  const [wTel, setWTel] = useState('')
-  const [wServ, setWServ] = useState<any>(null)
   const [wEnviando, setWEnviando] = useState(false)
   const [bloq, setBloq] = useState(false)
   const [bIni, setBIni] = useState(12); const [bFin, setBFin] = useState(13); const [bMotivo, setBMotivo] = useState('')
@@ -38,14 +35,21 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg); setUsuario(u); setLoading(false); setRefreshing(false)
   }, [])
 
-  async function agregarFisico() {
-    if (!wNombre.trim() || !wServ) { Alert.alert('Faltan datos', 'Nombre y servicio.'); return }
-    setWEnviando(true)
-    try {
-      await registrarFisico({ negocio_id: sesion.negocio_id, perfil_id: sesion.perfil_id, servicio_id: wServ.id, nombre: wNombre.trim(), telefono: wTel.trim() })
-      setWalkin(false); setWNombre(''); setWTel(''); setWServ(null); cargar()
-    } catch (e: any) { Alert.alert('No se pudo agregar', e.message ?? 'Intenta de nuevo.') }
-    finally { setWEnviando(false) }
+  /** Walk-in en dos toques: eliges servicio y confirmas. Nada de teclear con
+   *  tijera en mano — el barbero puede renombrar después si hace falta. */
+  function agregarFisico(sv: any) {
+    const etiqueta = `Sin cita · ${hora12(new Date().toTimeString().slice(0, 5))}`
+    Alert.alert('Cliente sin cita', `Agregar a la fila para ${sv.nombre}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Agregar', onPress: async () => {
+        setWEnviando(true)
+        try {
+          await registrarFisico({ negocio_id: sesion.negocio_id, perfil_id: sesion.perfil_id, servicio_id: sv.id, nombre: etiqueta })
+          setWalkin(false); cargar()
+        } catch (e: any) { Alert.alert('No se pudo agregar', e.message ?? 'Intenta de nuevo.') }
+        finally { setWEnviando(false) }
+      } },
+    ])
   }
 
   async function guardarBloqueo() {
@@ -231,22 +235,18 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         <View style={s.modalBg}>
           <View style={s.modal}>
             <Display size={22}>Cliente sin cita</Display>
-            <Text style={s.modalSub}>Se agrega a la fila física (orden de llegada).</Text>
-            <Text style={s.flabel}>Nombre</Text>
-            <TextInput style={s.input} placeholder="Nombre del cliente" placeholderTextColor={COLORS.textLight} value={wNombre} onChangeText={setWNombre} />
-            <Text style={s.flabel}>Teléfono (opcional)</Text>
-            <TextInput style={s.input} placeholder="+1 809 000 0000" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wTel} onChangeText={setWTel} />
-            <Text style={s.flabel}>Servicio</Text>
-            <View style={s.servChips}>
-              {servicios.map((sv: any) => (
-                <TouchableOpacity key={sv.id} style={[s.servChip, wServ?.id === sv.id && s.servChipOn]} onPress={() => setWServ(sv)}>
-                  <Text style={[s.servChipT, wServ?.id === sv.id && { color: '#fff' }]}>{sv.nombre}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <TouchableOpacity style={s.modalBtn} onPress={agregarFisico} disabled={wEnviando}>
-              {wEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnT}>Agregar a la fila</Text>}
-            </TouchableOpacity>
+            <Text style={s.modalSub}>Toca el servicio y confirma. Entra a la fila por orden de llegada.</Text>
+            {wEnviando ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 24 }} /> : servicios.length === 0
+              ? <Text style={s.empty}>Primero crea un servicio en tu configuración.</Text>
+              : servicios.map((sv: any) => (
+                  <TouchableOpacity key={sv.id} style={s.wServ} onPress={() => agregarFisico(sv)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.wServN}>{sv.nombre}</Text>
+                      <Text style={s.wServD}>{sv.duracion_min} min</Text>
+                    </View>
+                    <Ionicons name="add-circle" size={28} color={COLORS.red} />
+                  </TouchableOpacity>
+                ))}
             <TouchableOpacity onPress={() => setWalkin(false)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
           </View>
         </View>
@@ -366,5 +366,8 @@ const s = StyleSheet.create({
   servChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   modalBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },
   modalBtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  wServ: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 10 },
+  wServN: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
+  wServD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })
