@@ -3,7 +3,7 @@
     "name": "Turno",
     "slug": "turno",
     "owner": "abelfelizo",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "turno",
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.turno.app",
-      "versionCode": 2
+      "versionCode": 3
     },
     "plugins": [
       "expo-router",
