@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario } from '../../../lib/db'
-import { avisos } from '../../../lib/notificaciones'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas } from '../../../lib/db'
+import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Chip, Avatar } from '../../../components/ui'
@@ -87,6 +87,17 @@ export default function Agendar() {
       if (perfil.usuario_id) {
         avisos.barberoNuevaCita(perfil.usuario_id, yo?.nombre ?? 'Un cliente',
           `${fechaLarga(fechaDeISO(fecha))} a las ${hora12(hora)}`)
+      }
+      // Los recordatorios (T-24h y T-2h) los agenda el propio teléfono, porque
+      // este proyecto no tiene pg_net y la base no puede despertar a nadie. Se
+      // reprograman aquí y no solo en Inicio: quien reservaba y se salía sin
+      // volver a esa pantalla se quedaba sin recordatorio.
+      const sesion = await getSesion()
+      if (sesion?.usuario_id && sesion?.negocio_id) {
+        const mias = await getMisCitas(sesion.usuario_id, sesion.negocio_id).catch(() => [])
+        programarRecordatoriosCitas((mias as any[]).map(c => ({
+          fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre,
+        })))
       }
       const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
       const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`
