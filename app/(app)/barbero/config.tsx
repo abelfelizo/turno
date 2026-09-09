@@ -43,6 +43,16 @@ export default function Config() {
   const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
   const [cfgLocal, setCfgLocal] = useState<any>(null)
   const [reglasBusy, setReglasBusy] = useState(false)
+  const [premio, setPremio] = useState('')
+
+  async function guardarPremio() {
+    if (!sesion?.perfil_id) return
+    const v = premio.trim() || 'Corte gratis'
+    setPremio(v)
+    setPerfil((p: any) => ({ ...p, premio: v }))
+    try { await actualizarPerfil(sesion.perfil_id, { premio: v }) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+  }
   const [locales, setLocales] = useState<any[]>([])
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
@@ -59,6 +69,7 @@ export default function Config() {
       getConfiguracion(ss.negocio_id).catch(() => null),
     ])
     setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setCfgLocal(cfg)
+    setPremio((p as any)?.premio ?? 'Corte gratis')
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
       const locs = await getBarberoNegocios(ss.usuario_id).catch(() => [])
@@ -399,32 +410,33 @@ export default function Config() {
 
       {rolMembresia === 'barbero_renta' && (
         <>
-          <Text style={[s.sec, { marginTop: 18 }]}>MIS PUNTOS DE FIDELIDAD</Text>
+          <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
           <View style={s.regla}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.reglaL}>Puntos propios</Text>
-              <Text style={s.reglaD}>Tú premias a tus clientes, no el local.</Text>
+              <Text style={s.reglaL}>Premiar a mis clientes</Text>
+              <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
             </View>
             <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
           </View>
           {perfil?.puntos_activos && (
             <>
+              {/* Se cuentan recortes, no puntos abstractos, y el premio lo
+                  escribes tú: no tiene por qué ser un corte gratis. */}
               <View style={s.regla}>
-                <Text style={s.reglaL}>Puntos por visita</Text>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.reglaL}>Recortes para el premio</Text>
+                  <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
+                </View>
                 <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', -1, 1, 20, 1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_por_visita ?? 1}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', 1, 1, 20, 1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
                 </View>
               </View>
-              <View style={s.regla}>
-                <Text style={s.reglaL}>Visitas para premio</Text>
-                <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 10)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 10}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 10)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-                </View>
-              </View>
+              <Text style={s.flabel}>¿Qué se gana?</Text>
+              <TextInput style={s.input} value={premio} onChangeText={setPremio}
+                onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
+                placeholderTextColor={COLORS.textLight} maxLength={60} />
             </>
           )}
         </>

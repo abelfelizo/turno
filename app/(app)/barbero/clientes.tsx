@@ -2,7 +2,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getPuntos, getConfiguracion, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
+import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
 import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
@@ -21,12 +21,13 @@ export default function Clientes() {
   const [guardando, setGuardando] = useState(false)
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [moneda, setMoneda] = useState('')
-  const [ficha, setFicha] = useState<{ historial: any[]; puntos: any; prefs: any; meta: number } | null>(null)
+  const [perfilId, setPerfilId] = useState<string | null>(null)
+  const [ficha, setFicha] = useState<{ historial: any[]; puntos: any; prefs: any; meta: number; premio: string } | null>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id) { setLoading(false); return }
-    setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null)
+    setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
     const [cl, rec, neg] = await Promise.all([
       getMisClientes().catch(() => []),
       ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
@@ -41,19 +42,22 @@ export default function Clientes() {
   // el barbero solo podía escribir una nota y no veía nada del cliente.
   async function abrir(c: any) {
     setActivo(c); setNota(''); setFicha(null); setCargandoNota(true)
-    const [n, hist, pts, cfg, prefs] = await Promise.all([
+    const [n, hist, pts, fid, prefs] = await Promise.all([
       usuarioId ? getNotaBarbero(usuarioId, c.cliente_id).catch(() => '') : Promise.resolve(''),
       negocioId ? getHistorialCliente(c.cliente_id, negocioId).catch(() => []) : Promise.resolve([]),
-      negocioId ? getPuntos(c.cliente_id, negocioId).catch(() => null) : Promise.resolve(null),
-      negocioId ? getConfiguracion(negocioId).catch(() => null) : Promise.resolve(null),
+      negocioId ? getTarjetaCliente(c.cliente_id, negocioId, perfilId).catch(() => null) : Promise.resolve(null),
+      negocioId ? getFidelidad(negocioId, perfilId).catch(() => null) : Promise.resolve(null),
       negocioId ? getPreferenciasCliente(c.cliente_id, negocioId).catch(() => null) : Promise.resolve(null),
     ])
     setNota(n || '')
     setFicha({
       historial: hist as any[],
-      puntos: cfg?.puntos_activos ? pts : null,
+      // La tarjeta que le toca a ESTE barbero: si alquila su asiento lleva su
+      // propio programa, así que el saldo del local no es el suyo.
+      puntos: (fid as any)?.activo ? pts : null,
       prefs,
-      meta: (cfg?.puntos_por_visita ?? 1) * (cfg?.visitas_para_gratis ?? 8),
+      meta: (fid as any)?.meta ?? 8,
+      premio: (fid as any)?.premio ?? 'Corte gratis',
     })
     setCargandoNota(false)
   }
@@ -124,14 +128,15 @@ export default function Clientes() {
               ) : null}
             </View>
             {ficha?.puntos && (() => {
-              const disp = (ficha.puntos.puntos_totales ?? 0) - (ficha.puntos.puntos_canjeados ?? 0)
+              const disp = (ficha.puntos.visitas_totales ?? 0) - (ficha.puntos.visitas_canjeadas ?? 0)
               const enCiclo = ficha.meta > 0 ? disp % ficha.meta : 0
+              const listo = disp >= ficha.meta
               return (
                 <View style={s.puntos}>
-                  <Ionicons name="star" size={18} color="#fff" />
+                  <Ionicons name={listo ? 'gift' : 'cut'} size={18} color="#fff" />
                   <View style={{ flex: 1 }}>
-                    <Text style={s.puntosT}>{disp} puntos disponibles</Text>
-                    <Text style={s.puntosD}>{Math.max(0, ficha.meta - enCiclo)} para el próximo premio</Text>
+                    <Text style={s.puntosT}>{listo ? `Le toca: ${ficha.premio}` : `${enCiclo} de ${ficha.meta} recortes`}</Text>
+                    <Text style={s.puntosD}>{listo ? 'Ya lo ganó' : `Faltan ${ficha.meta - enCiclo} para ${ficha.premio.toLowerCase()}`}</Text>
                   </View>
                 </View>
               )

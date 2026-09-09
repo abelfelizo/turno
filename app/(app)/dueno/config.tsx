@@ -17,6 +17,15 @@ export default function Config() {
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
   const [tipoBusy, setTipoBusy] = useState(false)
+  const [premio, setPremio] = useState('')
+
+  async function guardarPremio() {
+    if (!negocioId) return
+    const v = premio.trim() || 'Corte gratis'
+    setPremio(v)
+    try { await updateConfiguracion(negocioId, { premio: v }) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+  }
   const [asientos, setAsientos] = useState(0)
   const [loading, setLoading] = useState(true)
   // marca / contacto del local
@@ -34,7 +43,7 @@ export default function Config() {
       getNegocioById(ss.negocio_id).catch(() => null),
       getAsientosNegocio(ss.negocio_id).catch(() => 0),
     ])
-    setConfig(cfg); setNegocio(neg); setAsientos(asi)
+    setConfig(cfg); setNegocio(neg); setAsientos(asi); setPremio((cfg as any)?.premio ?? 'Corte gratis')
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setLoading(false)
@@ -209,16 +218,20 @@ export default function Config() {
       {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
           puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
           puntos y el cliente no veía sumar ni uno. */}
+      {/* Se cuentan recortes, no puntos abstractos: "cada X recortes te ganas
+          esto". Y el premio lo escribe el local — no tiene por qué ser un corte
+          gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
       {!!config?.puntos_activos && (
         <>
-          <Stepper label="Puntos por visita" suf="pt"
-            value={config?.puntos_por_visita ?? 1}
-            onMinus={() => ajustar('puntos_por_visita', -1, 1, 50)} onPlus={() => ajustar('puntos_por_visita', 1, 1, 50)} />
-          <Stepper label="Visitas para el premio"
-            desc={`El cliente canjea al llegar a ${(config?.puntos_por_visita ?? 1) * (config?.visitas_para_gratis ?? 8)} puntos.`}
-            suf="visitas"
+          <Stepper label="Recortes para el premio"
+            desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
+            suf="recortes"
             value={config?.visitas_para_gratis ?? 8}
             onMinus={() => ajustar('visitas_para_gratis', -1, 2, 50)} onPlus={() => ajustar('visitas_para_gratis', 1, 2, 50)} />
+          <Text style={s.flabel}>¿Qué se gana?</Text>
+          <TextInput style={s.input} value={premio} onChangeText={setPremio}
+            onEndEditing={() => guardarPremio()} placeholder="Corte gratis, barba gratis, un refresco…"
+            placeholderTextColor={COLORS.textLight} maxLength={60} />
         </>
       )}
       <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />

@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiUsuario, getPreferenciasCliente, getPuntos, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
+import { getMiUsuario, getPreferenciasCliente, getMisTarjetas, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -21,7 +21,7 @@ export default function Perfil() {
   const router = useRouter()
   const [usuario, setUsuario] = useState<any>(null)
   const [prefs, setPrefs] = useState<any>(null)
-  const [puntos, setPuntos] = useState<any>(null)
+  const [tarjetas, setTarjetas] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
   const [historial, setHistorial] = useState<any[]>([])
   const [negocio, setNegocio] = useState<any>(null)
@@ -37,12 +37,12 @@ export default function Perfil() {
     if (u && ss?.negocio_id) {
       const [pr, pt, cfg, hist, neg] = await Promise.all([
         getPreferenciasCliente(u.id, ss.negocio_id).catch(() => null),
-        getPuntos(u.id, ss.negocio_id).catch(() => null),
+        getMisTarjetas(ss.negocio_id).catch(() => []),
         getConfiguracion(ss.negocio_id).catch(() => null),
         getHistorialCliente(u.id, ss.negocio_id).catch(() => []),
         getNegocioById(ss.negocio_id).catch(() => null),
       ])
-      setPrefs(pr); setPuntos(pt); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
+      setPrefs(pr); setTarjetas((pt as any[]) ?? []); setConfig(cfg); setHistorial(hist as any[]); setNegocio(neg)
       setLocales(await getMisNegociosCliente(u.id).catch(() => []))
       setCanjes(await getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []))
     }
@@ -71,11 +71,11 @@ export default function Perfil() {
     ])
   }
 
-  async function canjear() {
+  async function canjear(perfil_id?: string | null) {
     const ss = await getSesion(); if (!ss?.negocio_id) return
     setCanjeando(true)
     try {
-      await emitirCanje(ss.negocio_id)
+      await emitirCanje(ss.negocio_id, perfil_id)
       Alert.alert('¡Premio canjeado!', 'Generamos tu vale. Muéstralo al barbero cuando te cobre.')
       cargar()
     } catch (e: any) { Alert.alert('No se pudo canjear', e.message ?? 'Intenta de nuevo.') }
@@ -105,26 +105,30 @@ export default function Perfil() {
         <Text style={s.tel}>{usuario?.telefono ?? ''}</Text>
       </View>
 
-      {config?.puntos_activos && (() => {
-        const porVisita = config.puntos_por_visita || 1
-        const meta = porVisita * (config.visitas_para_gratis || 10)
-        const total = puntos?.puntos_totales ?? 0
-        const enCiclo = meta > 0 ? total % meta : 0
-        const faltan = Math.max(0, Math.ceil((meta - enCiclo) / porVisita))
-        const pct = meta > 0 ? Math.min(100, Math.round((enCiclo / meta) * 100)) : 0
+      {tarjetas.map((t: any) => {
+        const enCiclo = t.meta > 0 ? t.visitas % t.meta : 0
+        const listo = t.visitas >= t.meta
+        const faltan = Math.max(0, t.meta - enCiclo)
+        const pct = t.meta > 0 ? Math.min(100, Math.round((enCiclo / t.meta) * 100)) : 0
         return (
-          <View style={s.fidel}>
-            <View style={s.fidelHead}><Text style={s.fidelTitle}>FIDELIDAD</Text><Text style={s.fidelNum}>{enCiclo} / {meta} pts</Text></View>
-            <View style={s.barBg}><View style={[s.barFill, { width: `${pct}%` }]} /></View>
-            <View style={s.fidelFoot}><Text style={s.fidelMeta}>Meta: corte gratis</Text><Text style={s.fidelFaltan}>{faltan === 0 ? '¡Disponible!' : `Faltan ${faltan} visita${faltan === 1 ? '' : 's'}`}</Text></View>
-            {faltan === 0 && (
-              <TouchableOpacity style={s.canjearBtn} onPress={canjear} disabled={canjeando}>
-                {canjeando ? <ActivityIndicator color={COLORS.carbon} /> : <Text style={s.canjearT}>Canjear premio</Text>}
+          <View key={t.perfil_id ?? 'local'} style={s.fidel}>
+            <View style={s.fidelHead}>
+              <Text style={s.fidelTitle}>{t.ambito === 'perfil' && t.barbero ? `CON ${String(t.barbero).toUpperCase()}` : 'FIDELIDAD'}</Text>
+              <Text style={s.fidelNum}>{enCiclo} / {t.meta} recortes</Text>
+            </View>
+            <View style={s.barBg}><View style={[s.barFill, { width: `${listo ? 100 : pct}%` }]} /></View>
+            <View style={s.fidelFoot}>
+              <Text style={s.fidelMeta}>{t.premio}</Text>
+              <Text style={s.fidelFaltan}>{listo ? '¡Disponible!' : `Faltan ${faltan} recorte${faltan === 1 ? '' : 's'}`}</Text>
+            </View>
+            {listo && (
+              <TouchableOpacity style={s.canjearBtn} onPress={() => canjear(t.perfil_id)} disabled={canjeando}>
+                {canjeando ? <ActivityIndicator color={COLORS.carbon} /> : <Text style={s.canjearT}>Canjear: {t.premio}</Text>}
               </TouchableOpacity>
             )}
           </View>
         )
-      })()}
+      })}
 
       {canjes.length > 0 && (
         <View style={s.vales}>
@@ -132,7 +136,7 @@ export default function Perfil() {
           {canjes.map((c: any) => (
             <View key={c.id} style={s.vale}>
               <Ionicons name="ticket" size={18} color={COLORS.red} />
-              <Text style={s.valeT}>Corte gratis · muéstralo al cobrar</Text>
+              <Text style={s.valeT}>{c.premio ?? 'Premio'} · muéstralo al cobrar</Text>
             </View>
           ))}
         </View>
