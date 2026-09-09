@@ -17,6 +17,15 @@ export default function Config() {
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
   const [tipoBusy, setTipoBusy] = useState(false)
+  const [premio, setPremio] = useState('')
+
+  async function guardarPremio() {
+    if (!negocioId) return
+    const v = premio.trim() || 'Corte gratis'
+    setPremio(v)
+    try { await updateConfiguracion(negocioId, { premio: v }) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+  }
   const [asientos, setAsientos] = useState(0)
   const [loading, setLoading] = useState(true)
   // marca / contacto del local
@@ -34,7 +43,7 @@ export default function Config() {
       getNegocioById(ss.negocio_id).catch(() => null),
       getAsientosNegocio(ss.negocio_id).catch(() => 0),
     ])
-    setConfig(cfg); setNegocio(neg); setAsientos(asi)
+    setConfig(cfg); setNegocio(neg); setAsientos(asi); setPremio((cfg as any)?.premio ?? 'Corte gratis')
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setLoading(false)
@@ -206,10 +215,32 @@ export default function Config() {
 
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
       <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
+      {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
+          puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
+          puntos y el cliente no veía sumar ni uno. */}
+      {/* Se cuentan recortes, no puntos abstractos: "cada X recortes te ganas
+          esto". Y el premio lo escribe el local — no tiene por qué ser un corte
+          gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
+      {!!config?.puntos_activos && (
+        <>
+          <Stepper label="Recortes para el premio"
+            desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
+            suf="recortes"
+            value={config?.visitas_para_gratis ?? 8}
+            onMinus={() => ajustar('visitas_para_gratis', -1, 2, 50)} onPlus={() => ajustar('visitas_para_gratis', 1, 2, 50)} />
+          <Text style={s.flabel}>¿Qué se gana?</Text>
+          <TextInput style={s.input} value={premio} onChangeText={setPremio}
+            onEndEditing={() => guardarPremio()} placeholder="Corte gratis, barba gratis, un refresco…"
+            placeholderTextColor={COLORS.textLight} maxLength={60} />
+        </>
+      )}
       <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
 
       <Text style={s.sec}>TIEMPOS</Text>
+      <Text style={s.modNota}>
+        Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.
+      </Text>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
         suf="h" value={config?.anticipacion_minima_horas ?? 2} onMinus={() => ajustar('anticipacion_minima_horas', -1, 0, 48)} onPlus={() => ajustar('anticipacion_minima_horas', 1, 0, 48)} />

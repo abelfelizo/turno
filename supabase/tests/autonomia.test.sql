@@ -14,6 +14,9 @@
 -- entera. No deja ni un registro (la BD es compartida con otro proyecto).
 --
 -- USO:  psql "$DATABASE_URL" -f supabase/tests/autonomia.test.sql
+-- Cubre también las REGLAS DE TIEMPO: quién puede ponerlas y de quién se
+-- heredan cuando no hay excepción.
+--
 -- ÉXITO: el mensaje termina en "TODO VERDE".
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
@@ -179,6 +182,54 @@ begin
   exception when others then
     if sqlerrm like '%no autorizado%' then ok:=ok+1;
     else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
+  end;
+
+  -- ── REGLAS DE TIEMPO · el rentado pone las suyas ──────────────────────────
+  -- El local pide 3 h de antelación; el que paga su asiento no tiene por qué
+  -- seguirlas.
+  insert into turno_configuracion_negocio (negocio_id, anticipacion_minima_horas, ventana_llegada_min, gracia_cita_min, umbral_confirmacion)
+    values (v_neg, 3, 10, 5, 2)
+    on conflict (negocio_id) do update set anticipacion_minima_horas = 3, ventana_llegada_min = 10;
+
+  n:=n+1; c:='tiempos · sin excepción hereda del local (3 h)';
+  if turno_regla_tiempo(p_ren, v_neg, 'anticipacion_minima_horas') = 3 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c; end if;
+
+  n:=n+1; c:='tiempos · el rentado SI puede poner los suyos';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+    perform turno_guardar_reglas_barbero(p_ren, 1, 20, 15, 4);
+    if turno_regla_tiempo(p_ren, v_neg, 'anticipacion_minima_horas') = 1
+       and turno_regla_tiempo(p_ren, v_neg, 'ventana_llegada_min') = 20 then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - la suya no ganó'; end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - '||sqlerrm;
+  end;
+
+  n:=n+1; c:='tiempos · el empleado NO puede poner los suyos';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+    perform turno_guardar_reglas_barbero(p_emp, 1, 20, 15, 4);
+    fallos := fallos || E'\n  x '||c||' - lo consiguio';
+  exception when others then
+    if sqlerrm like '%las pone la barbería%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
+  end;
+
+  -- La autonomía se comprueba al LEER, no al escribir: si un empleado acaba
+  -- con un valor guardado (por una migración, por un cambio de modalidad),
+  -- sigue mandando el local. Escribir bien no basta si leer se fía.
+  n:=n+1; c:='tiempos · un empleado con valor guardado igual hereda';
+  update turno_perfiles set anticipacion_minima_horas = 99 where id = p_emp;
+  if turno_regla_tiempo(p_emp, v_neg, 'anticipacion_minima_horas') = 3 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - dio '||turno_regla_tiempo(p_emp, v_neg, 'anticipacion_minima_horas'); end if;
+
+  n:=n+1; c:='tiempos · volver a null vuelve a heredar';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+    perform turno_guardar_reglas_barbero(p_ren, null, null, null, null);
+    if turno_regla_tiempo(p_ren, v_neg, 'anticipacion_minima_horas') = 3 then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c; end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - '||sqlerrm;
   end;
 
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ──────────────────────

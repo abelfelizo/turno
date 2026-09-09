@@ -57,13 +57,13 @@ export default function Stats() {
         <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy · empleados y tu silla</Text>
       </View>
 
-      {(stats?.ingresosRenta ?? 0) > 0 && (
+      {(stats?.visitasRenta ?? 0) > 0 && (
         <View style={s.rentaCard}>
           <View style={{ flex: 1 }}>
-            <Text style={s.rentaLbl}>VOLUMEN DE RENTAS</Text>
-            <Text style={s.rentaSub}>Ingreso de tus barberos rentados — informativo, no es tuyo.</Text>
+            <Text style={s.rentaLbl}>ASIENTOS ALQUILADOS</Text>
+            <Text style={s.rentaSub}>Servicios hechos por quienes te rentan. Su facturación es suya y no se muestra.</Text>
           </View>
-          <Text style={s.rentaNum}>{dinero(stats?.ingresosRenta ?? 0, moneda)}</Text>
+          <Text style={s.rentaNum}>{stats?.visitasRenta ?? 0}</Text>
         </View>
       )}
 

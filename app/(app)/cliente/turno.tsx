@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola,
-  getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar,
+  getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas,
 } from '../../../lib/db'
+import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -24,17 +25,22 @@ export default function MiTurno() {
   const [refreshing, setRefreshing] = useState(false)
   const [accion, setAccion] = useState<string | null>(null)
   const [hoja, setHoja] = useState<any>(null)
+  const [citas, setCitas] = useState<any[]>([])
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [ts, neg, perf, cfg] = await Promise.all([
+    const [ts, neg, perf, cfg, cts] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
+      // Las citas reservadas también son "mi turno": tenerlas solo en Inicio
+      // obligaba a recordar en qué pantalla estaba cada cosa.
+      getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
     ])
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
+    setCitas(cts as any[])
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     const map: Record<string, number | null> = {}
     const pmap: Record<string, boolean> = {}
@@ -50,7 +56,11 @@ export default function MiTurno() {
     cargar()
     let sub: any
     getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => cargar()) })
-    return () => { if (sub) desuscribir(sub) }
+    // El ETA envejece solo: la silla ocupada se vacía con el reloj, no con un
+    // cambio en la base, así que sin este refresco el cliente ve una espera
+    // que ya no es cierta.
+    const t = setInterval(() => cargar(), 60000)
+    return () => { if (sub) desuscribir(sub); clearInterval(t) }
   }, [cargar])
 
   async function voy(t: any) {
@@ -121,6 +131,29 @@ export default function MiTurno() {
         )
       })}
 
+      {citas.length > 0 && (
+        <>
+          <Text style={s.sec}>TUS CITAS RESERVADAS</Text>
+          {citas.map((c: any) => (
+            <View key={c.id} style={s.cita}>
+              <View style={s.citaFecha}>
+                <Text style={s.citaDia}>{fechaDeISO(c.fecha).getDate()}</Text>
+                <Text style={s.citaMes}>
+                  {fechaDeISO(c.fecha).toLocaleDateString('es', { month: 'short' }).replace('.', '').toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.citaServ}>{c.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                <Text style={s.citaMeta}>
+                  {hora12(c.hora_inicio)} · {c.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}
+                </Text>
+                <Text style={s.citaDia2}>{fechaLarga(fechaDeISO(c.fecha))}</Text>
+              </View>
+            </View>
+          ))}
+        </>
+      )}
+
       {/* Pedir un turno desde aquí mismo (R3) */}
       <Text style={s.sec}>{turnos.length ? 'PEDIR OTRO TURNO' : 'PEDIR UN TURNO'}</Text>
       {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
@@ -153,6 +186,13 @@ export default function MiTurno() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  cita: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
+  citaFecha: { width: 52, height: 52, borderRadius: 12, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' },
+  citaDia: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
+  citaMes: { fontFamily: FONTS.bold, fontSize: 9, color: 'rgba(255,255,255,0.7)', letterSpacing: 0.5 },
+  citaServ: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  citaMeta: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red, marginTop: 2 },
+  citaDia2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
   expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 16 },
   expT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.red },
   expS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },

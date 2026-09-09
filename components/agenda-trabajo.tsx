@@ -6,18 +6,37 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   moverEnCola, llamarA, sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
+  getEstadoBarbero, actualizarEstadoPerfil,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
-import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
+import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
 import PanelBadge from './panel-badge'
 
+const EST_FONDO: Record<string, string> = {
+  libre: COLORS.success, atendiendo: COLORS.blue, descanso: COLORS.warning, inactivo: COLORS.textLight,
+}
+
 /** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
 const DIAS_ADELANTE = 20
+
+/** Suma minutos a una hora "HH:MM:SS" sin salirse del día. */
+function sumarMinutos(hhmmss: string, min: number) {
+  const [h, m] = hhmmss.split(':').map(Number)
+  const total = Math.min(23 * 60 + 59, h * 60 + m + min)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`
+}
+
+/** Minutos que lleva el cliente sentado, para avisar de un corte sin cerrar. */
+function minutosEnSilla(q: any) {
+  const desde = q?.atendiendo_at ?? q?.llamado_at
+  if (!desde) return 0
+  return Math.floor((Date.now() - new Date(desde).getTime()) / 60000)
+}
 
 /** Hora local "HH:MM:SS", para comparar contra los bloqueos del día. */
 function horaAhora() {
@@ -55,12 +74,15 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const hoy = fechaISOLocal()
   const [fecha, setFecha] = useState(hoy)
   const [conteo, setConteo] = useState<Record<string, number>>({})
+  const [tic, setTic] = useState(0)   // fuerza recalcular la hora cada 30 s
+  const [verTodos, setVerTodos] = useState(false)
+  const [estado, setEstado] = useState<any>(null)
   const esHoy = fecha === hoy
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -68,9 +90,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       getMiUsuario().catch(() => null),
       getConteoCitasRango(ss.perfil_id, sumarDias(hoy, -1), sumarDias(hoy, DIAS_ADELANTE)).catch(() => ({})),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
+      getEstadoBarbero(ss.perfil_id).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
-    setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[])
+    setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
     setLoading(false); setRefreshing(false)
   }, [fecha, hoy])
 
@@ -109,14 +132,28 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
   useEffect(() => {
     cargar()
-    let subCola: any, subCitas: any
+    let subCola: any, subCitas: any, subBloq: any
     getSesion().then(ss => {
       if (!ss?.perfil_id) return
       subCola = suscribirCola(ss.negocio_id!, () => cargar())
       subCitas = suscribirCitas(ss.perfil_id!, fecha, () => cargar())
+      // La silla ocupada por un cliente sin cita es un bloqueo: sin esta
+      // suscripción la tarjeta no salía hasta refrescar a mano.
+      subBloq = suscribirBloqueos(ss.perfil_id!, () => cargar())
     })
-    return () => { if (subCola) desuscribir(subCola); if (subCitas) desuscribir(subCitas) }
+    return () => {
+      if (subCola) desuscribir(subCola)
+      if (subCitas) desuscribir(subCitas)
+      if (subBloq) desuscribir(subBloq)
+    }
   }, [cargar, fecha])
+
+  // La silla se libera sola al pasar la hora: sin este tic la tarjeta se
+  // quedaba clavada hasta que el barbero tocaba algo.
+  useEffect(() => {
+    const t = setInterval(() => setTic(x => x + 1), 30000)
+    return () => clearInterval(t)
+  }, [])
 
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
   const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')?.cliente_id
@@ -162,7 +199,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   function atenderCola(item: any) {
     Alert.alert('Atender', `¿Marcar a ${item.turno_usuarios?.nombre ?? 'cliente'} como atendido?`, [
       { text: 'No' },
-      { text: 'Sí', onPress: () => op(() => actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() })) },
+      { text: 'Sí', onPress: () => op(async () => {
+        await actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() })
+        // El cliente se quedaba sin saber que su turno había terminado: su
+        // pantalla seguía diciendo "te están atendiendo" hasta que la cerraba.
+        if (item.cliente_id) {
+          enviarPush(item.cliente_id, 'Listo ✂️',
+            `Gracias por tu visita a ${negocio?.nombre ?? 'la barbería'}. Cuéntanos qué tal.`,
+            { tipo: 'atendido' })
+        }
+      }) },
     ])
   }
   function accionCita(c: any) {
@@ -187,8 +233,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')
   const enFila = cola.filter(c => c.estado === 'en_fila')
   const badgeCita = (e: string) => e === 'confirmada' ? 'success' : e === 'no_llego' || e === 'no_confirmada' ? 'red' : e === 'en_camino' ? 'blue' : 'gray'
-  const ahora = horaAhora()
-  const ocupado = esHoy ? bloqueos.find(b => b.hora_inicio <= ahora && b.hora_fin > ahora) : null
+  const ahora = horaAhora()   // recalculado en cada tic
+  // Tolerancia de 2 min al inicio: el bloqueo lo sella el servidor con la hora
+  // del local, y el reloj del teléfono puede ir unos segundos por detrás. Sin
+  // ella, la silla recién ocupada no se reconocía como vigente.
+  const ocupado = esHoy
+    ? bloqueos.find(b => b.hora_inicio <= sumarMinutos(ahora, 2) && b.hora_fin > ahora)
+    : null
+  // Los que se ven abajo son los bloqueos que NO están en curso: el vigente ya
+  // se muestra arriba como estado, y repetirlo confundía.
+  const bloqueosLista = bloqueos.filter(b => b.id !== ocupado?.id)
   const dias = Array.from({ length: DIAS_ADELANTE + 2 }, (_, i) => sumarDias(hoy, i - 1))
 
   return (
@@ -235,6 +289,33 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
       {esHoy && (
         <>
+          {/* Estado real: 'atendiendo' se deduce de la silla y los bloqueos.
+              Lo único que se decide a mano es si aceptas clientes, y eso vive
+              en el interruptor de abajo. */}
+          {estado && (
+            <View style={[s.estadoBox, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
+              <View style={s.estadoPunto} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.estadoT}>
+                  {estado.estado === 'atendiendo'
+                    ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
+                    : estado.estado === 'descanso' ? 'En descanso'
+                    : estado.estado === 'inactivo' ? 'Inactivo'
+                    : 'Libre'}
+                </Text>
+                <Text style={s.estadoD}>
+                  {estado.estado === 'atendiendo' && estado.hasta ? `Hasta ${hora12(estado.hasta)} · ` : ''}
+                  {estado.en_cola === 0 ? 'Nadie esperando' : `${estado.en_cola} esperando`}
+                  {!estado.acepta ? ' · no apareces para los clientes' : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={s.estadoBtn}
+                onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
+                <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={s.colaBox}>
             <Text style={s.colaTitle}>COLA AHORA</Text>
             <View style={s.colaStats}>
@@ -256,6 +337,18 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                 <Text style={s.ocupadoBtnT}>Terminé</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* El barbero pulsa Empezar y se olvida de Terminar: el cliente se
+              queda "en la silla" horas y R1 no le deja pedir otro turno.
+              Encontrado en la base con un caso de 2 h 30 min. */}
+          {llamado?.estado === 'atendiendo' && minutosEnSilla(llamado) > Math.max(45, (llamado.turno_servicios?.duracion_min ?? 30) * 2) && (
+            <TouchableOpacity style={s.olvido} onPress={() => atenderCola(llamado)}>
+              <Ionicons name="alarm-outline" size={18} color="#fff" />
+              <Text style={s.olvidoT}>
+                Llevas {minutosEnSilla(llamado)} min con {llamado.turno_usuarios?.nombre ?? 'este cliente'}. ¿Ya terminaste?
+              </Text>
+            </TouchableOpacity>
           )}
 
           {llamado && (
@@ -315,11 +408,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
             </TouchableOpacity>
           )}
 
+          {/* Siempre visible, aunque esté vacía: el barbero preguntó por "los
+              próximos", y una sección que desaparece deja la duda de si no hay
+              nadie o si la pantalla se rompió. */}
+          <Text style={s.sec}>EN FILA · {enFila.length}</Text>
+          {enFila.length === 0
+            ? <Text style={s.empty}>Nadie esperando ahora mismo.</Text>
+            : <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>}
           {enFila.length > 0 && (
             <>
-              <Text style={s.sec}>EN FILA · {enFila.length}</Text>
-              <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>
-              {enFila.map((q, i) => (
+              {(verTodos ? enFila : enFila.slice(0, 5)).map((q, i) => (
                 <TouchableOpacity key={q.id} style={s.row} onPress={() => setHoja({ tipo: 'acciones', item: q })}>
                   <View style={s.pos}><Text style={s.posT}>{i + 1}</Text></View>
                   <View style={{ flex: 1 }}>
@@ -329,6 +427,13 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                   <Ionicons name="ellipsis-vertical" size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               ))}
+              {enFila.length > 5 && (
+                <TouchableOpacity onPress={() => setVerTodos(v => !v)}>
+                  <Text style={s.verTodos}>
+                    {verTodos ? 'Ver solo los próximos 5' : `Ver los ${enFila.length} de la fila`}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
         </>
@@ -347,10 +452,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         </TouchableOpacity>
       ))}
 
-      {bloqueos.length > 0 && (
+      {bloqueosLista.length > 0 && (
         <>
           <Text style={s.sec}>HORAS BLOQUEADAS</Text>
-          {bloqueos.map((b: any) => (
+          {bloqueosLista.map((b: any) => (
             <TouchableOpacity key={b.id} style={s.rowBloq} onPress={() => quitarBloqueo(b)}>
               <Ionicons name="lock-closed" size={16} color={COLORS.textMid} />
               <View style={{ flex: 1 }}>
@@ -536,6 +641,12 @@ const s = StyleSheet.create({
   avisoDiaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  estadoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, marginBottom: 12 },
+  estadoPunto: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.9)' },
+  estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
+  estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  estadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
   colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -544,6 +655,8 @@ const s = StyleSheet.create({
   ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
   ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   ocupadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  olvido: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 10 },
+  olvidoT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   llamado: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success, borderRadius: 14, padding: 16, marginBottom: 14 },
   llamadoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   llamadoName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },
@@ -566,6 +679,7 @@ const s = StyleSheet.create({
   llamarBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   llamarT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
+  verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, textAlign: 'center', paddingVertical: 10 },
   secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },

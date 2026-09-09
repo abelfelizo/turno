@@ -61,8 +61,9 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
   return Number(data ?? 0)
 }
 
-/** Stats del negocio con ingresos propios (empleados + silla del dueño)
- * separados del volumen de rentas (informativo, no es ingreso del dueño). */
+/** Stats del negocio. Los ingresos son SOLO los propios (empleados + silla del
+ * dueño). De los asientos alquilados se devuelve el número de visitas, nunca el
+ * dinero: es un negocio independiente que paga por el espacio. */
 export async function getEstadisticasNegocio(negocio_id: string) {
   const { data, error } = await supabase.rpc('turno_estadisticas_negocio', { p_negocio: negocio_id })
   if (error) throw error
@@ -70,7 +71,9 @@ export async function getEstadisticasNegocio(negocio_id: string) {
   const propios = Number(r.ingresos_propios ?? 0)
   return {
     ingresosPropios: propios,
-    ingresosRenta: Number(r.ingresos_renta ?? 0),
+    // Conteo, no importe: lo que factura quien renta su asiento no es asunto
+    // del dueño. Lo que sí necesita saber es si el asiento se usa.
+    visitasRenta: Number(r.visitas_renta ?? 0),
     ingresosTotal: propios,                 // "ingresos del local" = propios
     ingresosHoy: Number(r.ingresos_hoy ?? 0),
     atendidosHoy: Number(r.atendidos_hoy ?? 0),
@@ -252,6 +255,45 @@ export async function getBarberoNegocios(usuario_id: string) {
   return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
 }
 
+export type EstadoBarbero = {
+  estado: 'libre' | 'atendiendo' | 'descanso' | 'inactivo'
+  acepta: boolean
+  cliente: string | null
+  hasta: string | null
+  en_cola: number
+}
+
+/** Estado real del barbero: 'atendiendo' se DEDUCE de la silla y los bloqueos,
+ *  no de un campo que alguien tenga que acordarse de actualizar. Lo único que
+ *  decide el barbero es si acepta clientes. */
+export async function getEstadoBarbero(perfil_id: string): Promise<EstadoBarbero | null> {
+  const { data, error } = await supabase.rpc('turno_estado_barbero', { p_perfil: perfil_id })
+  if (error) throw error
+  return ((data && data[0]) ?? null) as EstadoBarbero | null
+}
+
+/** El mismo estado para todo el equipo, de una consulta. */
+export async function getEstadoLocal(negocio_id: string) {
+  const { data, error } = await supabase.rpc('turno_estado_local', { p_negocio: negocio_id })
+  if (error) throw error
+  return (data ?? []) as (EstadoBarbero & { perfil_id: string; barbero: string; tipo_servicio: string })[]
+}
+
+/** Reglas de tiempo propias del barbero autónomo. Pasar null en un campo
+ *  significa "uso la del local": no hay un valor mágico, es herencia real. */
+export async function guardarReglasBarbero(perfil_id: string, r: {
+  anticipacion?: number | null; ventana?: number | null; gracia?: number | null; umbral?: number | null
+}) {
+  const { error } = await supabase.rpc('turno_guardar_reglas_barbero', {
+    p_perfil: perfil_id,
+    p_anticipacion: r.anticipacion ?? null,
+    p_ventana: r.ventana ?? null,
+    p_gracia: r.gracia ?? null,
+    p_umbral: r.umbral ?? null,
+  })
+  if (error) throw error
+}
+
 /** El dueño cambia la modalidad del LOCAL. Realinea a todo el equipo: dejar
  *  membresías con la modalidad vieja sería peor que no cambiar nada. */
 export async function cambiarTipoNegocio(negocio_id: string, tipo: 'empleados' | 'espacios_rentados') {
@@ -290,6 +332,7 @@ export async function actualizarPerfil(perfil_id: string, patch: {
   domicilio_activo?: boolean; limite_cola?: number | null
   puntos_activos?: boolean; puntos_por_visita?: number | null; puntos_meta?: number | null
   revisita_dias?: number
+  premio?: string
 }) {
   const { error } = await supabase.from(T('perfiles')).update(patch).eq('id', perfil_id)
   if (error) throw error
@@ -713,15 +756,47 @@ export async function guardarNotaPrivada(perfil_id: string, cliente_id: string, 
 }
 
 // PUNTOS
-export async function getPuntos(usuario_id: string, negocio_id: string) {
-  const { data } = await supabase.from(T('puntos')).select('puntos_totales, puntos_canjeados').eq('usuario_id', usuario_id).eq('negocio_id', negocio_id).maybeSingle()
+export type Tarjeta = {
+  perfil_id: string | null
+  barbero: string | null
+  visitas: number
+  meta: number
+  premio: string
+  ambito: 'negocio' | 'perfil'
+}
+
+/** Tarjetas de fidelidad del cliente en un local, con la regla ya resuelta.
+ *  Puede haber más de una: donde se alquilan asientos, cada barbero lleva su
+ *  propio programa, así que el cliente junta recortes por separado con cada uno. */
+export async function getMisTarjetas(negocio_id: string): Promise<Tarjeta[]> {
+  const { data, error } = await supabase.rpc('turno_mis_tarjetas', { p_negocio: negocio_id })
+  if (error) throw error
+  return (data ?? []) as Tarjeta[]
+}
+
+/** La tarjeta de un cliente concreto, para la ficha del barbero. */
+export async function getTarjetaCliente(cliente_id: string, negocio_id: string, perfil_id?: string | null) {
+  let q = supabase.from(T('puntos')).select('visitas_totales, visitas_canjeadas, perfil_id')
+    .eq('usuario_id', cliente_id).eq('negocio_id', negocio_id)
+  q = perfil_id ? q.eq('perfil_id', perfil_id) : q.is('perfil_id', null)
+  const { data } = await q.maybeSingle()
   return data
+}
+
+/** Regla de fidelidad vigente para un barbero (o para el local si no manda él). */
+export async function getFidelidad(negocio_id: string, perfil_id?: string | null) {
+  const { data, error } = await supabase.rpc('turno_fidelidad', {
+    p_perfil: perfil_id ?? null, p_negocio: negocio_id,
+  })
+  if (error) throw error
+  const r = (data && data[0]) || null
+  return r as { activo: boolean; meta: number; premio: string; ambito: string; perfil: string | null } | null
 }
 
 // ── F3 · CANJE DE PUNTOS (vales) ──────────────────────────────────────────────
 /** Cliente emite un vale al llegar a la meta (descuenta puntos). */
-export async function emitirCanje(negocio_id: string) {
-  const { data, error } = await supabase.rpc('turno_emitir_canje', { p_negocio: negocio_id })
+export async function emitirCanje(negocio_id: string, perfil_id?: string | null) {
+  const { data, error } = await supabase.rpc('turno_emitir_canje', { p_negocio: negocio_id, p_perfil: perfil_id ?? null })
   if (error) throw error
   return data
 }

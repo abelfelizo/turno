@@ -6,7 +6,7 @@ import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
   getNegocioById, getPerfilesNegocio, getMiTurnoActivo, getMisCitas,
   getRatingsNegocio, confirmarCita, cancelarCita, getMisNegociosCliente, getConfiguracion,
-  getPuntos, getHistorialCliente,
+  getMisTarjetas, getHistorialCliente,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { programarRecordatoriosCitas } from '../../../lib/notificaciones'
@@ -36,7 +36,7 @@ export default function Home() {
   const [turno, setTurno] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
   const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
-  const [puntos, setPuntos] = useState<any>(null)
+  const [tarjetas, setTarjetas] = useState<any[]>([])
   const [historial, setHistorial] = useState<any[]>([])
   const [expandido, setExpandido] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,11 +53,11 @@ export default function Home() {
       getRatingsNegocio(ss.negocio_id).catch(() => ({})),
       getMisNegociosCliente(ss.usuario_id).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
-      getPuntos(ss.usuario_id, ss.negocio_id).catch(() => null),
+      getMisTarjetas(ss.negocio_id).catch(() => []),
       getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
     ])
     setNegocio(neg); setPerfiles(perf as any[]); setTurno(t); setCitas(cs as any[])
-    setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setPuntos(pts); setHistorial(hist as any[])
+    setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[])
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
   }, [])
@@ -82,12 +82,6 @@ export default function Home() {
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   const porDueno = !!config?.asignacion_por_dueno
-  const porVisita = config?.puntos_por_visita || 1
-  const metaPts = porVisita * (config?.visitas_para_gratis || 10)
-  const totalPts = puntos?.puntos_totales ?? 0
-  const enCiclo = metaPts > 0 ? totalPts % metaPts : 0
-  const faltan = Math.max(0, Math.ceil((metaPts - enCiclo) / porVisita))
-  const pct = metaPts > 0 ? Math.min(100, Math.round((enCiclo / metaPts) * 100)) : 0
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -201,13 +195,27 @@ export default function Home() {
               </View>)
           })}
 
-      {config?.puntos_activos && (
-        <TouchableOpacity style={s.pts} onPress={() => router.push('/(app)/cliente/perfil')}>
-          <View style={s.ptsHead}><Text style={s.ptsLbl}>FIDELIDAD</Text><Text style={s.ptsNum}>{enCiclo} / {metaPts} pts</Text></View>
-          <View style={s.barBg}><View style={[s.barFill, { width: `${pct}%` }]} /></View>
-          <View style={s.ptsFoot}><Text style={s.ptsMeta}>Meta: corte gratis</Text><Text style={s.ptsFaltan}>{faltan === 0 ? '¡Disponible!' : `Faltan ${faltan} visita${faltan === 1 ? '' : 's'}`}</Text></View>
-        </TouchableOpacity>
-      )}
+      {/* Recortes, no puntos: "cada X recortes te ganas esto". Puede haber una
+          tarjeta por barbero si el local alquila asientos. */}
+      {tarjetas.map((t: any) => {
+        const enCiclo = t.meta > 0 ? t.visitas % t.meta : 0
+        const faltan = Math.max(0, t.meta - enCiclo)
+        const listo = t.visitas >= t.meta
+        const pct = t.meta > 0 ? Math.min(100, Math.round((enCiclo / t.meta) * 100)) : 0
+        return (
+          <TouchableOpacity key={t.perfil_id ?? 'local'} style={s.pts} onPress={() => router.push('/(app)/cliente/perfil')}>
+            <View style={s.ptsHead}>
+              <Text style={s.ptsLbl}>{t.ambito === 'perfil' && t.barbero ? `CON ${String(t.barbero).toUpperCase()}` : 'FIDELIDAD'}</Text>
+              <Text style={s.ptsNum}>{enCiclo} / {t.meta} recortes</Text>
+            </View>
+            <View style={s.barBg}><View style={[s.barFill, { width: `${listo ? 100 : pct}%` }]} /></View>
+            <View style={s.ptsFoot}>
+              <Text style={s.ptsMeta}>{t.premio}</Text>
+              <Text style={s.ptsFaltan}>{listo ? '¡Disponible!' : `Faltan ${faltan} recorte${faltan === 1 ? '' : 's'}`}</Text>
+            </View>
+          </TouchableOpacity>
+        )
+      })}
 
       {historial.length > 0 && (
         <>

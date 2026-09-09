@@ -3,20 +3,24 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
+import { guardarReglasBarbero, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
-import { planIndependiente, planCubierto } from '../../../lib/pricing'
+import { planDeMiSilla } from '../../../lib/pricing'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
 
+// Estos tres son la ÚNICA decisión que toma el barbero sobre su estado: si
+// acepta clientes. Que esté ocupado o libre lo deduce el sistema de la silla y
+// los bloqueos, porque un estado que hay que acordarse de actualizar acaba
+// mintiendo — el barbero está cortando pelo, no tocando la app.
 const ESTADOS = [
-  { k: 'disponible', l: 'Disponible', c: COLORS.success },
-  { k: 'descanso', l: 'En descanso', c: COLORS.warning },
-  { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight },
+  { k: 'disponible', l: 'Acepto clientes', d: 'Apareces en la app y pueden entrar a tu fila.', c: COLORS.success },
+  { k: 'descanso', l: 'En descanso', d: 'Dejas de aparecer hasta que vuelvas a activarte.', c: COLORS.warning },
+  { k: 'inactivo', l: 'Inactivo', d: 'Como el descanso, pero para ausencias largas.', c: COLORS.textLight },
 ]
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
@@ -41,6 +45,19 @@ export default function Config() {
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [rolMembresia, setRolMembresia] = useState<string | null>(null)
   const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
+  const [cfgLocal, setCfgLocal] = useState<any>(null)
+  const [cfgLocalTipo, setCfgLocalTipo] = useState<string | null>(null)
+  const [reglasBusy, setReglasBusy] = useState(false)
+  const [premio, setPremio] = useState('')
+
+  async function guardarPremio() {
+    if (!sesion?.perfil_id) return
+    const v = premio.trim() || 'Corte gratis'
+    setPremio(v)
+    setPerfil((p: any) => ({ ...p, premio: v }))
+    try { await actualizarPerfil(sesion.perfil_id, { premio: v }) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
+  }
   const [locales, setLocales] = useState<any[]>([])
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
@@ -48,17 +65,23 @@ export default function Config() {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [u, p, sv, hr, mems] = await Promise.all([
+    const [u, p, sv, hr, mems, cfg] = await Promise.all([
       getMiUsuario().catch(() => null),
       getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
       getMisMembresias(ss.usuario_id).catch(() => []),
+      getConfiguracion(ss.negocio_id).catch(() => null),
     ])
-    setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
+    setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setCfgLocal(cfg)
+    setPremio((p as any)?.premio ?? 'Corte gratis')
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
-      const locs = await getBarberoNegocios(ss.usuario_id).catch(() => [])
+      const [locs, neg] = await Promise.all([
+        getBarberoNegocios(ss.usuario_id).catch(() => []),
+        getNegocioById(ss.negocio_id!).catch(() => null),
+      ])
+      setCfgLocalTipo((neg as any)?.tipo ?? null)
       setLocales(locs as any[])
       setNegocioNombre((locs as any[]).find((l: any) => l.negocio_id === ss.negocio_id)?.nombre ?? null)
     }
@@ -138,6 +161,31 @@ export default function Config() {
     setServicios(prev => prev.map(x => x.id === sv.id ? { ...x, activo: !x.activo } : x))
     await actualizarServicio(sv.id, { activo: !sv.activo }).catch(() => cargar())
   }
+  /** Guarda las cuatro reglas de golpe. null en un campo = "la del local".
+   *  Se mandan todas juntas porque el RPC escribe el bloque entero: mandar una
+   *  sola borraría las otras tres. */
+  async function guardarReglas(patch: Record<string, number | null>) {
+    if (!sesion?.perfil_id) return
+    const actual = {
+      anticipacion: perfil?.anticipacion_minima_horas ?? null,
+      ventana: perfil?.ventana_llegada_min ?? null,
+      gracia: perfil?.gracia_cita_min ?? null,
+      umbral: perfil?.umbral_confirmacion ?? null,
+    }
+    const nuevo = { ...actual, ...patch }
+    setPerfil((p: any) => ({
+      ...p,
+      anticipacion_minima_horas: nuevo.anticipacion,
+      ventana_llegada_min: nuevo.ventana,
+      gracia_cita_min: nuevo.gracia,
+      umbral_confirmacion: nuevo.umbral,
+    }))
+    setReglasBusy(true)
+    try { await guardarReglasBarbero(sesion.perfil_id, nuevo) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.'); cargar() }
+    finally { setReglasBusy(false) }
+  }
+
   // Regla de producto: el barbero decide lo suyo salvo que sea empleado.
   const empleado = rolMembresia === 'empleado'
 
@@ -258,13 +306,18 @@ export default function Config() {
         </TouchableOpacity>
       </View>
 
-      <Text style={s.sec}>MI ESTADO</Text>
+      <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
+      <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
       <View style={{ gap: 8, marginBottom: 14 }}>
         {ESTADOS.map(e => {
           const on = perfil?.estado_actual === e.k
           return (
             <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
-              <View style={[s.dot, { backgroundColor: e.c }]} /><Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+              <View style={[s.dot, { backgroundColor: e.c }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+                <Text style={s.estadoD2}>{e.d}</Text>
+              </View>
               {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
             </TouchableOpacity>
           )
@@ -304,7 +357,7 @@ export default function Config() {
 
       <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
       {(() => {
-        const plan = rolMembresia === 'barbero_renta' ? planIndependiente() : planCubierto()
+        const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
         return (
           <View style={s.susCard}>
             <View style={{ flex: 1, paddingRight: 12 }}>
@@ -329,34 +382,75 @@ export default function Config() {
         </View>
       </View>
 
+      {/* Las reglas de tiempo eran del local y solo del local, así que el
+          dueño se las imponía a alguien que le paga un asiento. Ahora el
+          autónomo las suyas; NULL sigue significando "la del local". */}
+      {!empleado && (() => {
+        const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+          || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+        const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
+        const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
+        const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
+        const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
+        return (
+          <>
+            <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
+            <View style={s.regla}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.reglaL}>Usar mis propios tiempos</Text>
+                <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
+              </View>
+              <Switch value={propias} disabled={reglasBusy}
+                onValueChange={(v) => guardarReglas(v
+                  ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
+                  : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
+                trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+            </View>
+            {propias && (
+              <>
+                <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
+                  v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
+                  v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
+                <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
+                  v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
+                  v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
+              </>
+            )}
+          </>
+        )
+      })()}
+
       {rolMembresia === 'barbero_renta' && (
         <>
-          <Text style={[s.sec, { marginTop: 18 }]}>MIS PUNTOS DE FIDELIDAD</Text>
+          <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
           <View style={s.regla}>
             <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.reglaL}>Puntos propios</Text>
-              <Text style={s.reglaD}>Tú premias a tus clientes, no el local.</Text>
+              <Text style={s.reglaL}>Premiar a mis clientes</Text>
+              <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
             </View>
             <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
           </View>
           {perfil?.puntos_activos && (
             <>
+              {/* Se cuentan recortes, no puntos abstractos, y el premio lo
+                  escribes tú: no tiene por qué ser un corte gratis. */}
               <View style={s.regla}>
-                <Text style={s.reglaL}>Puntos por visita</Text>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.reglaL}>Recortes para el premio</Text>
+                  <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
+                </View>
                 <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', -1, 1, 20, 1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_por_visita ?? 1}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_por_visita', 1, 1, 20, 1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
+                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
                 </View>
               </View>
-              <View style={s.regla}>
-                <Text style={s.reglaL}>Visitas para premio</Text>
-                <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 10)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 10}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 10)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-                </View>
-              </View>
+              <Text style={s.flabel}>¿Qué se gana?</Text>
+              <TextInput style={s.input} value={premio} onChangeText={setPremio}
+                onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
+                placeholderTextColor={COLORS.textLight} maxLength={60} />
             </>
           )}
         </>
@@ -464,6 +558,22 @@ export default function Config() {
   )
 }
 
+function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v: number; suf: string; paso?: number; onSet: (v: number) => void }) {
+  return (
+    <View style={s.regla}>
+      <View style={{ flex: 1, paddingRight: 12 }}>
+        <Text style={s.reglaL}>{l}</Text>
+        {d ? <Text style={s.reglaD}>{d}</Text> : null}
+      </View>
+      <View style={s.stepCtrl}>
+        <TouchableOpacity style={s.stepBtn} onPress={() => onSet(v - paso)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+        <Text style={s.stepVal}>{v}{suf}</Text>
+        <TouchableOpacity style={s.stepBtn} onPress={() => onSet(v + paso)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+      </View>
+    </View>
+  )
+}
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
@@ -496,6 +606,7 @@ const s = StyleSheet.create({
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
   dot: { width: 12, height: 12, borderRadius: 6 },
+  estadoD2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.textMid, flex: 1 },
   estadoActivo: { fontFamily: FONTS.bold, fontSize: 12 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
