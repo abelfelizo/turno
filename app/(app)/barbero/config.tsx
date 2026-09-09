@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -56,6 +56,8 @@ export default function Config() {
   const [cfgLocalTipo, setCfgLocalTipo] = useState<string | null>(null)
   const [reglasBusy, setReglasBusy] = useState(false)
   const [premio, setPremio] = useState('')
+  // null = el menú. Cualquier otro valor = esa sección abierta.
+  const [seccion, setSeccion] = useState<string | null>(null)
 
   async function guardarPremio() {
     if (!sesion?.perfil_id) return
@@ -276,250 +278,366 @@ export default function Config() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
+  // Sin esto, el atrás de Android sale de Configuración entera desde dentro de
+  // una sección: el usuario pierde el sitio y no entiende por qué.
+  useEffect(() => {
+    if (!seccion) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
+    return () => sub.remove()
+  }, [seccion])
+
+  const TITULO: Record<string, string> = {
+    cuenta: 'Mi cuenta', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
+    horario: empleado ? 'Horario del local' : 'Mi horario', reglas: 'Reglas', puntos: 'Sistema de puntos',
+    recordatorios: 'Recordatorios', locales: 'Mis locales', otros: 'Otros',
+  }
+
+  // El valor actual de cada fila. Es lo que convierte el menú en un resumen:
+  // sin esto habría que entrar en las nueve secciones para saber cómo está
+  // configurado el negocio.
+  const svActivos = servicios.filter((x: any) => x.activo).length
+  const diasAbiertos = horarios.filter((h: any) => h.activo).length
+  const tiemposPropios = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+    || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+  const estadoActual = ESTADOS.find(e => e.k === (perfil?.estado_actual ?? 'disponible'))
+  const localActivo = locales.find((l: any) => l.negocio_id === sesion?.negocio_id)
+
+  const MENU = [
+    { k: 'cuenta', t: 'Mi cuenta', icono: 'person-outline', ver: true,
+      v: [usuario?.nombre, planDeMiSilla(rolMembresia, cfgLocalTipo).montoTexto].filter(Boolean).join(' · ') },
+    { k: 'estado', t: 'Estado', icono: 'radio-button-on-outline', ver: true,
+      v: estadoActual?.l ?? 'Acepto clientes' },
+    { k: 'servicios', t: empleado ? 'Servicios del local' : 'Mis servicios', icono: 'cut-outline', ver: true,
+      v: empleado ? `Los pone ${negocioNombre ?? 'la barbería'}`
+        : svActivos === 0 ? 'Ninguno todavía' : `${svActivos} activo${svActivos === 1 ? '' : 's'}` },
+    { k: 'horario', t: empleado ? 'Horario del local' : 'Mi horario', icono: 'calendar-outline', ver: true,
+      v: empleado ? `Lo fija ${negocioNombre ?? 'la barbería'}`
+        : diasAbiertos === 0 ? 'Sin días abiertos' : `${diasAbiertos} día${diasAbiertos === 1 ? '' : 's'} abierto${diasAbiertos === 1 ? '' : 's'}` },
+    { k: 'reglas', t: 'Reglas', icono: 'options-outline', ver: true,
+      v: empleado ? `Las pone ${negocioNombre ?? 'la barbería'}`
+        : tiemposPropios ? 'Uso mis propios tiempos' : `Sigo los de ${negocioNombre ?? 'la barbería'}` },
+    // Solo quien alquila su asiento lleva tarjeta propia; al empleado se la
+    // pone el local, y una fila que no decide nada solo estorba.
+    { k: 'puntos', t: 'Sistema de puntos', icono: 'gift-outline', ver: rolMembresia === 'barbero_renta',
+      v: perfil?.puntos_activos
+        ? `Cada ${perfil?.puntos_meta ?? 8} recortes · ${premio || 'Corte gratis'}`
+        : 'Desactivado' },
+    { k: 'recordatorios', t: 'Recordatorios', icono: 'notifications-outline', ver: true,
+      v: `Por recuperar a los ${perfil?.revisita_dias ?? 30} días` },
+    { k: 'locales', t: 'Mis locales', icono: 'storefront-outline', ver: true,
+      v: locales.length > 1 ? `${localActivo?.nombre ?? 'Local'} y ${locales.length - 1} más` : (localActivo?.nombre ?? negocioNombre ?? 'Un local') },
+    { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal', ver: true,
+      v: 'Cerrar sesión, dejar el local, eliminar cuenta' },
+  ]
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <PanelBadge />
-      <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
-
-      <Text style={s.sec}>MI PERFIL PÚBLICO</Text>
-      <View style={s.perfilCard}>
-        <View style={s.perfilTop}>
-          <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
-            <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} bg={COLORS.blue} />
-            <View style={s.fotoBadge}>
-              {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
-            </View>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            {usuario?.codigo_barbero ? (
-              <View style={s.codigoBox}>
-                <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
-                <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
-                <Text style={s.codigoHint}>Compártelo: tus clientes te siguen a donde trabajes.</Text>
-              </View>
-            ) : null}
-            <Text style={s.flabel}>Especialidad</Text>
-            <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
-          </View>
-        </View>
-
-        <Text style={s.flabel}>Sobre mí</Text>
-        <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} value={bio} onChangeText={setBio} multiline />
-
-        <Text style={s.flabel}>Mensaje de bienvenida</Text>
-        <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} value={msg} onChangeText={setMsg} multiline />
-
-        <View style={s.dosCol}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Instagram</Text>
-            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>WhatsApp</Text>
-            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wa} onChangeText={setWa} />
-          </View>
-        </View>
-
-        <View style={s.domicilioRow}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={s.domicilioL}>Servicio a domicilio</Text>
-            <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
-          </View>
-          <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-        </View>
-
-        <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
-          {guardandoPerfil ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar perfil</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
-      <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
-      <View style={{ gap: 8, marginBottom: 14 }}>
-        {ESTADOS.map(e => {
-          const on = perfil?.estado_actual === e.k
-          return (
-            <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
-              <View style={[s.dot, { backgroundColor: e.c }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
-                <Text style={s.estadoD2}>{e.d}</Text>
-              </View>
-              {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
-            </TouchableOpacity>
-          )
-        })}
-      </View>
-
-      {/* El barbero es autónomo salvo que sea EMPLEADO: ahí los servicios y el
-          horario los pone la barbería, y aquí solo se consultan. */}
-      <View style={s.secRow}>
-        <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
-        {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
-      </View>
-      {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el dueño.</Text>}
-      {servicios.map((sv: any) => (
-        <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
-            <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
-          </TouchableOpacity>
-          <Text style={s.servPrecio}>{sv.precio}</Text>
-          {empleado
-            ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
-        </View>
-      ))}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
-      {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
-      {DIAS.map(d => {
-        const h = horarioDe(d.n); const abierto = h && h.activo
-        return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
-            <Text style={s.diaL}>{d.l}</Text>
-            <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>{abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}</Text>
-          </TouchableOpacity>
-        )
-      })}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
-      {(() => {
-        const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
-        return (
-          <View style={s.susCard}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.susTitulo}>{plan.titulo}</Text>
-              <Text style={s.susDetalle}>{plan.detalle}</Text>
-            </View>
-            <Text style={s.susMonto}>{plan.montoTexto}</Text>
-          </View>
-        )
-      })()}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
-      <View style={s.regla}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={s.reglaL}>Límite de fila</Text>
-          <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
-        </View>
-        <View style={s.stepCtrl}>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-          <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Las reglas de tiempo eran del local y solo del local, así que el
-          dueño se las imponía a alguien que le paga un asiento. Ahora el
-          autónomo las suyas; NULL sigue significando "la del local". */}
-      {!empleado && (() => {
-        const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
-          || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
-        const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
-        const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
-        const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
-        const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
-        return (
-          <>
-            <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
-            <View style={s.regla}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={s.reglaL}>Usar mis propios tiempos</Text>
-                <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
-              </View>
-              <Switch value={propias} disabled={reglasBusy}
-                onValueChange={(v) => guardarReglas(v
-                  ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
-                  : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
-                trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-            </View>
-            {propias && (
-              <>
-                <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
-                  v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
-                <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
-                  v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
-                <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
-                  v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
-                <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
-                  v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
-              </>
-            )}
-          </>
-        )
-      })()}
-
-      {rolMembresia === 'barbero_renta' && (
+      {/* ── MENÚ ─────────────────────────────────────────────────────────────
+          La pantalla era una tira de once secciones seguidas: para saber cada
+          cuántos recortes regalas había que bajar por servicios, horarios,
+          suscripción y reglas. Ahora es una lista, y cada fila LLEVA SU VALOR
+          debajo: el menú ya te cuenta cómo está el negocio sin entrar. */}
+      {seccion === null ? (
         <>
-          <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
-          <View style={s.regla}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.reglaL}>Premiar a mis clientes</Text>
-              <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
-            </View>
-            <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-          </View>
-          {perfil?.puntos_activos && (
-            <>
-              {/* Se cuentan recortes, no puntos abstractos, y el premio lo
-                  escribes tú: no tiene por qué ser un corte gratis. */}
-              <View style={s.regla}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={s.reglaL}>Recortes para el premio</Text>
-                  <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
-                </View>
-                <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-                </View>
+          <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
+          {MENU.filter(m => m.ver).map(m => (
+            <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
+              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color={COLORS.ink} /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.menuT}>{m.t}</Text>
+                <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
               </View>
-              <Text style={s.flabel}>¿Qué se gana?</Text>
-              <TextInput style={s.input} value={premio} onChangeText={setPremio}
-                onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
-                placeholderTextColor={COLORS.textLight} maxLength={60} />
-            </>
-          )}
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+            </TouchableOpacity>
+          ))}
+          {/* Cambiar de panel es navegación, no configuración: va en la raíz,
+              no enterrado dentro de "Mis locales". */}
+          <CambiarRol />
+        </>
+      ) : (
+        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
+          <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
+          <Text style={s.volverT}>Configuración</Text>
+        </TouchableOpacity>
+      )}
+      {seccion && <Display size={28} style={{ marginBottom: 16 }}>{TITULO[seccion]}</Display>}
+
+      {seccion === 'cuenta' && (
+        <>
+        <Text style={s.sec}>MI PERFIL PÚBLICO</Text>
+        <View style={s.perfilCard}>
+          <View style={s.perfilTop}>
+            <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
+              <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} bg={COLORS.blue} />
+              <View style={s.fotoBadge}>
+                {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
+              </View>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              {usuario?.codigo_barbero ? (
+                <View style={s.codigoBox}>
+                  <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
+                  <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
+                  <Text style={s.codigoHint}>Compártelo: tus clientes te siguen a donde trabajes.</Text>
+                </View>
+              ) : null}
+              <Text style={s.flabel}>Especialidad</Text>
+              <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
+            </View>
+          </View>
+  
+          <Text style={s.flabel}>Sobre mí</Text>
+          <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} value={bio} onChangeText={setBio} multiline />
+  
+          <Text style={s.flabel}>Mensaje de bienvenida</Text>
+          <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} value={msg} onChangeText={setMsg} multiline />
+  
+          <View style={s.dosCol}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.flabel}>Instagram</Text>
+              <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.flabel}>WhatsApp</Text>
+              <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wa} onChangeText={setWa} />
+            </View>
+          </View>
+  
+          <View style={s.domicilioRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.domicilioL}>Servicio a domicilio</Text>
+              <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
+            </View>
+            <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+          </View>
+  
+          <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
+            {guardandoPerfil ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar perfil</Text>}
+          </TouchableOpacity>
+        </View>
+  
+        <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
+        {(() => {
+          const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
+          return (
+            <View style={s.susCard}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.susTitulo}>{plan.titulo}</Text>
+                <Text style={s.susDetalle}>{plan.detalle}</Text>
+              </View>
+              <Text style={s.susMonto}>{plan.montoTexto}</Text>
+            </View>
+          )
+        })()}
         </>
       )}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>RECORDATORIO DE RE-VISITA</Text>
-      <View style={s.regla}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={s.reglaL}>Marcar "por recuperar"</Text>
-          <Text style={s.reglaD}>Clientes sin venir hace {perfil?.revisita_dias ?? 30} días aparecen para darles seguimiento.</Text>
+      {seccion === 'estado' && (
+        <>
+        <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
+        <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
+        <View style={{ gap: 8, marginBottom: 14 }}>
+          {ESTADOS.map(e => {
+            const on = perfil?.estado_actual === e.k
+            return (
+              <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
+                <View style={[s.dot, { backgroundColor: e.c }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+                  <Text style={s.estadoD2}>{e.d}</Text>
+                </View>
+                {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
+              </TouchableOpacity>
+            )
+          })}
         </View>
-        <View style={s.stepCtrl}>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', -5, 5, 180, 30)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-          <Text style={s.stepVal}>{perfil?.revisita_dias ?? 30}d</Text>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', 5, 5, 180, 30)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-        </View>
-      </View>
+        </>
+      )}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
-      {locales.map((l: any) => {
-        const activo = l.negocio_id === sesion?.negocio_id
-        return (
-          <TouchableOpacity key={l.negocio_id} style={[s.local, activo && s.localOn]} onPress={() => cambiarLocal(l)} disabled={activo}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.localN}>{l.nombre}</Text>
-              <Text style={s.localE}>{activo ? 'Local activo' : 'Toca para cambiar'}</Text>
+      {seccion === 'servicios' && (
+        <>
+        {/* El barbero es autónomo salvo que sea EMPLEADO: ahí los servicios y el
+            horario los pone la barbería, y aquí solo se consultan. */}
+        <View style={s.secRow}>
+          <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
+          {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
+        </View>
+        {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el dueño.</Text>}
+        {servicios.map((sv: any) => (
+          <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
+              <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
+            </TouchableOpacity>
+            <Text style={s.servPrecio}>{sv.precio}</Text>
+            {empleado
+              ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
+              : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
+          </View>
+        ))}
+        </>
+      )}
+
+      {seccion === 'horario' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
+        {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
+        {DIAS.map(d => {
+          const h = horarioDe(d.n); const abierto = h && h.activo
+          return (
+            <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
+              <Text style={s.diaL}>{d.l}</Text>
+              <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>{abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}</Text>
+            </TouchableOpacity>
+          )
+        })}
+        </>
+      )}
+
+      {seccion === 'reglas' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
+        <View style={s.regla}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={s.reglaL}>Límite de fila</Text>
+            <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
+          </View>
+          <View style={s.stepCtrl}>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+            <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+          </View>
+        </View>
+  
+        {/* Las reglas de tiempo eran del local y solo del local, así que el
+            dueño se las imponía a alguien que le paga un asiento. Ahora el
+            autónomo las suyas; NULL sigue significando "la del local". */}
+        {!empleado && (() => {
+          const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+            || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+          const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
+          const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
+          const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
+          const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
+          return (
+            <>
+              <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
+              <View style={s.regla}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.reglaL}>Usar mis propios tiempos</Text>
+                  <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
+                </View>
+                <Switch value={propias} disabled={reglasBusy}
+                  onValueChange={(v) => guardarReglas(v
+                    ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
+                    : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
+                  trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+              </View>
+              {propias && (
+                <>
+                  <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
+                    v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                  <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
+                    v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
+                  <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
+                    v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                  <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
+                    v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
+                </>
+              )}
+            </>
+          )
+        })()}
+        </>
+      )}
+
+      {seccion === 'puntos' && (
+        <>
+        {rolMembresia === 'barbero_renta' && (
+          <>
+            <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
+            <View style={s.regla}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.reglaL}>Premiar a mis clientes</Text>
+                <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
+              </View>
+              <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
             </View>
-            {activo ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} /> : <Ionicons name="swap-horizontal" size={20} color={COLORS.textLight} />}
-          </TouchableOpacity>
-        )
-      })}
-      <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
-        <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
-      </TouchableOpacity>
+            {perfil?.puntos_activos && (
+              <>
+                {/* Se cuentan recortes, no puntos abstractos, y el premio lo
+                    escribes tú: no tiene por qué ser un corte gratis. */}
+                <View style={s.regla}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={s.reglaL}>Recortes para el premio</Text>
+                    <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
+                  </View>
+                  <View style={s.stepCtrl}>
+                    <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                    <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
+                    <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={s.flabel}>¿Qué se gana?</Text>
+                <TextInput style={s.input} value={premio} onChangeText={setPremio}
+                  onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
+                  placeholderTextColor={COLORS.textLight} maxLength={60} />
+              </>
+            )}
+          </>
+        )}
+        </>
+      )}
 
-      <CambiarRol />
+      {seccion === 'recordatorios' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>RECORDATORIO DE RE-VISITA</Text>
+        <View style={s.regla}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={s.reglaL}>Marcar "por recuperar"</Text>
+            <Text style={s.reglaD}>Clientes sin venir hace {perfil?.revisita_dias ?? 30} días aparecen para darles seguimiento.</Text>
+          </View>
+          <View style={s.stepCtrl}>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', -5, 5, 180, 30)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+            <Text style={s.stepVal}>{perfil?.revisita_dias ?? 30}d</Text>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', 5, 5, 180, 30)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+          </View>
+        </View>
+        </>
+      )}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
-      
-      <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+      {seccion === 'locales' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
+        {locales.map((l: any) => {
+          const activo = l.negocio_id === sesion?.negocio_id
+          return (
+            <TouchableOpacity key={l.negocio_id} style={[s.local, activo && s.localOn]} onPress={() => cambiarLocal(l)} disabled={activo}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.localN}>{l.nombre}</Text>
+                <Text style={s.localE}>{activo ? 'Local activo' : 'Toca para cambiar'}</Text>
+              </View>
+              {activo ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} /> : <Ionicons name="swap-horizontal" size={20} color={COLORS.textLight} />}
+            </TouchableOpacity>
+          )
+        })}
+        <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
+          <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
+        </TouchableOpacity>
+  
+        <CambiarRol />
+        </>
+      )}
+
+      {seccion === 'otros' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
+        
+        <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
+        <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
+        <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+        </>
+      )}
 
       {/* Modal: trabajar en otro local */}
       <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
@@ -614,6 +732,13 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 }
 
 const s = StyleSheet.create({
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
+  menuIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
+  volverT: { color: COLORS.textMid, fontSize: 14.5, fontWeight: '600' },
   bufNota: { color: COLORS.textMid, fontSize: 12.5, lineHeight: 17, marginTop: -4, marginBottom: 10 },
   aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
   aplicarTodosT: { color: COLORS.red, fontSize: 13.5, fontWeight: '700' },
