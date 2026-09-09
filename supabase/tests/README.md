@@ -1,21 +1,41 @@
-# Pruebas del motor de cola
+# Pruebas de la base
 
-`motor_cola.test.sql` cubre las invariantes que TypeScript **no puede** atrapar:
-orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2),
-límite de fila, orden de llamado, autorización de stats, bajas y citas grupales.
+Cubren lo que TypeScript **no puede** atrapar: reglas que viven en Postgres y se
+rompen por cómo se combinan, no por cómo se escriben.
+
+| Suite | Qué mira |
+|---|---|
+| `motor_cola.test.sql` | Las invariantes sueltas: orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2), límite de fila, orden de llamado, autorización de stats, bajas, citas grupales. |
+| `autonomia.test.sql` | Quién decide qué (R11). Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
+| `fidelidad.test.sql` | Visitas, meta, premio y canje, con la tarjeta del local y la del barbero rentado. |
+| `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
+| `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
+
+Las dos últimas existen porque los fallos de **flujo** no se ven mirando
+funciones de una en una. Cada una encontró bugs de producción en su primera
+corrida: un barbero sin aprobar podía llamar clientes, y se podía bloquear
+tiempo encima de una cita ya reservada.
+
+## Al escribir una suite nueva
+
+Un bloque `begin ... exception` en plpgsql **revierte sus propias sentencias** al
+capturar. Crear un fixture dentro de un bloque que espera un error hace que el
+fixture desaparezca y los pasos siguientes fallen por una razón falsa. Los datos
+se crean fuera.
 
 ## Cómo correrlo
 
 ```bash
 export DATABASE_URL='postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres'
-npm run test:db
+npm run test:db          # las cinco
+npm run test:db:obstaculos   # una sola
 ```
 
 O pegando el archivo en el **SQL editor** de Supabase.
 
 ## Cómo leer el resultado
 
-La suite **siempre termina con un `RAISE`**. Eso es intencional: obliga a
+Cada suite **siempre termina con un `RAISE`**. Eso es intencional: obliga a
 Postgres a revertir la transacción entera, de modo que los fixtures (negocio,
 usuarios, perfiles, citas) **no dejan ni un registro** — importante, porque la
 base es compartida con otros proyectos.
@@ -45,5 +65,8 @@ migración 32.
 ## Al tocar el motor de cola
 
 Cualquier cambio a `turno_entrar_a_cola`, `turno_llamar_siguiente`,
-`turno_confirmar_camino`, `turno_expirar_llamados` o `turno_agendar_grupo`
-debería correr esta suite antes de darse por bueno.
+`turno_confirmar_camino`, `turno_expirar_llamados`, `turno_agendar_grupo` o
+`turno_cita_a_cola_prioritaria` debería correr `npm run test:db` entero antes de
+darse por bueno. Ese último es un aviso ganado: el mismo bug —turnos sin
+`tipo_servicio` y posiciones recicladas— apareció en **tres** funciones
+distintas, y la tercera solo salió al probar los cruces.
