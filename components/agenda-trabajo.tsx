@@ -231,6 +231,12 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
 
   /** Perder el turno no se deshace, así que se pregunta. El texto dice qué pasa
    *  después, que es lo que el barbero necesita saber para decidir. */
+  /**
+   * Llamaste a alguien y no está: pierde el turno y pasa el siguiente de la
+   * fila. Si ese siguiente tampoco está, se repite — y cuando ya no queda nadie
+   * de la fila presente, le toca al que llegó sin cita. Así el walk-in entra sin
+   * haberle pasado por delante a nadie que sí estuviera esperando.
+   */
   function confirmarNoEsta(item: any) {
     const nombre = item?.turno_usuarios?.nombre ?? 'Este cliente'
     Alert.alert(`¿${nombre} no está?`,
