@@ -179,7 +179,11 @@ export default function Home() {
                 <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
               </TouchableOpacity>))
         : perfiles.map((p: any) => {
-            const r = ratings[p.id]; const abierto = expandido === p.id; const disp = p.estado_actual === 'disponible'
+            const r = ratings[p.id]; const abierto = expandido === p.id
+            // Aquí se reserva CITA, y un descanso es solo de hoy: seguir
+            // apareciendo es lo correcto. Solo el inactivo cierra la agenda.
+            const disp = p.estado_actual === 'disponible'
+            const fuera = p.estado_actual === 'inactivo'
             return (
               <View key={p.id} style={s.barbero}>
                 <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
@@ -192,7 +196,7 @@ export default function Home() {
                     {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
                     <View style={s.estadoRow}>
                       <Dot color={disp ? COLORS.success : COLORS.textLight} />
-                      <Text style={s.barberoEstado}>{disp ? 'Disponible' : 'En descanso'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
+                      <Text style={s.barberoEstado}>{disp ? 'Disponible' : fuera ? 'No disponible' : 'En descanso hoy · puedes reservar'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
                     </View>
                   </View>
                   <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />

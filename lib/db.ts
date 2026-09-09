@@ -286,7 +286,11 @@ export async function getBarberoNegocios(usuario_id: string) {
 
 export type EstadoBarbero = {
   estado: 'libre' | 'atendiendo' | 'descanso' | 'inactivo'
+  /** ¿Puede entrar gente a su fila AHORA? El descanso lo pone en false. */
   acepta: boolean
+  /** ¿Se puede reservar con él para más adelante? Un descanso es de hoy, así
+   *  que esto sigue en true; solo el inactivo cierra la agenda. */
+  acepta_citas: boolean
   cliente: string | null
   hasta: string | null
   en_cola: number

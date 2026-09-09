@@ -25,9 +25,9 @@ const ESTADOS = [
   { k: 'disponible', l: 'Acepto clientes', c: COLORS.success,
     d: 'Sales en la app y pueden pedirte turno. Estar ocupado con un cliente NO te saca de la lista: para eso está la fila.' },
   { k: 'descanso', l: 'En descanso', c: COLORS.warning,
-    d: 'Desapareces de la app: nadie puede pedirte turno ni reservar contigo. Quien ya esté en tu fila sigue ahí. No vuelves solo — tienes que activarte tú.' },
+    d: 'Por hoy: nadie entra a tu fila ni coge hora para lo que queda del día. Tus citas de mañana en adelante siguen abiertas y quien ya está en tu fila sigue ahí. No vuelves solo — tienes que activarte tú.' },
   { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight,
-    d: 'Lo mismo que en descanso, pensado para ausencias largas. Sigues sin aparecer hasta que vuelvas.' },
+    d: 'Para ausencias largas: cierra también la agenda futura. Nadie puede reservar contigo para ningún día hasta que vuelvas.' },
 ]
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
