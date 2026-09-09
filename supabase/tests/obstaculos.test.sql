@@ -44,6 +44,7 @@ declare
   v_hoy date; v_manana date; v_t time;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
   v_int int; v_txt text; v_bool boolean;
+  q_ausente uuid; q_detras uuid; q_presente uuid; v_pos_antes int;
 begin
   v_hoy    := (now() at time zone v_tz)::date;
   v_manana := v_hoy + 1;
@@ -274,6 +275,63 @@ begin
       else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'?'); end if;
     end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- ── EL HUECO DEL AUSENTE, Y AVISAR A QUIEN SE LE MUEVE LA ESPERA ──────────
+  -- Estas dos reglas se reescribieron tres veces en una tarde, y cada versión
+  -- parecía razonable hasta que se miraba a quién le costaba algo. Por eso están
+  -- aquí: lo que se prueba es justamente que NADIE de atrás pierde nada.
+  --
+  -- Se limpia primero lo que quedó a medias de los casos anteriores: si queda
+  -- alguien 'llamado' de antes, no es el turno que toca y la sustitución se
+  -- negaría por una razón que no es la que se quiere probar.
+  update turno_cola set estado = 'atendido', atendido_at = now()
+   where negocio_id = v_neg and estado in ('llamado','en_camino');
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_c1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_bar);
+  q_ausente := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_c2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_bar);
+  q_detras := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  select * into r from turno_registrar_fisico(v_neg, p_bar, s_corte, 'Presente', '809');
+  q_presente := r.id;
+
+  select posicion into v_pos_antes from turno_cola where id = q_detras;
+  select * into r from turno_llamar_siguiente(v_neg, p_bar);   -- el ausente
+
+  n:=n+1; c:='hueco · un turno DIGITAL no puede colarse por aquí';
+  begin
+    perform turno_sustituir_ausente(r.id, q_detras);
+    fallos:=fallos||E'\n  x '||c||' - se coló alguien que no está en el local';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='hueco · el que está en el local hereda el sitio del ausente';
+  begin
+    perform turno_sustituir_ausente(r.id, q_presente);
+    if (select posicion from turno_cola where id = q_presente)
+       = (select posicion from turno_cola where id = r.id)
+      then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- Lo que de verdad importa: el de atrás no paga la sustitución.
+  n:=n+1; c:='hueco · el que venía detrás CONSERVA su puesto';
+  select posicion into v_int from turno_cola where id = q_detras;
+  if v_int = v_pos_antes and (select estado from turno_cola where id = q_detras) = 'en_fila'
+    then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - de la posición '||v_pos_antes||' a la '||coalesce(v_int::text,'?'); end if;
+
+  -- El tiempo es un aproximado, pero si cambia hay que decirlo.
+  n:=n+1; c:='aviso · a quien se le movió la espera sale en la lista';
+  select count(*) into v_int from turno_avisos_de_espera(v_neg, 5);
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - nadie a quien avisar tras cambiar la fila'; end if;
+
+  n:=n+1; c:='aviso · no se avisa dos veces de lo mismo';
+  select count(*) into v_int from turno_avisos_de_espera(v_neg, 5);
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' avisos repetidos'; end if;
 
   raise exception E'\n═══ OBSTÁCULOS · % / % casos OK ═══%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
