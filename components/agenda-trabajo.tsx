@@ -6,7 +6,7 @@ import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
-  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora, marcarNoEsta,
+  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
@@ -232,17 +232,45 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   /** Perder el turno no se deshace, así que se pregunta. El texto dice qué pasa
    *  después, que es lo que el barbero necesita saber para decidir. */
   /**
-   * Llamaste a alguien y no está: pierde el turno y pasa el siguiente de la
-   * fila. Si ese siguiente tampoco está, se repite — y cuando ya no queda nadie
-   * de la fila presente, le toca al que llegó sin cita. Así el walk-in entra sin
-   * haberle pasado por delante a nadie que sí estuviera esperando.
+   * Llamaste a alguien y no está. Dos salidas, y la primera existe para no
+   * castigar al que viene detrás:
+   *
+   * Si el siguiente de la fila tenía su turno dentro de 40 minutos, no ha
+   * faltado a nada — todavía no le tocaba. Marcarlo ausente para llegar al que
+   * sí está en el local le cobra a él que la fila corriera más rápido de lo
+   * prometido. Por eso se mete al presente en el HUECO del ausente: hereda su
+   * sitio y nadie por detrás se mueve.
+   *
+   * Solo se ofrecen los de la fila física: son los que el barbero registró con
+   * la persona delante. Un turno pedido desde el teléfono no prueba que su dueño
+   * esté aquí.
    */
   function confirmarNoEsta(item: any) {
     const nombre = item?.turno_usuarios?.nombre ?? 'Este cliente'
+    const presentes = enFila.filter((q: any) => q.tipo_cola === 'fisica')
+    const opciones: any[] = []
+
+    for (const w of presentes.slice(0, 3)) {
+      opciones.push({
+        text: `Que pase ${w.turno_usuarios?.nombre ?? 'el que está aquí'}`,
+        onPress: () => op(async () => {
+          await sustituirAusente(item.id, w.id)
+          if (w.cliente_id) avisos.clientePrepararse(w.cliente_id, negocio?.nombre ?? 'el local', 0)
+        }, 'No se pudo'),
+      })
+    }
+    opciones.push({
+      text: presentes.length ? 'Nadie, solo quitarlo' : 'Pierde el turno',
+      style: 'destructive' as const,
+      onPress: () => op(() => marcarNoEsta(item.id), 'No se pudo'),
+    })
+    opciones.push({ text: 'Sigo esperándolo' })
+
     Alert.alert(`¿${nombre} no está?`,
-      'Pierde su turno y pasa el siguiente de la fila. Si aparece después, tendrá que volver a pedir turno.',
-      [{ text: 'Sigo esperándolo' },
-       { text: 'No está', style: 'destructive', onPress: () => op(() => marcarNoEsta(item.id), 'No se pudo') }])
+      presentes.length
+        ? 'Pierde su turno. Puedes meter en su hueco a alguien que esté aquí: quien viene detrás conserva su puesto y su hora.'
+        : 'Pierde su turno y pasa el siguiente de la fila. Si aparece después, tendrá que volver a pedir turno.',
+      opciones)
   }
 
   async function llamar() {
@@ -255,13 +283,41 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           ? { ...x, estado: 'llamado', llamado_at: (r as any).llamado_at } : x))
       }
       refrescar()
+      avisarCambiosDeEspera()
     } catch (e: any) { Alert.alert('No se pudo llamar', e.message ?? 'Intenta de nuevo.') }
   }
 
   // ── Gestión de la fila ────────────────────────────────────────
+  /**
+   * Toda acción sobre la fila pasa por aquí, así que aquí es donde toca revisar
+   * a quién se le movió la espera. El tiempo que se le da al cliente al entrar
+   * es un aproximado, no un compromiso — pero si cambia, el sistema tiene que
+   * decírselo: quien salió a hacer algo con "unos 40 minutos" en la cabeza no
+   * puede enterarse de que le tocaba cuando ya perdió el turno.
+   *
+   * Va después de refrescar y sin bloquear la pantalla: el barbero ya terminó lo
+   * suyo, los avisos son cosa nuestra.
+   */
   async function op(fn: () => Promise<any>, err = 'No se pudo') {
     setHoja(null)
-    try { await fn(); refrescar() } catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
+    try {
+      await fn()
+      refrescar()
+      avisarCambiosDeEspera()
+    } catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
+  }
+
+  function avisarCambiosDeEspera() {
+    if (!sesion?.negocio_id) return
+    avisosDeEspera(sesion.negocio_id)
+      .then(lista => {
+        for (const a of lista) {
+          if (a.cliente_id) {
+            avisos.clienteEsperaCambio(a.cliente_id, negocio?.nombre ?? 'el local', a.minutos, a.se_adelanto)
+          }
+        }
+      })
+      .catch(() => {})   // que un push no salga no puede romperle la fila al barbero
   }
   function empezarCorte(item: any) {
     Alert.alert('Empezar', `¿Sentar a ${item.turno_usuarios?.nombre ?? 'este cliente'} en la silla?`, [

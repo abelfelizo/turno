@@ -654,6 +654,47 @@ export async function marcarNoEsta(cola_id: string) {
   return data
 }
 
+/**
+ * El hueco del que no llegó lo ocupa alguien que SÍ está en el local.
+ *
+ * No es adelantar: el sustituto hereda el sitio exacto del ausente y NADIE por
+ * detrás se mueve. Quien venía después conserva su posición y su ETA — probado:
+ * Pedro sigue en el puesto 2 con sus 40 minutos antes y después.
+ *
+ * Existe porque la alternativa era marcar ausente al siguiente de la fila para
+ * llegar al walk-in, y eso castiga a quien no ha faltado a nada: se le dijo que
+ * viniera en 40 minutos y la fila corrió más rápido de lo prometido.
+ *
+ * Solo puede sustituir alguien de la fila física: esa la crea el barbero con la
+ * persona delante. Un turno pedido desde el teléfono no prueba dónde está quien
+ * lo pidió, que es justo lo que aquí importa.
+ */
+export async function sustituirAusente(ausente_id: string, sustituto_id: string) {
+  const { data, error } = await supabase.rpc('turno_sustituir_ausente', {
+    p_ausente: ausente_id, p_sustituto: sustituto_id,
+  })
+  if (error) throw error
+  return data
+}
+
+/**
+ * Quién se ha visto afectado por un cambio en la fila y hay que avisar.
+ *
+ * La misma llamada devuelve Y marca: si solo devolviera, un fallo al mandar el
+ * push dejaría al cliente sin aviso o —peor— lo mandaría dos veces en la
+ * siguiente consulta.
+ *
+ * El envío se hace desde aquí y no desde la base porque este proyecto de
+ * Supabase no tiene pg_net: Postgres no puede hacer llamadas HTTP.
+ */
+export async function avisosDeEspera(negocio_id: string, umbral_min = 5) {
+  const { data, error } = await supabase.rpc('turno_avisos_de_espera', {
+    p_negocio: negocio_id, p_umbral_min: umbral_min,
+  })
+  if (error) throw error
+  return (data || []) as { cola_id: string; cliente_id: string; nombre: string; minutos: number; se_adelanto: boolean }[]
+}
+
 export async function sacarDeCola(cola_id: string) {
   const { error } = await supabase.rpc('turno_sacar_de_cola', { p_cola: cola_id })
   if (error) throw error

@@ -149,4 +149,19 @@ export const avisos = {
   duenoSolicitud: (duenoUsuarioId: string, quien: string, local: string) =>
     enviarPush(duenoUsuarioId, 'Un barbero quiere unirse',
       `${quien} pidió entrar a ${local}. Apruébalo desde tu panel.`, { tipo: 'equipo' }),
+
+  /**
+   * El tiempo de espera se movió. No es una disculpa ni una promesa nueva: es la
+   * obligación de decírselo. Quien salió a hacer algo con "unos 40 minutos" en
+   * la cabeza necesita saber que ahora son 10 — y quien iba a esperar de pie
+   * agradece saber que puede irse.
+   */
+  clienteEsperaCambio(clienteId: string, local: string, minutos: number, seAdelanto: boolean) {
+    return enviarPush(clienteId,
+      seAdelanto ? 'Tu turno se adelantó' : 'Tu turno se movió',
+      minutos <= 5
+        ? `Ya casi te toca en ${local}. Acércate.`
+        : `Ahora te faltan unos ${minutos} min en ${local}.`,
+      { tipo: 'turno' })
+  },
 }
