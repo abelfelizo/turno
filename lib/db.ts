@@ -636,6 +636,24 @@ export async function llamarA(cola_id: string) {
 }
 
 /** Lo saca de la fila (se fue, no llegó, se equivocó de silla). */
+/**
+ * "No está." El que no llega pierde el turno, y el siguiente entra sin haberse
+ * saltado a nadie — que es la diferencia entre esto y adelantar a dedo.
+ *
+ * El motor ya expiraba a los ausentes solos, pero tarda la ventana de llegada
+ * entera POR CADA UNO: con dos seguidos son veinte minutos de silla parada. El
+ * barbero está mirando el local y ve en un segundo lo que el reloj tarda diez en
+ * confirmar.
+ *
+ * La base exige haberlo llamado antes y que sea el turno que toca; sin esas dos
+ * condiciones esto sería la puerta trasera de la regla de orden.
+ */
+export async function marcarNoEsta(cola_id: string) {
+  const { data, error } = await supabase.rpc('turno_no_esta', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
 export async function sacarDeCola(cola_id: string) {
   const { error } = await supabase.rpc('turno_sacar_de_cola', { p_cola: cola_id })
   if (error) throw error

@@ -6,7 +6,7 @@ import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
-  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
+  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora, marcarNoEsta,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
@@ -229,6 +229,16 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     if (proximo?.cliente_id) avisos.clientePrepararse(proximo.cliente_id, negocio?.nombre ?? 'el local', 0)
   }
 
+  /** Perder el turno no se deshace, así que se pregunta. El texto dice qué pasa
+   *  después, que es lo que el barbero necesita saber para decidir. */
+  function confirmarNoEsta(item: any) {
+    const nombre = item?.turno_usuarios?.nombre ?? 'Este cliente'
+    Alert.alert(`¿${nombre} no está?`,
+      'Pierde su turno y pasa el siguiente de la fila. Si aparece después, tendrá que volver a pedir turno.',
+      [{ text: 'Sigo esperándolo' },
+       { text: 'No está', style: 'destructive', onPress: () => op(() => marcarNoEsta(item.id), 'No se pudo') }])
+  }
+
   async function llamar() {
     try {
       const r = await llamarSiguiente(sesion.negocio_id, sesion.perfil_id)
@@ -424,6 +434,16 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             <TouchableOpacity style={s.accionPral} onPress={accion.onPress}>
               <Ionicons name={accion.icono as any} size={18} color={COLORS.ink} />
               <Text style={s.accionPralT}>{accion.texto}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Llamaste a alguien: solo hay dos finales, se sienta o no estaba. El
+              segundo tenía que existir aquí — si no, la única salida era esperar
+              los diez minutos de la ventana con la silla parada, o "sacarlo de
+              la fila", que suena a castigo y es otra cosa. */}
+          {esHoy && llamado && llamado.estado !== 'atendiendo' && (
+            <TouchableOpacity style={s.noEsta} onPress={() => confirmarNoEsta(llamado)}>
+              <Text style={s.noEstaT}>No está · pierde el turno</Text>
             </TouchableOpacity>
           )}
 
@@ -630,7 +650,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                           lo que no altera el turno de nadie. */}
                       <Text style={s.ordenNota}>
                         {it.prioridad === 1 ? 'Tenía cita, por eso va primero.'
-                          : it.prioridad === 3 ? 'Llegó sin cita: entra cuando no quede nadie en la fila.'
+                          : it.prioridad === 3 ? 'Llegó sin cita: entra cuando no quede nadie en la fila, o cuando a quien le toca no esté.'
                           : 'Entró a la fila desde la app.'}
                       </Text>
                     </>
@@ -759,6 +779,8 @@ const gs = StyleSheet.create({
 })
 
 const s = StyleSheet.create({
+  noEsta: { alignItems: 'center', paddingVertical: 10, marginTop: 6 },
+  noEstaT: { color: 'rgba(0,0,0,0.62)', fontSize: 13.5, fontWeight: '700' },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
   panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },

@@ -242,6 +242,39 @@ begin
     else fallos:=fallos||E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
   end;
 
+  -- ── EL QUE NO LLEGA PIERDE EL TURNO ───────────────────────────────────────
+  -- El orden es una regla (migración 58), pero un turno se pierde por no
+  -- presentarse: si a quien le toca no está, el siguiente entra sin haberse
+  -- saltado a nadie. La diferencia entre eso y adelantar a dedo son las dos
+  -- condiciones que se prueban aquí — hay que haberlo llamado, y tiene que ser
+  -- el turno que toca.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  update turno_perfiles set estado_actual = 'disponible' where id = p_bar;
+  update turno_perfiles set activo = true where id = p_bar;
+
+  n:=n+1; c:='ausente · no se puede marcar sin haberlo llamado';
+  begin
+    select * into r from turno_cola where negocio_id = v_neg and estado = 'en_fila'
+     order by prioridad, posicion limit 1;
+    if r.id is null then fallos:=fallos||E'\n  x '||c||' - la fila estaba vacía';
+    else
+      perform turno_no_esta(r.id);
+      fallos:=fallos||E'\n  x '||c||' - se saltó a alguien que nunca tuvo su turno';
+    end if;
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='ausente · llamado y ausente, pierde el turno';
+  begin
+    select * into r from turno_llamar_siguiente(v_neg, p_bar);
+    if r.id is null then fallos:=fallos||E'\n  x '||c||' - no había a quien llamar';
+    else
+      perform turno_no_esta(r.id);
+      select estado into v_txt from turno_cola where id = r.id;
+      if v_txt = 'expirado' then ok:=ok+1;
+      else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'?'); end if;
+    end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
   raise exception E'\n═══ OBSTÁCULOS · % / % casos OK ═══%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
 end $$;
