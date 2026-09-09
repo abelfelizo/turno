@@ -201,6 +201,26 @@ export default function Config() {
     const h = horarioDe(n)
     setHrModal({ n, h }); setHrIni(h ? parseInt(h.hora_inicio) : 9); setHrFin(h ? parseInt(h.hora_fin) : 18); setHrBuf(h?.tiempo_entre_clientes ?? 0)
   }
+  /** Ponerlo en los siete días sin abrir el cuadro siete veces. Solo toca los
+   *  días ya abiertos: crear horarios que el barbero no ha definido sería
+   *  inventarle una jornada. */
+  async function aplicarRespiroATodos() {
+    if (!sesion?.perfil_id) return
+    setBusy(true)
+    try {
+      await Promise.all(horarios.filter((h: any) => h.activo).map((h: any) => guardarHorario({
+        id: h.id, perfil_id: sesion.perfil_id, dia_semana: h.dia_semana,
+        hora_inicio: h.hora_inicio, hora_fin: h.hora_fin,
+        tiempo_entre_clientes: hrBuf, activo: true,
+      })))
+      setHrModal(null); cargar()
+      Alert.alert('Listo', hrBuf === 0
+        ? 'Tus días abiertos quedan sin respiro entre clientes.'
+        : `Todos tus días abiertos quedan con ${hrBuf} minutos entre clientes.`)
+    } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+    finally { setBusy(false) }
+  }
+
   async function guardarHr(activo: boolean) {
     if (!hrModal) return
     setBusy(true)
@@ -550,12 +570,24 @@ export default function Config() {
             <Text style={s.stepVal}>{hora12(`${String(hrFin).padStart(2, '0')}:00`)}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.min(24, hrFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
-          <Text style={s.flabel}>Minutos entre clientes</Text>
+          {/* El respiro es POR DÍA: el sábado no se trabaja como el martes. Pero
+              nada lo decía, así que parecía global — y ponerlo en los siete días
+              obligaba a abrir este cuadro siete veces. De ahí el atajo. */}
+          <Text style={s.flabel}>Respiro entre clientes · solo este día</Text>
           <View style={s.stepRow}>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.max(0, hrBuf - 5))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-            <Text style={s.stepVal}>{hrBuf} min</Text>
+            <Text style={s.stepVal}>{hrBuf === 0 ? 'Sin respiro' : `${hrBuf} min`}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.min(60, hrBuf + 5))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
+          <Text style={s.bufNota}>
+            {hrBuf === 0
+              ? 'Los clientes van pegados, uno detrás de otro. Es como trabaja la mayoría.'
+              : `Se dejan ${hrBuf} minutos libres entre un cliente y el siguiente. En una jornada de 9 horas son casi ${Math.round(hrBuf * 9 * 60 / 45 / 60)} h de silla vacía.`}
+          </Text>
+          <TouchableOpacity style={s.aplicarTodos} onPress={aplicarRespiroATodos} disabled={busy}>
+            <Ionicons name="copy-outline" size={16} color={COLORS.red} />
+            <Text style={s.aplicarTodosT}>Usar este respiro todos los días</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
           <TouchableOpacity style={s.mbtnGhost} onPress={() => guardarHr(false)} disabled={busy}><Text style={s.mbtnGhostT}>Marcar cerrado</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
@@ -582,6 +614,9 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 }
 
 const s = StyleSheet.create({
+  bufNota: { color: COLORS.textMid, fontSize: 12.5, lineHeight: 17, marginTop: -4, marginBottom: 10 },
+  aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
+  aplicarTodosT: { color: COLORS.red, fontSize: 13.5, fontWeight: '700' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },

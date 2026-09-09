@@ -11,11 +11,22 @@ export function codigoCanonico(entrada: string): string {
 }
 
 // NEGOCIOS
+/**
+ * Resolver UN código concreto. Antes esto leía turno_negocios directamente y la
+ * política de lectura era `using (true)`: cualquier usuario registrado podía
+ * listar la tabla entera con los códigos de acceso de todos los locales. Los
+ * códigos son privados —solo entras a los que te pasan— así que la tabla queda
+ * cerrada a los locales propios y esta consulta pasa por una función que
+ * devuelve solo el nombre y la modalidad, nunca el código de vuelta.
+ *
+ * Se puede preguntar por un código; no se puede listar.
+ */
 export async function getNegocioPorCodigo(codigo: string) {
-  const { data, error } = await supabase.from(T('negocios')).select('*').eq('codigo_acceso', codigoCanonico(codigo)).maybeSingle()
+  const { data, error } = await supabase.rpc('turno_negocio_por_codigo', { p_codigo: codigoCanonico(codigo) })
   if (error) throw error
-  if (!data) throw new Error('No encontramos un local con ese código. Revísalo e intenta de nuevo.')
-  return data
+  const n = (data && data[0]) || null
+  if (!n) throw new Error('No encontramos un local con ese código. Revísalo e intenta de nuevo.')
+  return n
 }
 
 export async function getNegocioById(id: string) {

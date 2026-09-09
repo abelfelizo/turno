@@ -128,6 +128,14 @@ export default function MiTurno() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
+  // Para "cualquiera disponible" hace falta UN servicio de referencia: el turno
+  // entra sin barbero, pero sí con servicio (de ahí sale la duración y el ETA).
+  // Se coge el primero activo de quien esté aceptando; si un día hay que dejar
+  // elegir servicio primero, este es el punto por donde crece.
+  const servicioComun = perfiles
+    .filter((p: any) => p.estado_actual === 'disponible')
+    .flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))[0] ?? null
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
@@ -204,15 +212,30 @@ export default function MiTurno() {
       {/* Pedir un turno desde aquí mismo (R3) */}
       <Text style={s.sec}>{turnos.length ? 'PEDIR OTRO TURNO' : 'PEDIR UN TURNO'}</Text>
       {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
-      {porDueno
-        ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
-            .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
-            .map((sv: any) => (
-              <TouchableOpacity key={sv.id} style={s.servRow} onPress={() => setHoja({ negocio, perfil: undefined, servicio: sv })}>
-                <Text style={s.servN}>{sv.nombre}</Text>
-                <Text style={s.servP}>{dinero(sv.precio, negocio?.moneda)}</Text>
-              </TouchableOpacity>))
-        : perfiles.filter((p: any) => p.estado_actual === 'disponible').map((p: any) => (
+
+      {/* ELEGIR BARBERO ES DEL CLIENTE, SIEMPRE.
+          Antes era todo o nada: con "asignación por dueño" encendida el cliente
+          NUNCA elegía, y apagada elegía siempre a la fuerza. No había forma de
+          decir "me da igual, el que esté libre", que es lo más normal en una
+          barbería. Ahora se elige a quien se quiera, y quien no tenga
+          preferencia entra sin barbero asignado: lo coge el que se desocupe, o
+          se lo asigna el dueño desde su panel. */}
+      {perfiles.length > 0 && (
+        <>
+          <TouchableOpacity style={s.cualquiera} onPress={() => setHoja({ negocio, perfil: undefined, servicio: servicioComun })}
+            disabled={!servicioComun}>
+            <Ionicons name="people-outline" size={20} color={COLORS.ink} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.cualquieraT}>Cualquiera disponible</Text>
+              <Text style={s.cualquieraD}>Te atiende el primero que se desocupe</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+          </TouchableOpacity>
+          <Text style={s.oElige}>o elige a tu barbero</Text>
+        </>
+      )}
+
+      {perfiles.filter((p: any) => p.estado_actual === 'disponible').map((p: any) => (
             <View key={p.id} style={s.barbero}>
               <View style={s.barberoHead}>
                 <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={38} />
@@ -231,6 +254,10 @@ export default function MiTurno() {
 }
 
 const s = StyleSheet.create({
+  cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
+  cualquieraT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  cualquieraD: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  oElige: { color: COLORS.textLight, fontSize: 12, textAlign: 'center', marginBottom: 10 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   cita: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
