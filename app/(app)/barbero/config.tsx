@@ -17,10 +17,17 @@ import PanelBadge from '../../../components/panel-badge'
 // acepta clientes. Que esté ocupado o libre lo deduce el sistema de la silla y
 // los bloqueos, porque un estado que hay que acordarse de actualizar acaba
 // mintiendo — el barbero está cortando pelo, no tocando la app.
+// Estos textos dicen la CONSECUENCIA, no el nombre del estado. "En descanso"
+// suena a pausa de diez minutos y en realidad te saca de la lista de todos los
+// clientes hasta que vuelvas a mano: alguien lo tocó una vez y desapareció sin
+// enterarse. Un estado que no explica lo que hace es una trampa.
 const ESTADOS = [
-  { k: 'disponible', l: 'Acepto clientes', d: 'Apareces en la app y pueden entrar a tu fila.', c: COLORS.success },
-  { k: 'descanso', l: 'En descanso', d: 'Dejas de aparecer hasta que vuelvas a activarte.', c: COLORS.warning },
-  { k: 'inactivo', l: 'Inactivo', d: 'Como el descanso, pero para ausencias largas.', c: COLORS.textLight },
+  { k: 'disponible', l: 'Acepto clientes', c: COLORS.success,
+    d: 'Sales en la app y pueden pedirte turno. Estar ocupado con un cliente NO te saca de la lista: para eso está la fila.' },
+  { k: 'descanso', l: 'En descanso', c: COLORS.warning,
+    d: 'Desapareces de la app: nadie puede pedirte turno ni reservar contigo. Quien ya esté en tu fila sigue ahí. No vuelves solo — tienes que activarte tú.' },
+  { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight,
+    d: 'Lo mismo que en descanso, pensado para ausencias largas. Sigues sin aparecer hasta que vuelvas.' },
 ]
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 

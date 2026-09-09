@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola, getEstadoLocal } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
@@ -13,6 +13,16 @@ import PanelBadge from '../../../components/panel-badge'
 
 const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
 
+/** Una línea que diga lo que está pasando en esa silla ahora mismo. */
+function estadoTexto(e: any, crudo?: string): string {
+  if (!e) return crudo === 'disponible' ? 'Disponible' : 'No aparece'
+  const espera = e.en_cola > 0 ? ` · ${e.en_cola} esperando` : ''
+  if (e.estado === 'descanso') return 'En descanso · no aparece' + espera
+  if (e.estado === 'inactivo') return 'Inactivo · no aparece' + espera
+  if (e.estado === 'atendiendo') return (e.cliente ? `Atendiendo a ${e.cliente}` : 'Silla ocupada') + espera
+  return 'Libre' + espera
+}
+
 export default function Dashboard() {
   const router = useRouter()
   const [negocio, setNegocio] = useState<any>(null)
@@ -20,6 +30,10 @@ export default function Dashboard() {
   const [solicitudes, setSolicitudes] = useState<any[]>([])
   const [equipo, setEquipo] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
+  // Estado deducido de cada silla. `estado_actual` del perfil solo dice si la
+  // persona acepta clientes; no dice si está ocupada, que es lo que el dueño
+  // mira para repartir. turno_estado_local ya lo resolvía y no lo usaba nadie.
+  const [estados, setEstados] = useState<Record<string, any>>({})
   const [perfilPropio, setPerfilPropio] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -29,14 +43,18 @@ export default function Dashboard() {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setPerfilPropio(ss.perfil_id ?? null)
-    const [neg, q, sol, st, eq, cfg] = await Promise.all([
+    const [neg, q, sol, est, st, eq, cfg] = await Promise.all([
       getNegocioById(ss.negocio_id),
       getColaActiva(ss.negocio_id).catch(() => []),
       getSolicitudesPendientes(ss.negocio_id).catch(() => []),
+      getEstadoLocal(ss.negocio_id).catch(() => []),
       getEstadisticasNegocio(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
     ])
+    const mapa: Record<string, any> = {}
+    for (const e of (est as any[])) mapa[e.perfil_id] = e
+    setEstados(mapa)
     setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[]); setConfig(cfg)
     setLoading(false); setRefreshing(false)
   }, [])
@@ -200,9 +218,13 @@ export default function Dashboard() {
             params: { perfil: p.id, nombre: p.turno_usuarios?.nombre ?? 'Barbero', rol: p.rol ?? '' },
           } as any)}>
             <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+            {/* El estado que importa para repartir gente es el DEDUCIDO —si la
+                silla está ocupada y cuántos esperan—, no el campo que la persona
+                marcó a mano. Antes esta línea decía "Disponible" de alguien que
+                llevaba media hora con un cliente sentado. */}
             <Text style={s.solMeta}>
               {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Dueño' : 'Empleado'}
-              {' · '}{p.estado_actual === 'disponible' ? 'Disponible' : 'En descanso'}
+              {' · '}{estadoTexto(estados[p.id], p.estado_actual)}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.desvincular} onPress={() => desvincular(p)}><Ionicons name="person-remove-outline" size={18} color={COLORS.danger} /></TouchableOpacity>

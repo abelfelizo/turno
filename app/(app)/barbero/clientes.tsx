@@ -1,6 +1,7 @@
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useLocalSearchParams } from 'expo-router'
 import { getSesion } from '../../../lib/storage'
 import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
 import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
@@ -10,6 +11,13 @@ import { Display, Avatar } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 
 export default function Clientes() {
+  // Se puede llegar aquí con un cliente concreto desde la fila del barbero: es
+  // donde de verdad hace falta —lo tienes delante— y hasta ahora la única forma
+  // de ver su historial era buscarlo en la lista, que además solo trae a quien
+  // ya te ha visitado. Un cliente nuevo en la silla no aparecía en ningún sitio.
+  const { cliente, nombre: nombreParam, telefono: telParam } =
+    useLocalSearchParams<{ cliente?: string; nombre?: string; telefono?: string }>()
+  const abiertoPorParam = useRef(false)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
   const [clientes, setClientes] = useState<any[]>([])
   const [recuperar, setRecuperar] = useState<any[]>([])
@@ -37,6 +45,14 @@ export default function Clientes() {
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
+
+  // Se espera a tener negocioId/usuarioId: `abrir` los necesita para pedir el
+  // historial y la tarjeta, y sin ellos la ficha saldría vacía.
+  useEffect(() => {
+    if (!cliente || abiertoPorParam.current || !negocioId || !usuarioId) return
+    abiertoPorParam.current = true
+    abrir({ cliente_id: cliente, id: cliente, nombre: nombreParam || 'Cliente', telefono: telParam || '' })
+  }, [cliente, nombreParam, telParam, negocioId, usuarioId])
 
   // La ficha completa: nota privada, puntos, preferencias e historial. Antes
   // el barbero solo podía escribir una nota y no veía nada del cliente.

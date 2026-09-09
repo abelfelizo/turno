@@ -1,6 +1,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
+import { useRouter } from 'expo-router'
 import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
@@ -75,6 +76,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [fecha, setFecha] = useState(hoy)
   const [conteo, setConteo] = useState<Record<string, number>>({})
   const [tic, setTic] = useState(0)   // fuerza recalcular la hora cada 30 s
+  const router = useRouter()
   const [verTodos, setVerTodos] = useState(false)
   const [estado, setEstado] = useState<any>(null)
   const esHoy = fecha === hoy
@@ -369,6 +371,36 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         })}
       </ScrollView>
 
+      {/* Estado real: 'atendiendo' se deduce de la silla y los bloqueos; lo único
+          que se decide a mano es si aceptas clientes.
+
+          Va FUERA del bloque `esHoy`: el estado es de AHORA, no del día que
+          estés mirando. Antes desaparecía en cuanto abrías otro día, justo
+          cuando más falta hace saber si tienes a alguien en la silla. */}
+      {estado && (
+        <View style={[s.estadoBox, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
+          <View style={s.estadoPunto} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.estadoT}>
+              {estado.estado === 'atendiendo'
+                ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
+                : estado.estado === 'descanso' ? 'En descanso'
+                : estado.estado === 'inactivo' ? 'Inactivo'
+                : 'Libre'}
+            </Text>
+            <Text style={s.estadoD}>
+              {estado.estado === 'atendiendo' && estado.hasta ? `Hasta ${hora12(estado.hasta)} · ` : ''}
+              {estado.en_cola === 0 ? 'Nadie esperando' : `${estado.en_cola} esperando`}
+              {!estado.acepta ? ' · no apareces para los clientes' : ''}
+            </Text>
+          </View>
+          <TouchableOpacity style={s.estadoBtn}
+            onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
+            <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {!esHoy && (
         <View style={s.avisoDia}>
           <Ionicons name="calendar-outline" size={16} color={COLORS.textMid} />
@@ -378,33 +410,6 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
       {esHoy && (
         <>
-          {/* Estado real: 'atendiendo' se deduce de la silla y los bloqueos.
-              Lo único que se decide a mano es si aceptas clientes, y eso vive
-              en el interruptor de abajo. */}
-          {estado && (
-            <View style={[s.estadoBox, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
-              <View style={s.estadoPunto} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.estadoT}>
-                  {estado.estado === 'atendiendo'
-                    ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
-                    : estado.estado === 'descanso' ? 'En descanso'
-                    : estado.estado === 'inactivo' ? 'Inactivo'
-                    : 'Libre'}
-                </Text>
-                <Text style={s.estadoD}>
-                  {estado.estado === 'atendiendo' && estado.hasta ? `Hasta ${hora12(estado.hasta)} · ` : ''}
-                  {estado.en_cola === 0 ? 'Nadie esperando' : `${estado.en_cola} esperando`}
-                  {!estado.acepta ? ' · no apareces para los clientes' : ''}
-                </Text>
-              </View>
-              <TouchableOpacity style={s.estadoBtn}
-                onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
-                <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
           <View style={s.colaBox}>
             <Text style={s.colaTitle}>COLA AHORA</Text>
             <View style={s.colaStats}>
@@ -587,6 +592,14 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                     </>
                   ) : (
                     <Opcion icon="return-down-back" t="Devolver a la fila" d="Deshace el llamado y conserva su puesto" onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
+                  )}
+                  {/* Lo tienes delante y hasta ahora no había forma de mirar su
+                      historial sin salir a buscarlo en otra pestaña — y la lista
+                      de allí solo trae a quien ya te visitó, así que un cliente
+                      nuevo en la silla no aparecía en ningún sitio. */}
+                  {it.cliente_id && (
+                    <Opcion icon="person-outline" t="Ver su ficha" d="Historial, puntos, preferencias y tu nota"
+                      onPress={() => { setHoja(null); router.push({ pathname: '/(app)/barbero/clientes', params: { cliente: it.cliente_id, nombre: it.turno_usuarios?.nombre ?? 'Cliente', telefono: it.turno_usuarios?.telefono ?? '' } } as any) }} />
                   )}
                   <Opcion icon="swap-horizontal" t="Cambiar servicio" d="Pidió otra cosa" onPress={() => setHoja({ tipo: 'servicios', modo: 'cambiar', item: it })} />
                   <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo onPress={() => setHoja({ tipo: 'sacar', item: it })} />
