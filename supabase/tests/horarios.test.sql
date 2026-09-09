@@ -127,6 +127,31 @@ begin
   if v_int = 0 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos terminan despues de cerrar'; end if;
 
+  -- ── SIN GAP, QUE ES COMO TRABAJA LA MAYORÍA ───────────────────────────────
+  -- El tiempo entre clientes nace en 0 desde la migración 54: el 10 de antes no
+  -- lo eligió nadie, se colaba por defecto, y en una jornada de nueve horas con
+  -- cortes de 45 son casi hora y media de silla regalada.
+  update turno_horarios set tiempo_entre_clientes = 0
+   where perfil_id = p and dia_semana = extract(dow from (v_dia + 1));
+
+  n:=n+1; c:='sin gap · con 0 los cortes van pegados, de 45 en 45';
+  select string_agg(to_char(s,'HH24:MI'), ' ' order by s) into v_lista
+    from turno_slots_disponibles(p, v_dia + 1, s_corte) s;
+  if v_lista = '08:00 08:45 09:30 10:15 11:00' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' -> '||coalesce(v_lista,'(vacío)'); end if;
+
+  -- El horario es por día de la semana porque el sábado no se trabaja como el
+  -- martes. Antes turno_eta y turno_ocupar_ahora hacían min() sobre TODA la
+  -- semana, así que un solo día en 0 ponía la semana entera en 0.
+  -- Se compara contra un día LIMPIO: v_dia ya lleva dos citas y un bloqueo de
+  -- los casos anteriores, así que allí la lista corta es la correcta y no
+  -- demostraría nada.
+  n:=n+1; c:='por día · poner un día en 0 NO afecta a los demás';
+  select string_agg(to_char(s,'HH24:MI'), ' ' order by s) into v_lista
+    from turno_slots_disponibles(p, v_dia + 2, s_corte) s;
+  if v_lista = '08:00 08:55 09:50 10:45' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el dia con gap 10 salio como '||coalesce(v_lista,'(vacío)'); end if;
+
   raise exception E'\n=== HORARIOS · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
 end $$;

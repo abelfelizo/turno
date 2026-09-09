@@ -84,7 +84,7 @@ export default function BarberoDelLocal() {
     const h = horarioDe(n)
     setHrIni(h ? Number(String(h.hora_inicio).slice(0, 2)) : 9)
     setHrFin(h ? Number(String(h.hora_fin).slice(0, 2)) : 19)
-    setHrBuf(h?.tiempo_entre_clientes ?? 10)
+    setHrBuf(h?.tiempo_entre_clientes ?? 0)
     setHrModal({ n, h })
   }
   async function aplicarHorario(activo: boolean) {

@@ -372,10 +372,10 @@ export async function getHorariosPerfil(perfil_id: string) {
 }
 export async function guardarHorario(h: { id?: string; perfil_id: string; dia_semana: number; hora_inicio: string; hora_fin: string; tiempo_entre_clientes?: number; activo: boolean }) {
   if (h.id) {
-    const { error } = await supabase.from(T('horarios')).update({ hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 10 }).eq('id', h.id)
+    const { error } = await supabase.from(T('horarios')).update({ hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0 }).eq('id', h.id)
     if (error) throw error
   } else {
-    const { error } = await supabase.from(T('horarios')).insert({ perfil_id: h.perfil_id, dia_semana: h.dia_semana, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 10 })
+    const { error } = await supabase.from(T('horarios')).insert({ perfil_id: h.perfil_id, dia_semana: h.dia_semana, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0 })
     if (error) throw error
   }
 }
