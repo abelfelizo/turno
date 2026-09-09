@@ -4,9 +4,10 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola,
-  getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas,
+  getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
+import { avisos } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -26,11 +27,12 @@ export default function MiTurno() {
   const [accion, setAccion] = useState<string | null>(null)
   const [hoja, setHoja] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
+  const [usuarioNombre, setUsuarioNombre] = useState('')
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [ts, neg, perf, cfg, cts] = await Promise.all([
+    const [ts, neg, perf, cfg, cts, yo] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
@@ -38,9 +40,10 @@ export default function MiTurno() {
       // Las citas reservadas también son "mi turno": tenerlas solo en Inicio
       // obligaba a recordar en qué pantalla estaba cada cosa.
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
+      getMiUsuario().catch(() => null),
     ])
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
-    setCitas(cts as any[])
+    setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     const map: Record<string, number | null> = {}
     const pmap: Record<string, boolean> = {}
@@ -65,7 +68,14 @@ export default function MiTurno() {
 
   async function voy(t: any) {
     setAccion(t.id)
-    try { await confirmarCamino(t.id); await cargar() }
+    try {
+      await confirmarCamino(t.id)
+      // El barbero necesita saber que viene en camino para no llamar al
+      // siguiente mientras este cruza la calle.
+      const barbero = perfiles.find((p: any) => p.id === t.perfil_id)
+      if (barbero?.usuario_id) avisos.barberoVaEnCamino(barbero.usuario_id, usuarioNombre || 'Tu cliente')
+      await cargar()
+    }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
   }
   function salir(t: any) {

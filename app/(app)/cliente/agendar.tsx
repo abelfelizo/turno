@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario } from '../../../lib/db'
+import { avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12, dinero, fechaISOLocal } from '../../../lib/format'
+import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -80,6 +81,12 @@ export default function Agendar() {
         await agendarGrupo(perfil.id, servicio.id, fecha, hora, personas)   // R5: N espacios seguidos
       } else {
         await agendarCita(perfil.id, servicio.id, fecha, hora)
+      }
+      // El barbero se enteraba de sus propias citas solo al abrir la agenda.
+      const yo = await getMiUsuario().catch(() => null)
+      if (perfil.usuario_id) {
+        avisos.barberoNuevaCita(perfil.usuario_id, yo?.nombre ?? 'Un cliente',
+          `${fechaLarga(fechaDeISO(fecha))} a las ${hora12(hora)}`)
       }
       const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
       const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`

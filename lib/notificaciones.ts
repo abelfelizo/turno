@@ -103,3 +103,50 @@ export async function enviarPush(
     reportError(e, { where: 'enviarPush', usuarioId })
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVISOS CON NOMBRE
+//
+// Los push viajan de teléfono a teléfono: quien hace la acción avisa a quien le
+// afecta. El cliente que entra a la fila avisa al barbero; el barbero que llama
+// avisa al cliente. Este proyecto no tiene pg_net, así que la base no puede
+// llamar a nadie por su cuenta — cualquier aviso tiene que salir de una app que
+// esté haciendo algo en ese momento.
+//
+// Están todos aquí y no repartidos por las pantallas para que el texto que lee
+// el barbero a las 8 de la mañana se pueda revisar de un vistazo.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** El barbero no se enteraba de nada de su propio trabajo: tenía que estar
+ *  mirando la app para saber que había gente esperando. */
+export const avisos = {
+  barberoNuevoEnFila: (barberoUsuarioId: string, cliente: string, servicio?: string) =>
+    enviarPush(barberoUsuarioId, 'Alguien entró a tu fila',
+      `${cliente}${servicio ? ` · ${servicio}` : ''}`, { tipo: 'agenda' }),
+
+  barberoNuevaCita: (barberoUsuarioId: string, cliente: string, cuando: string) =>
+    enviarPush(barberoUsuarioId, 'Nueva cita', `${cliente} reservó para ${cuando}.`, { tipo: 'agenda' }),
+
+  barberoCitaCancelada: (barberoUsuarioId: string, cliente: string, cuando: string) =>
+    enviarPush(barberoUsuarioId, 'Cita cancelada', `${cliente} canceló la de ${cuando}.`, { tipo: 'agenda' }),
+
+  barberoVaEnCamino: (barberoUsuarioId: string, cliente: string) =>
+    enviarPush(barberoUsuarioId, 'Va en camino', `${cliente} salió para allá.`, { tipo: 'agenda' }),
+
+  /** R2 lo especificaba desde el principio y no estaba construido. */
+  clientePrepararse: (clienteId: string, local: string, delante: number) =>
+    enviarPush(clienteId, 'Prepárate, casi te toca',
+      delante === 0 ? `Eres el siguiente en ${local}.` : `Quedan ${delante} delante de ti en ${local}.`,
+      { tipo: 'turno' }),
+
+  clienteCitaCancelada: (clienteId: string, local: string, cuando: string) =>
+    enviarPush(clienteId, 'Se canceló tu cita', `${local} canceló la de ${cuando}.`, { tipo: 'cita' }),
+
+  clientePremio: (clienteId: string, premio: string, local: string) =>
+    enviarPush(clienteId, '¡Ganaste tu premio! 🎁',
+      `${premio} en ${local}. Pídelo en tu próxima visita.`, { tipo: 'premio' }),
+
+  duenoSolicitud: (duenoUsuarioId: string, quien: string, local: string) =>
+    enviarPush(duenoUsuarioId, 'Un barbero quiere unirse',
+      `${quien} pidió entrar a ${local}. Apruébalo desde tu panel.`, { tipo: 'equipo' }),
+}

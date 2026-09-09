@@ -6,12 +6,12 @@ import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
   getNegocioById, getPerfilesNegocio, getMiTurnoActivo, getMisCitas,
   getRatingsNegocio, confirmarCita, cancelarCita, getMisNegociosCliente, getConfiguracion,
-  getMisTarjetas, getHistorialCliente,
+  getMisTarjetas, getHistorialCliente, getMiUsuario,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
-import { programarRecordatoriosCitas } from '../../../lib/notificaciones'
+import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12, dinero } from '../../../lib/format'
+import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 
@@ -29,6 +29,7 @@ function cuentaRegresiva(fecha: string, hora: string) {
 export default function Home() {
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
+  const [miNombre, setMiNombre] = useState('')
   const [negocio, setNegocio] = useState<any>(null)
   const [negocios, setNegocios] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
@@ -43,10 +44,19 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false)
   const [hoja, setHoja] = useState<any>(null)   // selección para la hoja de confirmación de fila
 
+  /** El barbero descubría los huecos al abrir la agenda; ahora se entera. */
+  function avisarCancelacion(cita: any) {
+    const barbero = cita?.turno_perfiles?.usuario_id
+    if (barbero) {
+      avisos.barberoCitaCancelada(barbero, miNombre || 'Un cliente',
+        `${fechaLarga(fechaDeISO(cita.fecha))} a las ${hora12(cita.hora_inicio)}`)
+    }
+  }
+
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.negocio_id || !ss?.usuario_id) { setLoading(false); return }
-    const [neg, perf, t, cs, rt, negs, cfg, pts, hist] = await Promise.all([
+    const [neg, perf, t, cs, rt, negs, cfg, pts, hist, yo] = await Promise.all([
       getNegocioById(ss.negocio_id), getPerfilesNegocio(ss.negocio_id),
       getMiTurnoActivo(ss.usuario_id, ss.negocio_id),
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
@@ -55,9 +65,10 @@ export default function Home() {
       getConfiguracion(ss.negocio_id).catch(() => null),
       getMisTarjetas(ss.negocio_id).catch(() => []),
       getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
+      getMiUsuario().catch(() => null),
     ])
     setNegocio(neg); setPerfiles(perf as any[]); setTurno(t); setCitas(cs as any[])
-    setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[])
+    setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
   }, [])
@@ -139,7 +150,7 @@ export default function Home() {
               <TouchableOpacity onPress={() => router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: cita.perfil_id, servicio: cita.servicio_id, reagendar: cita.id } })}>
                 <Text style={s.citaReprog}>Reprogramar</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); cargar() } }])}>
+              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); avisarCancelacion(cita); cargar() } }])}>
                 <Text style={s.citaCancel}>Cancelar</Text>
               </TouchableOpacity>
             </View>

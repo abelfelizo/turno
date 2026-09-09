@@ -6,11 +6,11 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   moverEnCola, llamarA, sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
-  getEstadoBarbero, actualizarEstadoPerfil,
+  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
-import { enviarPush } from '../lib/notificaciones'
+import { enviarPush, avisos } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
@@ -176,11 +176,19 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     if (r?.cliente_id) enviarPush(r.cliente_id, 'Es tu turno', `Acércate a ${negocio?.nombre ?? 'el local'}, ya casi te toca.`, { tipo: 'turno' })
   }
 
+  /** R2 pedía este aviso desde el principio y nunca se construyó: al llamar a
+   *  alguien, el que pasa a ser siguiente se entera de que le toca pronto. Se
+   *  calcula ANTES de recargar para no depender de una carrera de estados. */
+  function avisarSiguiente() {
+    const proximo = enFila[1]
+    if (proximo?.cliente_id) avisos.clientePrepararse(proximo.cliente_id, negocio?.nombre ?? 'el local', 0)
+  }
+
   async function llamar() {
     try {
       const r = await llamarSiguiente(sesion.negocio_id, sesion.perfil_id)
       if (!r) Alert.alert('Sin cola', 'Nadie esperando o hay una cita confirmada en curso.')
-      else avisarLlamado(r)
+      else { avisarLlamado(r); avisarSiguiente() }
       cargar()
     } catch (e: any) { Alert.alert('No se pudo llamar', e.message ?? 'Intenta de nuevo.') }
   }
@@ -207,14 +215,44 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
           enviarPush(item.cliente_id, 'Listo ✂️',
             `Gracias por tu visita a ${negocio?.nombre ?? 'la barbería'}. Cuéntanos qué tal.`,
             { tipo: 'atendido' })
+          // La visita ya sumó (el trigger corre en la misma transacción), así
+          // que aquí se sabe si con esta cerró la tarjeta. Enterarse por
+          // sorpresa en la próxima visita es peor premio.
+          avisarSiPremio(item.cliente_id)
         }
       }) },
     ])
   }
+  /** Avisa al cliente si esta visita le completó la tarjeta de fidelidad. */
+  async function avisarSiPremio(clienteId: string) {
+    try {
+      const [f, t] = await Promise.all([
+        getFidelidad(sesion.negocio_id, sesion.perfil_id),
+        getTarjetaCliente(clienteId, sesion.negocio_id, null),
+      ])
+      if (!f?.activo) return
+      const card = await getTarjetaCliente(clienteId, sesion.negocio_id, f.perfil ?? null).catch(() => t)
+      const disp = ((card as any)?.visitas_totales ?? 0) - ((card as any)?.visitas_canjeadas ?? 0)
+      if (disp >= f.meta) avisos.clientePremio(clienteId, f.premio, negocio?.nombre ?? 'la barbería')
+    } catch { /* un aviso que no sale no puede romper el cierre de la visita */ }
+  }
+
   function accionCita(c: any) {
     const opts: any[] = [{ text: 'Cerrar', style: 'cancel' }]
     if (c.estado === 'confirmada' || c.estado === 'en_camino') opts.unshift({ text: 'Marcar atendida', onPress: async () => { await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() }); cargar() } })
     if (c.estado === 'creada') opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: async () => { await actualizarEstadoCita(c.id, 'no_llego'); cargar() } })
+    // Cancelar desde el lado del barbero no existía: solo podía marcar que el
+    // cliente no llegó, que es una acusación distinta.
+    if (['creada', 'confirmada', 'no_confirmada', 'en_camino'].includes(c.estado)) {
+      opts.unshift({ text: 'Cancelar la cita', style: 'destructive', onPress: async () => {
+        await actualizarEstadoCita(c.id, 'cancelada', { cancelada_by: 'barbero' })
+        if (c.cliente_id) {
+          avisos.clienteCitaCancelada(c.cliente_id, negocio?.nombre ?? 'la barbería',
+            `${fechaLarga(fechaDeISO(c.fecha))} a las ${hora12(c.hora_inicio)}`)
+        }
+        cargar()
+      } })
+    }
     if (c.turno_usuarios?.telefono) opts.unshift({ text: 'Recordar por WhatsApp', onPress: () => recordarCita(c.turno_usuarios.telefono, c.turno_usuarios?.nombre ?? 'cliente', c.hora_inicio, negocio?.nombre ?? 'tu barbería') })
     Alert.alert(c.turno_usuarios?.nombre ?? 'Cita', `${c.turno_servicios?.nombre} · ${hora12(c.hora_inicio)}`, opts)
   }

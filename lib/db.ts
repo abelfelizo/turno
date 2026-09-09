@@ -157,6 +157,15 @@ export async function getMisRoles(usuario_id: string): Promise<OpcionPanel[]> {
   return out
 }
 
+/** Dueños de un local, para avisarles. Cualquier miembro puede leerlo: la
+ *  política de membresías ya limita a los negocios propios. */
+export async function getDuenosNegocio(negocio_id: string): Promise<string[]> {
+  const { data, error } = await supabase.from(T('membresias')).select('usuario_id')
+    .eq('negocio_id', negocio_id).eq('rol', 'dueno').eq('activo', true)
+  if (error) throw error
+  return (data ?? []).map((m: any) => m.usuario_id)
+}
+
 /** Barberías donde el usuario es cliente (para el selector de local). */
 export async function getMisNegociosCliente(usuario_id: string) {
   const { data, error } = await supabase.from(T('membresias'))
@@ -475,7 +484,7 @@ export async function agendarGrupo(perfil_id: string, servicio_id: string, fecha
 export async function getMisCitas(cliente_id: string, negocio_id: string) {
   const hoy = fechaISOLocal()
   const { data, error } = await supabase.from(T('citas'))
-    .select('*, turno_servicios!servicio_id(nombre, precio), turno_perfiles!perfil_id(turno_usuarios(nombre))')
+    .select('*, turno_servicios!servicio_id(nombre, precio), turno_perfiles!perfil_id(usuario_id, turno_usuarios(nombre))')
     .eq('cliente_id', cliente_id).eq('negocio_id', negocio_id)
     .in('estado', ['creada', 'confirmada', 'no_confirmada', 'en_camino'])
     .gte('fecha', hoy).order('fecha').order('hora_inicio')

@@ -1,7 +1,8 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Alert } from 'react-native'
 import { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { entrarACola, getResumenFila, getConfiguracion } from '../lib/db'
+import { entrarACola, getResumenFila, getConfiguracion, getMiUsuario } from '../lib/db'
+import { avisos } from '../lib/notificaciones'
 import { dinero } from '../lib/format'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar } from './ui'
@@ -45,6 +46,13 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado }: {
     setEntrando(true)
     try {
       await entrarACola({ negocio_id: seleccion.negocio.id, servicio_id: seleccion.servicio.id, tipo_cola: 'digital', perfil_id: seleccion.perfil?.id })
+      // El barbero no se enteraba de que alguien había entrado a su fila:
+      // tenía que estar mirando la app. El aviso sale de aquí porque la base
+      // no puede llamar a nadie sin pg_net.
+      const u = await getMiUsuario().catch(() => null)
+      if (seleccion.perfil?.usuario_id) {
+        avisos.barberoNuevoEnFila(seleccion.perfil.usuario_id, u?.nombre ?? 'Un cliente', seleccion.servicio.nombre)
+      }
       onEntrado()
     } catch (e: any) {
       Alert.alert('No se pudo entrar', e.message ?? 'Intenta de nuevo.')
