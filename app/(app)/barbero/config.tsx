@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
+import { guardarReglasBarbero, getConfiguracion, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
@@ -41,6 +41,8 @@ export default function Config() {
   const [subiendoFoto, setSubiendoFoto] = useState(false)
   const [rolMembresia, setRolMembresia] = useState<string | null>(null)
   const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
+  const [cfgLocal, setCfgLocal] = useState<any>(null)
+  const [reglasBusy, setReglasBusy] = useState(false)
   const [locales, setLocales] = useState<any[]>([])
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
@@ -48,14 +50,15 @@ export default function Config() {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [u, p, sv, hr, mems] = await Promise.all([
+    const [u, p, sv, hr, mems, cfg] = await Promise.all([
       getMiUsuario().catch(() => null),
       getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
       getMisMembresias(ss.usuario_id).catch(() => []),
+      getConfiguracion(ss.negocio_id).catch(() => null),
     ])
-    setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[])
+    setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setCfgLocal(cfg)
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
       const locs = await getBarberoNegocios(ss.usuario_id).catch(() => [])
@@ -138,6 +141,31 @@ export default function Config() {
     setServicios(prev => prev.map(x => x.id === sv.id ? { ...x, activo: !x.activo } : x))
     await actualizarServicio(sv.id, { activo: !sv.activo }).catch(() => cargar())
   }
+  /** Guarda las cuatro reglas de golpe. null en un campo = "la del local".
+   *  Se mandan todas juntas porque el RPC escribe el bloque entero: mandar una
+   *  sola borraría las otras tres. */
+  async function guardarReglas(patch: Record<string, number | null>) {
+    if (!sesion?.perfil_id) return
+    const actual = {
+      anticipacion: perfil?.anticipacion_minima_horas ?? null,
+      ventana: perfil?.ventana_llegada_min ?? null,
+      gracia: perfil?.gracia_cita_min ?? null,
+      umbral: perfil?.umbral_confirmacion ?? null,
+    }
+    const nuevo = { ...actual, ...patch }
+    setPerfil((p: any) => ({
+      ...p,
+      anticipacion_minima_horas: nuevo.anticipacion,
+      ventana_llegada_min: nuevo.ventana,
+      gracia_cita_min: nuevo.gracia,
+      umbral_confirmacion: nuevo.umbral,
+    }))
+    setReglasBusy(true)
+    try { await guardarReglasBarbero(sesion.perfil_id, nuevo) }
+    catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.'); cargar() }
+    finally { setReglasBusy(false) }
+  }
+
   // Regla de producto: el barbero decide lo suyo salvo que sea empleado.
   const empleado = rolMembresia === 'empleado'
 
@@ -329,6 +357,46 @@ export default function Config() {
         </View>
       </View>
 
+      {/* Las reglas de tiempo eran del local y solo del local, así que el
+          dueño se las imponía a alguien que le paga un asiento. Ahora el
+          autónomo las suyas; NULL sigue significando "la del local". */}
+      {!empleado && (() => {
+        const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+          || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+        const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
+        const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
+        const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
+        const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
+        return (
+          <>
+            <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
+            <View style={s.regla}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.reglaL}>Usar mis propios tiempos</Text>
+                <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
+              </View>
+              <Switch value={propias} disabled={reglasBusy}
+                onValueChange={(v) => guardarReglas(v
+                  ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
+                  : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
+                trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+            </View>
+            {propias && (
+              <>
+                <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
+                  v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
+                  v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
+                <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
+                  v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
+                  v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
+              </>
+            )}
+          </>
+        )
+      })()}
+
       {rolMembresia === 'barbero_renta' && (
         <>
           <Text style={[s.sec, { marginTop: 18 }]}>MIS PUNTOS DE FIDELIDAD</Text>
@@ -461,6 +529,22 @@ export default function Config() {
         </View></View>
       </Modal>
     </ScrollView>
+  )
+}
+
+function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v: number; suf: string; paso?: number; onSet: (v: number) => void }) {
+  return (
+    <View style={s.regla}>
+      <View style={{ flex: 1, paddingRight: 12 }}>
+        <Text style={s.reglaL}>{l}</Text>
+        {d ? <Text style={s.reglaD}>{d}</Text> : null}
+      </View>
+      <View style={s.stepCtrl}>
+        <TouchableOpacity style={s.stepBtn} onPress={() => onSet(v - paso)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+        <Text style={s.stepVal}>{v}{suf}</Text>
+        <TouchableOpacity style={s.stepBtn} onPress={() => onSet(v + paso)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+      </View>
+    </View>
   )
 }
 

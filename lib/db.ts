@@ -252,6 +252,21 @@ export async function getBarberoNegocios(usuario_id: string) {
   return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
 }
 
+/** Reglas de tiempo propias del barbero autónomo. Pasar null en un campo
+ *  significa "uso la del local": no hay un valor mágico, es herencia real. */
+export async function guardarReglasBarbero(perfil_id: string, r: {
+  anticipacion?: number | null; ventana?: number | null; gracia?: number | null; umbral?: number | null
+}) {
+  const { error } = await supabase.rpc('turno_guardar_reglas_barbero', {
+    p_perfil: perfil_id,
+    p_anticipacion: r.anticipacion ?? null,
+    p_ventana: r.ventana ?? null,
+    p_gracia: r.gracia ?? null,
+    p_umbral: r.umbral ?? null,
+  })
+  if (error) throw error
+}
+
 /** El dueño cambia la modalidad del LOCAL. Realinea a todo el equipo: dejar
  *  membresías con la modalidad vieja sería peor que no cambiar nada. */
 export async function cambiarTipoNegocio(negocio_id: string, tipo: 'empleados' | 'espacios_rentados') {

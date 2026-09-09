@@ -225,6 +225,9 @@ export default function Config() {
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
 
       <Text style={s.sec}>TIEMPOS</Text>
+      <Text style={s.modNota}>
+        Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.
+      </Text>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
         suf="h" value={config?.anticipacion_minima_horas ?? 2} onMinus={() => ajustar('anticipacion_minima_horas', -1, 0, 48)} onPlus={() => ajustar('anticipacion_minima_horas', 1, 0, 48)} />
