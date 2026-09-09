@@ -206,6 +206,21 @@ export default function Config() {
 
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
       <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
+      {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
+          puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
+          puntos y el cliente no veía sumar ni uno. */}
+      {!!config?.puntos_activos && (
+        <>
+          <Stepper label="Puntos por visita" suf="pt"
+            value={config?.puntos_por_visita ?? 1}
+            onMinus={() => ajustar('puntos_por_visita', -1, 1, 50)} onPlus={() => ajustar('puntos_por_visita', 1, 1, 50)} />
+          <Stepper label="Visitas para el premio"
+            desc={`El cliente canjea al llegar a ${(config?.puntos_por_visita ?? 1) * (config?.visitas_para_gratis ?? 8)} puntos.`}
+            suf="visitas"
+            value={config?.visitas_para_gratis ?? 8}
+            onMinus={() => ajustar('visitas_para_gratis', -1, 2, 50)} onPlus={() => ajustar('visitas_para_gratis', 1, 2, 50)} />
+        </>
+      )}
       <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
 

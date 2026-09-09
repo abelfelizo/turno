@@ -2,7 +2,8 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
-import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar } from '../../../lib/db'
+import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getPuntos, getConfiguracion, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
+import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
@@ -18,23 +19,42 @@ export default function Clientes() {
   const [nota, setNota] = useState('')
   const [cargandoNota, setCargandoNota] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  const [negocioId, setNegocioId] = useState<string | null>(null)
+  const [moneda, setMoneda] = useState('')
+  const [ficha, setFicha] = useState<{ historial: any[]; puntos: any; prefs: any; meta: number } | null>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id) { setLoading(false); return }
-    setUsuarioId(ss.usuario_id)
-    const [cl, rec] = await Promise.all([
+    setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null)
+    const [cl, rec, neg] = await Promise.all([
       getMisClientes().catch(() => []),
       ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
+      ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
     ])
-    setClientes(cl); setRecuperar(rec as any[])
+    setClientes(cl); setRecuperar(rec as any[]); setMoneda((neg as any)?.moneda ?? '')
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
+  // La ficha completa: nota privada, puntos, preferencias e historial. Antes
+  // el barbero solo podía escribir una nota y no veía nada del cliente.
   async function abrir(c: any) {
-    setActivo(c); setNota(''); setCargandoNota(true)
-    if (usuarioId) setNota(await getNotaBarbero(usuarioId, c.cliente_id).catch(() => '') || '')
+    setActivo(c); setNota(''); setFicha(null); setCargandoNota(true)
+    const [n, hist, pts, cfg, prefs] = await Promise.all([
+      usuarioId ? getNotaBarbero(usuarioId, c.cliente_id).catch(() => '') : Promise.resolve(''),
+      negocioId ? getHistorialCliente(c.cliente_id, negocioId).catch(() => []) : Promise.resolve([]),
+      negocioId ? getPuntos(c.cliente_id, negocioId).catch(() => null) : Promise.resolve(null),
+      negocioId ? getConfiguracion(negocioId).catch(() => null) : Promise.resolve(null),
+      negocioId ? getPreferenciasCliente(c.cliente_id, negocioId).catch(() => null) : Promise.resolve(null),
+    ])
+    setNota(n || '')
+    setFicha({
+      historial: hist as any[],
+      puntos: cfg?.puntos_activos ? pts : null,
+      prefs,
+      meta: (cfg?.puntos_por_visita ?? 1) * (cfg?.visitas_para_gratis ?? 8),
+    })
     setCargandoNota(false)
   }
   async function guardar() {
@@ -103,6 +123,48 @@ export default function Clientes() {
                 <TouchableOpacity style={s.wa} onPress={() => escribirCliente(activo.telefono, activo.nombre)}><Ionicons name="logo-whatsapp" size={22} color={COLORS.success} /></TouchableOpacity>
               ) : null}
             </View>
+            {ficha?.puntos && (() => {
+              const disp = (ficha.puntos.puntos_totales ?? 0) - (ficha.puntos.puntos_canjeados ?? 0)
+              const enCiclo = ficha.meta > 0 ? disp % ficha.meta : 0
+              return (
+                <View style={s.puntos}>
+                  <Ionicons name="star" size={18} color="#fff" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.puntosT}>{disp} puntos disponibles</Text>
+                    <Text style={s.puntosD}>{Math.max(0, ficha.meta - enCiclo)} para el próximo premio</Text>
+                  </View>
+                </View>
+              )
+            })()}
+
+            {ficha?.prefs && (ficha.prefs.tipo_corte || ficha.prefs.largo || ficha.prefs.barba || ficha.prefs.alergias) && (
+              <>
+                <Text style={s.notaLbl}>CÓMO LE GUSTA</Text>
+                <Text style={s.prefs}>
+                  {[ficha.prefs.tipo_corte, ficha.prefs.largo, ficha.prefs.barba].filter(Boolean).join(' · ')}
+                </Text>
+                {ficha.prefs.alergias ? <Text style={s.alerta}>⚠ Alergias: {ficha.prefs.alergias}</Text> : null}
+              </>
+            )}
+
+            {ficha && ficha.historial.length > 0 && (
+              <>
+                <Text style={s.notaLbl}>ÚLTIMAS VISITAS</Text>
+                {ficha.historial.slice(0, 6).map((h: any) => (
+                  <View key={h.id} style={s.visita}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.visitaS}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                      <Text style={s.visitaF}>
+                        {fechaLarga(fechaDeISO(h.fecha))}
+                        {h.turno_perfiles?.turno_usuarios?.nombre ? ` · ${h.turno_perfiles.turno_usuarios.nombre}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={s.visitaP}>{dinero(h.precio_cobrado, moneda)}</Text>
+                  </View>
+                ))}
+              </>
+            )}
+
             <Text style={s.notaLbl}>NOTA PRIVADA</Text>
             {cargandoNota ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 20 }} /> : (
               <TextInput style={s.input} placeholder="Preferencias, alergias, recordatorios…" placeholderTextColor={COLORS.textLight}
@@ -137,6 +199,15 @@ const s = StyleSheet.create({
   modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 6, marginBottom: 18 },
   modalHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   wa: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.successLight, alignItems: 'center', justifyContent: 'center' },
+  puntos: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 4 },
+  puntosT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  puntosD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
+  prefs: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.ink, marginBottom: 4 },
+  alerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 4 },
+  visita: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  visitaS: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  visitaF: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
+  visitaP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
   notaLbl: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 8 },
   input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, minHeight: 90, textAlignVertical: 'top', marginBottom: 16, color: COLORS.ink },
   btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },

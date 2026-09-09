@@ -22,6 +22,21 @@ export function suscribirCola(negocio_id: string, callback: (payload: any) => vo
     .subscribe()
 }
 
+/** Bloqueos del barbero: la silla ocupada por un cliente sin cita entra por
+ *  aquí. Sin esta suscripción la tarjeta "SILLA OCUPADA" no aparecía hasta que
+ *  alguien tiraba de la pantalla para refrescar. */
+export function suscribirBloqueos(perfil_id: string, callback: (payload: any) => void) {
+  return supabase
+    .channel(`bloqueos_${perfil_id}_${uniq()}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: T('bloqueos'),
+      filter: `perfil_id=eq.${perfil_id}`,
+    }, callback)
+    .subscribe()
+}
+
 export function suscribirCitas(perfil_id: string, fecha: string, callback: (payload: any) => void) {
   return supabase
     .channel(`citas_${perfil_id}_${uniq()}`)

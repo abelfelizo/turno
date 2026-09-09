@@ -10,7 +10,7 @@ import {
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush } from '../lib/notificaciones'
-import { suscribirCola, suscribirCitas, desuscribir } from '../lib/realtime'
+import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
@@ -18,6 +18,13 @@ import PanelBadge from './panel-badge'
 
 /** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
 const DIAS_ADELANTE = 20
+
+/** Suma minutos a una hora "HH:MM:SS" sin salirse del día. */
+function sumarMinutos(hhmmss: string, min: number) {
+  const [h, m] = hhmmss.split(':').map(Number)
+  const total = Math.min(23 * 60 + 59, h * 60 + m + min)
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`
+}
 
 /** Hora local "HH:MM:SS", para comparar contra los bloqueos del día. */
 function horaAhora() {
@@ -55,6 +62,8 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const hoy = fechaISOLocal()
   const [fecha, setFecha] = useState(hoy)
   const [conteo, setConteo] = useState<Record<string, number>>({})
+  const [tic, setTic] = useState(0)   // fuerza recalcular la hora cada 30 s
+  const [verTodos, setVerTodos] = useState(false)
   const esHoy = fecha === hoy
 
   const cargar = useCallback(async () => {
@@ -109,14 +118,28 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
   useEffect(() => {
     cargar()
-    let subCola: any, subCitas: any
+    let subCola: any, subCitas: any, subBloq: any
     getSesion().then(ss => {
       if (!ss?.perfil_id) return
       subCola = suscribirCola(ss.negocio_id!, () => cargar())
       subCitas = suscribirCitas(ss.perfil_id!, fecha, () => cargar())
+      // La silla ocupada por un cliente sin cita es un bloqueo: sin esta
+      // suscripción la tarjeta no salía hasta refrescar a mano.
+      subBloq = suscribirBloqueos(ss.perfil_id!, () => cargar())
     })
-    return () => { if (subCola) desuscribir(subCola); if (subCitas) desuscribir(subCitas) }
+    return () => {
+      if (subCola) desuscribir(subCola)
+      if (subCitas) desuscribir(subCitas)
+      if (subBloq) desuscribir(subBloq)
+    }
   }, [cargar, fecha])
+
+  // La silla se libera sola al pasar la hora: sin este tic la tarjeta se
+  // quedaba clavada hasta que el barbero tocaba algo.
+  useEffect(() => {
+    const t = setInterval(() => setTic(x => x + 1), 30000)
+    return () => clearInterval(t)
+  }, [])
 
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
   const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')?.cliente_id
@@ -187,8 +210,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')
   const enFila = cola.filter(c => c.estado === 'en_fila')
   const badgeCita = (e: string) => e === 'confirmada' ? 'success' : e === 'no_llego' || e === 'no_confirmada' ? 'red' : e === 'en_camino' ? 'blue' : 'gray'
-  const ahora = horaAhora()
-  const ocupado = esHoy ? bloqueos.find(b => b.hora_inicio <= ahora && b.hora_fin > ahora) : null
+  const ahora = horaAhora()   // recalculado en cada tic
+  // Tolerancia de 2 min al inicio: el bloqueo lo sella el servidor con la hora
+  // del local, y el reloj del teléfono puede ir unos segundos por detrás. Sin
+  // ella, la silla recién ocupada no se reconocía como vigente.
+  const ocupado = esHoy
+    ? bloqueos.find(b => b.hora_inicio <= sumarMinutos(ahora, 2) && b.hora_fin > ahora)
+    : null
+  // Los que se ven abajo son los bloqueos que NO están en curso: el vigente ya
+  // se muestra arriba como estado, y repetirlo confundía.
+  const bloqueosLista = bloqueos.filter(b => b.id !== ocupado?.id)
   const dias = Array.from({ length: DIAS_ADELANTE + 2 }, (_, i) => sumarDias(hoy, i - 1))
 
   return (
@@ -315,11 +346,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
             </TouchableOpacity>
           )}
 
+          {/* Siempre visible, aunque esté vacía: el barbero preguntó por "los
+              próximos", y una sección que desaparece deja la duda de si no hay
+              nadie o si la pantalla se rompió. */}
+          <Text style={s.sec}>EN FILA · {enFila.length}</Text>
+          {enFila.length === 0
+            ? <Text style={s.empty}>Nadie esperando ahora mismo.</Text>
+            : <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>}
           {enFila.length > 0 && (
             <>
-              <Text style={s.sec}>EN FILA · {enFila.length}</Text>
-              <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>
-              {enFila.map((q, i) => (
+              {(verTodos ? enFila : enFila.slice(0, 5)).map((q, i) => (
                 <TouchableOpacity key={q.id} style={s.row} onPress={() => setHoja({ tipo: 'acciones', item: q })}>
                   <View style={s.pos}><Text style={s.posT}>{i + 1}</Text></View>
                   <View style={{ flex: 1 }}>
@@ -329,6 +365,13 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                   <Ionicons name="ellipsis-vertical" size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
               ))}
+              {enFila.length > 5 && (
+                <TouchableOpacity onPress={() => setVerTodos(v => !v)}>
+                  <Text style={s.verTodos}>
+                    {verTodos ? 'Ver solo los próximos 5' : `Ver los ${enFila.length} de la fila`}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
         </>
@@ -347,10 +390,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         </TouchableOpacity>
       ))}
 
-      {bloqueos.length > 0 && (
+      {bloqueosLista.length > 0 && (
         <>
           <Text style={s.sec}>HORAS BLOQUEADAS</Text>
-          {bloqueos.map((b: any) => (
+          {bloqueosLista.map((b: any) => (
             <TouchableOpacity key={b.id} style={s.rowBloq} onPress={() => quitarBloqueo(b)}>
               <Ionicons name="lock-closed" size={16} color={COLORS.textMid} />
               <View style={{ flex: 1 }}>
@@ -566,6 +609,7 @@ const s = StyleSheet.create({
   llamarBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
   llamarT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
+  verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, textAlign: 'center', paddingVertical: 10 },
   secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
