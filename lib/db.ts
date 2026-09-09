@@ -255,6 +255,30 @@ export async function getBarberoNegocios(usuario_id: string) {
   return (data || []).map((x: any) => ({ negocio_id: x.negocio_id, nombre: x.negocio_nombre, perfil_id: x.perfil_id }))
 }
 
+export type EstadoBarbero = {
+  estado: 'libre' | 'atendiendo' | 'descanso' | 'inactivo'
+  acepta: boolean
+  cliente: string | null
+  hasta: string | null
+  en_cola: number
+}
+
+/** Estado real del barbero: 'atendiendo' se DEDUCE de la silla y los bloqueos,
+ *  no de un campo que alguien tenga que acordarse de actualizar. Lo único que
+ *  decide el barbero es si acepta clientes. */
+export async function getEstadoBarbero(perfil_id: string): Promise<EstadoBarbero | null> {
+  const { data, error } = await supabase.rpc('turno_estado_barbero', { p_perfil: perfil_id })
+  if (error) throw error
+  return ((data && data[0]) ?? null) as EstadoBarbero | null
+}
+
+/** El mismo estado para todo el equipo, de una consulta. */
+export async function getEstadoLocal(negocio_id: string) {
+  const { data, error } = await supabase.rpc('turno_estado_local', { p_negocio: negocio_id })
+  if (error) throw error
+  return (data ?? []) as (EstadoBarbero & { perfil_id: string; barbero: string; tipo_servicio: string })[]
+}
+
 /** Reglas de tiempo propias del barbero autónomo. Pasar null en un campo
  *  significa "uso la del local": no hay un valor mágico, es herencia real. */
 export async function guardarReglasBarbero(perfil_id: string, r: {

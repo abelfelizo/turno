@@ -6,6 +6,7 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   moverEnCola, llamarA, sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
+  getEstadoBarbero, actualizarEstadoPerfil,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
@@ -15,6 +16,10 @@ import { getSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
 import PanelBadge from './panel-badge'
+
+const EST_FONDO: Record<string, string> = {
+  libre: COLORS.success, atendiendo: COLORS.blue, descanso: COLORS.warning, inactivo: COLORS.textLight,
+}
 
 /** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
 const DIAS_ADELANTE = 20
@@ -71,12 +76,13 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const [conteo, setConteo] = useState<Record<string, number>>({})
   const [tic, setTic] = useState(0)   // fuerza recalcular la hora cada 30 s
   const [verTodos, setVerTodos] = useState(false)
+  const [estado, setEstado] = useState<any>(null)
   const esHoy = fecha === hoy
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -84,9 +90,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       getMiUsuario().catch(() => null),
       getConteoCitasRango(ss.perfil_id, sumarDias(hoy, -1), sumarDias(hoy, DIAS_ADELANTE)).catch(() => ({})),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
+      getEstadoBarbero(ss.perfil_id).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
-    setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[])
+    setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
     setLoading(false); setRefreshing(false)
   }, [fecha, hoy])
 
@@ -282,6 +289,33 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
       {esHoy && (
         <>
+          {/* Estado real: 'atendiendo' se deduce de la silla y los bloqueos.
+              Lo único que se decide a mano es si aceptas clientes, y eso vive
+              en el interruptor de abajo. */}
+          {estado && (
+            <View style={[s.estadoBox, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
+              <View style={s.estadoPunto} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.estadoT}>
+                  {estado.estado === 'atendiendo'
+                    ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
+                    : estado.estado === 'descanso' ? 'En descanso'
+                    : estado.estado === 'inactivo' ? 'Inactivo'
+                    : 'Libre'}
+                </Text>
+                <Text style={s.estadoD}>
+                  {estado.estado === 'atendiendo' && estado.hasta ? `Hasta ${hora12(estado.hasta)} · ` : ''}
+                  {estado.en_cola === 0 ? 'Nadie esperando' : `${estado.en_cola} esperando`}
+                  {!estado.acepta ? ' · no apareces para los clientes' : ''}
+                </Text>
+              </View>
+              <TouchableOpacity style={s.estadoBtn}
+                onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
+                <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={s.colaBox}>
             <Text style={s.colaTitle}>COLA AHORA</Text>
             <View style={s.colaStats}>
@@ -607,6 +641,12 @@ const s = StyleSheet.create({
   avisoDiaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  estadoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, marginBottom: 12 },
+  estadoPunto: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.9)' },
+  estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
+  estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  estadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
   colaStats: { flexDirection: 'row', justifyContent: 'space-between' },

@@ -3,20 +3,24 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { guardarReglasBarbero, getConfiguracion, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
+import { guardarReglasBarbero, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
-import { planIndependiente, planCubierto } from '../../../lib/pricing'
+import { planDeMiSilla } from '../../../lib/pricing'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
 
+// Estos tres son la ÚNICA decisión que toma el barbero sobre su estado: si
+// acepta clientes. Que esté ocupado o libre lo deduce el sistema de la silla y
+// los bloqueos, porque un estado que hay que acordarse de actualizar acaba
+// mintiendo — el barbero está cortando pelo, no tocando la app.
 const ESTADOS = [
-  { k: 'disponible', l: 'Disponible', c: COLORS.success },
-  { k: 'descanso', l: 'En descanso', c: COLORS.warning },
-  { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight },
+  { k: 'disponible', l: 'Acepto clientes', d: 'Apareces en la app y pueden entrar a tu fila.', c: COLORS.success },
+  { k: 'descanso', l: 'En descanso', d: 'Dejas de aparecer hasta que vuelvas a activarte.', c: COLORS.warning },
+  { k: 'inactivo', l: 'Inactivo', d: 'Como el descanso, pero para ausencias largas.', c: COLORS.textLight },
 ]
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
@@ -42,6 +46,7 @@ export default function Config() {
   const [rolMembresia, setRolMembresia] = useState<string | null>(null)
   const [negocioNombre, setNegocioNombre] = useState<string | null>(null)
   const [cfgLocal, setCfgLocal] = useState<any>(null)
+  const [cfgLocalTipo, setCfgLocalTipo] = useState<string | null>(null)
   const [reglasBusy, setReglasBusy] = useState(false)
   const [premio, setPremio] = useState('')
 
@@ -72,7 +77,11 @@ export default function Config() {
     setPremio((p as any)?.premio ?? 'Corte gratis')
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
-      const locs = await getBarberoNegocios(ss.usuario_id).catch(() => [])
+      const [locs, neg] = await Promise.all([
+        getBarberoNegocios(ss.usuario_id).catch(() => []),
+        getNegocioById(ss.negocio_id!).catch(() => null),
+      ])
+      setCfgLocalTipo((neg as any)?.tipo ?? null)
       setLocales(locs as any[])
       setNegocioNombre((locs as any[]).find((l: any) => l.negocio_id === ss.negocio_id)?.nombre ?? null)
     }
@@ -297,13 +306,18 @@ export default function Config() {
         </TouchableOpacity>
       </View>
 
-      <Text style={s.sec}>MI ESTADO</Text>
+      <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
+      <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
       <View style={{ gap: 8, marginBottom: 14 }}>
         {ESTADOS.map(e => {
           const on = perfil?.estado_actual === e.k
           return (
             <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
-              <View style={[s.dot, { backgroundColor: e.c }]} /><Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+              <View style={[s.dot, { backgroundColor: e.c }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+                <Text style={s.estadoD2}>{e.d}</Text>
+              </View>
               {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
             </TouchableOpacity>
           )
@@ -343,7 +357,7 @@ export default function Config() {
 
       <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
       {(() => {
-        const plan = rolMembresia === 'barbero_renta' ? planIndependiente() : planCubierto()
+        const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
         return (
           <View style={s.susCard}>
             <View style={{ flex: 1, paddingRight: 12 }}>
@@ -592,6 +606,7 @@ const s = StyleSheet.create({
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
   dot: { width: 12, height: 12, borderRadius: 6 },
+  estadoD2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.textMid, flex: 1 },
   estadoActivo: { fontFamily: FONTS.bold, fontSize: 12 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },

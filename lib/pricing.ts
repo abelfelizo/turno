@@ -49,6 +49,31 @@ export function planCubierto(): Plan {
   return { clave: 'cubierto', titulo: 'Tu suscripción', detalle: 'Incluida: la cubre el dueño del local.', monto: 0, montoTexto: 'Incluida' }
 }
 
+/**
+ * Plan que le toca a UNA persona en su silla, según cómo trabaja ahí.
+ *
+ * Existe porque antes se decidía con `rol === 'barbero_renta' ? independiente :
+ * cubierto`, y ese "si no, cubierto" metía también al DUEÑO: a quien es dueño
+ * del local se le decía "Incluida: la cubre el dueño del local", que además de
+ * ser una tautología es falso en una barbería de asientos alquilados, donde
+ * nadie cubre a nadie.
+ */
+export function planDeMiSilla(rol: string | null | undefined, tipoNegocio?: string | null): Plan {
+  if (rol === 'barbero_renta') return planIndependiente()
+  if (rol === 'dueno') {
+    return {
+      clave: 'dueno',
+      titulo: 'Tu suscripción',
+      detalle: tipoNegocio === 'espacios_rentados'
+        ? 'Tu asiento va dentro del plan del local, que pagas tú. Los barberos que te alquilan pagan el suyo aparte.'
+        : 'Tu asiento va dentro del plan del local, que pagas tú.',
+      monto: 0,
+      montoTexto: 'En el plan del local',
+    }
+  }
+  return planCubierto()
+}
+
 /** Cliente: siempre gratis. */
 export function planGratis(): Plan {
   return { clave: 'gratis', titulo: 'Tu cuenta', detalle: 'Como cliente, Turno siempre es gratis para ti.', monto: 0, montoTexto: 'Gratis' }
