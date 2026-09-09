@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
@@ -45,24 +45,61 @@ export default function MiTurno() {
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
-    const map: Record<string, number | null> = {}
-    const pmap: Record<string, boolean> = {}
-    for (const t of ts as any[]) {
-      if (t.estado === 'en_fila') map[t.id] = await etaCola(t.id).catch(() => null)
-      pmap[t.id] = await puedeConfirmar(t.id).catch(() => false)   // gating R2
-    }
-    setEtas(map); setPuede(pmap)
+    await calcularEtas(ts as any[])
     setLoading(false); setRefreshing(false)
   }, [])
+
+  /**
+   * Iba de uno en uno, con dos `await` en serie por turno. Con la conexión de un
+   * móvil eso se nota: cada turno sumaba dos idas y vueltas ENCADENADAS, después
+   * de las seis de arriba. Ahora van todas a la vez.
+   */
+  const calcularEtas = useCallback(async (ts: any[]) => {
+    const res = await Promise.all(ts.map(async (t: any) => ({
+      id: t.id,
+      eta: t.estado === 'en_fila' ? await etaCola(t.id).catch(() => null) : null,
+      puede: await puedeConfirmar(t.id).catch(() => false),   // gating R2
+    })))
+    const map: Record<string, number | null> = {}
+    const pmap: Record<string, boolean> = {}
+    for (const r of res) { map[r.id] = r.eta; pmap[r.id] = r.puede }
+    setEtas(map); setPuede(pmap)
+  }, [])
+
+  /**
+   * Lo que cambia mientras esperas es tu turno y su ETA. El negocio, los
+   * barberos, la configuración y tu nombre no cambian porque alguien más entre a
+   * la fila, y sin embargo se volvían a pedir con cada evento y cada 60 s.
+   */
+  const cargarVivo = useCallback(async () => {
+    const ss = await getSesion()
+    if (!ss?.usuario_id || !ss?.negocio_id) return
+    const [ts, cts] = await Promise.all([
+      getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
+      getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
+    ])
+    setTurnos(ts as any[]); setCitas(cts as any[])
+    setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
+    await calcularEtas(ts as any[])
+  }, [calcularEtas])
+
+  // Una acción dispara varios eventos de cola casi a la vez; se agrupan.
+  const pendiente = useRef<any>(null)
+  const refrescar = useCallback(() => {
+    if (pendiente.current) clearTimeout(pendiente.current)
+    pendiente.current = setTimeout(() => { pendiente.current = null; cargarVivo() }, 250)
+  }, [cargarVivo])
+  useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
 
   useEffect(() => {
     cargar()
     let sub: any
-    getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => cargar()) })
+    getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => refrescar()) })
     // El ETA envejece solo: la silla ocupada se vacía con el reloj, no con un
     // cambio en la base, así que sin este refresco el cliente ve una espera
     // que ya no es cierta.
-    const t = setInterval(() => cargar(), 60000)
+    // El ETA envejece solo aunque no pase nada en el servidor.
+    const t = setInterval(() => cargarVivo(), 60000)
     return () => { if (sub) desuscribir(sub); clearInterval(t) }
   }, [cargar])
 
@@ -74,7 +111,7 @@ export default function MiTurno() {
       // siguiente mientras este cruza la calle.
       const barbero = perfiles.find((p: any) => p.id === t.perfil_id)
       if (barbero?.usuario_id) avisos.barberoVaEnCamino(barbero.usuario_id, usuarioNombre || 'Tu cliente')
-      await cargar()
+      await cargarVivo()
     }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
   }
@@ -83,7 +120,7 @@ export default function MiTurno() {
       { text: 'No' },
       { text: 'Sí, salir', style: 'destructive', onPress: async () => {
         setAccion(t.id)
-        try { await salirDeCola(t.id); await cargar() }
+        try { await salirDeCola(t.id); await cargarVivo() }
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
       } },
     ])
@@ -188,7 +225,7 @@ export default function MiTurno() {
                 </TouchableOpacity>))}
             </View>))}
 
-      <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargar() }} />
+      <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }} />
     </ScrollView>
   )
 }

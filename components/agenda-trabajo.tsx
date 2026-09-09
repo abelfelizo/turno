@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
@@ -97,6 +97,41 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     setLoading(false); setRefreshing(false)
   }, [fecha, hoy])
 
+  /**
+   * FLUIDEZ. `cargar()` son OCHO peticiones, una de ellas barriendo 22 días de
+   * citas para pintar los puntitos del selector de día. Se disparaba después de
+   * cada acción Y otra vez cuando llegaba el evento de realtime de esa misma
+   * acción: unas diecisiete idas y vueltas al servidor por un solo toque. En
+   * datos móviles eso son varios segundos, y es exactamente el "tarda un rato en
+   * aparecer" que se reportó al ocupar la silla.
+   *
+   * Lo que cambia mientras trabajas son cuatro cosas. Los servicios, el negocio,
+   * el usuario y el conteo del mes no cambian porque alguien entre a la fila.
+   */
+  const cargarVivo = useCallback(async () => {
+    const ss = await getSesion()
+    if (!ss?.perfil_id) return
+    const [c, q, bl, est] = await Promise.all([
+      getCitasFecha(ss.perfil_id, fecha),
+      getColaActiva(ss.negocio_id!, ss.perfil_id),
+      getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
+      getEstadoBarbero(ss.perfil_id).catch(() => null),
+    ])
+    setCitas(c as any[]); setCola(q as any[]); setBloqueos(bl as any[]); setEstado(est)
+  }, [fecha])
+
+  /**
+   * Tres suscripciones de realtime llamaban cada una a la recarga completa. Una
+   * sola acción dispara eventos en cola, citas y bloqueos casi a la vez, así que
+   * se recargaba tres veces seguidas. Se agrupan en una.
+   */
+  const pendiente = useRef<any>(null)
+  const refrescar = useCallback(() => {
+    if (pendiente.current) clearTimeout(pendiente.current)
+    pendiente.current = setTimeout(() => { pendiente.current = null; cargarVivo() }, 250)
+  }, [cargarVivo])
+  useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
+
   /** Sin cita = la silla queda tomada por lo que dura el servicio. No se crea
    *  ningún cliente: lo que importa es que esa hora deje de ofrecerse y que la
    *  cola digital sume esa espera. */
@@ -106,8 +141,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       { text: 'Ocupar', onPress: async () => {
         setWEnviando(true)
         try {
-          await ocuparAhora(sesion.perfil_id, sv.id)
-          setHoja(null); cargar()
+          const b = await ocuparAhora(sesion.perfil_id, sv.id)
+          setHoja(null)
+          // La RPC devuelve el bloqueo creado: se pinta ya, sin esperar a que
+          // el servidor conteste una segunda vez. Antes la tarjeta "SILLA
+          // OCUPADA" no salía hasta completar la recarga entera.
+          if (b) {
+            setBloqueos(prev => [...prev, b])
+            setEstado((e: any) => ({ ...(e ?? {}), estado: 'atendiendo', hasta: (b as any).hora_fin }))
+          }
+          refrescar()
         } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
         finally { setWEnviando(false) }
       } },
@@ -116,7 +159,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
   async function cambiarServicio(item: any, sv: any) {
     setWEnviando(true)
-    try { await cambiarServicioCola(item.id, sv.id); setHoja(null); cargar() }
+    try { await cambiarServicioCola(item.id, sv.id); setHoja(null); refrescar() }
     catch (e: any) { Alert.alert('No se pudo cambiar', e.message ?? 'Intenta de nuevo.') }
     finally { setWEnviando(false) }
   }
@@ -125,7 +168,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     setBEnviando(true)
     try {
       await crearBloqueo({ perfil_id: sesion.perfil_id, fecha, hora_inicio: `${String(bIni).padStart(2, '0')}:00`, hora_fin: `${String(bFin).padStart(2, '0')}:00`, motivo: bMotivo.trim() || undefined })
-      setHoja(null); setBMotivo(''); cargar()
+      setHoja(null); setBMotivo(''); refrescar()
     } catch (e: any) { Alert.alert('No se pudo bloquear', e.message ?? 'Intenta de nuevo.') }
     finally { setBEnviando(false) }
   }
@@ -135,18 +178,18 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     let subCola: any, subCitas: any, subBloq: any
     getSesion().then(ss => {
       if (!ss?.perfil_id) return
-      subCola = suscribirCola(ss.negocio_id!, () => cargar())
-      subCitas = suscribirCitas(ss.perfil_id!, fecha, () => cargar())
+      subCola = suscribirCola(ss.negocio_id!, () => refrescar())
+      subCitas = suscribirCitas(ss.perfil_id!, fecha, () => refrescar())
       // La silla ocupada por un cliente sin cita es un bloqueo: sin esta
       // suscripción la tarjeta no salía hasta refrescar a mano.
-      subBloq = suscribirBloqueos(ss.perfil_id!, () => cargar())
+      subBloq = suscribirBloqueos(ss.perfil_id!, () => refrescar())
     })
     return () => {
       if (subCola) desuscribir(subCola)
       if (subCitas) desuscribir(subCitas)
       if (subBloq) desuscribir(subBloq)
     }
-  }, [cargar, fecha])
+  }, [cargar, refrescar, fecha])
 
   // La silla se libera sola al pasar la hora: sin este tic la tarjeta se
   // quedaba clavada hasta que el barbero tocaba algo.
@@ -188,15 +231,19 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
     try {
       const r = await llamarSiguiente(sesion.negocio_id, sesion.perfil_id)
       if (!r) Alert.alert('Sin cola', 'Nadie esperando o hay una cita confirmada en curso.')
-      else { avisarLlamado(r); avisarSiguiente() }
-      cargar()
+      else {
+        avisarLlamado(r); avisarSiguiente()
+        setCola(prev => prev.map(x => x.id === (r as any).id
+          ? { ...x, estado: 'llamado', llamado_at: (r as any).llamado_at } : x))
+      }
+      refrescar()
     } catch (e: any) { Alert.alert('No se pudo llamar', e.message ?? 'Intenta de nuevo.') }
   }
 
   // ── Gestión de la fila ────────────────────────────────────────
   async function op(fn: () => Promise<any>, err = 'No se pudo') {
     setHoja(null)
-    try { await fn(); cargar() } catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
+    try { await fn(); refrescar() } catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
   }
   function empezarCorte(item: any) {
     Alert.alert('Empezar', `¿Sentar a ${item.turno_usuarios?.nombre ?? 'este cliente'} en la silla?`, [
@@ -239,8 +286,8 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
   function accionCita(c: any) {
     const opts: any[] = [{ text: 'Cerrar', style: 'cancel' }]
-    if (c.estado === 'confirmada' || c.estado === 'en_camino') opts.unshift({ text: 'Marcar atendida', onPress: async () => { await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() }); cargar() } })
-    if (c.estado === 'creada') opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: async () => { await actualizarEstadoCita(c.id, 'no_llego'); cargar() } })
+    if (c.estado === 'confirmada' || c.estado === 'en_camino') opts.unshift({ text: 'Marcar atendida', onPress: async () => { await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() }); refrescar() } })
+    if (c.estado === 'creada') opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: async () => { await actualizarEstadoCita(c.id, 'no_llego'); refrescar() } })
     // Cancelar desde el lado del barbero no existía: solo podía marcar que el
     // cliente no llegó, que es una acusación distinta.
     if (['creada', 'confirmada', 'no_confirmada', 'en_camino'].includes(c.estado)) {
@@ -250,7 +297,11 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
           avisos.clienteCitaCancelada(c.cliente_id, negocio?.nombre ?? 'la barbería',
             `${fechaLarga(fechaDeISO(c.fecha))} a las ${hora12(c.hora_inicio)}`)
         }
-        cargar()
+        // Los puntitos del selector de día salen del conteo del mes, que solo se
+        // recarga entero. Quedan un momento desactualizados a cambio de que la
+        // cancelación se vea al instante; se ajustan al cambiar de día o al tirar
+        // de la pantalla.
+        refrescar()
       } })
     }
     if (c.turno_usuarios?.telefono) opts.unshift({ text: 'Recordar por WhatsApp', onPress: () => recordarCita(c.turno_usuarios.telefono, c.turno_usuarios?.nombre ?? 'cliente', c.hora_inicio, negocio?.nombre ?? 'tu barbería') })
