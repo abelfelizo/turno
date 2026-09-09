@@ -1,9 +1,9 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
+import { View, Text, FlatList, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useLocalSearchParams } from 'expo-router'
 import { getSesion } from '../../../lib/storage'
-import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
+import { getClientesDelLocal, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
 import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
@@ -22,6 +22,7 @@ export default function Clientes() {
   const [clientes, setClientes] = useState<any[]>([])
   const [recuperar, setRecuperar] = useState<any[]>([])
   const [seg, setSeg] = useState<'todos' | 'recuperar'>('todos')
+  const [orden, setOrden] = useState<'recientes' | 'frecuentes' | 'nuevos' | 'az'>('recientes')
   const [loading, setLoading] = useState(true)
   const [activo, setActivo] = useState<any>(null)
   const [nota, setNota] = useState('')
@@ -37,7 +38,7 @@ export default function Clientes() {
     if (!ss?.usuario_id) { setLoading(false); return }
     setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
     const [cl, rec, neg] = await Promise.all([
-      getMisClientes().catch(() => []),
+      ss.negocio_id ? getClientesDelLocal(ss.negocio_id).catch(() => []) : Promise.resolve([]),
       ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
       ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
     ])
@@ -85,6 +86,28 @@ export default function Clientes() {
     finally { setGuardando(false) }
   }
 
+  // Cuatro formas de mirar la misma lista, que son las cuatro preguntas que se
+  // hace un barbero: ¿quién vino hace poco?, ¿quiénes son mis fijos?, ¿quién se
+  // apuntó y no ha venido nunca?, y buscar a alguien por el nombre.
+  const ORDENES = [
+    { k: 'recientes', l: 'Recientes' },
+    { k: 'frecuentes', l: 'Frecuentes' },
+    { k: 'nuevos', l: 'Sin venir' },
+    { k: 'az', l: 'A–Z' },
+  ] as const
+
+  const ordenados = [...clientes].sort((a: any, b: any) => {
+    if (orden === 'frecuentes') return b.visitas - a.visitas
+    if (orden === 'az') return String(a.nombre).localeCompare(String(b.nombre), 'es')
+    if (orden === 'nuevos') {
+      // Primero quien nunca ha venido; entre ellos, el que se unió hace más.
+      if ((a.visitas === 0) !== (b.visitas === 0)) return a.visitas === 0 ? -1 : 1
+      return String(a.desde ?? '').localeCompare(String(b.desde ?? ''))
+    }
+    return String(b.ultima ?? '').localeCompare(String(a.ultima ?? ''))
+  })
+  const sinVenir = clientes.filter((c: any) => c.visitas === 0).length
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   return (
@@ -98,20 +121,41 @@ export default function Clientes() {
       </View>
 
       {seg === 'todos' ? (
-        <FlatList
-          data={clientes} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={s.empty}>Aún no has atendido clientes.</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={s.row} onPress={() => abrir(item)}>
-              <Avatar name={item.nombre} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.name}>{item.nombre}</Text>
-                <Text style={s.meta}>{item.visitas} visita{item.visitas === 1 ? '' : 's'} · última {item.ultima}</Text>
-              </View>
-              <Text style={s.total}>{item.total}</Text>
-            </TouchableOpacity>
-          )}
-        />
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            style={s.ordenWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+            {ORDENES.map(o => (
+              <TouchableOpacity key={o.k} style={[s.ordChip, orden === o.k && s.ordChipOn]} onPress={() => setOrden(o.k)}>
+                <Text style={[s.ordChipT, orden === o.k && s.ordChipTOn]}>
+                  {o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <FlatList
+            data={ordenados} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
+            ListEmptyComponent={<Text style={s.empty}>Todavía no se ha unido nadie al local.</Text>}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={s.row} onPress={() => abrir(item)}>
+                <Avatar name={item.nombre} size={44} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.name}>{item.nombre}</Text>
+                  {/* Quien se unió y no ha venido no tiene visitas que contar;
+                      lo único que se sabe de él es cuándo se apuntó, y eso es
+                      justo el dato para decidir llamarlo. */}
+                  <Text style={s.meta}>
+                    {item.visitas === 0
+                      ? `Nunca ha venido${item.desde ? ` · se unió el ${fechaLarga(fechaDeISO(item.desde))}` : ''}`
+                      : `${item.visitas} visita${item.visitas === 1 ? '' : 's'} · última ${item.ultima}`}
+                  </Text>
+                </View>
+                {item.visitas > 0
+                  ? <Text style={s.total}>{item.total}</Text>
+                  : <Ionicons name="logo-whatsapp" size={20} color={COLORS.success} onPress={() => escribirCliente(item.telefono, item.nombre)} />}
+              </TouchableOpacity>
+            )}
+          />
+        </>
       ) : (
         <FlatList
           data={recuperar} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
@@ -203,6 +247,11 @@ export default function Clientes() {
 }
 
 const s = StyleSheet.create({
+  ordenWrap: { flexGrow: 0, marginBottom: 10 },
+  ordChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+  ordChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  ordChipT: { color: COLORS.textMid, fontSize: 13, fontWeight: '700' },
+  ordChipTOn: { color: '#fff' },
   container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 72 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },

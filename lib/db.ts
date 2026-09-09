@@ -763,10 +763,27 @@ export async function getMisEstadisticas() {
   }
 }
 
-export async function getMisClientes() {
-  const { data, error } = await supabase.rpc('turno_mis_clientes')
+/**
+ * Todos los que se UNIERON al local, no solo los que ya vinieron.
+ *
+ * La versión anterior (turno_mis_clientes) se construía entera desde el historial
+ * de visitas, así que
+ * alguien que entró con el código y todavía no ha aparecido era invisible en la
+ * app — y son justo los que más falta hace ver: se apuntaron y nadie les ha
+ * dicho nada. En la base del piloto la diferencia era 2 frente a 3.
+ *
+ * Las visitas que trae son las TUYAS, no las del local: en una barbería de
+ * asientos alquilados cada barbero tiene su clientela, y mezclarlas le daría a
+ * uno los números del otro. La lista de personas es del local; los números son
+ * tuyos.
+ */
+export async function getClientesDelLocal(negocio_id: string) {
+  const { data, error } = await supabase.rpc('turno_clientes_del_local', { p_negocio: negocio_id })
   if (error) throw error
-  return (data || []).map((c: any) => ({ cliente_id: c.cliente_id, nombre: c.nombre, telefono: c.telefono, visitas: Number(c.visitas), total: Number(c.total), ultima: c.ultima }))
+  return (data || []).map((c: any) => ({
+    cliente_id: c.cliente_id, nombre: c.nombre, telefono: c.telefono,
+    visitas: Number(c.visitas), total: Number(c.total), ultima: c.ultima, desde: c.desde,
+  }))
 }
 
 // Notas privadas a nivel persona (siguen al barbero entre locales).
