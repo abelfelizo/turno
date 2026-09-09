@@ -10,11 +10,38 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `fidelidad.test.sql` | Visitas, meta, premio y canje, con la tarjeta del local y la del barbero rentado. |
 | `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
 | `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
+| `puertas.test.sql` | Recorre el API **como un desconocido** y comprueba que se le cierra. Las demás prueban que las cosas funcionan; esta, que no funcionan para quien no debe. |
 
-Las dos últimas existen porque los fallos de **flujo** no se ven mirando
-funciones de una en una. Cada una encontró bugs de producción en su primera
-corrida: un barbero sin aprobar podía llamar clientes, y se podía bloquear
-tiempo encima de una cita ya reservada.
+Las tres últimas existen porque los fallos de **flujo** y de **permisos** no se
+ven mirando funciones de una en una. Cada una encontró bugs de producción en su
+primera corrida: un barbero sin aprobar podía llamar clientes; se podía bloquear
+tiempo encima de una cita ya reservada; y la cartera de clientes de un barbero
+—con teléfonos— la leía cualquiera, incluido un anónimo con la llave que viaja
+dentro del APK.
+
+## La regla de los permisos
+
+RLS protege las **tablas**. Una función `SECURITY DEFINER` **se la salta por
+definición**, así que tiene que comprobar por su cuenta quién llama. Toda
+función nueva que toque datos de un local necesita su portero:
+
+```
+turno_uid()                → ¿hay alguien?
+turno_es_mi_perfil(p)      → ¿es mi silla?
+turno_perfil_admin(p)      → ¿soy el dueño de su local?
+turno_perfil_operable(p)   → viva, aprobada, y mía o de mi local
+turno_cola_operable(c)     → lo anterior, para un turno concreto
+turno_mis_negocios()       → ¿pertenezco a este local?
+turno_negocios_admin()     → ¿soy dueño de este local?
+```
+
+`puertas.test.sql` tiene una red que **llama** a cada función alcanzable por un
+anónimo y falla si alguna muta. No lee el código: eso ya falló tres veces.
+
+Y ojo al revocar permisos: los ayudantes que aparecen **dentro de las políticas
+RLS** se evalúan con el rol de quien consulta. Quitarle el permiso a `anon`
+sobre uno de ellos no lo deja fuera — hace que la política reviente con
+"permission denied" en vez de devolver `false`.
 
 ## Al escribir una suite nueva
 
