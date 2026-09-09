@@ -71,6 +71,39 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci --legacy-peer-deps
 
+      # ESTE PASO ES EL QUE FALTABA, Y COSTÓ UN TELÉFONO BRICKEADO.
+      #
+      # lib/supabase.ts hace createClient(process.env.EXPO_PUBLIC_SUPABASE_URL,
+      # ...) A NIVEL DE MÓDULO, y supabase-js lanza "supabaseUrl is required" si
+      # viene vacía. Un throw a nivel de módulo mata la app al arrancar: antes
+      # del ErrorBoundary y antes de la primera petición, así que se cierra sola
+      # y no deja ni rastro en los logs del servidor.
+      #
+      # Esas variables viven en el `env` de eas.json, que SOLO lo aplica
+      # `eas build`. `eas update` no lo lee. Como este workflow no las ponía,
+      # cada bundle publicado salía con la URL vacía — la primera publicación
+      # tumbó la app, y republicar un commit bueno la volvía a tumbar, porque el
+      # fallo estaba aquí y no en el código.
+      #
+      # Se leen de eas.json en vez de repetirlas para que no puedan divergir de
+      # las que usa el APK: si divergen, el teléfono habla con otro servidor.
+      - name: Variables de la app (las mismas que compila el APK)
+        run: |
+          node -e '
+            const perfil = "${{ inputs.canal }}";
+            const env = (require("./eas.json").build[perfil] || {}).env || {};
+            const req = ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY"];
+            const falta = req.filter(k => !env[k]);
+            if (falta.length) {
+              console.error("Faltan en eas.json (perfil " + perfil + "): " + falta.join(", "));
+              console.error("Publicar sin ellas deja la app cerrandose sola al abrir. Se aborta.");
+              process.exit(1);
+            }
+            require("fs").appendFileSync(process.env.GITHUB_ENV,
+              Object.entries(env).map(([k, v]) => k + "=" + v).join("\n") + "\n");
+            console.log("Inyectadas: " + Object.keys(env).join(", "));
+          '
+
       # Si el bundle no compila, mejor fallar aquí que dejar a los teléfonos
       # descargando una actualización rota.
       - name: Typecheck

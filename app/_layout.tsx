@@ -8,8 +8,10 @@ import {
   PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
+import { Text } from 'react-native'
 import { COLORS } from '../constants'
 import { ErrorBoundary } from '../components/error-boundary'
+import { faltaConfiguracion } from '../lib/supabase'
 
 // A qué pantalla lleva cada push al tocarla (deep links). Ver matriz en ARQUITECTURA-UX §4.
 function rutaDeNotificacion(data: any): string | null {
@@ -39,6 +41,20 @@ export default function RootLayout() {
     })
     return () => sub.remove()
   }, [router])
+
+  // Una actualización publicada sin las variables del servidor. Antes esto
+  // cerraba la app al abrir, sin decir nada; ahora al menos se lee.
+  if (faltaConfiguracion) return (
+    <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 10, textAlign: 'center' }}>
+        Esta versión salió mal publicada
+      </Text>
+      <Text style={{ color: '#B9BAC0', fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
+        Le faltan los datos del servidor, así que no puede conectarse. No es tu
+        teléfono ni tu cuenta: hay que volver a publicar la actualización.
+      </Text>
+    </View>
+  )
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={COLORS.red} size="large" /></View>
   return (<ErrorBoundary><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>)
