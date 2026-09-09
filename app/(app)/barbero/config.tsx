@@ -276,15 +276,21 @@ export default function Config() {
       } }])
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
-
   // Sin esto, el atrás de Android sale de Configuración entera desde dentro de
   // una sección: el usuario pierde el sitio y no entiende por qué.
+  //
+  // VA ANTES DEL `if (loading)`, y no es cosmético. Estuvo debajo y tumbaba la
+  // pantalla entera: mientras cargaba se salía por el return y este hook no se
+  // registraba; al terminar, el render seguía de largo y React encontraba un
+  // hook más que en el render anterior. Los hooks se cuentan por orden, así que
+  // ninguno puede quedar detrás de un return condicional.
   useEffect(() => {
     if (!seccion) return
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
     return () => sub.remove()
   }, [seccion])
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   const TITULO: Record<string, string> = {
     cuenta: 'Mi cuenta', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',

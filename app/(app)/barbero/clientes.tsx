@@ -140,18 +140,19 @@ export default function Clientes() {
                 <Avatar name={item.nombre} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{item.nombre}</Text>
-                  {/* Quien se unió y no ha venido no tiene visitas que contar;
-                      lo único que se sabe de él es cuándo se apuntó, y eso es
-                      justo el dato para decidir llamarlo. */}
+                  {/* "CONTIGO" no es un adorno. `visitas` cuenta solo las que
+                      pasaron por tus perfiles, así que ponía "Nunca ha venido" a
+                      gente que sí había venido —con otro barbero del local— y
+                      justo debajo, en su ficha, salía ese historial con el
+                      nombre del compañero. El dato estaba bien; el texto no
+                      decía de qué era. */}
                   <Text style={s.meta}>
                     {item.visitas === 0
-                      ? `Nunca ha venido${item.desde ? ` · se unió el ${fechaLarga(fechaDeISO(item.desde))}` : ''}`
-                      : `${item.visitas} visita${item.visitas === 1 ? '' : 's'} · última ${item.ultima}`}
+                      ? `Nunca ha venido contigo${item.desde ? ` · se unió el ${fechaLarga(fechaDeISO(item.desde))}` : ''}`
+                      : `${item.visitas} visita${item.visitas === 1 ? '' : 's'} contigo · última ${item.ultima}`}
                   </Text>
                 </View>
-                {item.visitas > 0
-                  ? <Text style={s.total}>{item.total}</Text>
-                  : <Ionicons name="logo-whatsapp" size={20} color={COLORS.success} onPress={() => escribirCliente(item.telefono, item.nombre)} />}
+                {item.visitas > 0 ? <Text style={s.total}>{item.total}</Text> : null}
               </TouchableOpacity>
             )}
           />
@@ -177,11 +178,28 @@ export default function Clientes() {
 
       <Modal visible={!!activo} transparent animationType="slide" onRequestClose={() => setActivo(null)}>
         <View style={s.modalBg}>
+          {/* La ficha crece: puntos, preferencias, seis visitas y la nota. Sin
+              scroll, en un teléfono normal el botón de guardar quedaba fuera de
+              la pantalla y no había forma de llegar a él. */}
           <View style={s.modal}>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {/* Abrir desde la fila del barbero trae solo nombre y teléfono: no
+                hay conteo de visitas todavía. La cabecera lo daba por hecho y
+                escribía "· undefined visitas" a quien tenías delante. Aquí solo
+                se dice lo que se sabe. */}
             <View style={s.modalHead}>
+              <Avatar name={activo?.nombre} size={48} />
               <View style={{ flex: 1 }}>
                 <Display size={22}>{activo?.nombre}</Display>
-                <Text style={s.modalSub}>{activo?.telefono ?? ''} · {activo?.visitas} visitas</Text>
+                <Text style={s.modalSub}>
+                  {[
+                    activo?.telefono && activo.telefono !== '-' ? activo.telefono : null,
+                    typeof activo?.visitas === 'number'
+                      ? (activo.visitas === 0 ? 'nunca ha venido contigo'
+                        : `${activo.visitas} visita${activo.visitas === 1 ? '' : 's'} contigo`)
+                      : null,
+                  ].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
+                </Text>
               </View>
               {activo?.telefono && activo.telefono !== '-' ? (
                 <TouchableOpacity style={s.wa} onPress={() => escribirCliente(activo.telefono, activo.nombre)}><Ionicons name="logo-whatsapp" size={22} color={COLORS.success} /></TouchableOpacity>
@@ -212,9 +230,13 @@ export default function Clientes() {
               </>
             )}
 
+            {/* "EN EL LOCAL" porque eso es lo que es: el historial viene del
+                negocio entero y cada línea puede llevar el nombre de otro
+                barbero. Sin decirlo, chocaba de frente con el "nunca ha venido"
+                de la lista y parecía que uno de los dos mentía. */}
             {ficha && ficha.historial.length > 0 && (
               <>
-                <Text style={s.notaLbl}>ÚLTIMAS VISITAS</Text>
+                <Text style={s.notaLbl}>ÚLTIMAS VISITAS EN EL LOCAL</Text>
                 {ficha.historial.slice(0, 6).map((h: any) => (
                   <View key={h.id} style={s.visita}>
                     <View style={{ flex: 1 }}>
@@ -239,6 +261,7 @@ export default function Clientes() {
               {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar nota</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setActivo(null)}><Text style={s.cerrar}>Cerrar</Text></TouchableOpacity>
+          </ScrollView>
           </View>
         </View>
       </Modal>
@@ -265,9 +288,9 @@ const s = StyleSheet.create({
   meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   total: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 6, marginBottom: 18 },
-  modalHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: '88%' },
+  modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 4 },
+  modalHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
   wa: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.successLight, alignItems: 'center', justifyContent: 'center' },
   puntos: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 4 },
   puntosT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
@@ -280,7 +303,9 @@ const s = StyleSheet.create({
   visitaP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
   notaLbl: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 8 },
   input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, minHeight: 90, textAlignVertical: 'top', marginBottom: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },
+  // Azul: guardar una nota no es una acción de marca ni destructiva, es
+  // trabajo de ficha. El rojo queda para lo que mueve la fila.
+  btn: { backgroundColor: COLORS.blue, borderRadius: 14, padding: 16, alignItems: 'center' },
   btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

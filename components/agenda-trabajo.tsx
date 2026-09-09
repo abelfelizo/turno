@@ -457,6 +457,26 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           varias sillas "Mi agenda" no dice de quién es la que estás viendo. */}
       <Display size={30} style={{ marginBottom: 16 }}>{titulo ?? usuario?.nombre ?? 'Mi agenda'}</Display>
 
+      {/* ── SELECTOR DE DÍA ─────────────────────────────────────────────────
+          Va AQUÍ, no al final. Estaba debajo del cuadro de estado y de toda la
+          fila en vivo, y desde ahí no parecía el mando de la pantalla sino un
+          adorno: tocabas un jueves, el cuadro de arriba seguía enseñando la
+          fila de hoy —porque la fila en vivo es de hoy, no del jueves— y la
+          conclusión razonable era que el selector no servía para nada.
+          Arriba manda: lo que elijas aquí es lo que estás mirando. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.diasWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+        {dias.map(d => {
+          const on = d === fecha
+          const dd = fechaDeISO(d)
+          return (
+            <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}>
+              <Text style={[s.diaSem, on && s.diaTxtOn]}>{d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
+              <Text style={[s.diaNum, on && s.diaTxtOn]}>{dd.getDate()}</Text>
+              <View style={[s.diaDot, conteo[d] ? (on ? s.diaDotOn : s.diaDotHay) : null]} />
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
 
       {/* ── CUADRO PRINCIPAL: ESTADO + FILA EN UNO ──────────────────────────
           Antes esto eran tres cajas separadas diciendo lo mismo. Con la fila
@@ -468,9 +488,12 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           barbero no atiende categorías, atiende personas en orden. Se queda como
           etiqueta pequeña junto a quien la tiene.
 
-          Va fuera de `esHoy` porque el estado es de AHORA, no del día que estés
-          mirando. */}
-      {estado && (
+          Va dentro de `esHoy`. Estuvo fuera, con el argumento de que el estado
+          es de AHORA — cierto, pero engañaba: mirando el jueves seguías viendo
+          "Libre · 2 esperando" y el botón "Llamar a Pedro", que son de hoy. Un
+          cuadro que no cambia al cambiar de día hace creer que la pantalla
+          entera se quedó en hoy. Para otro día manda la agenda de ese día. */}
+      {esHoy && estado && (
         <View style={[s.panel, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
           <View style={s.panelTop}>
             <View style={s.estadoPunto} />
@@ -538,10 +561,22 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </View>
       )}
 
+      {/* Mirando otro día: en vez de avisar de lo que NO hay —"la fila en vivo
+          es solo de hoy", que se leía como "esta pantalla solo enseña hoy"—
+          esto cuenta lo que SÍ hay ese día, que es justo para lo que sirve
+          mirar hacia adelante. Y deja la vuelta a hoy a un toque. */}
       {!esHoy && (
-        <View style={s.avisoDia}>
-          <Ionicons name="calendar-outline" size={16} color={COLORS.textMid} />
-          <Text style={s.avisoDiaT}>Estás viendo otro día. La fila en vivo es solo de hoy.</Text>
+        <View style={s.otroDia}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.otroDiaT}>
+              {citas.length === 0 ? 'Sin citas este día' : `${citas.length} cita${citas.length === 1 ? '' : 's'} reservada${citas.length === 1 ? '' : 's'}`}
+              {bloqueosLista.length > 0 ? ` · ${bloqueosLista.length} hora${bloqueosLista.length === 1 ? '' : 's'} bloqueada${bloqueosLista.length === 1 ? '' : 's'}` : ''}
+            </Text>
+            <Text style={s.otroDiaS}>Puedes bloquear horas de este día desde abajo.</Text>
+          </View>
+          <TouchableOpacity style={s.volverHoy} onPress={() => setFecha(hoy)}>
+            <Text style={s.volverHoyT}>Ir a hoy</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -621,22 +656,6 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </>
       )}
 
-      {/* Selector de día: la agenda no es solo hoy. El puntito marca los días
-          que ya tienen citas, para no ir a ciegas uno por uno. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.diasWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-        {dias.map(d => {
-          const on = d === fecha
-          const dd = fechaDeISO(d)
-          return (
-            <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}>
-              <Text style={[s.diaSem, on && s.diaTxtOn]}>{d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
-              <Text style={[s.diaNum, on && s.diaTxtOn]}>{dd.getDate()}</Text>
-              <View style={[s.diaDot, conteo[d] ? (on ? s.diaDotOn : s.diaDotHay) : null]} />
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
-
       <Text style={s.sec}>CITAS DEL DÍA</Text>
       {citas.length === 0 && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
@@ -674,19 +693,30 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
       )}
-      <TouchableOpacity style={s.bloquear} onPress={() => setHoja({ tipo: 'bloqueo' })}>
-        <Ionicons name="lock-closed-outline" size={16} color={COLORS.textMid} />
-        <Text style={s.bloquearT}>Bloquear hora{esHoy ? '' : ' de este día'}</Text>
-      </TouchableOpacity>
-      {/* El código se comparte una vez y no se vuelve a mirar en meses. Ocupaba
-          el mejor sitio de la pantalla cada día; aquí abajo sigue a un toque. */}
+      {/* Compartir el código es cómo le llegan clientes nuevos: es lo único de
+          esta pantalla que hace crecer el negocio en vez de administrar el día.
+          Estaba en gris, del mismo tamaño que "bloquear hora", y en azul —el
+          secundario de la marca— se ve sin competir con el rojo de las acciones
+          de la fila. */}
       {usuario?.codigo_barbero ? (
-        <TouchableOpacity style={s.bloquear}
+        <TouchableOpacity style={s.compartir}
           onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-          <Ionicons name="share-outline" size={16} color={COLORS.textMid} />
-          <Text style={s.bloquearT}>Compartir mi código · {usuario.codigo_barbero}</Text>
+          <Ionicons name="share-social" size={18} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.compartirT}>Compartir mi código</Text>
+            <Text style={s.compartirC}>{usuario.codigo_barbero}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       ) : null}
+
+      {/* Bloquear cierra horas al público: es destructivo en el sentido que
+          importa aquí —deja de entrar trabajo— así que va en rojo y separado
+          del botón que trae clientes, para no tocarlo por inercia. */}
+      <TouchableOpacity style={s.bloquear} onPress={() => setHoja({ tipo: 'bloqueo' })}>
+        <Ionicons name="lock-closed-outline" size={16} color={COLORS.red} />
+        <Text style={s.bloquearT}>Bloquear hora{esHoy ? '' : ' de este día'}</Text>
+      </TouchableOpacity>
 
       {/* Una sola hoja para todo lo que se abre desde esta pantalla. */}
       <Modal visible={!!hoja} transparent animationType="slide" onRequestClose={() => setHoja(null)}>
@@ -868,8 +898,11 @@ const s = StyleSheet.create({
   diaDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: 'transparent' },
   diaDotHay: { backgroundColor: COLORS.red },
   diaDotOn: { backgroundColor: '#fff' },
-  avisoDia: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 12, marginBottom: 14 },
-  avisoDiaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
+  otroDia: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 13, marginBottom: 14 },
+  otroDiaT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  otroDiaS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  volverHoy: { backgroundColor: COLORS.ink, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 13 },
+  volverHoyT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   estadoPunto: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.9)' },
@@ -909,8 +942,11 @@ const s = StyleSheet.create({
   rowServ: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
   walkinT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 13, marginTop: 8 },
-  bloquearT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
+  compartir: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, marginTop: 10 },
+  compartirT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  compartirC: { fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginTop: 1 },
+  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.red, borderRadius: 14, padding: 13, marginTop: 8 },
+  bloquearT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.red },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 8 },
   stepBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },

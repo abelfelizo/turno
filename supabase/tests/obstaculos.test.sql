@@ -333,6 +333,34 @@ begin
   if v_int = 0 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - '||v_int||' avisos repetidos'; end if;
 
+  -- ── LA CARTERA ES DE QUIEN PUEDE VOLVER (migración 64) ────────────────────
+  -- Aquí arriba hay de los dos: clientes que se unieron con el código (con
+  -- auth_id) y un walk-in que apuntó el barbero (sin auth_id, creado por
+  -- turno_registrar_fisico). Es el sitio para probar que la lista distingue.
+  n:=n+1; c:='cartera · el walk-in apuntado por el barbero NO entra en la lista';
+  begin
+    if exists (select 1 from turno_clientes_del_local(v_neg) x where x.nombre = 'Presente')
+      then fallos:=fallos||E'\n  x '||c||' - sigue ahí, y no se le puede escribir';
+    else ok:=ok+1; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  n:=n+1; c:='cartera · quien se unió con el código SÍ está';
+  begin
+    if exists (select 1 from turno_clientes_del_local(v_neg) x where x.cliente_id = u_c1)
+      then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - se cerró de más'; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- Sacarlo de la cartera no es borrarlo: lo que cobró sigue contando.
+  n:=n+1; c:='cartera · la visita del walk-in sigue en el historial del local';
+  insert into turno_historial_visitas (cliente_id, negocio_id, perfil_id, servicio_id, fecha, precio_cobrado, origen)
+  select q.cliente_id, v_neg, p_bar, s_corte, v_hoy, 500, 'cola_fisica'
+    from turno_cola q where q.id = q_presente;
+  select count(*) into v_int from turno_historial_visitas h
+   where h.negocio_id = v_neg and h.origen = 'cola_fisica';
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - se perdió lo que cobró'; end if;
+
   raise exception E'\n═══ OBSTÁCULOS · % / % casos OK ═══%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
 end $$;
