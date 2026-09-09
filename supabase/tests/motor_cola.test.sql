@@ -331,6 +331,25 @@ begin
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
+  -- ── CASO 23 · el interruptor "doble servicio" restringe de verdad ────────
+  -- Encontrado en la auditoría: doble_servicio_activo solo aparecía en el
+  -- INSERT que crea la configuración; ninguna función lo leía. Un control que
+  -- se guarda y nadie consulta se ve bien en pantalla y miente.
+  n:=n+1; c:='doble servicio · apagado bloquea el segundo turno de otro tipo';
+  begin
+    update turno_cola set estado = 'atendido'
+     where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+    update turno_configuracion_negocio set doble_servicio_activo = false where negocio_id = v_neg;
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+    perform turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+    perform turno_entrar_a_cola(v_neg, s_unas, 'digital', p_mani);
+    fallos := fallos || E'\n  x '||c||' - el interruptor sigue sin hacer nada';
+  exception when others then
+    if sqlerrm like '%ya tienes un turno activo%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
+  end;
+  update turno_configuracion_negocio set doble_servicio_activo = true where negocio_id = v_neg;
+
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ─────────────────────
   raise exception E'\n═══ MOTOR DE COLA · % / % casos OK ═══%',
     ok, n, case when fallos = '' then E'\n  TODO VERDE' else fallos end;
