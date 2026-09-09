@@ -154,16 +154,21 @@ begin
   else fallos:=fallos||E'\n  x '||c||' - el dia con gap 10 salio como '||coalesce(v_lista,'(vacío)'); end if;
 
   -- ── DESCANSO vs INACTIVO ──────────────────────────────────────────────────
-  -- Un descanso es temporal: corta lo de HOY y deja la agenda futura abierta.
-  -- El inactivo es una ausencia larga y sí cierra todo. Antes ninguno de los dos
-  -- hacía nada aquí —el estado solo filtraba una lista en la app— así que
-  -- ponerse "en descanso" un rato te borraba de las reservas de dentro de diez
-  -- días y a la vez no impedía que nadie reservara por el API.
+  -- LAS CITAS SON PRIORIDAD (migración 57). El descanso significa una sola cosa:
+  -- no entra gente nueva a la fila AHORA. No toca la agenda, ni la de hoy: una
+  -- cita es un compromiso ya adquirido y se cancela a mano o se respeta.
+  -- El inactivo sí cierra la agenda entera; para eso son dos estados.
+  --
+  -- La primera versión de esta prueba afirmaba que el descanso cerraba también
+  -- los huecos de hoy, que es como estaba escrito entonces. Se corrige aquí
+  -- junto con la regla: una prueba que defiende el comportamiento viejo es peor
+  -- que no tener prueba, porque da confianza en la dirección equivocada.
   update turno_perfiles set estado_actual = 'descanso' where id = p;
 
-  n:=n+1; c:='descanso · hoy no se ofrece nada';
+  n:=n+1; c:='descanso · las citas de HOY se siguen pudiendo coger';
   select count(*) into v_int from turno_slots_disponibles(p, v_hoy_real, s_corte) s;
-  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos'; end if;
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - 0 huecos: un descanso no puede cerrar la agenda'; end if;
 
   n:=n+1; c:='descanso · la agenda de dentro de unos días SIGUE abierta';
   select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
