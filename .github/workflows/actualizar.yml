@@ -7,8 +7,15 @@
 # NO sirve para cambios nativos (una librería nueva con código nativo, un
 # plugin de app.json, subir de SDK). Para eso hace falta un APK nuevo: se sube
 # "version" en app.json y se dispara el workflow "APK de prueba". La política
-# runtimeVersion=appVersion lo garantiza — si las versiones no coinciden, el
-# teléfono ignora la actualización en vez de romperse.
+# runtimeVersion=appVersion cubre ESE caso: si las versiones no coinciden, el
+# teléfono ignora la actualización.
+#
+# OJO, y esto costó un teléfono roto: runtimeVersion NO protege de un bundle de
+# JS malo. Ahí las versiones coinciden, la actualización se aplica, y si el
+# bundle revienta al arrancar la app se cierra sola y no hay forma de entrar a
+# arreglarla desde dentro. Por eso existe la entrada "desde": publicar desde el
+# commit del último APK bueno es la marcha atrás. Sin ella la única salida era
+# desinstalar y volver a iniciar sesión con un código por correo.
 #
 # Requiere el mismo secreto EXPO_TOKEN que el APK.
 
@@ -26,12 +33,34 @@ on:
         description: Qué cambia (aparece en el historial de Expo)
         type: string
         default: Cambios desde GitHub
+      desde:
+        description: >-
+          Commit o rama desde el que publicar. Vacío = el que elegiste arriba en
+          "Use workflow from". Para VOLVER ATRÁS, pon aquí el commit del APK que
+          funcionaba (224acb9) y publica: el teléfono se lo baja y vuelve a
+          arrancar, sin desinstalar ni perder la sesión.
+        type: string
+        default: ''
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historia completa: sin esto no se puede hacer checkout de un commit
+          # viejo, que es justo lo que hace falta para revertir.
+          fetch-depth: 0
+
+      # La marcha atrás. Una actualización OTA mala deja el teléfono sin salida:
+      # runtimeVersion protege de los cambios NATIVOS, pero no de un bundle de
+      # JS roto, y sin esto la única cura era desinstalar y volver a entrar con
+      # un código por correo. Publicar desde un commit bueno es la marcha atrás.
+      - name: Volver a un commit concreto
+        if: inputs.desde != ''
+        run: |
+          git checkout --force "${{ inputs.desde }}"
+          echo "Publicando desde $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
