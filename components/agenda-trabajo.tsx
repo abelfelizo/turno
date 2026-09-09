@@ -26,6 +26,13 @@ function sumarMinutos(hhmmss: string, min: number) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}:00`
 }
 
+/** Minutos que lleva el cliente sentado, para avisar de un corte sin cerrar. */
+function minutosEnSilla(q: any) {
+  const desde = q?.atendiendo_at ?? q?.llamado_at
+  if (!desde) return 0
+  return Math.floor((Date.now() - new Date(desde).getTime()) / 60000)
+}
+
 /** Hora local "HH:MM:SS", para comparar contra los bloqueos del día. */
 function horaAhora() {
   const d = new Date()
@@ -185,7 +192,16 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   function atenderCola(item: any) {
     Alert.alert('Atender', `¿Marcar a ${item.turno_usuarios?.nombre ?? 'cliente'} como atendido?`, [
       { text: 'No' },
-      { text: 'Sí', onPress: () => op(() => actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() })) },
+      { text: 'Sí', onPress: () => op(async () => {
+        await actualizarEstadoCola(item.id, 'atendido', { atendido_at: new Date().toISOString() })
+        // El cliente se quedaba sin saber que su turno había terminado: su
+        // pantalla seguía diciendo "te están atendiendo" hasta que la cerraba.
+        if (item.cliente_id) {
+          enviarPush(item.cliente_id, 'Listo ✂️',
+            `Gracias por tu visita a ${negocio?.nombre ?? 'la barbería'}. Cuéntanos qué tal.`,
+            { tipo: 'atendido' })
+        }
+      }) },
     ])
   }
   function accionCita(c: any) {
@@ -287,6 +303,18 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                 <Text style={s.ocupadoBtnT}>Terminé</Text>
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* El barbero pulsa Empezar y se olvida de Terminar: el cliente se
+              queda "en la silla" horas y R1 no le deja pedir otro turno.
+              Encontrado en la base con un caso de 2 h 30 min. */}
+          {llamado?.estado === 'atendiendo' && minutosEnSilla(llamado) > Math.max(45, (llamado.turno_servicios?.duracion_min ?? 30) * 2) && (
+            <TouchableOpacity style={s.olvido} onPress={() => atenderCola(llamado)}>
+              <Ionicons name="alarm-outline" size={18} color="#fff" />
+              <Text style={s.olvidoT}>
+                Llevas {minutosEnSilla(llamado)} min con {llamado.turno_usuarios?.nombre ?? 'este cliente'}. ¿Ya terminaste?
+              </Text>
+            </TouchableOpacity>
           )}
 
           {llamado && (
@@ -587,6 +615,8 @@ const s = StyleSheet.create({
   ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
   ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   ocupadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  olvido: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 10 },
+  olvidoT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   llamado: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success, borderRadius: 14, padding: 16, marginBottom: 14 },
   llamadoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
   llamadoName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },

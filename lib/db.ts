@@ -61,8 +61,9 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
   return Number(data ?? 0)
 }
 
-/** Stats del negocio con ingresos propios (empleados + silla del dueño)
- * separados del volumen de rentas (informativo, no es ingreso del dueño). */
+/** Stats del negocio. Los ingresos son SOLO los propios (empleados + silla del
+ * dueño). De los asientos alquilados se devuelve el número de visitas, nunca el
+ * dinero: es un negocio independiente que paga por el espacio. */
 export async function getEstadisticasNegocio(negocio_id: string) {
   const { data, error } = await supabase.rpc('turno_estadisticas_negocio', { p_negocio: negocio_id })
   if (error) throw error
@@ -70,7 +71,9 @@ export async function getEstadisticasNegocio(negocio_id: string) {
   const propios = Number(r.ingresos_propios ?? 0)
   return {
     ingresosPropios: propios,
-    ingresosRenta: Number(r.ingresos_renta ?? 0),
+    // Conteo, no importe: lo que factura quien renta su asiento no es asunto
+    // del dueño. Lo que sí necesita saber es si el asiento se usa.
+    visitasRenta: Number(r.visitas_renta ?? 0),
     ingresosTotal: propios,                 // "ingresos del local" = propios
     ingresosHoy: Number(r.ingresos_hoy ?? 0),
     atendidosHoy: Number(r.atendidos_hoy ?? 0),
