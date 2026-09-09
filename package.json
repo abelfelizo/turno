@@ -6,10 +6,11 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
-    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad",
+    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad && npm run test:db:viaje",
     "test:db:cola": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
     "test:db:autonomia": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/autonomia.test.sql",
     "test:db:fidelidad": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/fidelidad.test.sql",
+    "test:db:viaje": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/viaje.test.sql",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
