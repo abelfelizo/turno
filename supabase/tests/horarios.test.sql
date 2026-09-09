@@ -41,11 +41,12 @@ do $$
 declare
   a_due uuid := gen_random_uuid();
   u_due uuid; v_neg uuid; p uuid; s_corte uuid; s_barba uuid;
-  v_dia date; v_lista text; v_int int;
+  v_dia date; v_hoy_real date; v_lista text; v_int int;
   n int := 0; ok int := 0; fallos text := ''; c text;
 begin
   -- Mañana, para que la antelación mínima (2h) no recorte nada.
   v_dia := (now() at time zone 'America/Santo_Domingo')::date + 1;
+  v_hoy_real := (now() at time zone 'America/Santo_Domingo')::date;
 
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
   values (a_due,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',
@@ -151,6 +152,35 @@ begin
     from turno_slots_disponibles(p, v_dia + 2, s_corte) s;
   if v_lista = '08:00 08:55 09:50 10:45' then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - el dia con gap 10 salio como '||coalesce(v_lista,'(vacío)'); end if;
+
+  -- ── DESCANSO vs INACTIVO ──────────────────────────────────────────────────
+  -- Un descanso es temporal: corta lo de HOY y deja la agenda futura abierta.
+  -- El inactivo es una ausencia larga y sí cierra todo. Antes ninguno de los dos
+  -- hacía nada aquí —el estado solo filtraba una lista en la app— así que
+  -- ponerse "en descanso" un rato te borraba de las reservas de dentro de diez
+  -- días y a la vez no impedía que nadie reservara por el API.
+  update turno_perfiles set estado_actual = 'descanso' where id = p;
+
+  n:=n+1; c:='descanso · hoy no se ofrece nada';
+  select count(*) into v_int from turno_slots_disponibles(p, v_hoy_real, s_corte) s;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos'; end if;
+
+  n:=n+1; c:='descanso · la agenda de dentro de unos días SIGUE abierta';
+  select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - 0 huecos: un descanso no puede cerrar la agenda'; end if;
+
+  update turno_perfiles set estado_actual = 'inactivo' where id = p;
+
+  n:=n+1; c:='inactivo · cierra también los días futuros';
+  select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos'; end if;
+
+  update turno_perfiles set estado_actual = 'disponible' where id = p;
+
+  n:=n+1; c:='vuelve · al reactivarse se ofrece otra vez';
+  select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
+  if v_int > 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
 
   raise exception E'\n=== HORARIOS · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
