@@ -6,7 +6,7 @@ import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
-  moverEnCola, llamarA, sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
+  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
@@ -46,7 +46,7 @@ function horaAhora() {
 }
 
 /** Agenda de trabajo: la usa el barbero y el dueño-que-atiende. Opera sobre sesion.perfil_id. */
-export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: string }) {
+export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const [citas, setCitas] = useState<any[]>([])
   const [cola, setCola] = useState<any[]>([])
   const [bloqueos, setBloqueos] = useState<any[]>([])
@@ -381,7 +381,9 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Text style={s.kicker}>{fechaLarga(fechaDeISO(fecha))}</Text>
-      <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
+      {/* El nombre de quien trabaja, no una etiqueta genérica: en un local con
+          varias sillas "Mi agenda" no dice de quién es la que estás viendo. */}
+      <Display size={30} style={{ marginBottom: 16 }}>{titulo ?? usuario?.nombre ?? 'Mi agenda'}</Display>
 
 
       {/* ── CUADRO PRINCIPAL: ESTADO + FILA EN UNO ──────────────────────────
@@ -553,7 +555,7 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         })}
       </ScrollView>
 
-      <Text style={s.sec}>{esHoy ? 'CITAS DE HOY' : `CITAS · ${fechaDeISO(fecha).toLocaleDateString('es', { day: 'numeric', month: 'long' })}`}</Text>
+      <Text style={s.sec}>CITAS DEL DÍA</Text>
       {citas.length === 0 && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
         <TouchableOpacity key={c.id} style={s.row} onPress={() => accionCita(c)}>
@@ -618,9 +620,19 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
                   <Text style={s.modalSub}>{it.turno_servicios?.nombre}{enEspera ? '' : ` · ${String(it.estado).replace('_', ' ')}`}</Text>
                   {enEspera ? (
                     <>
-                      {!llamado && <Opcion icon="megaphone-outline" t="Llamarlo ahora" d="Se salta el orden" onPress={() => op(async () => { const r = await llamarA(it.id); avisarLlamado(r) }, 'No se pudo llamar')} />}
-                      <Opcion icon="arrow-up" t="Subir un puesto" onPress={() => op(() => moverEnCola(it.id, -1), 'No se pudo mover')} />
-                      <Opcion icon="arrow-down" t="Bajar un puesto" onPress={() => op(() => moverEnCola(it.id, 1), 'No se pudo mover')} />
+                      {/* Adelantar y reordenar ya no existen: el orden de la
+                          fila es una REGLA, no una sugerencia. Quien reservó
+                          cita va primero, después quien se metió en la fila, y
+                          el que llega sin cita solo cuando no queda nadie
+                          esperando. Un botón para saltárselo convierte la
+                          promesa que ve el cliente en una mentira. Se llama al
+                          siguiente desde el cuadro de arriba; aquí solo queda
+                          lo que no altera el turno de nadie. */}
+                      <Text style={s.ordenNota}>
+                        {it.prioridad === 1 ? 'Tenía cita, por eso va primero.'
+                          : it.prioridad === 3 ? 'Llegó sin cita: entra cuando no quede nadie en la fila.'
+                          : 'Entró a la fila desde la app.'}
+                      </Text>
                     </>
                   ) : (
                     <Opcion icon="return-down-back" t="Devolver a la fila" d="Deshace el llamado y conserva su puesto" onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
@@ -747,6 +759,7 @@ const gs = StyleSheet.create({
 })
 
 const s = StyleSheet.create({
+  ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
   panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   panelTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
