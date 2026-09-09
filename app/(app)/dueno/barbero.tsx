@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil } from '../../../lib/db'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
@@ -25,7 +25,11 @@ const DIAS = [
 export default function BarberoDelLocal() {
   const router = useRouter()
   const { perfil, nombre, rol } = useLocalSearchParams<{ perfil: string; nombre?: string; rol?: string }>()
-  const [modalidad, setModalidad] = useState<string>(rol ?? 'empleado')
+  // El parámetro solo sirve para pintar algo mientras carga. La verdad se
+  // pregunta a la base en `cargar()`: si esto se queda como única fuente y llega
+  // vacío, la pantalla asume "empleado" y le ofrece al dueño editar los
+  // servicios de alguien que le renta el asiento.
+  const [modalidad, setModalidad] = useState<string>(rol || 'empleado')
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,10 +53,12 @@ export default function BarberoDelLocal() {
 
   const cargar = useCallback(async () => {
     if (!perfil) { setLoading(false); return }
-    const [sv, hr] = await Promise.all([
+    const [sv, hr, rl] = await Promise.all([
       getServiciosPerfil(perfil, false).catch(() => []),
       getHorariosPerfil(perfil).catch(() => []),
+      getRolDePerfil(perfil).catch(() => null),
     ])
+    if (rl) setModalidad(rl)
     setServicios(sv as any[]); setHorarios(hr as any[]); setLoading(false)
   }, [perfil])
   useEffect(() => { cargar() }, [cargar])

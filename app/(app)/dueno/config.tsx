@@ -127,6 +127,11 @@ export default function Config() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
+  // La modalidad decide qué controles tiene sentido enseñar aquí: en un local
+  // de asientos alquilados el dueño no manda sobre los puntos ni sobre a quién
+  // le toca cada cliente.
+  const esRentado = negocio?.tipo === 'espacios_rentados'
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <PanelBadge />
@@ -213,15 +218,24 @@ export default function Config() {
           : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
       </Text>
 
+      {/* En un local de asientos alquilados el dueño NO manda sobre los puntos
+          ni sobre a quién le toca cada cliente: cada barbero es un negocio
+          aparte, con su clientela y sus reglas. Enseñar esos interruptores ahí
+          no es solo ruido — hace creer que deciden algo que no deciden. */}
       <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
-      <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
+      {esRentado && (
+        <Text style={s.modNota}>
+          Alquilas asientos, así que los puntos y la asignación de clientes los lleva cada barbero desde su propia configuración. Aquí solo quedan las que sí son del local.
+        </Text>
+      )}
+      {!esRentado && <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />}
       {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
           puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
           puntos y el cliente no veía sumar ni uno. */}
       {/* Se cuentan recortes, no puntos abstractos: "cada X recortes te ganas
           esto". Y el premio lo escribe el local — no tiene por qué ser un corte
           gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
-      {!!config?.puntos_activos && (
+      {!esRentado && !!config?.puntos_activos && (
         <>
           <Stepper label="Recortes para el premio"
             desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
@@ -234,12 +248,14 @@ export default function Config() {
             placeholderTextColor={COLORS.textLight} maxLength={60} />
         </>
       )}
-      <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
+      {!esRentado && <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
 
       <Text style={s.sec}>TIEMPOS</Text>
       <Text style={s.modNota}>
-        Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.
+        {esRentado
+          ? 'Aquí son solo el punto de partida: cada barbero que alquila puede poner los suyos, y entonces mandan los de él.'
+          : 'Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.'}
       </Text>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}

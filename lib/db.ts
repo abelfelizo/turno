@@ -224,6 +224,26 @@ export async function unirseCliente(p: { codigo: string; nombre: string; telefon
 }
 
 // PERFILES
+/**
+ * El rol de una persona EN UN LOCAL. Vive en la membresía, no en el perfil.
+ *
+ * Existe porque la pantalla del dueño lo recibía por parámetro de navegación, y
+ * un parámetro que llega vacío no es "no sé": la pantalla lo tomaba como
+ * "empleado" y le ofrecía al dueño editar los servicios de alguien que renta su
+ * asiento. Un rol se pregunta, no se pasa de mano en mano.
+ */
+export async function getRolDePerfil(perfil_id: string): Promise<string | null> {
+  const { data: p, error } = await supabase.from(T('perfiles'))
+    .select('usuario_id, negocio_id').eq('id', perfil_id).maybeSingle()
+  if (error) throw error
+  if (!p) return null
+  const { data: m, error: e2 } = await supabase.from(T('membresias'))
+    .select('rol').eq('usuario_id', (p as any).usuario_id)
+    .eq('negocio_id', (p as any).negocio_id).eq('activo', true).maybeSingle()
+  if (e2) throw e2
+  return (m as any)?.rol ?? null
+}
+
 export async function getPerfilesNegocio(negocio_id: string) {
   const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
   if (error) throw error
