@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share, Animated, Easing } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -7,13 +7,13 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera,
-  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente,
+  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush, avisos } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
-import { getSesion } from '../lib/storage'
+import { getSesion, guardarSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge } from './ui'
 import PanelBadge from './panel-badge'
@@ -24,6 +24,54 @@ const EST_FONDO: Record<string, string> = {
 
 /** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
 const DIAS_ADELANTE = 20
+
+/**
+ * El punto de estado, latiendo.
+ *
+ * El cuadro principal decía la verdad pero parecía una captura de pantalla: no
+ * había forma de distinguir "la app está viva y esto es de ahora" de "esto se
+ * quedó colgado hace media hora". Un pulso lento resuelve eso sin pedir nada al
+ * usuario ni añadir texto.
+ *
+ * Late solo cuando hay algo vivo que representar. En descanso o inactivo se
+ * queda quieto a propósito: un punto parado ES el estado, y animarlo diría lo
+ * contrario de lo que pasa.
+ *
+ * `useNativeDriver` manda la animación al hilo de UI, así que sigue latiendo
+ * aunque el hilo de JS esté ocupado recargando la fila — que es justo cuando
+ * más importa que la pantalla no parezca muerta.
+ */
+function PuntoVivo({ color, vivo }: { color: string; vivo: boolean }) {
+  const pulso = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!vivo) { pulso.setValue(0); return }
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulso, { toValue: 1, duration: 1100, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulso, { toValue: 0, duration: 900, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+      ]),
+    )
+    bucle.start()
+    return () => bucle.stop()
+  }, [vivo, pulso])
+
+  return (
+    <View style={s.puntoWrap}>
+      {vivo && (
+        <Animated.View
+          pointerEvents="none"
+          style={[s.puntoHalo, {
+            backgroundColor: color,
+            opacity: pulso.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+            transform: [{ scale: pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
+          }]}
+        />
+      )}
+      <View style={[s.puntoNucleo, { backgroundColor: color }]} />
+    </View>
+  )
+}
 
 /** Suma minutos a una hora "HH:MM:SS" sin salirse del día. */
 function sumarMinutos(hhmmss: string, min: number) {
@@ -80,6 +128,12 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const [verTodos, setVerTodos] = useState(false)
   const [estado, setEstado] = useState<any>(null)
   const esHoy = fecha === hoy
+  // Los locales donde trabaja. Con uno solo es una línea informativa; con
+  // varios, el selector — antes había que salir a Configuración > Mis locales
+  // para cambiar de sitio, que es un viaje raro para algo que se hace al llegar
+  // por la mañana.
+  const [locales, setLocales] = useState<any[]>([])
+  const [localModal, setLocalModal] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
@@ -97,7 +151,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
     setLoading(false); setRefreshing(false)
+    // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
+    // una línea. Que tarde no debe retrasar la fila.
+    if (ss.usuario_id) getBarberoNegocios(ss.usuario_id).then(setLocales).catch(() => {})
   }, [fecha, hoy])
+
+  async function cambiarLocal(l: any) {
+    const ss = await getSesion()
+    if (!ss || l.negocio_id === ss.negocio_id) { setLocalModal(false); return }
+    await guardarSesion({ ...ss, negocio_id: l.negocio_id, perfil_id: l.perfil_id })
+    setLocalModal(false); setLoading(true); setFecha(hoy); cargar()
+  }
 
   /**
    * FLUIDEZ. `cargar()` son OCHO peticiones, una de ellas barriendo 22 días de
@@ -445,17 +509,49 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       return { texto: `Llamar a ${enFila[0].turno_usuarios?.nombre ?? 'el siguiente'}`, icono: 'megaphone-outline', onPress: llamar }
     }
     if (estado && !estado.acepta) return null   // en descanso: la fila está cerrada
+    // La silla ocupada por un walk-in ya tiene su propia tarjeta con "Terminé".
+    // Ofrecer "atender sin cita" encima invita a empezar un segundo corte
+    // encima del que estás haciendo.
+    if (ocupado) return null
     return { texto: 'Atender cliente sin cita', icono: 'cut-outline', onPress: () => setHoja({ tipo: 'servicios', modo: 'ocupar' }) }
   })()
+
+  /**
+   * ¿Está la silla libre para meter a alguien sin cita?
+   *
+   * No lo está de dos formas distintas, y la pantalla solo miraba una: un
+   * cliente de la fila sentado (`atendiendo`), o un walk-in metido con
+   * "atender sin cita", que crea un bloqueo (`ocupado`). Con alguien en la
+   * silla seguía saliendo el botón de atender a otro sin cita.
+   */
+  const sillaLibre = !ocupado && llamado?.estado !== 'atendiendo'
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Text style={s.kicker}>{fechaLarga(fechaDeISO(fecha))}</Text>
-      {/* El nombre de quien trabaja, no una etiqueta genérica: en un local con
-          varias sillas "Mi agenda" no dice de quién es la que estás viendo. */}
-      <Display size={30} style={{ marginBottom: 16 }}>{titulo ?? usuario?.nombre ?? 'Mi agenda'}</Display>
+      {/* "Agenda de <nombre>" y debajo el local. Antes era el nombre a secas,
+          que en un local con varias sillas no dice si es tuya o la de otro, y
+          no decía en absoluto DÓNDE — un barbero que trabaja en dos sitios
+          abría la app sin saber cuál estaba viendo, y cambiar de local había
+          que ir a buscarlo a Configuración. */}
+      <Display size={30}>
+        {titulo ? titulo : <>Agenda de <Text style={s.nombrePropio}>{usuario?.nombre ?? 'mi silla'}</Text></>}
+      </Display>
+      {locales.length > 1 ? (
+        <TouchableOpacity style={s.localSel} onPress={() => setLocalModal(true)}>
+          <Ionicons name="storefront-outline" size={15} color={COLORS.textMid} />
+          <Text style={s.localSelT}>{negocio?.nombre ?? 'Elige local'}</Text>
+          <Ionicons name="chevron-down" size={15} color={COLORS.textMid} />
+        </TouchableOpacity>
+      ) : negocio?.nombre ? (
+        <View style={s.localFijo}>
+          <Ionicons name="storefront-outline" size={15} color={COLORS.textLight} />
+          <Text style={s.localFijoT}>{negocio.nombre}</Text>
+        </View>
+      ) : null}
+      <View style={{ height: 16 }} />
 
       {/* ── SELECTOR DE DÍA ─────────────────────────────────────────────────
           Va AQUÍ, no al final. Estaba debajo del cuadro de estado y de toda la
@@ -496,7 +592,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {esHoy && estado && (
         <View style={[s.panel, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
           <View style={s.panelTop}>
-            <View style={s.estadoPunto} />
+            <PuntoVivo color="rgba(255,255,255,0.95)" vivo={estado.estado === 'libre' || estado.estado === 'atendiendo'} />
             <View style={{ flex: 1 }}>
               <Text style={s.estadoT}>
                 {estado.estado === 'atendiendo'
@@ -561,19 +657,19 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </View>
       )}
 
-      {/* Mirando otro día: en vez de avisar de lo que NO hay —"la fila en vivo
-          es solo de hoy", que se leía como "esta pantalla solo enseña hoy"—
-          esto cuenta lo que SÍ hay ese día, que es justo para lo que sirve
-          mirar hacia adelante. Y deja la vuelta a hoy a un toque. */}
+      {/* Esta barra NO cuenta citas. Lo hizo, y se veía mal: en un día vacío
+          decía "Sin citas este día" y el panel de abajo repetía la misma frase
+          palabra por palabra, y en un día con citas contaba tres y las tres
+          salían listadas justo debajo. Dos sitios diciendo lo mismo hacen dudar
+          de si hablan de lo mismo.
+
+          Su trabajo es otro y solo ese: recordarte que no estás en hoy, y
+          devolverte con un toque. Lo que hay ese día lo cuenta "CITAS DEL DÍA",
+          que es de quien es. */}
       {!esHoy && (
         <View style={s.otroDia}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.otroDiaT}>
-              {citas.length === 0 ? 'Sin citas este día' : `${citas.length} cita${citas.length === 1 ? '' : 's'} reservada${citas.length === 1 ? '' : 's'}`}
-              {bloqueosLista.length > 0 ? ` · ${bloqueosLista.length} hora${bloqueosLista.length === 1 ? '' : 's'} bloqueada${bloqueosLista.length === 1 ? '' : 's'}` : ''}
-            </Text>
-            <Text style={s.otroDiaS}>Puedes bloquear horas de este día desde abajo.</Text>
-          </View>
+          <Ionicons name="calendar-outline" size={16} color={COLORS.textMid} />
+          <Text style={s.otroDiaT}>No estás viendo hoy</Text>
           <TouchableOpacity style={s.volverHoy} onPress={() => setFecha(hoy)}>
             <Text style={s.volverHoyT}>Ir a hoy</Text>
           </TouchableOpacity>
@@ -688,7 +784,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {/* Solo si el cuadro de arriba NO está ya ofreciendo esto: con gente en la
           fila la acción principal es "Llamar a…", y entonces sigue haciendo
           falta poder atender a alguien que llega caminando. */}
-      {esHoy && accion?.texto !== 'Atender cliente sin cita' && (
+      {esHoy && sillaLibre && accion?.texto !== 'Atender cliente sin cita' && (
         <TouchableOpacity style={s.walkin} onPress={() => setHoja({ tipo: 'servicios', modo: 'ocupar' })}>
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
@@ -699,14 +795,18 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           secundario de la marca— se ve sin competir con el rojo de las acciones
           de la fila. */}
       {usuario?.codigo_barbero ? (
-        <TouchableOpacity style={s.compartir}
+        <TouchableOpacity style={s.compartir} activeOpacity={0.85}
           onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-          <Ionicons name="share-social" size={18} color="#fff" />
+          <View style={s.compartirIcono}>
+            <Ionicons name="share-social" size={17} color="#fff" />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.compartirT}>Compartir mi código</Text>
+            <Text style={s.compartirT}>Comparte tu código</Text>
+            <Text style={s.compartirD}>Para que reserven contigo</Text>
+          </View>
+          <View style={s.compartirChip}>
             <Text style={s.compartirC}>{usuario.codigo_barbero}</Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       ) : null}
 
@@ -829,6 +929,27 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </View>
       </Modal>
 
+      {/* Cambiar de local. Solo existe si trabaja en más de uno. */}
+      <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
+        <View style={s.modalBg}>
+          <View style={s.modal}>
+            <Display size={22}>¿En qué local estás?</Display>
+            <Text style={s.modalSub}>Cambia la agenda, la fila y los clientes que ves.</Text>
+            {locales.map((l: any) => {
+              const activo = l.negocio_id === sesion?.negocio_id
+              return (
+                <TouchableOpacity key={l.negocio_id} style={s.localOpc} onPress={() => cambiarLocal(l)}>
+                  <Ionicons name={activo ? 'radio-button-on' : 'radio-button-off'} size={20}
+                    color={activo ? COLORS.red : COLORS.textLight} />
+                  <Text style={s.localOpcT}>{l.nombre}</Text>
+                </TouchableOpacity>
+              )
+            })}
+            <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrarHoja}>Cancelar</Text></TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   )
 }
@@ -898,14 +1019,17 @@ const s = StyleSheet.create({
   diaDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: 'transparent' },
   diaDotHay: { backgroundColor: COLORS.red },
   diaDotOn: { backgroundColor: '#fff' },
-  otroDia: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 13, marginBottom: 14 },
-  otroDiaT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  otroDiaS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  otroDia: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 14 },
+  otroDiaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   volverHoy: { backgroundColor: COLORS.ink, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 13 },
   volverHoyT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  estadoPunto: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.9)' },
+  // El halo crece y se desvanece por encima; el núcleo no se mueve, para que
+  // el punto siga leyéndose como un indicador y no como una animación.
+  puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
+  puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
+  puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
   estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
   estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
@@ -942,9 +1066,32 @@ const s = StyleSheet.create({
   rowServ: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
   walkinT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  compartir: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 14, paddingVertical: 13, paddingHorizontal: 15, marginTop: 10 },
+  // NEGRO, no azul: el azul es el estado "atendiendo" del cuadro de arriba, y
+  // dos cosas del mismo azul en una pantalla se leen como relacionadas cuando
+  // no tienen nada que ver.
+  //
+  // La composición: icono en su caja, texto a la izquierda con etiqueta y
+  // explicación, y el código en una pastilla a la derecha alineada con el
+  // icono. Antes era icono + dos líneas + un chevrón, todo apretado contra el
+  // borde y con el código haciendo de subtítulo: ni justificación ni ritmo.
+  compartir: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.carbon,
+    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14, marginTop: 10 },
+  compartirIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center', justifyContent: 'center' },
   compartirT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  compartirC: { fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(255,255,255,0.8)', letterSpacing: 1, marginTop: 1 },
+  compartirD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  compartirChip: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 9, paddingVertical: 6, paddingHorizontal: 10 },
+  compartirC: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', letterSpacing: 1.2 },
+  nombrePropio: { color: COLORS.red },
+  localSel: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6,
+    backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 999,
+    paddingVertical: 6, paddingHorizontal: 12 },
+  localSelT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid },
+  localFijo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  localFijoT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
+  localOpc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  localOpcT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cerrarHoja: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 18 },
   bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.red, borderRadius: 14, padding: 13, marginTop: 8 },
   bloquearT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.red },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 8 },

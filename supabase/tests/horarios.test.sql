@@ -41,7 +41,7 @@ do $$
 declare
   a_due uuid := gen_random_uuid();
   u_due uuid; v_neg uuid; p uuid; s_corte uuid; s_barba uuid;
-  v_dia date; v_hoy_real date; v_lista text; v_int int;
+  v_dia date; v_hoy_real date; v_lista text; v_int int; v_int2 int;
   n int := 0; ok int := 0; fallos text := ''; c text;
 begin
   -- Mañana, para que la antelación mínima (2h) no recorte nada.
@@ -163,12 +163,23 @@ begin
   -- los huecos de hoy, que es como estaba escrito entonces. Se corrige aquí
   -- junto con la regla: una prueba que defiende el comportamiento viejo es peor
   -- que no tener prueba, porque da confianza en la dirección equivocada.
+  -- OJO, esta se escribió mal la primera vez y solo se notaba pasado el
+  -- mediodía. Afirmaba "hoy quedan huecos" con el local abierto de 08:00 a
+  -- 12:00: por la mañana pasaba, y corriéndola a las dos de la tarde fallaba
+  -- sola. No probaba la regla, probaba qué hora era.
+  --
+  -- Lo que hay que demostrar es que el descanso NO QUITA huecos de hoy, y eso
+  -- se dice comparando el mismo día con el barbero disponible y en descanso. Si
+  -- la jornada de hoy ya terminó, los dos lados valen cero y la igualdad sigue
+  -- siendo cierta — no demuestra nada ese día, pero tampoco miente.
+  select count(*) into v_int from turno_slots_disponibles(p, v_hoy_real, s_corte) s;
   update turno_perfiles set estado_actual = 'descanso' where id = p;
 
-  n:=n+1; c:='descanso · las citas de HOY se siguen pudiendo coger';
-  select count(*) into v_int from turno_slots_disponibles(p, v_hoy_real, s_corte) s;
-  if v_int > 0 then ok:=ok+1;
-  else fallos:=fallos||E'\n  x '||c||' - 0 huecos: un descanso no puede cerrar la agenda'; end if;
+  n:=n+1; c:='descanso · NO quita ni un hueco de los de hoy';
+  select count(*) into v_int2 from turno_slots_disponibles(p, v_hoy_real, s_corte) s;
+  if v_int2 = v_int then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - de '||v_int||' huecos a '||v_int2
+       ||': un descanso no puede cerrar la agenda'; end if;
 
   n:=n+1; c:='descanso · la agenda de dentro de unos días SIGUE abierta';
   select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
@@ -186,6 +197,46 @@ begin
   n:=n+1; c:='vuelve · al reactivarse se ofrece otra vez';
   select count(*) into v_int from turno_slots_disponibles(p, v_dia + 3, s_corte) s;
   if v_int > 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
+
+  -- ── UN DÍA, UNA JORNADA (migración 65) ────────────────────────────────────
+  -- Del piloto: "abrí los lunes, pero aparecen dos días abiertos afuera". En la
+  -- base había DOS lunes idénticos para el mismo perfil, porque la app decidía
+  -- entre insertar y modificar según si su estado en memoria traía id, y nada
+  -- por debajo lo impedía. La lista de días enseñaba uno y el resumen contaba
+  -- dos: las dos leyendo bien una tabla mal poblada.
+  delete from turno_horarios where perfil_id = p and dia_semana = 1;
+
+  n:=n+1; c:='jornada · abrir el mismo día dos veces deja UNA fila';
+  insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
+  values (p, 1, time '09:00', time '18:00', true, 0)
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = excluded.activo, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
+  insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
+  values (p, 1, time '10:00', time '20:00', true, 5)
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = excluded.activo, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
+  select count(*) into v_int from turno_horarios where perfil_id = p and dia_semana = 1;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedaron '||v_int; end if;
+
+  -- Idempotente no es lo mismo que inerte: el segundo guardado manda.
+  n:=n+1; c:='jornada · el segundo guardado MODIFICA, no se ignora';
+  select count(*) into v_int from turno_horarios
+   where perfil_id = p and dia_semana = 1 and hora_inicio = time '10:00';
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la jornada no se actualizó'; end if;
+
+  -- Y el índice tiene que sostenerlo aunque la llamada no traiga on conflict:
+  -- una regla que depende de que quien escribe se acuerde no es una regla.
+  n:=n+1; c:='jornada · un insert crudo NO puede crear un segundo lunes';
+  begin
+    insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
+    values (p, 1, time '08:00', time '12:00', true, 0);
+    fallos:=fallos||E'\n  x '||c||' - se creó igualmente';
+  exception when unique_violation then ok:=ok+1;
+            when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
   raise exception E'\n=== HORARIOS · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

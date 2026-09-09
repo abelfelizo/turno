@@ -302,7 +302,20 @@ export default function Config() {
   // sin esto habría que entrar en las nueve secciones para saber cómo está
   // configurado el negocio.
   const svActivos = servicios.filter((x: any) => x.activo).length
-  const diasAbiertos = horarios.filter((h: any) => h.activo).length
+
+  // El resumen del horario DICE QUÉ DÍAS, no cuántos. Decía "2 días abiertos"
+  // y era imposible saber si eran los que tú pusiste: de hecho no lo eran —la
+  // base tenía dos lunes duplicados (migración 65)— y un número no da forma de
+  // notarlo. "Solo lunes" sí: se compara de un vistazo con lo que hiciste.
+  //
+  // Se deduplica por día también aquí. El índice único ya lo impide en la base,
+  // pero este resumen es justo el sitio donde se vio el problema, y contar
+  // sobre un Set no cuesta nada.
+  const diasAbiertosSet = new Set(horarios.filter((h: any) => h.activo).map((h: any) => h.dia_semana))
+  const diasAbiertos = diasAbiertosSet.size
+  const resumenHorario = diasAbiertos === 0 ? 'Sin días abiertos'
+    : diasAbiertos === 7 ? 'Todos los días'
+    : DIAS.filter(d => diasAbiertosSet.has(d.n)).map(d => d.l.slice(0, 3)).join(' · ')
   const tiemposPropios = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
     || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
   const estadoActual = ESTADOS.find(e => e.k === (perfil?.estado_actual ?? 'disponible'))
@@ -317,8 +330,7 @@ export default function Config() {
       v: empleado ? `Los pone ${negocioNombre ?? 'la barbería'}`
         : svActivos === 0 ? 'Ninguno todavía' : `${svActivos} activo${svActivos === 1 ? '' : 's'}` },
     { k: 'horario', t: empleado ? 'Horario del local' : 'Mi horario', icono: 'calendar-outline', ver: true,
-      v: empleado ? `Lo fija ${negocioNombre ?? 'la barbería'}`
-        : diasAbiertos === 0 ? 'Sin días abiertos' : `${diasAbiertos} día${diasAbiertos === 1 ? '' : 's'} abierto${diasAbiertos === 1 ? '' : 's'}` },
+      v: empleado ? `Lo fija ${negocioNombre ?? 'la barbería'}` : resumenHorario },
     { k: 'reglas', t: 'Reglas', icono: 'options-outline', ver: true,
       v: empleado ? `Las pone ${negocioNombre ?? 'la barbería'}`
         : tiemposPropios ? 'Uso mis propios tiempos' : `Sigo los de ${negocioNombre ?? 'la barbería'}` },
@@ -349,7 +361,7 @@ export default function Config() {
           <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
           {MENU.filter(m => m.ver).map(m => (
             <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
-              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color={COLORS.ink} /></View>
+              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color="#fff" /></View>
               <View style={{ flex: 1 }}>
                 <Text style={s.menuT}>{m.t}</Text>
                 <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
@@ -547,7 +559,16 @@ export default function Config() {
                     v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
                   <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
                     v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
-                  <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
+                  {/* Decía: «Avisar "voy en camino" · Se activa cuando le
+                      quedan 2 delante». No se entendía, y con razón: no dice
+                      QUIÉN avisa a quién, ni qué pasa. Lo que hace es mandarle
+                      al cliente el aviso de que se acerca su turno, con el
+                      botón para contestar que ya viene — para que el barbero
+                      sepa si esperarlo. El número es cuándo se manda. */}
+                  <ReglaNum l="Aviso de «ya casi te toca»"
+                    d={umb === 0
+                      ? 'Ahora mismo solo se le avisa cuando lo llamas.'
+                      : `Se le avisa al cliente cuando le ${umb === 1 ? 'quede 1 persona' : `queden ${umb} personas`} delante, y puede contestarte «voy en camino».`}
                     v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
                 </>
               )}
@@ -635,13 +656,44 @@ export default function Config() {
         </>
       )}
 
+      {/* Eran tres botones con tres estilos que no se parecían en nada: una
+          caja con borde, un texto suelto y un texto subrayado más pequeño. Y el
+          orden visual no decía nada de la gravedad — "eliminar mi cuenta", lo
+          único irreversible, era lo más discreto de los tres.
+
+          Ahora son filas iguales, cada una con lo que hace debajo, ordenadas de
+          menos a más grave. Eliminar va aparte y en rojo lleno: el único que no
+          tiene vuelta atrás no debería parecerse a los otros dos. */}
       {seccion === 'otros' && (
         <>
         <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
-        
-        <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
-        <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-        <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+
+        <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+          <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaT}>Cerrar sesión</Text>
+            <Text style={s.cuentaD}>Tu local y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={s.cuentaFila} onPress={dejarEsteLocal}>
+          <View style={s.cuentaIcono}><Ionicons name="exit-outline" size={18} color={COLORS.textMid} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaT}>Dejar {negocioNombre ?? 'este local'}</Text>
+            <Text style={s.cuentaD}>Se cancelan tus citas futuras y sales de la fila. Tu historial y tu código de barbero te siguen.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+        </TouchableOpacity>
+
+        <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+        <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
+          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
+            <Text style={s.cuentaBorrarD}>Borra tus datos, cancela todo lo que tengas abierto y no se puede deshacer.</Text>
+          </View>
+        </TouchableOpacity>
         </>
       )}
 
@@ -740,7 +792,7 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 const s = StyleSheet.create({
   menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
     borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
-  menuIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  menuIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
   menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
   menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
@@ -802,12 +854,15 @@ const s = StyleSheet.create({
   rolChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center' },
   rolChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   rolChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  dejar: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.dangerLight, borderRadius: 12, marginBottom: 8 },
-  dejarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
-  salir: { padding: 16, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  eliminar: { padding: 12, alignItems: 'center', marginBottom: 12 },
-  eliminarT: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, textDecorationLine: 'underline' },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
+    borderRadius: 14, padding: 14, marginBottom: 16 },
+  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
   mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },

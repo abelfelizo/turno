@@ -220,13 +220,39 @@ export default function Clientes() {
               )
             })()}
 
+            {/* Era una sola línea con los tres valores pegados por puntos
+                —"Fade · Corto · Perfilada"— sin decir cuál era cuál, y debajo
+                las alergias en negrita roja con un emoji: tres tamaños y tres
+                pesos distintos para lo mismo. Ahora cada dato lleva su etiqueta
+                encima en pequeño y su valor debajo, en columnas iguales; las
+                alergias van aparte porque no son una preferencia, son un aviso,
+                y esa es la única razón por la que se ven distintas. */}
             {ficha?.prefs && (ficha.prefs.tipo_corte || ficha.prefs.largo || ficha.prefs.barba || ficha.prefs.alergias) && (
               <>
                 <Text style={s.notaLbl}>CÓMO LE GUSTA</Text>
-                <Text style={s.prefs}>
-                  {[ficha.prefs.tipo_corte, ficha.prefs.largo, ficha.prefs.barba].filter(Boolean).join(' · ')}
-                </Text>
-                {ficha.prefs.alergias ? <Text style={s.alerta}>⚠ Alergias: {ficha.prefs.alergias}</Text> : null}
+                {(ficha.prefs.tipo_corte || ficha.prefs.largo || ficha.prefs.barba) ? (
+                  <View style={s.prefsGrid}>
+                    {([
+                      ['Corte', ficha.prefs.tipo_corte],
+                      ['Largo', ficha.prefs.largo],
+                      ['Barba', ficha.prefs.barba],
+                    ] as [string, string | null][]).filter(([, v]) => !!v).map(([k, v]) => (
+                      <View key={k} style={s.prefCelda}>
+                        <Text style={s.prefK}>{k.toUpperCase()}</Text>
+                        <Text style={s.prefV}>{v}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                {ficha.prefs.alergias ? (
+                  <View style={s.alerta}>
+                    <Ionicons name="warning" size={16} color={COLORS.red} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.alertaK}>ALERGIAS</Text>
+                      <Text style={s.alertaV}>{ficha.prefs.alergias}</Text>
+                    </View>
+                  </View>
+                ) : null}
               </>
             )}
 
@@ -295,8 +321,15 @@ const s = StyleSheet.create({
   puntos: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 4 },
   puntosT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   puntosD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
-  prefs: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.ink, marginBottom: 4 },
-  alerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 4 },
+  prefsGrid: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  prefCelda: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 11 },
+  prefK: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 0.8 },
+  prefV: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink, marginTop: 3 },
+  alerta: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.dangerLight,
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 14 },
+  alertaK: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.red, letterSpacing: 0.8 },
+  alertaV: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, marginTop: 2 },
   visita: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   visitaS: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   visitaF: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },

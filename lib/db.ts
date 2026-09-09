@@ -405,14 +405,29 @@ export async function getHorariosPerfil(perfil_id: string) {
   if (error) throw error
   return data || []
 }
+/**
+ * Guarda la jornada de UN día. Es un upsert sobre (perfil_id, dia_semana), no
+ * un insert-o-update decidido aquí.
+ *
+ * Antes elegía según si el objeto en memoria traía `id`: sin id, insertaba. Al
+ * abrir un día que todavía no existía no había id, así que dos guardados
+ * seguidos —dos toques, o volver a entrar antes de que recargara— creaban DOS
+ * filas del mismo día. Pasó de verdad: un perfil del piloto acabó con dos lunes
+ * idénticos, la lista enseñaba uno y el resumen contaba dos.
+ *
+ * Con el índice único de la migración 65, esto es idempotente: abrir el lunes
+ * cien veces deja un lunes.
+ */
 export async function guardarHorario(h: { id?: string; perfil_id: string; dia_semana: number; hora_inicio: string; hora_fin: string; tiempo_entre_clientes?: number; activo: boolean }) {
-  if (h.id) {
-    const { error } = await supabase.from(T('horarios')).update({ hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0 }).eq('id', h.id)
-    if (error) throw error
-  } else {
-    const { error } = await supabase.from(T('horarios')).insert({ perfil_id: h.perfil_id, dia_semana: h.dia_semana, hora_inicio: h.hora_inicio, hora_fin: h.hora_fin, activo: h.activo, tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0 })
-    if (error) throw error
-  }
+  const { error } = await supabase.from(T('horarios')).upsert({
+    perfil_id: h.perfil_id,
+    dia_semana: h.dia_semana,
+    hora_inicio: h.hora_inicio,
+    hora_fin: h.hora_fin,
+    activo: h.activo,
+    tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0,
+  }, { onConflict: 'perfil_id,dia_semana' })
+  if (error) throw error
 }
 
 // BLOQUEOS (barbero bloquea una franja)
