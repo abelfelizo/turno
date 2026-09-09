@@ -108,6 +108,14 @@ begin
     fallos:=fallos||E'\n  x '||c||' - SE LLEVÓ '||v_int||' clientes con nombre y teléfono';
   exception when others then ok:=ok+1; end;
 
+  -- Este es el intruso que importa: registrado, real y de otro local. Un anónimo
+  -- rebota antes de llegar a la comprobación de pertenencia.
+  n:=n+1; c:='listado · no puede leer el listado de clientes de un local ajeno';
+  begin
+    select count(*) into v_int from turno_clientes_del_local(v_neg);
+    fallos:=fallos||E'\n  x '||c||' - SE LLEVÓ '||v_int||' clientes con nombre y teléfono';
+  exception when others then ok:=ok+1; end;
+
   n:=n+1; c:='silla · no puede ver el estado de un barbero ajeno';
   begin
     perform turno_estado_barbero(p_bar);
@@ -143,6 +151,15 @@ begin
   n:=n+1; c:='legítimo · el barbero SÍ ve su propia cartera';
   begin
     select count(*) into v_int from turno_clientes_por_recuperar(p_bar);
+    if v_int >= 1 then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||v_int||' clientes: se cerró de más'; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- La otra mitad de la migración 63: al hacer que se niegue al desconocido hay
+  -- que comprobar que no se ha negado también al dueño de los datos.
+  n:=n+1; c:='legítimo · el barbero SÍ ve el listado del local';
+  begin
+    select count(*) into v_int from turno_clientes_del_local(v_neg);
     if v_int >= 1 then ok:=ok+1;
     else fallos:=fallos||E'\n  x '||c||' - '||v_int||' clientes: se cerró de más'; end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
@@ -227,6 +244,20 @@ begin
     abiertas := abiertas || ' fidelidad'; exception when others then null; end;
   begin perform turno_regla_tiempo(p_bar, v_neg, 'ventana_llegada_min');
     abiertas := abiertas || ' regla_tiempo'; exception when others then null; end;
+
+  -- Las cuatro de las migraciones 59–62. Se añaden aquí porque esta suite se
+  -- escribió antes que ellas y no las cubría: clientes_del_local llegó a
+  -- producción devolviendo vacío en vez de negarse, y nada se puso rojo.
+  -- Devolver vacío no es una fuga, pero tampoco es una negativa: el día que el
+  -- portero se caiga de la consulta, la diferencia es todo.
+  begin perform turno_clientes_del_local(v_neg);
+    abiertas := abiertas || ' clientes_del_local'; exception when others then null; end;
+  begin perform turno_avisos_de_espera(v_neg, 5);
+    abiertas := abiertas || ' avisos_de_espera'; exception when others then null; end;
+  begin perform turno_no_esta(q_cli);
+    abiertas := abiertas || ' no_esta'; exception when others then null; end;
+  begin perform turno_sustituir_ausente(q_cli, q_cli);
+    abiertas := abiertas || ' sustituir_ausente'; exception when others then null; end;
 
   reset role;
 
