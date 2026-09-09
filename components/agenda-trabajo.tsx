@@ -336,6 +336,46 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
   const bloqueosLista = bloqueos.filter(b => b.id !== ocupado?.id)
   const dias = Array.from({ length: DIAS_ADELANTE + 2 }, (_, i) => sumarDias(hoy, i - 1))
 
+  // ── QUÉ DICE Y QUÉ OFRECE EL CUADRO PRINCIPAL ──────────────────────────────
+  // Una sola línea con todo el panorama, en vez de repartir el mismo dato en
+  // tres cajas. Se nombra lo que hay; lo que no hay se calla, salvo cuando no
+  // hay nada de nada, que también es información.
+  const resumen = (() => {
+    const partes: string[] = []
+    if (estado?.estado === 'atendiendo' && estado?.hasta) partes.push(`hasta ${hora12(estado.hasta)}`)
+    if (enFila.length > 0) partes.push(`${enFila.length} esperando`)
+    const citasVivas = citas.filter((c: any) => !['cancelada', 'atendida', 'no_llego'].includes(c.estado)).length
+    if (esHoy && citasVivas > 0) partes.push(`${citasVivas} ${citasVivas === 1 ? 'cita' : 'citas'} hoy`)
+    if (estado && !estado.acepta) partes.push('no apareces para los clientes')
+    return partes.length ? partes.join(' · ') : 'Nadie esperando y sin citas hoy'
+  })()
+
+  /** Cuánto lleva alguien esperando. Un número que el barbero mira para decidir
+   *  a quién adelanta, y que hasta ahora no salía en ningún sitio. */
+  function esperaDe(q: any): number | null {
+    if (!q?.created_at) return null
+    const m = Math.floor((Date.now() - new Date(q.created_at).getTime()) / 60000)
+    return m > 0 ? m : null
+  }
+
+  // LA acción del momento. Antes el barbero tenía que decidir entre "Llamar",
+  // "Atender sin cita" y el menú de cada fila; la pantalla enseñaba datos y le
+  // dejaba a él la conclusión. Esto la dice.
+  const accion = (() => {
+    if (!sesion?.perfil_id) return null
+    if (llamado?.estado === 'atendiendo') {
+      return { texto: `Terminar con ${llamado.turno_usuarios?.nombre ?? 'el cliente'}`, icono: 'checkmark-circle-outline', onPress: () => atenderCola(llamado) }
+    }
+    if (llamado) {
+      return { texto: `Sentar a ${llamado.turno_usuarios?.nombre ?? 'el cliente'}`, icono: 'cut-outline', onPress: () => empezarCorte(llamado) }
+    }
+    if (enFila.length > 0) {
+      return { texto: `Llamar a ${enFila[0].turno_usuarios?.nombre ?? 'el siguiente'}`, icono: 'megaphone-outline', onPress: llamar }
+    }
+    if (estado && !estado.acepta) return null   // en descanso: la fila está cerrada
+    return { texto: 'Atender cliente sin cita', icono: 'cut-outline', onPress: () => setHoja({ tipo: 'servicios', modo: 'ocupar' }) }
+  })()
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
@@ -343,61 +383,74 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
       <Text style={s.kicker}>{fechaLarga(fechaDeISO(fecha))}</Text>
       <Display size={30} style={{ marginBottom: 16 }}>{titulo}</Display>
 
-      {usuario?.codigo_barbero ? (
-        <View style={s.codigoCard}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
-            <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
-          </View>
-          <TouchableOpacity style={s.codigoShare} onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-            <Ionicons name="share-outline" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      ) : null}
 
-      {/* Selector de día: la agenda no es solo hoy. El puntito marca los días
-          que ya tienen citas, para no ir a ciegas uno por uno. */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.diasWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-        {dias.map(d => {
-          const on = d === fecha
-          const dd = fechaDeISO(d)
-          return (
-            <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}>
-              <Text style={[s.diaSem, on && s.diaTxtOn]}>{d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
-              <Text style={[s.diaNum, on && s.diaTxtOn]}>{dd.getDate()}</Text>
-              <View style={[s.diaDot, conteo[d] ? (on ? s.diaDotOn : s.diaDotHay) : null]} />
-            </TouchableOpacity>
-          )
-        })}
-      </ScrollView>
+      {/* ── CUADRO PRINCIPAL: ESTADO + FILA EN UNO ──────────────────────────
+          Antes esto eran tres cajas separadas diciendo lo mismo. Con la fila
+          vacía se leía "Nadie esperando" (estado), "Total 0" (COLA AHORA) y
+          "Nadie esperando ahora mismo" (EN FILA): tres avisos para una sola
+          noticia, y ninguno decía qué hacer.
 
-      {/* Estado real: 'atendiendo' se deduce de la silla y los bloqueos; lo único
-          que se decide a mano es si aceptas clientes.
+          El desglose Prioritario/Digital/Físico era vocabulario del sistema: el
+          barbero no atiende categorías, atiende personas en orden. Se queda como
+          etiqueta pequeña junto a quien la tiene.
 
-          Va FUERA del bloque `esHoy`: el estado es de AHORA, no del día que
-          estés mirando. Antes desaparecía en cuanto abrías otro día, justo
-          cuando más falta hace saber si tienes a alguien en la silla. */}
+          Va fuera de `esHoy` porque el estado es de AHORA, no del día que estés
+          mirando. */}
       {estado && (
-        <View style={[s.estadoBox, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
-          <View style={s.estadoPunto} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.estadoT}>
-              {estado.estado === 'atendiendo'
-                ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
-                : estado.estado === 'descanso' ? 'En descanso'
-                : estado.estado === 'inactivo' ? 'Inactivo'
-                : 'Libre'}
-            </Text>
-            <Text style={s.estadoD}>
-              {estado.estado === 'atendiendo' && estado.hasta ? `Hasta ${hora12(estado.hasta)} · ` : ''}
-              {estado.en_cola === 0 ? 'Nadie esperando' : `${estado.en_cola} esperando`}
-              {!estado.acepta ? ' · no apareces para los clientes' : ''}
-            </Text>
+        <View style={[s.panel, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
+          <View style={s.panelTop}>
+            <View style={s.estadoPunto} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.estadoT}>
+                {estado.estado === 'atendiendo'
+                  ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
+                  : estado.estado === 'descanso' ? 'En descanso'
+                  : estado.estado === 'inactivo' ? 'Inactivo'
+                  : 'Libre'}
+              </Text>
+              <Text style={s.estadoD}>{resumen}</Text>
+            </View>
+            <TouchableOpacity style={s.estadoBtn}
+              onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
+              <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.estadoBtn}
-            onPress={() => op(() => actualizarEstadoPerfil(sesion.perfil_id, estado.acepta ? 'descanso' : 'disponible'))}>
-            <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
-          </TouchableOpacity>
+
+          {/* UNA acción, la que toca ahora. Antes había que decidir entre
+              "Llamar", "Atender sin cita" y las opciones de cada fila. */}
+          {esHoy && accion && (
+            <TouchableOpacity style={s.accionPral} onPress={accion.onPress}>
+              <Ionicons name={accion.icono as any} size={18} color={COLORS.ink} />
+              <Text style={s.accionPralT}>{accion.texto}</Text>
+            </TouchableOpacity>
+          )}
+
+          {esHoy && enFila.length > 0 && (
+            <View style={s.siguen}>
+              <Text style={s.siguenLbl}>SIGUEN</Text>
+              {(verTodos ? enFila : enFila.slice(0, 4)).map((q, i) => (
+                <TouchableOpacity key={q.id} style={s.siguenRow} onPress={() => setHoja({ tipo: 'acciones', item: q })}>
+                  <Text style={s.siguenPos}>{i + 1}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.siguenName}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                    <Text style={s.siguenServ}>
+                      {q.turno_servicios?.nombre}
+                      {q.prioridad === 1 ? ' · tenía cita' : ''}
+                      {esperaDe(q) ? ` · lleva ${esperaDe(q)} min` : ''}
+                    </Text>
+                  </View>
+                  <Ionicons name="ellipsis-vertical" size={16} color={COLORS.textLight} />
+                </TouchableOpacity>
+              ))}
+              {enFila.length > 4 && (
+                <TouchableOpacity onPress={() => setVerTodos(v => !v)}>
+                  <Text style={s.verTodos}>
+                    {verTodos ? 'Ver solo los próximos' : `Ver los ${enFila.length} de la fila`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
       )}
 
@@ -410,16 +463,6 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
 
       {esHoy && (
         <>
-          <View style={s.colaBox}>
-            <Text style={s.colaTitle}>COLA AHORA</Text>
-            <View style={s.colaStats}>
-              <Grupo n={n1} l="Prioritario" />
-              <Grupo n={n2} l="Digital" />
-              <Grupo n={n3} l="Físico" />
-              <Grupo n={cola.length} l="Total" hl />
-            </View>
-          </View>
-
           {ocupado && (
             <View style={s.ocupado}>
               <Ionicons name="cut" size={18} color="#fff" />
@@ -491,47 +534,24 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
             </View>
           )}
 
-          {enFila.length > 0 && !llamado && (
-            <TouchableOpacity style={s.siguiente} onPress={llamar}>
-              <View>
-                <Text style={s.sigLbl}>SIGUIENTE</Text>
-                <Text style={s.sigName}>{enFila[0].turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                <Text style={s.sigServ}>{enFila[0].turno_servicios?.nombre}</Text>
-              </View>
-              <View style={s.llamarBtn}><Text style={s.llamarT}>Llamar</Text><Ionicons name="arrow-forward" size={18} color="#fff" /></View>
-            </TouchableOpacity>
-          )}
-
-          {/* Siempre visible, aunque esté vacía: el barbero preguntó por "los
-              próximos", y una sección que desaparece deja la duda de si no hay
-              nadie o si la pantalla se rompió. */}
-          <Text style={s.sec}>EN FILA · {enFila.length}</Text>
-          {enFila.length === 0
-            ? <Text style={s.empty}>Nadie esperando ahora mismo.</Text>
-            : <Text style={s.secHint}>Toca a alguien para llamarlo antes, moverlo o sacarlo.</Text>}
-          {enFila.length > 0 && (
-            <>
-              {(verTodos ? enFila : enFila.slice(0, 5)).map((q, i) => (
-                <TouchableOpacity key={q.id} style={s.row} onPress={() => setHoja({ tipo: 'acciones', item: q })}>
-                  <View style={s.pos}><Text style={s.posT}>{i + 1}</Text></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.rowName}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                    <Text style={s.rowServ}>{q.turno_servicios?.nombre} · {q.prioridad === 3 ? 'Físico' : 'Digital'}</Text>
-                  </View>
-                  <Ionicons name="ellipsis-vertical" size={18} color={COLORS.textLight} />
-                </TouchableOpacity>
-              ))}
-              {enFila.length > 5 && (
-                <TouchableOpacity onPress={() => setVerTodos(v => !v)}>
-                  <Text style={s.verTodos}>
-                    {verTodos ? 'Ver solo los próximos 5' : `Ver los ${enFila.length} de la fila`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
         </>
       )}
+
+      {/* Selector de día: la agenda no es solo hoy. El puntito marca los días
+          que ya tienen citas, para no ir a ciegas uno por uno. */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.diasWrap} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+        {dias.map(d => {
+          const on = d === fecha
+          const dd = fechaDeISO(d)
+          return (
+            <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}>
+              <Text style={[s.diaSem, on && s.diaTxtOn]}>{d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}</Text>
+              <Text style={[s.diaNum, on && s.diaTxtOn]}>{dd.getDate()}</Text>
+              <View style={[s.diaDot, conteo[d] ? (on ? s.diaDotOn : s.diaDotHay) : null]} />
+            </TouchableOpacity>
+          )
+        })}
+      </ScrollView>
 
       <Text style={s.sec}>{esHoy ? 'CITAS DE HOY' : `CITAS · ${fechaDeISO(fecha).toLocaleDateString('es', { day: 'numeric', month: 'long' })}`}</Text>
       {citas.length === 0 && <Text style={s.empty}>Sin citas este día</Text>}
@@ -562,7 +582,10 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         </>
       )}
 
-      {esHoy && (
+      {/* Solo si el cuadro de arriba NO está ya ofreciendo esto: con gente en la
+          fila la acción principal es "Llamar a…", y entonces sigue haciendo
+          falta poder atender a alguien que llega caminando. */}
+      {esHoy && accion?.texto !== 'Atender cliente sin cita' && (
         <TouchableOpacity style={s.walkin} onPress={() => setHoja({ tipo: 'servicios', modo: 'ocupar' })}>
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
@@ -571,6 +594,15 @@ export default function AgendaTrabajo({ titulo = 'Mi agenda' }: { titulo?: strin
         <Ionicons name="lock-closed-outline" size={16} color={COLORS.textMid} />
         <Text style={s.bloquearT}>Bloquear hora{esHoy ? '' : ' de este día'}</Text>
       </TouchableOpacity>
+      {/* El código se comparte una vez y no se vuelve a mirar en meses. Ocupaba
+          el mejor sitio de la pantalla cada día; aquí abajo sigue a un toque. */}
+      {usuario?.codigo_barbero ? (
+        <TouchableOpacity style={s.bloquear}
+          onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
+          <Ionicons name="share-outline" size={16} color={COLORS.textMid} />
+          <Text style={s.bloquearT}>Compartir mi código · {usuario.codigo_barbero}</Text>
+        </TouchableOpacity>
+      ) : null}
 
       {/* Una sola hoja para todo lo que se abre desde esta pantalla. */}
       <Modal visible={!!hoja} transparent animationType="slide" onRequestClose={() => setHoja(null)}>
@@ -709,27 +741,27 @@ const fc = StyleSheet.create({
   v: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink, marginTop: 1 },
 })
 
-function Grupo({ n, l, hl }: { n: number; l: string; hl?: boolean }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={[gs.num, hl && { color: COLORS.red }]}>{n}</Text>
-      <Text style={gs.lbl}>{l}</Text>
-    </View>
-  )
-}
 const gs = StyleSheet.create({
   num: { fontFamily: FONTS.display, fontSize: 30, color: '#fff' },
   lbl: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
 })
 
 const s = StyleSheet.create({
+  // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
+  panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
+  panelTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  accionPral: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingVertical: 14, marginTop: 12 },
+  accionPralT: { color: COLORS.ink, fontSize: 15.5, fontWeight: '800' },
+  siguen: { marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.10)', paddingTop: 8 },
+  siguenLbl: { color: 'rgba(0,0,0,0.55)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
+  siguenRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  siguenPos: { width: 18, textAlign: 'center', color: 'rgba(0,0,0,0.55)', fontSize: 13, fontWeight: '800' },
+  siguenName: { color: COLORS.ink, fontSize: 14.5, fontWeight: '700' },
+  siguenServ: { color: 'rgba(0,0,0,0.6)', fontSize: 12.5, marginTop: 1 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
-  codigoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 14, padding: 14, marginBottom: 14 },
-  codigoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
-  codigoVal: { fontFamily: FONTS.display, fontSize: 26, color: '#fff', letterSpacing: 3, marginTop: 2 },
-  codigoShare: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
   diasWrap: { marginBottom: 14 },
   dia: { width: 54, alignItems: 'center', paddingVertical: 9, borderRadius: 13, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
@@ -743,15 +775,11 @@ const s = StyleSheet.create({
   avisoDiaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  estadoBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, marginBottom: 12 },
   estadoPunto: { width: 10, height: 10, borderRadius: 5, backgroundColor: 'rgba(255,255,255,0.9)' },
   estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
   estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   estadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14 },
-  colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
-  colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
   ocupado: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 14, padding: 14, marginBottom: 14 },
   ocupadoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.75)', letterSpacing: 1 },
   ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
@@ -774,20 +802,12 @@ const s = StyleSheet.create({
   fichaAlerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 10 },
   fichaNota: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 8, fontStyle: 'italic' },
   fichaNotaPriv: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 6 },
-  siguiente: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.red, borderRadius: 14, padding: 16, marginBottom: 16 },
-  sigLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
-  sigName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },
-  sigServ: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  llamarBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
-  llamarT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
   verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, textAlign: 'center', paddingVertical: 10 },
   secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  pos: { width: 42, height: 42, borderRadius: 12, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  posT: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink },
   rowName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   rowServ: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
