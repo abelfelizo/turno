@@ -172,7 +172,7 @@ export default function MiTurno() {
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
   }
   function salir(t: any) {
-    Alert.alert('Salir de la fila', '¿Seguro que quieres cancelar este turno?', [
+    Alert.alert('Salir de la fila digital', '¿Seguro que quieres cancelar este turno?', [
       { text: 'No' },
       { text: 'Sí, salir', style: 'destructive', onPress: async () => {
         setAccion(t.id)
@@ -315,7 +315,10 @@ export default function MiTurno() {
       )}
 
       {/* Pedir un turno desde aquí mismo (R3) */}
-      <Text style={s.sec}>{turnos.length ? 'PEDIR OTRO TURNO' : 'PEDIR UN TURNO'}</Text>
+      {/* "FILA DIGITAL" con todas las letras. Aquí decía solo "pedir un turno",
+          y en el local hay dos filas: la de la app y la gente sentada en el
+          banco. Nombrarla es lo que deja claro cuál de las dos es esta. */}
+      <Text style={s.sec}>{turnos.length ? 'ENTRAR OTRA VEZ A LA FILA DIGITAL' : 'ENTRAR A LA FILA DIGITAL'}</Text>
       {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
 
       {/* ELEGIR BARBERO ES DEL CLIENTE, SIEMPRE.

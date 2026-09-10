@@ -141,7 +141,7 @@ export default function Agendar() {
         {perfiles.length === 0 && (
           <Text style={s.vacio}>
             Aquí nadie está tomando citas ahora mismo. En esta barbería se atiende por orden de llegada:
-            entra a la fila desde “Mi turno”.
+            entra a la fila digital desde “Mi turno”.
           </Text>
         )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>

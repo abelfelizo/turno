@@ -68,7 +68,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado }: {
       <View style={s.bg}>
         <View style={s.sheet}>
           <View style={s.handle} />
-          <Display size={24} style={{ marginBottom: 4 }}>Entrar a la fila</Display>
+          <Display size={24} style={{ marginBottom: 4 }}>Entrar a la fila digital</Display>
           <Text style={s.sub}>Revisa antes de confirmar. Reservas un lugar en la fila digital.</Text>
 
           <View style={s.top}>
@@ -102,7 +102,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado }: {
           </View>
 
           <TouchableOpacity style={s.cta} onPress={entrar} disabled={entrando || cargando}>
-            {entrando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Entrar a la fila</Text>}
+            {entrando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Entrar a la fila digital</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose} disabled={entrando}><Text style={s.cancel}>Cancelar</Text></TouchableOpacity>
         </View>

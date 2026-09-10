@@ -1,4 +1,5 @@
 import { Stack, useRouter } from 'expo-router'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { View, ActivityIndicator } from 'react-native'
 import { useEffect } from 'react'
@@ -57,5 +58,13 @@ export default function RootLayout() {
   )
 
   if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={COLORS.red} size="large" /></View>
-  return (<ErrorBoundary><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>)
+  // SafeAreaProvider envuelve TODO: es de donde salen las medidas reales del
+  // teléfono (la barra de gestos, los botones de Android, la muesca). Sin él,
+  // useSafeAreaInsets devuelve ceros y las barras de abajo vuelven a quedar
+  // debajo de los controles del sistema. Ver components/tabs.tsx.
+  return (
+    <SafeAreaProvider>
+      <ErrorBoundary><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>
+    </SafeAreaProvider>
+  )
 }

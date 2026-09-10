@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Switch, Modal, Alert } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Switch, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -6,6 +6,7 @@ import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServici
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
+import Hoja from '../../../components/hoja'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -167,9 +168,7 @@ export default function BarberoDelLocal() {
         )
       })}
 
-      <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
             <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
             <Text style={s.flabel}>Nombre</Text>
             <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} />
@@ -181,13 +180,9 @@ export default function BarberoDelLocal() {
               {svBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
 
-      <Modal visible={!!hrModal} transparent animationType="slide" onRequestClose={() => setHrModal(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      <Hoja visible={!!hrModal} onClose={() => setHrModal(null)}>
             <Display size={22}>{DIAS.find(d => d.n === hrModal?.n)?.l}</Display>
             <Text style={s.flabel}>Abre</Text>
             <Paso valor={hora12(`${String(hrIni).padStart(2, '0')}:00`)} menos={() => setHrIni(Math.max(0, hrIni - 1))} mas={() => setHrIni(Math.min(23, hrIni + 1))} />
@@ -202,9 +197,7 @@ export default function BarberoDelLocal() {
               <Text style={s.cerrarRojo}>Marcar cerrado este día</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
     </ScrollView>
   )
 }

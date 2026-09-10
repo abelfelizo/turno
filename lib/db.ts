@@ -39,6 +39,10 @@ export async function getNegocioById(id: string) {
 export async function actualizarNegocio(negocio_id: string, patch: {
   nombre?: string; slogan?: string; direccion?: string
   telefono?: string; instagram?: string; logo_url?: string; color_marca?: string
+  // Dónde queda y en qué cobra (migración 80). La zona horaria va con el país
+  // porque de ella depende que el servidor sepa si la fila está abierta.
+  pais?: string; ciudad?: string; sector?: string; referencia?: string
+  moneda?: string; tz?: string
 }) {
   const { error } = await supabase.from(T('negocios')).update(patch).eq('id', negocio_id)
   if (error) throw error

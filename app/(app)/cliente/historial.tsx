@@ -1,10 +1,11 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
 import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
+import Hoja from '../../../components/hoja'
 
 export default function Historial() {
   const [visitas, setVisitas] = useState<any[]>([])
@@ -63,9 +64,9 @@ export default function Historial() {
         }}
       />
 
-      <Modal visible={!!activa} transparent animationType="slide" onRequestClose={() => setActiva(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      {/* Hoja compartida: levanta el contenido cuando sale el teclado y cierra
+          tocando fuera o con el botón de atrás. Ver components/hoja.tsx. */}
+      <Hoja visible={!!activa} onClose={() => setActiva(null)}>
             <Display size={22}>¿Cómo estuvo?</Display>
             <Text style={s.modalSub}>{activa?.turno_servicios?.nombre} · {activa?.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
             <View style={s.stars}>
@@ -78,9 +79,7 @@ export default function Historial() {
               {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Enviar reseña</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setActiva(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
     </View>
   )
 }
@@ -95,8 +94,6 @@ const s = StyleSheet.create({
   calificar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 6 },
   calificado: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.success, marginTop: 6 },
   precio: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
   stars: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 },
   star: { fontSize: 42, color: '#D8D6D1' },

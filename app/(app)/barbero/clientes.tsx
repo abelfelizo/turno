@@ -1,4 +1,4 @@
-import { View, Text, FlatList, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
+import { View, Text, FlatList, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useLocalSearchParams } from 'expo-router'
@@ -9,6 +9,7 @@ import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import Hoja from '../../../components/hoja'
 
 export default function Clientes() {
   // Se puede llegar aquí con un cliente concreto desde la fila del barbero: es
@@ -221,13 +222,10 @@ export default function Clientes() {
         />
       )}
 
-      <Modal visible={!!activo} transparent animationType="slide" onRequestClose={() => setActivo(null)}>
-        <View style={s.modalBg}>
-          {/* La ficha crece: puntos, preferencias, seis visitas y la nota. Sin
-              scroll, en un teléfono normal el botón de guardar quedaba fuera de
-              la pantalla y no había forma de llegar a él. */}
-          <View style={s.modal}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {/* La ficha crece —puntos, preferencias, seis visitas y la nota— así que
+          va en la hoja compartida, que ya trae el scroll, el teclado resuelto y
+          el cierre tocando fuera. Ver components/hoja.tsx. */}
+      <Hoja visible={!!activo} onClose={() => setActivo(null)}>
             {/* Abrir desde la fila del barbero trae solo nombre y teléfono: no
                 hay conteo de visitas todavía. La cabecera lo daba por hecho y
                 escribía "· undefined visitas" a quien tenías delante. Aquí solo
@@ -332,10 +330,7 @@ export default function Clientes() {
               {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar nota</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setActivo(null)}><Text style={s.cerrar}>Cerrar</Text></TouchableOpacity>
-          </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
     </View>
   )
 }
@@ -360,8 +355,6 @@ const s = StyleSheet.create({
   notaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
   notaPrev: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.blue },
   total: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: '88%' },
   modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 4 },
   modalHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
   wa: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.successLight, alignItems: 'center', justifyContent: 'center' },

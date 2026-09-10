@@ -7,6 +7,7 @@ import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegoci
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { planDueno } from '../../../lib/pricing'
+import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
@@ -38,6 +39,10 @@ export default function Config() {
   // marca / contacto del local
   const [nombre, setNombre] = useState(''); const [slogan, setSlogan] = useState('')
   const [direccion, setDireccion] = useState(''); const [telefono, setTelefono] = useState(''); const [ig, setIg] = useState('')
+  // Dónde queda y en qué cobra (migración 80).
+  const [pais, setPais] = useState('DO'); const [ciudad, setCiudad] = useState('')
+  const [sector, setSector] = useState(''); const [referencia, setReferencia] = useState('')
+  const [moneda, setMoneda] = useState('DOP')
   const [guardandoMarca, setGuardandoMarca] = useState(false)
   const [subiendoLogo, setSubiendoLogo] = useState(false)
 
@@ -53,6 +58,8 @@ export default function Config() {
     setConfig(cfg); setNegocio(neg); setAsientos(asi); setPremio((cfg as any)?.premio ?? 'Corte gratis')
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
+    setPais(neg?.pais ?? 'DO'); setCiudad(neg?.ciudad ?? ''); setSector(neg?.sector ?? '')
+    setReferencia(neg?.referencia ?? ''); setMoneda(neg?.moneda ?? 'DOP')
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -96,6 +103,11 @@ export default function Config() {
       await actualizarNegocio(negocioId, {
         nombre: nombre.trim(), slogan: slogan.trim(), direccion: direccion.trim(),
         telefono: telefono.trim(), instagram: ig.trim().replace(/^@/, ''),
+        pais, ciudad: ciudad.trim(), sector: sector.trim(), referencia: referencia.trim(),
+        // La zona horaria viaja con el país: de ella depende que el servidor
+        // sepa si la fila está abierta, y nadie va a ir a buscarla a un ajuste
+        // aparte llamado "tz".
+        moneda, tz: paisDe(pais)?.tz ?? 'America/Santo_Domingo',
       })
       Alert.alert('Marca actualizada', 'Los cambios ya son visibles para tus clientes.')
     } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
@@ -171,8 +183,13 @@ export default function Config() {
         ? (config?.doble_servicio_activo ? 'Doble servicio activo' : 'Doble servicio apagado')
         : [config?.puntos_activos ? `Puntos cada ${config?.visitas_para_gratis ?? 8}` : 'Sin puntos',
            config?.asignacion_por_dueno ? 'Tú asignas' : 'Elige el cliente'].join(' · ') },
-    { k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
-      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` },
+    // TIEMPOS SOLO CON EMPLEADOS. Reportado: "no debería aparecer cuando la
+    // barbería trabaja bajo alquiler de asientos". Y es correcto: ahí cada
+    // barbero es un negocio aparte y pone los suyos desde su configuración, así
+    // que estos números no mandaban sobre nadie. Un ajuste que no decide nada
+    // enseña al dueño a desconfiar de los que sí deciden.
+    ...(esRentado ? [] : [{ k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
+      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` }]),
     { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal',
       v: 'Cerrar sesión, cerrar el local' },
   ]
@@ -224,8 +241,48 @@ export default function Config() {
         <Text style={s.flabel}>Eslogan</Text>
         <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} value={slogan} onChangeText={setSlogan} />
 
-        <Text style={s.flabel}>Dirección</Text>
-        <TextInput style={s.input} placeholder="Calle, sector, ciudad" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+        {/* LA DIRECCIÓN, POR PARTES. Era un solo campo de texto libre —"calle,
+            sector, ciudad"— y cada dueño escribía lo que le parecía. Aquí una
+            dirección sin sector no ubica a nadie, y el punto de referencia es
+            literalmente cómo llega el cliente: por eso son campos y no una
+            frase. Ver migración 80. */}
+        <Text style={s.flabel}>Calle y número</Text>
+        <TextInput style={s.input} placeholder="Av. Duarte 45" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+
+        <View style={s.dosCol}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Sector</Text>
+            <TextInput style={s.input} placeholder="Los Jardines" placeholderTextColor={COLORS.textLight} value={sector} onChangeText={setSector} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Ciudad</Text>
+            <TextInput style={s.input} placeholder="Santiago" placeholderTextColor={COLORS.textLight} value={ciudad} onChangeText={setCiudad} />
+          </View>
+        </View>
+
+        <Text style={s.flabel}>Punto de referencia</Text>
+        <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} value={referencia} onChangeText={setReferencia} />
+
+        <Text style={s.flabel}>País</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+          {PAISES.map(p => (
+            <TouchableOpacity key={p.codigo} style={[s.pill, pais === p.codigo && s.pillOn]}
+              onPress={() => { setPais(p.codigo); setMoneda(p.moneda) }}>
+              <Text style={[s.pillT, pais === p.codigo && { color: '#fff' }]}>{p.nombre}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* La moneda se propone con el país y se puede cambiar: hay locales que
+            cobran en dólares en sitios donde la moneda es otra. */}
+        <Text style={s.flabel}>Moneda</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+          {MONEDAS.map(m => (
+            <TouchableOpacity key={m.codigo} style={[s.pill, moneda === m.codigo && s.pillOn]} onPress={() => setMoneda(m.codigo)}>
+              <Text style={[s.pillT, moneda === m.codigo && { color: '#fff' }]}>{m.etiqueta}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
@@ -320,11 +377,9 @@ export default function Config() {
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
       </>)}
 
-      {seccion === 'tiempos' && (<>
+      {seccion === 'tiempos' && !esRentado && (<>
       <Text style={s.modNota}>
-        {esRentado
-          ? 'Aquí son solo el punto de partida: cada barbero que alquila puede poner los suyos, y entonces mandan los de él.'
-          : 'Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.'}
+        Valen para todo tu equipo: son tus empleados y estas reglas son las del local.
       </Text>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
@@ -410,6 +465,10 @@ const s = StyleSheet.create({
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
   input: { backgroundColor: COLORS.bg, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
   dosCol: { flexDirection: 'row', gap: 10 },
+  pill: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 999, paddingVertical: 9,
+    paddingHorizontal: 14, backgroundColor: COLORS.surface },
+  pillOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  pillT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 16 },
   guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   susCard: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 4 },

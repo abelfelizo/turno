@@ -1,4 +1,4 @@
-import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -12,6 +12,7 @@ import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
+import Hoja from '../../../components/hoja'
 import PanelBadge from '../../../components/panel-badge'
 
 // Estos tres son la ÚNICA decisión que toma el barbero sobre su estado: si
@@ -782,8 +783,7 @@ export default function Config() {
       )}
 
       {/* Modal: trabajar en otro local */}
-      <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={localModal} onClose={() => setLocalModal(false)}>
           <Display size={22}>Trabajar en otro local</Display>
           <Text style={s.flabel}>Código del local</Text>
           <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} value={lcCodigo} onChangeText={setLcCodigo} />
@@ -792,12 +792,10 @@ export default function Config() {
           <Text style={s.nota}>Si el local alquila asientos entrarás como independiente; si trabaja con empleados, como empleado. Lo define la barbería.</Text>
           <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
 
       {/* Modal servicio */}
-      <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
           <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
           <Text style={s.flabel}>Nombre</Text>
           <TextInput style={s.input} placeholder="Corte, Barba…" placeholderTextColor={COLORS.textLight} value={svN} onChangeText={setSvN} />
@@ -811,12 +809,10 @@ export default function Config() {
           </View>
           <TouchableOpacity style={s.mbtn} onPress={guardarSv} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Guardar</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
 
       {/* Modal horario */}
-      <Modal visible={!!hrModal} transparent animationType="slide" onRequestClose={() => setHrModal(null)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={!!hrModal} onClose={() => setHrModal(null)}>
           <Display size={22}>{DIAS.find(d => d.n === hrModal?.n)?.l}</Display>
           <Text style={s.flabel}>Apertura</Text>
           <View style={s.stepRow}>
@@ -851,8 +847,7 @@ export default function Config() {
           <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
           <TouchableOpacity style={s.mbtnGhost} onPress={() => guardarHr(false)} disabled={busy}><Text style={s.mbtnGhostT}>Marcar cerrado</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
     </ScrollView>
   )
 }

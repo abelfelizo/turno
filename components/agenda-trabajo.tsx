@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -16,6 +16,7 @@ import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '.
 import { getSesion, guardarSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar, Badge, PuntoVivo } from './ui'
+import Hoja from './hoja'
 import PanelBadge from './panel-badge'
 
 const EST_FONDO: Record<string, string> = {
@@ -1077,9 +1078,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       </TouchableOpacity>
 
       {/* Una sola hoja para todo lo que se abre desde esta pantalla. */}
-      <Modal visible={!!hoja} transparent animationType="slide" onRequestClose={() => setHoja(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      <Hoja visible={!!hoja} onClose={() => setHoja(null)}>
 
             {hoja?.tipo === 'acciones' && (() => {
               const it = hoja.item
@@ -1182,15 +1181,10 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                 <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
               </>
             )}
-
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
 
       {/* Cambiar de local. Solo existe si trabaja en más de uno. */}
-      <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      <Hoja visible={localModal} onClose={() => setLocalModal(false)}>
             <Display size={22}>¿En qué local estás?</Display>
             <Text style={s.modalSub}>Cambia la agenda, la fila y los clientes que ves.</Text>
             {locales.map((l: any) => {
@@ -1204,9 +1198,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               )
             })}
             <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrarHoja}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
 
     </ScrollView>
   )

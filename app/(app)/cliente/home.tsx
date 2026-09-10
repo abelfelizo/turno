@@ -12,6 +12,7 @@ import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
+import { direccionCompleta } from '../../../lib/paises'
 import { Display, Avatar, Badge } from '../../../components/ui'
 import EstadoLocal from '../../../components/estado-local'
 
@@ -123,8 +124,13 @@ export default function Home() {
         <View style={{ flex: 1 }}>
           <Display size={28}>{negocio?.nombre ?? 'Tu barbería'}</Display>
           {negocio?.slogan ? <Text style={s.marcaSlogan}>{negocio.slogan}</Text> : null}
-          {negocio?.direccion ? (
-            <View style={s.marcaMetaRow}><Ionicons name="location-outline" size={13} color={COLORS.textLight} /><Text style={s.marcaMeta}>{negocio.direccion}</Text></View>
+          {/* La dirección entera, con sector, ciudad y el punto de referencia:
+              es como se explica aquí dónde queda un sitio. Ver lib/paises.ts. */}
+          {direccionCompleta(negocio ?? {}) ? (
+            <View style={s.marcaMetaRow}>
+              <Ionicons name="location-outline" size={13} color={COLORS.textLight} />
+              <Text style={s.marcaMeta} numberOfLines={2}>{direccionCompleta(negocio ?? {})}</Text>
+            </View>
           ) : null}
         </View>
       </View>
@@ -205,7 +211,7 @@ export default function Home() {
       <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/turno')}>
         <View style={s.accIcon}><Ionicons name="flash-outline" size={22} color={COLORS.red} /></View>
         <View style={{ flex: 1 }}>
-          <Text style={s.accTitle}>Entrar a la fila</Text>
+          <Text style={s.accTitle}>Entrar a la fila digital</Text>
           <Text style={s.accSub}>
             {!hayFilaAbierta
               ? (motivoFilaLocal ?? 'Ahora mismo no hay nadie abierto')
