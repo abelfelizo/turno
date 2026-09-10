@@ -8,6 +8,7 @@ import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
+import Resenas from '../../../components/resenas'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -48,6 +49,7 @@ export default function BarberoDelLocal() {
   // lista del panel, donde el botón rojo estaba a un toque de distancia.
   const [perfilRow, setPerfilRow] = useState<any>(null)
   const [suspBusy, setSuspBusy] = useState(false)
+  const [verResenas, setVerResenas] = useState(false)
 
   async function aplicarModalidad(nuevo: 'empleado' | 'barbero_renta') {
     if (nuevo === modalidad) return
@@ -229,6 +231,21 @@ export default function BarberoDelLocal() {
           </TouchableOpacity>
         )
       })}
+
+      {/* LO QUE DICEN SUS CLIENTES. El dueño reparte trabajo y decide a quién
+          sube el precio o a quién manda a formarse: sin leer esto lo hace a
+          ciegas, y las reseñas llevaban desde el principio guardándose para
+          nadie. */}
+      <TouchableOpacity style={[s.accionFila, { marginTop: 22 }]} onPress={() => setVerResenas(true)}>
+        <Ionicons name="star-outline" size={20} color={COLORS.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.accionFilaT}>Reseñas de sus clientes</Text>
+          <Text style={s.accionFilaD}>Promedio, reparto de estrellas y lo que escribieron.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      <Resenas perfilId={perfil} nombre={nombre} visible={verResenas} onClose={() => setVerResenas(false)} />
 
       {/* ── LO QUE SE DECIDE SOBRE ESTA PERSONA ─────────────────────────────
           Las dos juntas y en este orden a propósito: suspender es lo que casi

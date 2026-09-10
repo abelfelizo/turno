@@ -16,6 +16,7 @@ import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
+import Resenas from '../../../components/resenas'
 
 export default function MiTurno() {
   const [turnos, setTurnos] = useState<any[]>([])
@@ -37,6 +38,7 @@ export default function MiTurno() {
   // quitó. Van donde se elige de verdad — aquí — porque son exactamente lo que
   // se mira para decidir con quién te sientas.
   const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
+  const [resenasDe, setResenasDe] = useState<{ id: string; nombre?: string } | null>(null)
   const [tic, setTic] = useState(0)
 
   // La ventana de llegada corre desde que el barbero llama (`expira_at`, que lo
@@ -371,7 +373,14 @@ export default function MiTurno() {
                         const r = ratings[p.id]
                         const linea = [p.turno_usuarios?.especialidad,
                           r ? `★ ${r.promedio} (${r.total})` : 'Sin reseñas'].filter(Boolean).join(' · ')
-                        return <Text style={s.barberoMeta}>{linea}</Text>
+                        // Las estrellas se tocan: hasta ahora eran un número
+                        // suelto y lo que la gente escribió no se leía en
+                        // ningún sitio.
+                        return (
+                          <TouchableOpacity onPress={() => setResenasDe({ id: p.id, nombre: p.turno_usuarios?.nombre })}>
+                            <Text style={s.barberoMeta}>{linea}{r ? '  ·  ver reseñas' : ''}</Text>
+                          </TouchableOpacity>
+                        )
                       })()}
                 </View>
               </View>
@@ -381,6 +390,8 @@ export default function MiTurno() {
                   <Text style={s.servP}>{dinero(sv.precio, negocio?.moneda)}</Text>
                 </TouchableOpacity>))}
             </View>)})}
+
+      <Resenas perfilId={resenasDe?.id ?? null} nombre={resenasDe?.nombre} visible={!!resenasDe} onClose={() => setResenasDe(null)} />
 
       <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }} />
     </ScrollView>

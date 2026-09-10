@@ -694,6 +694,31 @@ export async function getRatingsNegocio(negocio_id: string) {
   return map
 }
 
+export type ResumenResenas = {
+  promedio: number; total: number
+  cinco: number; cuatro: number; tres: number; dos: number; una: number
+}
+
+/** Promedio y reparto de estrellas de un barbero (migración 82). */
+export async function getResumenResenas(perfil_id: string): Promise<ResumenResenas | null> {
+  const { data, error } = await supabase.rpc('turno_resumen_resenas', { p_perfil: perfil_id })
+  if (error) throw error
+  const r = (data && data[0]) || null
+  if (!r) return null
+  return {
+    promedio: Number(r.promedio ?? 0), total: Number(r.total ?? 0),
+    cinco: Number(r.cinco ?? 0), cuatro: Number(r.cuatro ?? 0), tres: Number(r.tres ?? 0),
+    dos: Number(r.dos ?? 0), una: Number(r.una ?? 0),
+  }
+}
+
+/** Las reseñas con su comentario, que hasta ahora no se leían en ninguna parte. */
+export async function getResenasDe(perfil_id: string, limite = 20) {
+  const { data, error } = await supabase.rpc('turno_resenas_de', { p_perfil: perfil_id, p_limite: limite })
+  if (error) throw error
+  return data || []
+}
+
 export async function crearCita(cita: {
   perfil_id: string; cliente_id: string; negocio_id: string
   servicio_id: string; fecha: string; hora_inicio: string; hora_fin: string
