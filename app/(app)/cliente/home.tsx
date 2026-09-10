@@ -12,6 +12,7 @@ import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
+import { aceptaFila, aceptaCitas } from '../../../lib/atencion'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 
@@ -184,6 +185,11 @@ export default function Home() {
             // apareciendo es lo correcto. Solo el inactivo cierra la agenda.
             const disp = p.estado_actual === 'disponible'
             const fuera = p.estado_actual === 'inactivo'
+            // Y por dónde acepta trabajo (migración 70). Estar "disponible" ya
+            // no basta para ofrecerle la fila: hay barberos que solo trabajan
+            // con cita, y turno_entrar_a_cola los rechaza.
+            const fila = aceptaFila(p)
+            const citas = aceptaCitas(p)
             return (
               <View key={p.id} style={s.barbero}>
                 <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
@@ -201,8 +207,19 @@ export default function Home() {
                   </View>
                   <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
                 </TouchableOpacity>
-                {abierto && !disp && <Text style={s.noDisp}>No recibe turnos ahora mismo. Puedes agendar una cita.</Text>}
-                {abierto && disp && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
+                {/* El texto tiene que decir la verdad de ESTE barbero. "Puedes
+                    agendar una cita" a uno que trabaja solo por orden de
+                    llegada manda al cliente a una pantalla sin horas. */}
+                {abierto && !disp && (
+                  <Text style={s.noDisp}>
+                    {citas ? 'No recibe turnos ahora mismo. Puedes agendar una cita.'
+                           : 'No recibe turnos ahora mismo. Trabaja por orden de llegada, así que vuelve cuando esté disponible.'}
+                  </Text>
+                )}
+                {abierto && disp && !fila && (
+                  <Text style={s.noDisp}>Trabaja solo con cita: no tiene fila. Resérvale una hora desde “Reservar una cita”.</Text>
+                )}
+                {abierto && disp && fila && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
                   <TouchableOpacity key={sv.id} style={s.servicio} onPress={() => pedir(p, sv)}>
                     <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
                     <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>

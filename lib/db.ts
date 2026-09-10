@@ -377,6 +377,8 @@ export async function actualizarPerfil(perfil_id: string, patch: {
   puntos_activos?: boolean; puntos_por_visita?: number | null; puntos_meta?: number | null
   revisita_dias?: number
   premio?: string
+  /** ambos | solo_citas | solo_fila — por dónde acepta trabajo (migración 70). */
+  modo_atencion?: string
 }) {
   const { error } = await supabase.from(T('perfiles')).update(patch).eq('id', perfil_id)
   if (error) throw error

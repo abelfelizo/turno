@@ -8,6 +8,7 @@ import {
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
+import { aceptaFila } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -167,8 +168,10 @@ export default function MiTurno() {
   // entra sin barbero, pero sí con servicio (de ahí sale la duración y el ETA).
   // Se coge el primero activo de quien esté aceptando; si un día hay que dejar
   // elegir servicio primero, este es el punto por donde crece.
-  const servicioComun = perfiles
-    .filter((p: any) => p.estado_actual === 'disponible')
+  // Quien trabaja SOLO CON CITA no tiene fila: ofrecerle un turno al cliente
+  // sería mandarlo a un error, porque turno_entrar_a_cola lo rechaza.
+  const conFila = perfiles.filter((p: any) => p.estado_actual === 'disponible' && aceptaFila(p))
+  const servicioComun = conFila
     .flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))[0] ?? null
 
   return (
@@ -304,7 +307,7 @@ export default function MiTurno() {
         </>
       )}
 
-      {perfiles.filter((p: any) => p.estado_actual === 'disponible').map((p: any) => (
+      {conFila.map((p: any) => (
             <View key={p.id} style={s.barbero}>
               <View style={s.barberoHead}>
                 <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={38} />

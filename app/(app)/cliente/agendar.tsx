@@ -4,6 +4,7 @@ import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas } from '../../../lib/db'
+import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
@@ -41,7 +42,10 @@ export default function Agendar() {
           getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
           getNegocioById(ss.negocio_id).catch(() => null),
         ])
-        setPerfiles(ps); setNegocio(neg)
+        // Quien trabaja SOLO POR ORDEN DE LLEGADA no da citas: su agenda no
+        // tiene huecos y turno_agendar_cita lo rechaza. Listarlo aquí sería
+        // llevar al cliente a una pantalla vacía sin explicarle por qué.
+        setPerfiles((ps as any[]).filter(aceptaCitas)); setNegocio(neg)
         // Preselección al reprogramar
         if (params.perfil) {
           const p = ps.find((x: any) => x.id === params.perfil)

@@ -31,6 +31,26 @@ const ESTADOS = [
 ]
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
+// POR DÓNDE LE LLEGA EL TRABAJO. No todos los barberos trabajan igual: uno de
+// barrio no usa citas en su vida, y otro solo trabaja con hora. Obligar a los
+// dos a llevar el sistema completo es pedirles que administren algo que no
+// usan, y peor: prometerle al cliente una vía que ese barbero no va a atender.
+//
+// Un campo con tres valores y no dos interruptores, porque dos booleanos dejan
+// construir "ni citas ni fila", que no es un modo de trabajo — es estar
+// cerrado, y para eso ya está el estado Inactivo de arriba.
+//
+// Los textos dicen lo que ve el CLIENTE, no el nombre del ajuste: es la única
+// forma de que el barbero sepa qué está apagando.
+const MODOS = [
+  { k: 'ambos', l: 'Citas y fila', icono: 'git-merge-outline',
+    d: 'Pueden reservarte hora y también meterse en tu fila para hoy. Es lo normal.' },
+  { k: 'solo_citas', l: 'Solo con cita', icono: 'calendar-outline',
+    d: 'Trabajas con hora. Nadie puede meterse en tu fila desde el teléfono; si alguien llega sin cita, lo sientas tú.' },
+  { k: 'solo_fila', l: 'Solo fila', icono: 'people-outline',
+    d: 'Por orden de llegada. Desaparece la opción de reservarte hora, para hoy y para cualquier día.' },
+]
+
 export default function Config() {
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
@@ -153,6 +173,13 @@ export default function Config() {
     if (!sesion?.perfil_id) return
     setPerfil((p: any) => ({ ...p, estado_actual: k }))
     await actualizarEstadoPerfil(sesion.perfil_id, k).catch(() => cargar())
+  }
+  /** Por dónde acepta trabajo. Se pinta antes de que conteste el servidor y se
+   *  recarga si falla: es un toque, no un formulario. */
+  async function setModo(k: string) {
+    if (!sesion?.perfil_id) return
+    setPerfil((p: any) => ({ ...p, modo_atencion: k }))
+    await actualizarPerfil(sesion.perfil_id, { modo_atencion: k }).catch(() => cargar())
   }
   function abrirServicio(sv?: any) {
     setSvModal(sv ?? 'nuevo'); setSvN(sv?.nombre ?? ''); setSvD(sv?.duracion_min ?? 30); setSvP(String(sv?.precio ?? ''))
@@ -319,13 +346,18 @@ export default function Config() {
   const tiemposPropios = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
     || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
   const estadoActual = ESTADOS.find(e => e.k === (perfil?.estado_actual ?? 'disponible'))
+  const modoActual = MODOS.find(m => m.k === (perfil?.modo_atencion ?? 'ambos'))
   const localActivo = locales.find((l: any) => l.negocio_id === sesion?.negocio_id)
 
   const MENU = [
     { k: 'cuenta', t: 'Mi cuenta', icono: 'person-outline', ver: true,
       v: [usuario?.nombre, planDeMiSilla(rolMembresia, cfgLocalTipo).montoTexto].filter(Boolean).join(' · ') },
+    // Dos mitades de la misma decisión: si aceptas trabajo, y por dónde. La
+    // segunda solo se nombra cuando NO es la normal — "Acepto clientes · Citas
+    // y fila" en todos los perfiles sería ruido en el noventa por ciento.
     { k: 'estado', t: 'Estado', icono: 'radio-button-on-outline', ver: true,
-      v: estadoActual?.l ?? 'Acepto clientes' },
+      v: [estadoActual?.l ?? 'Acepto clientes',
+          modoActual && modoActual.k !== 'ambos' ? modoActual.l : null].filter(Boolean).join(' · ') },
     { k: 'servicios', t: empleado ? 'Servicios del local' : 'Mis servicios', icono: 'cut-outline', ver: true,
       v: empleado ? `Los pone ${negocioNombre ?? 'la barbería'}`
         : svActivos === 0 ? 'Ninguno todavía' : `${svActivos} activo${svActivos === 1 ? '' : 's'}` },
@@ -466,6 +498,29 @@ export default function Config() {
                   <Text style={s.estadoD2}>{e.d}</Text>
                 </View>
                 {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+
+        {/* Va aquí y no en "Reglas" porque es la misma decisión que la de
+            arriba vista desde otro lado: aquella dice SI aceptas trabajo, esta
+            dice POR DÓNDE. Separarlas en dos secciones obligaría a recordar en
+            cuál está cada mitad. */}
+        <Text style={[s.sec, { marginTop: 22 }]}>¿POR DÓNDE TE LLEGAN?</Text>
+        <Text style={s.nota}>Lo que apagues aquí desaparece de la app de tus clientes. Tú puedes seguir sentando a quien llegue por la puerta en cualquiera de los tres.</Text>
+        <View style={{ gap: 8, marginBottom: 14 }}>
+          {MODOS.map(m => {
+            const on = (perfil?.modo_atencion ?? 'ambos') === m.k
+            return (
+              <TouchableOpacity key={m.k} style={[s.estado, on && { borderColor: COLORS.red }]}
+                onPress={() => setModo(m.k)}>
+                <Ionicons name={m.icono as any} size={19} color={on ? COLORS.red : COLORS.textLight} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{m.l}</Text>
+                  <Text style={s.estadoD2}>{m.d}</Text>
+                </View>
+                {on && <Text style={[s.estadoActivo, { color: COLORS.red }]}>Activo</Text>}
               </TouchableOpacity>
             )
           })}
