@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion, limpiarSesion } from '../../../lib/storage'
 import { getMiUsuario, getPreferenciasCliente, getMisTarjetas, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Avatar, KV } from '../../../components/ui'
@@ -89,6 +90,21 @@ export default function Perfil() {
         try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
       } }])
+  }
+
+
+  // Ver arriba: los avisos viajan de teléfono a teléfono y hasta ahora no había
+  // forma de saber si este los tenía puestos.
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -190,6 +206,28 @@ export default function Perfil() {
           <Text style={s.cuentaD}>Tus turnos, tus citas y tus recortes acumulados siguen ahí cuando vuelvas a entrar.</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+
+      {/* AVISOS. Reportado: "aún no he recibido la primera notificación". En la
+          base había UN solo push token en todo el sistema: los avisos van de
+          teléfono a teléfono, así que si el que tiene que recibirlos no
+          registró el suyo, se mandan a nadie y no falla nada visible. Aquí se
+          ve y se arregla. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan los turnos, las citas y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
       </TouchableOpacity>
 
       <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>

@@ -54,6 +54,33 @@ export async function registrarPush(): Promise<string | null> {
 }
 
 /**
+ * ¿ESTÁN LOS AVISOS PUESTOS DE VERDAD?
+ *
+ * Reportado desde el teléfono: "aún no he recibido la primera notificación". Y
+ * mirando la base, el motivo estaba a la vista: en todo el sistema había UN solo
+ * push token guardado. Los avisos de Turno viajan de teléfono a teléfono —el
+ * cliente que entra a la fila avisa al barbero, el barbero que llama avisa al
+ * cliente— así que si el teléfono que tiene que RECIBIR no registró su token, el
+ * aviso se manda a nadie y no falla nada visible.
+ *
+ * Y no había forma de enterarse: registrarPush se llama al abrir la app, no
+ * lanza nunca a propósito (en el simulador o sin permiso es normal que no
+ * funcione) y no deja rastro en ninguna pantalla. Esto lo hace mirable: si los
+ * avisos no están puestos, la app puede decirlo y ofrecer activarlos.
+ */
+export async function estadoAvisos(): Promise<{ permiso: boolean; registrado: boolean }> {
+  try {
+    const { status } = await Notifications.getPermissionsAsync()
+    const permiso = status === 'granted'
+    if (!permiso) return { permiso: false, registrado: false }
+    const { data } = await supabase.from('turno_push_tokens').select('token').limit(1)
+    return { permiso: true, registrado: (data?.length ?? 0) > 0 }
+  } catch {
+    return { permiso: false, registrado: false }
+  }
+}
+
+/**
  * Programa recordatorios LOCALES para las próximas citas del cliente (T-24h y
  * T-2h). No necesita servidor ni push remoto: los agenda el propio dispositivo.
  * Reemplaza los programados anteriores en cada llamada. Nunca lanza.

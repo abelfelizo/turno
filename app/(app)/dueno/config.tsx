@@ -6,6 +6,7 @@ import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
 import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal, cambiarTipoNegocio } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { planDueno } from '../../../lib/pricing'
 import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
@@ -142,6 +143,18 @@ export default function Config() {
         try { await cerrarLocal(negocioId); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
       } }])
+  }
+
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
   }
 
   // El atrás de Android vuelve al menú, no fuera de Configuración.
@@ -406,6 +419,24 @@ export default function Config() {
           <Text style={s.cuentaD}>Tu local, tu equipo y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      {/* Los avisos del dueño son las solicitudes para unirse al local: sin
+          esto no se entera hasta que abre el panel. Ver lib/notificaciones. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan las solicitudes de barberos y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
       </TouchableOpacity>
 
       <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>

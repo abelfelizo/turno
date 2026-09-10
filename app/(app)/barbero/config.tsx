@@ -6,6 +6,7 @@ import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
 import { guardarReglasBarbero, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { planDeMiSilla } from '../../../lib/pricing'
 import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
@@ -313,6 +314,21 @@ export default function Config() {
   // registraba; al terminar, el render seguía de largo y React encontraba un
   // hook más que en el render anterior. Los hooks se cuentan por orden, así que
   // ninguno puede quedar detrás de un return condicional.
+
+  // Ver arriba: los avisos viajan de teléfono a teléfono y hasta ahora no había
+  // forma de saber si este los tenía puestos.
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
+  }
+
   useEffect(() => {
     if (!seccion) return
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
@@ -771,7 +787,29 @@ export default function Config() {
           <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
         </TouchableOpacity>
 
-        <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+  
+      {/* AVISOS. Reportado: "aún no he recibido la primera notificación". En la
+          base había UN solo push token en todo el sistema: los avisos van de
+          teléfono a teléfono, así que si el que tiene que recibirlos no
+          registró el suyo, se mandan a nadie y no falla nada visible. Aquí se
+          ve y se arregla. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan los turnos, las citas y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
+      </TouchableOpacity>
+
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
         <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
           <Ionicons name="trash-outline" size={18} color="#fff" />
           <View style={{ flex: 1 }}>
