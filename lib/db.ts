@@ -61,6 +61,30 @@ export async function aprobarPerfil(perfil_id: string) {
   const { error } = await supabase.from(T('perfiles')).update({ aprobado: true }).eq('id', perfil_id)
   if (error) throw error
 }
+/**
+ * SUSPENDER NO ES ECHAR (migración 81).
+ *
+ * El dueño para a un empleado unos días sin desvincularlo: no se cancelan sus
+ * citas ni se vacía su fila, solo deja de entrarle trabajo y de poder operar.
+ * Va por RPC y no por update porque `suspendido` solo lo escribe el dueño: si
+ * fuera un campo más del perfil, el suspendido se lo quitaría él mismo.
+ */
+/** Un perfil concreto, para la ficha que el dueño abre de su empleado. */
+export async function getPerfilPorId(perfil_id: string) {
+  const { data, error } = await supabase.from(T('perfiles'))
+    .select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url)')
+    .eq('id', perfil_id).maybeSingle()
+  if (error) throw error
+  return data
+}
+
+export async function suspenderBarbero(perfil_id: string, suspender: boolean, motivo?: string) {
+  const { error } = await supabase.rpc('turno_suspender_barbero', {
+    p_perfil: perfil_id, p_suspender: suspender, p_motivo: motivo ?? null,
+  })
+  if (error) throw error
+}
+
 export async function rechazarPerfil(perfil_id: string) {
   const { error } = await supabase.from(T('perfiles')).update({ activo: false }).eq('id', perfil_id)
   if (error) throw error

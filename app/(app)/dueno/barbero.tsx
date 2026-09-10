@@ -2,7 +2,8 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero } from '../../../lib/db'
+import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display } from '../../../components/ui'
@@ -43,6 +44,10 @@ export default function BarberoDelLocal() {
   const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(19); const [hrBuf, setHrBuf] = useState(10)
   const [hrBusy, setHrBusy] = useState(false)
   const [modBusy, setModBusy] = useState(false)
+  // Suspensión y baja: las dos decisiones sobre ESTA persona, aquí y no en la
+  // lista del panel, donde el botón rojo estaba a un toque de distancia.
+  const [perfilRow, setPerfilRow] = useState<any>(null)
+  const [suspBusy, setSuspBusy] = useState(false)
 
   async function aplicarModalidad(nuevo: 'empleado' | 'barbero_renta') {
     if (nuevo === modalidad) return
@@ -54,13 +59,14 @@ export default function BarberoDelLocal() {
 
   const cargar = useCallback(async () => {
     if (!perfil) { setLoading(false); return }
-    const [sv, hr, rl] = await Promise.all([
+    const [sv, hr, rl, pf] = await Promise.all([
       getServiciosPerfil(perfil, false).catch(() => []),
       getHorariosPerfil(perfil).catch(() => []),
       getRolDePerfil(perfil).catch(() => null),
+      getPerfilPorId(perfil).catch(() => null),
     ])
     if (rl) setModalidad(rl)
-    setServicios(sv as any[]); setHorarios(hr as any[]); setLoading(false)
+    setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf); setLoading(false)
   }, [perfil])
   useEffect(() => { cargar() }, [cargar])
 
@@ -106,6 +112,62 @@ export default function BarberoDelLocal() {
       setHrModal(null); cargar()
     } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
     finally { setHrBusy(false) }
+  }
+
+  /**
+   * SUSPENDER: parar unos días sin echar a nadie.
+   *
+   * Antes solo existía desvincular, que cancela sus citas futuras y lo saca del
+   * local. Para el empleado que no viene esta semana la única salida era echarlo
+   * y volver a aprobarlo, así que no se usaba ninguna de las dos y el barbero
+   * seguía saliendo disponible en la app mientras no estaba.
+   */
+  function cambiarSuspension() {
+    const activa = !!perfilRow?.suspendido
+    if (activa) {
+      Alert.alert('Reanudar', `${nombre || 'Este barbero'} vuelve a recibir turnos y citas desde ahora.`, [
+        { text: 'Ahora no' },
+        { text: 'Reanudar', onPress: async () => {
+          setSuspBusy(true)
+          try { await suspenderBarbero(perfil, false); await cargar() }
+          catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setSuspBusy(false) }
+        } },
+      ])
+      return
+    }
+    Alert.alert('Suspender temporalmente',
+      `Deja de entrarle trabajo: nadie podrá pedirle turno ni reservarle cita, y él no podrá llamar ni atender. Sus citas ya reservadas y su fila NO se tocan — para eso está desvincular.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Suspender', style: 'destructive', onPress: async () => {
+          setSuspBusy(true)
+          try {
+            await suspenderBarbero(perfil, true, 'no está atendiendo por ahora')
+            if (perfilRow?.usuario_id) {
+              enviarPush(perfilRow.usuario_id, 'Te suspendieron temporalmente',
+                'No te entrarán turnos ni citas hasta que el local te reanude.', { tipo: 'agenda' })
+            }
+            await cargar()
+          }
+          catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setSuspBusy(false) }
+        } },
+      ])
+  }
+
+  function desvincular() {
+    Alert.alert('Desvincular del local',
+      `¿Sacar a ${nombre || 'este barbero'} del local? Se cancelan sus citas futuras y sale de la fila. Su historial y su clientela lo acompañan a donde vaya.`,
+      [{ text: 'No' }, { text: 'Sí, desvincular', style: 'destructive', onPress: async () => {
+        try {
+          await desvincularBarbero(perfil)
+          if (perfilRow?.usuario_id) {
+            enviarPush(perfilRow.usuario_id, 'Te desvincularon', 'Ya no atiendes en este local.', { tipo: 'agenda' })
+          }
+          router.back()
+        } catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -168,6 +230,34 @@ export default function BarberoDelLocal() {
         )
       })}
 
+      {/* ── LO QUE SE DECIDE SOBRE ESTA PERSONA ─────────────────────────────
+          Las dos juntas y en este orden a propósito: suspender es lo que casi
+          siempre se quiere —dos días, una semana— y desvincular es la que no
+          tiene vuelta. Cada una dice lo que hace ANTES de tocarla. */}
+      <Text style={[s.sec, { marginTop: 26 }]}>SU SITIO EN EL LOCAL</Text>
+
+      <TouchableOpacity style={[s.accionFila, perfilRow?.suspendido && s.accionFilaOn]} onPress={cambiarSuspension} disabled={suspBusy}>
+        <Ionicons name={perfilRow?.suspendido ? 'play-circle-outline' : 'pause-circle-outline'} size={20}
+          color={perfilRow?.suspendido ? COLORS.success : COLORS.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.accionFilaT}>{perfilRow?.suspendido ? 'Reanudar' : 'Suspender temporalmente'}</Text>
+          <Text style={s.accionFilaD}>
+            {perfilRow?.suspendido
+              ? 'Ahora mismo no le entra trabajo. Toca para que vuelva a recibir turnos y citas.'
+              : 'Deja de entrarle trabajo sin sacarlo del local. Sus citas y su fila no se tocan.'}
+          </Text>
+        </View>
+        {suspBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={s.accionFila} onPress={desvincular}>
+        <Ionicons name="person-remove-outline" size={20} color={COLORS.danger} />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.accionFilaT, { color: COLORS.danger }]}>Desvincular del local</Text>
+          <Text style={s.accionFilaD}>Se cancelan sus citas futuras y sale de la fila. No tiene vuelta atrás.</Text>
+        </View>
+      </TouchableOpacity>
+
       <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
             <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
             <Text style={s.flabel}>Nombre</Text>
@@ -213,6 +303,11 @@ function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: ()
 }
 
 const s = StyleSheet.create({
+  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  accionFilaOn: { borderColor: COLORS.success },
+  accionFilaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  accionFilaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },

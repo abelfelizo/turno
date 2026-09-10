@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola, getEstadoLocal } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, getConfiguracion, asignarCola, getEstadoLocal } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero, relojesDeSilla } from '../../../lib/format'
@@ -93,18 +93,6 @@ export default function Dashboard() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, panel: 'silla' })
     router.replace('/(app)/barbero/agenda')
-  }
-
-  function desvincular(p: any) {
-    Alert.alert('Desvincular barbero',
-      `¿Sacar a ${p.turno_usuarios?.nombre ?? 'este barbero'} del local? Se cancelarán sus citas futuras y saldrá de la fila. Su historial y clientela lo acompañan.`,
-      [{ text: 'No' }, { text: 'Sí, desvincular', style: 'destructive', onPress: async () => {
-        try {
-          await desvincularBarbero(p.id)
-          if (p.usuario_id) enviarPush(p.usuario_id, 'Te desvincularon', `Ya no atiendes en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'agenda' })
-          cargar()
-        } catch (e: any) { Alert.alert('Error', e.message) }
-      } }])
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -299,10 +287,28 @@ export default function Dashboard() {
                 llevaba media hora con un cliente sentado. */}
             <Text style={s.solMeta}>
               {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Dueño' : 'Empleado'}
-              {' · '}{estadoTexto(estados[p.id], p.estado_actual)}
+              {' · '}
+              {/* Suspendido lo dice PRIMERO y con esas palabras: es una decisión
+                  del dueño, y verla escrita es lo que le recuerda reanudarlo. */}
+              {p.suspendido ? 'Suspendido' : estadoTexto(estados[p.id], p.estado_actual)}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.desvincular} onPress={() => desvincular(p)}><Ionicons name="person-remove-outline" size={18} color={COLORS.danger} /></TouchableOpacity>
+          {/* COMPARTIR SU CÓDIGO, no echarlo. Aquí había un botón rojo de
+              desvincular pegado a cada barbero: la acción más destructiva del
+              panel, a un toque de distancia y sin nada que la justifique en una
+              lista que se mira todos los días. Desvincular vive ahora en su
+              ficha, junto a lo demás que se decide sobre esa persona.
+
+              Lo que sí hace falta a diario es esto: el código del barbero es
+              como sus clientes lo encuentran, y el dueño es quien lo tiene a
+              mano para pasárselo a alguien que pregunta por él. */}
+          <TouchableOpacity style={s.compartirCodigo}
+            disabled={!p.turno_usuarios?.codigo_barbero}
+            onPress={() => Share.share({
+              message: `Reserva con ${p.turno_usuarios?.nombre ?? 'nuestro barbero'} en ${negocio?.nombre ?? 'la barbería'}.\n\nDescarga Turno y búscalo con su código de barbero:\n\n${p.turno_usuarios?.codigo_barbero}`,
+            })}>
+            <Ionicons name="share-outline" size={18} color={COLORS.blue} />
+          </TouchableOpacity>
         </View>
       ))}
     </ScrollView>
@@ -351,7 +357,7 @@ const s = StyleSheet.create({
   solName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   solMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   rechazar: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
-  desvincular: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
+  compartirCodigo: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center' },
   colaVacia: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 16, lineHeight: 19 },
   silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 22 },
   sillaIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' },
