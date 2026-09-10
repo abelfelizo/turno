@@ -323,11 +323,19 @@ export default function MiTurno() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
           </TouchableOpacity>
-          <Text style={s.oElige}>o elige a tu barbero</Text>
+          {/* ASIGNACIÓN POR DUEÑO. La configuración existe desde el principio
+              y esta pantalla la cargaba en `porDueno`… y no la usaba: el
+              cliente elegía barbero igual, en un local donde el dueño ha dicho
+              que reparte él. Otra regla que solo vivía en la pantalla del que
+              la puso. Con ella encendida solo queda una puerta, y se dice por
+              qué en vez de esconder la lista sin explicación. */}
+          {porDueno
+            ? <Text style={s.oElige}>Aquí el local reparte los turnos: te toca el barbero que se desocupe.</Text>
+            : <Text style={s.oElige}>o elige a tu barbero</Text>}
         </>
       )}
 
-      {conFila.map((p: any) => {
+      {!porDueno && conFila.map((p: any) => {
             const abierta = filaAbierta(p)
             const motivo = fraseFila(p)
             return (

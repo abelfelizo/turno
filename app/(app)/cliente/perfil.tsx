@@ -177,8 +177,29 @@ export default function Perfil() {
 
       <CambiarRol />
 
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+      {/* CUENTA, con la misma composición que en los paneles de barbero y
+          dueño: icono, nombre y UNA LÍNEA QUE DICE QUÉ PASA. Eran dos textos
+          sueltos, uno gris y otro rojo, sin decir consecuencias — y una de las
+          dos borra la cuenta. */}
+      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
+
+      <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+        <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Cerrar sesión</Text>
+          <Text style={s.cuentaD}>Tus turnos, tus citas y tus recortes acumulados siguen ahí cuando vuelvas a entrar.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+      <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
+        <Ionicons name="trash-outline" size={18} color="#fff" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
+          <Text style={s.cuentaBorrarD}>Borra tus datos, cancela tus turnos y citas, y pierdes los recortes acumulados en cada local. No se puede deshacer.</Text>
+        </View>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -200,6 +221,15 @@ const s = StyleSheet.create({
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
   canjearBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 14 },
   canjearT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.carbon },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
+    borderRadius: 14, padding: 14, marginBottom: 24 },
+  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
   vales: { backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 22 },
   valesT: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1, marginBottom: 10 },
   vale: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },

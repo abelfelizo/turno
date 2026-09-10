@@ -134,6 +134,16 @@ export default function Agendar() {
         )}
 
         <Text style={s.sec}>1 · BARBERO</Text>
+        {/* Un local entero en modo "solo fila" deja esta tira VACÍA, y una tira
+            vacía no explica nada: parecía que la pantalla no había cargado.
+            Inicio ya lo avisa antes de entrar; si aun así se llega aquí —por un
+            enlace de reprogramar, por ejemplo— hay que decirlo. */}
+        {perfiles.length === 0 && (
+          <Text style={s.vacio}>
+            Aquí nadie está tomando citas ahora mismo. En esta barbería se atiende por orden de llegada:
+            entra a la fila desde “Mi turno”.
+          </Text>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
           {perfiles.map((p: any) => {
             const on = perfil?.id === p.id
@@ -235,6 +245,7 @@ const s = StyleSheet.create({
   miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
+  vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
