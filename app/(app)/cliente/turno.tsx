@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
-  getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola,
+  getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola, yaLlegue,
   getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
@@ -28,6 +28,26 @@ export default function MiTurno() {
   const [hoja, setHoja] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
   const [usuarioNombre, setUsuarioNombre] = useState('')
+  const [tic, setTic] = useState(0)
+
+  // La ventana de llegada corre desde que el barbero llama (`expira_at`, que lo
+  // pone turno_llamar_siguiente). El cliente nunca la vio: leía "es tu turno" y
+  // no tenía forma de saber si le sobraban dos minutos o veinte. Se recalcula
+  // sola cada 15 s — al minuto no hace falta más precisión y no merece despertar
+  // la pantalla cada segundo.
+  const quedan: Record<string, number | null> = {}
+  void tic
+  for (const t of turnos) {
+    quedan[t.id] = t.expira_at
+      ? Math.max(0, Math.ceil((new Date(t.expira_at).getTime() - Date.now()) / 60000))
+      : null
+  }
+  const hayCuenta = turnos.some((t: any) => t.expira_at && t.estado !== 'atendiendo')
+  useEffect(() => {
+    if (!hayCuenta) return
+    const i = setInterval(() => setTic(x => x + 1), 15000)
+    return () => clearInterval(i)
+  }, [hayCuenta])
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
@@ -115,6 +135,21 @@ export default function MiTurno() {
     }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
   }
+  /**
+   * "Estoy aquí" no es un "voy en camino" más entusiasta: apaga la cuenta atrás
+   * de la ventana de llegada. Ese reloj existe para el que no aparece, y quien
+   * está de pie en el local ya apareció — perder el turno ahí sería absurdo.
+   */
+  async function llegue(t: any) {
+    setAccion(t.id)
+    try {
+      await yaLlegue(t.id)
+      const barbero = perfiles.find((p: any) => p.id === t.perfil_id)
+      if (barbero?.usuario_id) avisos.barberoYaLlego(barbero.usuario_id, usuarioNombre || 'Tu cliente')
+      await cargarVivo()
+    }
+    catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
+  }
   function salir(t: any) {
     Alert.alert('Salir de la fila', '¿Seguro que quieres cancelar este turno?', [
       { text: 'No' },
@@ -164,20 +199,48 @@ export default function MiTurno() {
                 <Text style={s.heroLabel}>tu posición en la fila</Text>
                 {etas[t.id] != null && <View style={s.etaPill}><Text style={s.etaT}>≈ {etas[t.id]} min de espera</Text></View>}
               </>)}
-              {llamado && (<><Text style={s.heroBig}>¡Es tu turno!</Text><Text style={s.heroLabel}>Ve al local ahora</Text></>)}
-              {enCamino && (<><Text style={s.heroBig}>Vas en camino</Text><Text style={s.heroLabel}>El barbero te espera</Text></>)}
+              {/* El mismo reloj que ve el barbero. Sin el número, "es tu turno"
+                  no le dice a nadie si puede terminarse el café. */}
+              {llamado && (() => {
+                const min = quedan[t.id]
+                return (<>
+                  <Text style={s.heroBig}>¡Es tu turno!</Text>
+                  <Text style={s.heroLabel}>
+                    {min == null ? 'Ve al local ahora'
+                      : min > 0 ? `Te esperan ${min} min más`
+                      : 'Se te pasó el tiempo — avisa que ya llegas'}
+                  </Text>
+                </>)
+              })()}
+              {enCamino && (<>
+                <Text style={s.heroBig}>{t.llego_at ? 'Ya llegaste' : 'Vas en camino'}</Text>
+                <Text style={s.heroLabel}>{t.llego_at ? 'El barbero ya lo sabe' : 'El barbero te espera'}</Text>
+              </>)}
               {atendiendo && (<><Text style={s.heroBig}>Te están atendiendo</Text><Text style={s.heroLabel}>Disfruta tu corte ✂️</Text></>)}
             </View>
             <View style={s.detalle}>
               <Text style={s.dServ}>{t.turno_servicios?.nombre}</Text>
               <Text style={s.dMeta}>{t.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'} · {t.turno_servicios?.duracion_min ?? '—'} min · {t.estado.replace('_', ' ')}</Text>
             </View>
+            {/* Las dos respuestas al "es tu turno". Antes solo estaba "voy en
+                camino", que no sirve para quien YA está en la puerta: tenía que
+                decir que venía de camino estando dentro, y el reloj le seguía
+                corriendo igual. */}
             <View style={s.acciones}>
-              {!atendiendo && (t.estado === 'en_fila' || llamado) && (
+              {!atendiendo && (t.estado === 'en_fila' || llamado || enCamino) && (
                 puede[t.id]
-                  ? <TouchableOpacity style={s.cta} onPress={() => voy(t)} disabled={accion === t.id}>
-                      {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Voy en camino</Text>}
-                    </TouchableOpacity>
+                  ? <View style={s.respuestas}>
+                      {!t.llego_at && (
+                        <TouchableOpacity style={s.cta} onPress={() => llegue(t)} disabled={accion === t.id}>
+                          {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Ya estoy aquí</Text>}
+                        </TouchableOpacity>
+                      )}
+                      {!enCamino && !t.llego_at && (
+                        <TouchableOpacity style={s.ctaSec} onPress={() => voy(t)} disabled={accion === t.id}>
+                          <Text style={s.ctaSecT}>Voy en camino</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   : <View style={s.ctaOff}><Ionicons name="lock-closed" size={14} color={COLORS.textLight} /><Text style={s.ctaOffT}>Se activa cuando estés cerca</Text></View>
               )}
               {!atendiendo && <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>}
@@ -281,8 +344,13 @@ const s = StyleSheet.create({
   dServ: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   dMeta: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 2, textTransform: 'capitalize' },
   acciones: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  cta: { flex: 1, backgroundColor: COLORS.red, borderRadius: 12, padding: 14, alignItems: 'center' },
+  // "Ya estoy aquí" es la respuesta que cierra el asunto —apaga el reloj— así
+  // que se lleva el botón lleno; "voy en camino" queda de secundaria.
+  respuestas: { flex: 1, gap: 8 },
+  cta: { backgroundColor: COLORS.red, borderRadius: 12, padding: 14, alignItems: 'center' },
   ctaT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  ctaSec: { borderRadius: 12, padding: 13, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border },
+  ctaSecT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid },
   ctaOff: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14 },
   ctaOffT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
   salir: { padding: 14, alignItems: 'center' },

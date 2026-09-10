@@ -447,21 +447,53 @@ export async function borrarBloqueo(id: string) {
   if (error) throw error
 }
 
-// SIN CITA = la silla se ocupa por el tiempo del servicio. No se crea ningún
-// cliente fantasma: lo que el sistema necesita saber es hasta cuándo está
-// tomada la silla, para no ofrecer esa hora ni mentir con el ETA.
-export async function ocuparAhora(perfil_id: string, servicio_id: string, motivo?: string) {
-  const { data, error } = await supabase.rpc('turno_ocupar_ahora', {
-    p_perfil: perfil_id, p_servicio: servicio_id, p_motivo: motivo ?? null,
+/**
+ * SIN CITA: entra a la fila como todo el mundo, y ya sentado.
+ *
+ * Antes esto llamaba a `turno_ocupar_ahora`, que en vez de crear un turno metía
+ * un BLOQUEO en la agenda con motivo "Cliente sin cita". Dos consecuencias, una
+ * visible y otra cara:
+ *   · el bloqueo no se borraba al terminar —liberarAhora solo le acortaba la
+ *     hora de fin— así que el rato aparecía luego en "HORAS BLOQUEADAS" como si
+ *     el barbero se lo hubiera cogido libre;
+ *   · y como las visitas se registran con un trigger sobre turno_cola, ese
+ *     corte NUNCA se contaba: ni dinero, ni estadísticas, ni punto de
+ *     fidelidad. El barbero cobraba y el sistema no se enteraba.
+ * Migración 66.
+ */
+export async function atenderSinCita(p: { negocio_id: string; perfil_id: string; servicio_id: string; nombre?: string; telefono?: string }) {
+  const { data, error } = await supabase.rpc('turno_atender_sin_cita', {
+    p_negocio: p.negocio_id, p_perfil: p.perfil_id, p_servicio: p.servicio_id,
+    p_nombre: p.nombre ?? null, p_telefono: p.telefono ?? null,
   })
   if (error) throw error
   return data
 }
 
-/** Terminó antes: libera el resto del tiempo reservado. */
+/**
+ * Terminó antes de la hora: acorta un bloqueo hasta ahora.
+ *
+ * Sigue haciendo falta aunque el walk-in ya no cree bloqueos: es para los que el
+ * barbero pone a mano ("me voy de 3 a 5") y termina antes. Lo que ya no hace es
+ * limpiar nada del sin-cita, porque el sin-cita ya no ensucia la agenda.
+ */
 export async function liberarAhora(bloqueo_id: string) {
   const { error } = await supabase.rpc('turno_liberar_ahora', { p_bloqueo: bloqueo_id })
   if (error) throw error
+}
+
+/** El cliente dice "estoy aquí": apaga la cuenta atrás de la ventana. */
+export async function yaLlegue(cola_id: string) {
+  const { data, error } = await supabase.rpc('turno_ya_llegue', { p_cola: cola_id })
+  if (error) throw error
+  return data
+}
+
+/** El barbero le da un rato más a quien ya llamó, en vez de marcarlo ausente. */
+export async function darMasTiempo(cola_id: string, minutos = 5) {
+  const { data, error } = await supabase.rpc('turno_dar_mas_tiempo', { p_cola: cola_id, p_min: minutos })
+  if (error) throw error
+  return data
 }
 
 // WALK-IN heredado (mete al cliente físico en la fila). La app ya no lo usa;

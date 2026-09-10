@@ -6,7 +6,7 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
-    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad && npm run test:db:viaje && npm run test:db:obstaculos && npm run test:db:puertas && npm run test:db:horarios",
+    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad && npm run test:db:viaje && npm run test:db:obstaculos && npm run test:db:puertas && npm run test:db:horarios && npm run test:db:sincita",
     "test:db:cola": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
     "test:db:autonomia": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/autonomia.test.sql",
     "test:db:fidelidad": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/fidelidad.test.sql",
@@ -14,6 +14,7 @@
     "test:db:obstaculos": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/obstaculos.test.sql",
     "test:db:puertas": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/puertas.test.sql",
     "test:db:horarios": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/horarios.test.sql",
+    "test:db:sincita": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/sin_cita.test.sql",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

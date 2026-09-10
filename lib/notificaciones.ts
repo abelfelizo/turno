@@ -133,6 +133,23 @@ export const avisos = {
   barberoVaEnCamino: (barberoUsuarioId: string, cliente: string) =>
     enviarPush(barberoUsuarioId, 'Va en camino', `${cliente} salió para allá.`, { tipo: 'agenda' }),
 
+  /**
+   * TU TURNO. El aviso del momento en que le toca, con el reloj ya corriendo:
+   * turno_llamar_siguiente pone `expira_at = now() + ventana_llegada_min`, así
+   * que el minuto en que sale este push es el minuto en que empieza la cuenta
+   * atrás. Decir cuántos minutos tiene es la diferencia entre un aviso y una
+   * instrucción — sin el número, "es tu turno" no le dice a nadie si puede
+   * terminarse el café.
+   */
+  clienteTuTurno: (clienteId: string, local: string, minutos: number) =>
+    enviarPush(clienteId, '¡Es tu turno! 💈',
+      `Te esperan en ${local}. Tienes ${minutos} min para llegar — contesta si vas en camino o ya estás allí.`,
+      { tipo: 'turno' }),
+
+  /** El cliente contestó que ya está en la puerta: el barbero deja de esperar. */
+  barberoYaLlego: (barberoUsuarioId: string, cliente: string) =>
+    enviarPush(barberoUsuarioId, 'Ya está aquí', `${cliente} dice que ya llegó al local.`, { tipo: 'agenda' }),
+
   /** R2 lo especificaba desde el principio y no estaba construido. */
   clientePrepararse: (clienteId: string, local: string, delante: number) =>
     enviarPush(clienteId, 'Prepárate, casi te toca',

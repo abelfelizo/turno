@@ -259,6 +259,20 @@ begin
   begin perform turno_sustituir_ausente(q_cli, q_cli);
     abiertas := abiertas || ' sustituir_ausente'; exception when others then null; end;
 
+  -- Las de las migraciones 66–68. Se añaden a la vez que se escriben, que es la
+  -- única forma de que esta red sirva: la última vez se quedaron fuera cuatro
+  -- funciones nuevas y una llegó a producción sin negarse.
+  begin perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'Anon', '');
+    abiertas := abiertas || ' atender_sin_cita'; exception when others then null; end;
+  begin perform turno_carga_de_fila(p_bar);
+    abiertas := abiertas || ' carga_de_fila'; exception when others then null; end;
+  begin perform turno_ya_llegue(q_cli);
+    abiertas := abiertas || ' ya_llegue'; exception when others then null; end;
+  begin perform turno_dar_mas_tiempo(q_cli, 5);
+    abiertas := abiertas || ' dar_mas_tiempo'; exception when others then null; end;
+  begin perform turno_ocupar_ahora(p_bar, s_corte, 'x');
+    abiertas := abiertas || ' ocupar_ahora'; exception when others then null; end;
+
   reset role;
 
   n:=n+1; c:='RED · ninguna función queda al alcance de un anónimo';

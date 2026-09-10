@@ -6,7 +6,7 @@ import {
   getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
-  sacarDeCola, devolverAFila, cambiarServicioCola, ocuparAhora, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera,
+  sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
@@ -198,23 +198,30 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   }, [cargarVivo])
   useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
 
-  /** Sin cita = la silla queda tomada por lo que dura el servicio. No se crea
-   *  ningún cliente: lo que importa es que esa hora deje de ofrecerse y que la
-   *  cola digital sume esa espera. */
+  /**
+   * Sin cita: entra a la FILA y se sienta, igual que cualquiera.
+   *
+   * Antes ocupaba la silla con un bloqueo de agenda. Se veía mal —al terminar
+   * quedaba ahí como si el barbero se hubiera cogido el rato libre— pero lo
+   * caro estaba debajo: las visitas se registran cuando un turno de la cola
+   * pasa a 'atendido', y por la vía del bloqueo ese corte no pasaba nunca por
+   * la cola. No contaba como dinero, ni en estadísticas, ni sumaba punto.
+   */
   function ocuparSilla(sv: any) {
-    Alert.alert('Cliente sin cita', `Ocupar tu silla ${sv.duracion_min} min para ${sv.nombre}?`, [
+    Alert.alert('Cliente sin cita', `¿Sentar a alguien ahora para ${sv.nombre} (${sv.duracion_min} min)?`, [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Ocupar', onPress: async () => {
+      { text: 'Sentar', onPress: async () => {
         setWEnviando(true)
         try {
-          const b = await ocuparAhora(sesion.perfil_id, sv.id)
+          const q = await atenderSinCita({
+            negocio_id: sesion.negocio_id, perfil_id: sesion.perfil_id, servicio_id: sv.id,
+          })
           setHoja(null)
-          // La RPC devuelve el bloqueo creado: se pinta ya, sin esperar a que
-          // el servidor conteste una segunda vez. Antes la tarjeta "SILLA
-          // OCUPADA" no salía hasta completar la recarga entera.
-          if (b) {
-            setBloqueos(prev => [...prev, b])
-            setEstado((e: any) => ({ ...(e ?? {}), estado: 'atendiendo', hasta: (b as any).hora_fin }))
+          // La RPC devuelve el turno ya sentado: se pinta sin esperar otra
+          // vuelta al servidor.
+          if (q) {
+            setCola(prev => [...prev, { ...(q as any), turno_servicios: sv }])
+            setEstado((e: any) => ({ ...(e ?? {}), estado: 'atendiendo' }))
           }
           refrescar()
         } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
@@ -259,10 +266,16 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
 
   // La silla se libera sola al pasar la hora: sin este tic la tarjeta se
   // quedaba clavada hasta que el barbero tocaba algo.
+  //
+  // Late cada segundo SOLO mientras hay una cuenta atrás que pintar. Un
+  // cronómetro que salta de treinta en treinta no es un cronómetro, y tenerlo
+  // a un segundo todo el día es despertar la pantalla cada segundo para no
+  // cambiar nada.
+  const hayCuenta = cola.some(c => (c.estado === 'llamado' || c.estado === 'en_camino') && c.expira_at)
   useEffect(() => {
-    const t = setInterval(() => setTic(x => x + 1), 30000)
+    const t = setInterval(() => setTic(x => x + 1), hayCuenta ? 1000 : 30000)
     return () => clearInterval(t)
-  }, [])
+  }, [hayCuenta])
 
   // Ficha del cliente llamado (preferencias + nota privada del barbero).
   const llamadoClienteId = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')?.cliente_id
@@ -281,8 +294,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
   }
 
+  /**
+   * "Es tu turno" con el reloj dentro. El aviso decía "acércate, ya casi te
+   * toca" y no mencionaba que desde ese mismo segundo corre la ventana de
+   * llegada: quien lo leía no tenía forma de saber si le sobraban dos minutos o
+   * veinte. El número sale de `expira_at`, que es el mismo que ve el barbero en
+   * su cuenta atrás, así que los dos miran el mismo reloj.
+   */
   function avisarLlamado(r: any) {
-    if (r?.cliente_id) enviarPush(r.cliente_id, 'Es tu turno', `Acércate a ${negocio?.nombre ?? 'el local'}, ya casi te toca.`, { tipo: 'turno' })
+    if (!r?.cliente_id) return
+    const min = r.expira_at
+      ? Math.max(1, Math.round((new Date(r.expira_at).getTime() - Date.now()) / 60000))
+      : null
+    if (min) avisos.clienteTuTurno(r.cliente_id, negocio?.nombre ?? 'el local', min)
+    else enviarPush(r.cliente_id, '¡Es tu turno! 💈', `Te esperan en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'turno' })
   }
 
   /** R2 pedía este aviso desde el principio y nunca se construyó: al llamar a
@@ -344,7 +369,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       else {
         avisarLlamado(r); avisarSiguiente()
         setCola(prev => prev.map(x => x.id === (r as any).id
-          ? { ...x, estado: 'llamado', llamado_at: (r as any).llamado_at } : x))
+          ? { ...x, estado: 'llamado', llamado_at: (r as any).llamado_at, expira_at: (r as any).expira_at } : x))
       }
       refrescar()
       avisarCambiosDeEspera()
@@ -486,6 +511,23 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     return partes.length ? partes.join(' · ') : 'Nadie esperando y sin citas hoy'
   })()
 
+  /**
+   * La cuenta atrás de quien fue llamado. `expira_at` lo pone
+   * turno_llamar_siguiente desde siempre —la ventana de llegada— pero no se
+   * enseñaba en ninguna pantalla: el reloj corría a oscuras para los dos lados.
+   *
+   * Devuelve segundos para poder pintar el minuto y el segundo; `tic` la
+   * recalcula sola. Null cuando no hay reloj que contar: nadie llamado, o el
+   * cliente ya dijo "estoy aquí" y turno_ya_llegue apagó el expira.
+   */
+  const restante: number | null = (() => {
+    void tic
+    if (!llamado?.expira_at || llamado.estado === 'atendiendo') return null
+    const s = Math.round((new Date(llamado.expira_at).getTime() - Date.now()) / 1000)
+    return s > 0 ? s : 0
+  })()
+  const llego = !!llamado?.llego_at
+
   /** Cuánto lleva alguien esperando. Un número que el barbero mira para decidir
    *  a quién adelanta, y que hasta ahora no salía en ningún sitio. */
   function esperaDe(q: any): number | null {
@@ -618,14 +660,41 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             </TouchableOpacity>
           )}
 
-          {/* Llamaste a alguien: solo hay dos finales, se sienta o no estaba. El
-              segundo tenía que existir aquí — si no, la única salida era esperar
-              los diez minutos de la ventana con la silla parada, o "sacarlo de
-              la fila", que suena a castigo y es otra cosa. */}
+          {/* LLAMADO: el reloj y las tres salidas.
+              Antes aquí solo había "No está · pierde el turno", y el minutero
+              no se veía en ningún sitio pese a existir en los datos desde el
+              principio. El barbero llamaba y se quedaba a ciegas: ni sabía
+              cuánto le quedaba al otro, ni tenía nada entre esperar de brazos
+              cruzados y quitarle el turno. */}
           {esHoy && llamado && llamado.estado !== 'atendiendo' && (
-            <TouchableOpacity style={s.noEsta} onPress={() => confirmarNoEsta(llamado)}>
-              <Text style={s.noEstaT}>No está · pierde el turno</Text>
-            </TouchableOpacity>
+            <View style={s.cuenta}>
+              <View style={s.cuentaTop}>
+                <Ionicons name={llego ? 'checkmark-circle' : 'time-outline'} size={16} color="#fff" />
+                <Text style={s.cuentaT}>
+                  {llego ? 'Dice que ya está aquí'
+                    : llamado.estado === 'en_camino' ? 'Va en camino'
+                    : restante === null ? 'Llamado'
+                    : restante > 0 ? `Le quedan ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}`
+                    : 'Se le pasó el tiempo'}
+                </Text>
+              </View>
+              <View style={s.cuentaBtns}>
+                <TouchableOpacity style={[s.cuentaBtn, s.cuentaBtnFuerte]} onPress={() => empezarCorte(llamado)}>
+                  <Text style={s.cuentaBtnFuerteT}>Atendiendo</Text>
+                </TouchableOpacity>
+                {/* Dar un rato más existe para "está aparcando": la única
+                    alternativa era quitarle el turno, que es otra cosa. Se
+                    esconde si ya dijo que está aquí — no hay reloj que alargar. */}
+                {!llego && (
+                  <TouchableOpacity style={s.cuentaBtn} onPress={() => op(() => darMasTiempo(llamado.id, 5), 'No se pudo')}>
+                    <Text style={s.cuentaBtnT}>Esperar +5</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={s.cuentaBtn} onPress={() => confirmarNoEsta(llamado)}>
+                  <Text style={s.cuentaBtnT}>No está</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
           {esHoy && enFila.length > 0 && (
@@ -992,8 +1061,18 @@ const gs = StyleSheet.create({
 })
 
 const s = StyleSheet.create({
-  noEsta: { alignItems: 'center', paddingVertical: 10, marginTop: 6 },
-  noEstaT: { color: 'rgba(0,0,0,0.62)', fontSize: 13.5, fontWeight: '700' },
+  // Va dentro del cuadro de estado, que ya tiene fondo de color: por eso el
+  // panel es un velo oscuro translúcido y no un color propio — así funciona
+  // igual sobre el verde de "libre" y el azul de "atendiendo".
+  cuenta: { backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13, padding: 11, marginTop: 10 },
+  cuentaTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9 },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
+  cuentaBtns: { flexDirection: 'row', gap: 7 },
+  cuentaBtn: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.18)' },
+  cuentaBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  cuentaBtnFuerte: { backgroundColor: '#fff' },
+  cuentaBtnFuerteT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
   panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
