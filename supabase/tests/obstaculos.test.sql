@@ -39,7 +39,7 @@ declare
   a_c1  uuid := gen_random_uuid(); a_c2  uuid := gen_random_uuid();
   u_due uuid; u_bar uuid; u_c1 uuid; u_c2 uuid;
   v_neg uuid; p_due uuid; p_bar uuid; s_corte uuid;
-  q_c1 uuid; cita_tarde uuid; cita_ahora uuid; cita_c2 uuid;
+  q_c1 uuid; cita_tarde uuid; cita_ahora uuid; cita_c2 uuid; cita_vieja uuid;
   v_tz text := 'America/Santo_Domingo';
   v_hoy date; v_manana date; v_t time;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
@@ -365,6 +365,50 @@ begin
    where h.negocio_id = v_neg and h.origen = 'cola_fisica';
   if v_int >= 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - se perdió lo que cobró'; end if;
+
+  -- ── LA LIMPIEZA DE LA MADRUGADA (migración 75) ────────────────────────────
+  -- Reportado desde el teléfono: "las citas abandonadas de días anteriores no
+  -- desaparecen ni se gestionan". Sí había quien las cerrara —el cron llama a
+  -- turno_cerrar_citas_viejas cada minuto— pero el trigger de la migración 73,
+  -- el que impide que un CLIENTE marque su cita como atendida, también se le
+  -- aplicaba: el cron corre SIN SESIÓN, así que turno_uid() es null, así que no
+  -- es staff, así que se le trataba como al cliente y se le negaba.
+  --
+  -- Y turno_expirar_llamados hace tres cosas en una transacción, así que al
+  -- reventar la tercera se caían las tres: el mantenimiento entero del sistema
+  -- llevaba parado desde la 73, sin que se notara, porque solo falla cuando hay
+  -- una cita vieja delante.
+  --
+  -- Estos casos corren SIN SESIÓN a propósito. Es el contexto del cron, y es
+  -- justo el que no se probaba: todas las demás suites impersonan a alguien.
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_c1, v_neg, s_corte, v_hoy - 3, time '10:00', time '10:30', 'creada')
+  returning id into cita_vieja;
+
+  perform set_config('request.jwt.claims', null, true);
+  v_txt := 'NINGUNO';
+  begin perform turno_expirar_llamados();
+  exception when others then v_txt := sqlerrm; end;
+
+  n:=n+1; c:='limpieza · el cron no revienta con una cita vieja delante';
+  if v_txt = 'NINGUNO' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_txt||' (y con él se cae vencer llamados y cerrar olvidados)'; end if;
+
+  n:=n+1; c:='limpieza · la cita de hace tres días queda cerrada';
+  select estado into v_txt from turno_citas where id = cita_vieja;
+  if v_txt = 'no_llego' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'?'); end if;
+
+  -- La otra mitad: al arreglar la limpieza, cada cita vieja pasa a 'no_llego',
+  -- y ese paso mete al cliente en la fila con prioridad 1. Bien el día de la
+  -- cita —el que llega tarde no vuelve al final— y absurdo tres días después:
+  -- el cliente amanecía DE PRIMERO por un corte que nunca pidió.
+  n:=n+1; c:='limpieza · el que faltó hace tres días NO amanece en la fila de hoy';
+  select count(*) into v_int from turno_cola
+   where cliente_id = u_c1 and cita_origen_id = cita_vieja
+     and estado in ('en_fila','llamado','en_camino','atendiendo');
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' turno(s) fantasma'; end if;
 
   raise exception E'\n═══ OBSTÁCULOS · % / % casos OK ═══%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

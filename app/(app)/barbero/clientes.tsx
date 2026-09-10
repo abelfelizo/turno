@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useLocalSearchParams } from 'expo-router'
 import { getSesion } from '../../../lib/storage'
-import { getClientesDelLocal, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
+import { getClientesDelLocal, getNotaBarbero, getNotasBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
 import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
@@ -28,6 +28,8 @@ export default function Clientes() {
   const [nota, setNota] = useState('')
   const [cargandoNota, setCargandoNota] = useState(false)
   const [guardando, setGuardando] = useState(false)
+  // Las notas ya escritas, para marcarlas en la lista.
+  const [notas, setNotas] = useState<Record<string, string>>({})
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [moneda, setMoneda] = useState('')
   const [perfilId, setPerfilId] = useState<string | null>(null)
@@ -37,12 +39,14 @@ export default function Clientes() {
     const ss = await getSesion()
     if (!ss?.usuario_id) { setLoading(false); return }
     setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
-    const [cl, rec, neg] = await Promise.all([
+    const [cl, rec, neg, nts] = await Promise.all([
       ss.negocio_id ? getClientesDelLocal(ss.negocio_id).catch(() => []) : Promise.resolve([]),
       ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
       ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
+      getNotasBarbero(ss.usuario_id).catch(() => ({})),
     ])
     setClientes(cl); setRecuperar(rec as any[]); setMoneda((neg as any)?.moneda ?? '')
+    setNotas(nts as Record<string, string>)
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -78,10 +82,43 @@ export default function Clientes() {
     })
     setCargandoNota(false)
   }
+  /**
+   * GUARDAR UNA NOTA NO PUEDE FALLAR EN SILENCIO.
+   *
+   * Reportado desde el teléfono: "no se guardan las notas, al menos nada pasa
+   * al guardarla". La escritura contra la base sí funciona —comprobado con el
+   * rol `authenticated` y las políticas puestas: se escribe y se relee— así que
+   * el fallo estaba en este lado, y aquí había exactamente una forma de que
+   * pulsar el botón no hiciera absolutamente nada:
+   *
+   *     if (!usuarioId || !activo) return
+   *
+   * Sin usuarioId en memoria, la función se iba sin escribir, sin avisar y sin
+   * cerrar. Un `return` mudo en una acción que el usuario pulsó es siempre un
+   * error: si no se puede hacer, hay que decirlo.
+   *
+   * Ahora el id se rescata de la sesión guardada si falta en memoria —que es de
+   * donde salió— y si aun así no aparece, se avisa. Y como una nota guardada no
+   * se veía en ninguna parte, la lista se marca al volver: es la diferencia
+   * entre "no se guardó" y "no se nota".
+   */
   async function guardar() {
-    if (!usuarioId || !activo) return
+    if (!activo) return
+    const uid = usuarioId ?? (await getSesion())?.usuario_id ?? null
+    if (!uid) { Alert.alert('No se pudo guardar', 'No encuentro tu sesión. Vuelve a entrar e inténtalo otra vez.'); return }
+    if (!activo.cliente_id) { Alert.alert('No se pudo guardar', 'A este cliente le falta la ficha; ábrelo desde la lista.'); return }
+    if (!usuarioId) setUsuarioId(uid)
     setGuardando(true)
-    try { await guardarNotaBarbero(usuarioId, activo.cliente_id, nota.trim()); setActivo(null) }
+    const texto = nota.trim()
+    try {
+      await guardarNotaBarbero(uid, activo.cliente_id, texto)
+      setNotas(prev => {
+        const sig = { ...prev }
+        if (texto) sig[activo.cliente_id] = texto; else delete sig[activo.cliente_id]
+        return sig
+      })
+      setActivo(null)
+    }
     catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
     finally { setGuardando(false) }
   }
@@ -151,6 +188,14 @@ export default function Clientes() {
                       ? `Nunca ha venido contigo${item.desde ? ` · se unió el ${fechaLarga(fechaDeISO(item.desde))}` : ''}`
                       : `${item.visitas} visita${item.visitas === 1 ? '' : 's'} contigo · última ${item.ultima}`}
                   </Text>
+                  {/* La nota se guardaba y no se veía en ningún sitio, que es
+                      lo mismo que no guardarse. Aquí está la prueba. */}
+                  {notas[item.cliente_id] ? (
+                    <View style={s.notaRow}>
+                      <Ionicons name="document-text" size={12} color={COLORS.blue} />
+                      <Text style={s.notaPrev} numberOfLines={1}>{notas[item.cliente_id]}</Text>
+                    </View>
+                  ) : null}
                 </View>
                 {item.visitas > 0 ? <Text style={s.total}>{item.total}</Text> : null}
               </TouchableOpacity>
@@ -312,6 +357,8 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  notaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  notaPrev: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.blue },
   total: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, maxHeight: '88%' },

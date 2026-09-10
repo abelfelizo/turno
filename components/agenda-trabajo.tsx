@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import {
-  getCitasFecha, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
+  getCitasFecha, getCitasSinCerrar, getConteoCitasRango, getBloqueosFecha, borrarBloqueo, getColaActiva, llamarSiguiente,
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
@@ -24,6 +24,11 @@ const EST_FONDO: Record<string, string> = {
 
 /** Cuántos días hacia adelante ofrece el selector (más ayer, para repasar). */
 const DIAS_ADELANTE = 20
+
+/** Una cita sigue ABIERTA mientras nadie diga cómo acabó. Los cuatro estados
+ *  son los mismos que mira turno_cerrar_citas_viejas; escritos en dos sitios,
+ *  se corrigen en uno. */
+const ABIERTAS = ['creada', 'confirmada', 'no_confirmada', 'en_camino']
 
 /**
  * El punto de estado, latiendo.
@@ -96,6 +101,8 @@ function horaAhora() {
 /** Agenda de trabajo: la usa el barbero y el dueño-que-atiende. Opera sobre sesion.perfil_id. */
 export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const [citas, setCitas] = useState<any[]>([])
+  // Citas de días pasados que nadie cerró. Ver getCitasSinCerrar.
+  const [sinCerrar, setSinCerrar] = useState<any[]>([])
   const [cola, setCola] = useState<any[]>([])
   const [bloqueos, setBloqueos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -138,7 +145,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl, est] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est, sc] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -147,9 +154,11 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       getConteoCitasRango(ss.perfil_id, sumarDias(hoy, -1), sumarDias(hoy, DIAS_ADELANTE)).catch(() => ({})),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
       getEstadoBarbero(ss.perfil_id).catch(() => null),
+      getCitasSinCerrar(ss.perfil_id).catch(() => []),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
+    setSinCerrar(sc as any[])
     setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
@@ -177,13 +186,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargarVivo = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.perfil_id) return
-    const [c, q, bl, est] = await Promise.all([
+    const [c, q, bl, est, sc] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
       getEstadoBarbero(ss.perfil_id).catch(() => null),
+      // Va también aquí porque cerrar una de ellas es una acción como otra
+      // cualquiera: si no se recarga, la que acabas de cerrar sigue en la lista.
+      getCitasSinCerrar(ss.perfil_id).catch(() => []),
     ])
     setCitas(c as any[]); setCola(q as any[]); setBloqueos(bl as any[]); setEstado(est)
+    setSinCerrar(sc as any[])
   }, [fecha])
 
   /**
@@ -478,11 +491,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
 
   function accionCita(c: any) {
     const opts: any[] = [{ text: 'Cerrar', style: 'cancel' }]
-    if (c.estado === 'confirmada' || c.estado === 'en_camino') opts.unshift({ text: 'Marcar atendida', onPress: async () => { await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() }); refrescar() } })
-    if (c.estado === 'creada') opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: async () => { await actualizarEstadoCita(c.id, 'no_llego'); refrescar() } })
+    // ABIERTA ES ABIERTA. Antes "Marcar atendida" solo salía en confirmada y
+    // en_camino, y "Marcar no llegó" solo en creada: una cita en
+    // 'no_confirmada' —el estado al que las manda solo el reloj, cuando pasa la
+    // hora de anticipación— no ofrecía NINGUNA de las dos. La única salida que
+    // le quedaba al barbero era cancelarla, que dice otra cosa. Esa es la mitad
+    // de "las citas viejas no se gestionan": no es que no se vieran, es que no
+    // se podían cerrar.
+    if (ABIERTAS.includes(c.estado)) {
+      opts.unshift({ text: 'Marcar atendida', onPress: () => cerrarCita(c) })
+      opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: () => citaNoLlego(c) })
+    }
     // Cancelar desde el lado del barbero no existía: solo podía marcar que el
     // cliente no llegó, que es una acusación distinta.
-    if (['creada', 'confirmada', 'no_confirmada', 'en_camino'].includes(c.estado)) {
+    if (ABIERTAS.includes(c.estado)) {
       opts.unshift({ text: 'Cancelar la cita', style: 'destructive', onPress: async () => {
         await actualizarEstadoCita(c.id, 'cancelada', { cancelada_by: 'barbero' })
         if (c.cliente_id) {
@@ -547,7 +569,10 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
    * algo que el servidor no autorice.
    */
   const MARGEN_CITA_MIN = 15
-  const citasVivas = citas.filter((c: any) => ['creada', 'confirmada', 'en_camino'].includes(c.estado))
+  // 'no_confirmada' entra aquí: es una cita que sigue en pie, solo que el
+  // cliente no confirmó a tiempo. Dejarla fuera hacía que la cita de ahora
+  // desapareciera del panel justo cuando el barbero más la mira.
+  const citasVivas = citas.filter((c: any) => ABIERTAS.includes(c.estado))
   const minutosHasta = (hhmm: string) => {
     void tic
     const [h, m] = String(hhmm).split(':').map(Number)
@@ -822,14 +847,16 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             <View style={s.cuenta}>
               <View style={s.cuentaTop}>
                 <Ionicons name={llego ? 'checkmark-circle' : 'time-outline'} size={16} color="#fff" />
-                <Text style={s.cuentaT}>
-                  {llego ? 'Dice que ya está aquí'
-                    : llamado.estado === 'en_camino' ? 'Va en camino'
-                    : restante === null ? 'Llamado'
-                    : restante > 0 ? `Le quedan ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}`
-                    : 'Se le pasó el tiempo'}
+                <Text style={s.cuentaT} numberOfLines={1}>
+                  {llamado.turno_usuarios?.nombre ?? 'Cliente'} ·{' '}
+                  {llego ? 'ya está aquí'
+                    : llamado.estado === 'en_camino' ? 'va en camino'
+                    : restante === null ? 'llamado'
+                    : restante > 0 ? `le quedan ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}`
+                    : 'se le pasó el tiempo'}
                 </Text>
               </View>
+              {llamado.turno_servicios?.nombre ? <Text style={s.cuentaSub}>{llamado.turno_servicios.nombre}</Text> : null}
               <View style={s.cuentaBtns}>
                 <TouchableOpacity style={[s.cuentaBtn, s.cuentaBtnFuerte]} onPress={() => empezarCorte(llamado)}>
                   <Text style={s.cuentaBtnFuerteT}>Atendiendo</Text>
@@ -842,10 +869,45 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                     <Text style={s.cuentaBtnT}>Esperar +5</Text>
                   </TouchableOpacity>
                 )}
+                {/* Venía de la tarjeta verde que había debajo. Al fundir las dos
+                    en una, sus acciones se mudan aquí: quitarlas habría sido
+                    "simplificar" quitándole al barbero la forma de avisar. */}
+                {llamado.turno_usuarios?.telefono ? (
+                  <TouchableOpacity style={s.cuentaBtn}
+                    onPress={() => avisarTurno(llamado.turno_usuarios.telefono, llamado.turno_usuarios?.nombre ?? 'cliente', negocio?.nombre ?? 'el local')}>
+                    <Text style={s.cuentaBtnT}>Avisar</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity style={s.cuentaBtn} onPress={() => confirmarNoEsta(llamado)}>
                   <Text style={s.cuentaBtnT}>No está</Text>
                 </TouchableOpacity>
+                <TouchableOpacity style={s.cuentaBtn} onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
+                  <Ionicons name="ellipsis-horizontal" size={15} color="#fff" />
+                </TouchableOpacity>
               </View>
+            </View>
+          )}
+
+          {/* EN LA SILLA. Antes esto era una tarjeta VERDE aparte, debajo del
+              panel, y al sentar a alguien la pantalla enseñaba dos cuadros de
+              estado a la vez: el panel azul diciendo "Atendiendo a Juan" y la
+              verde diciendo "EN LA SILLA · Juan" con el mismo botón de
+              terminar. Reportado desde el teléfono al atender a un cliente sin
+              cita, que es donde más canta porque los dos aparecen de golpe.
+              Ahora el estado es UNO y esto es su detalle: el servicio, el
+              minutero, y el aviso de que llevas demasiado. Terminar sigue
+              siendo la acción principal de arriba, así que no se repite. */}
+          {esHoy && llamado?.estado === 'atendiendo' && (
+            <View style={s.siguiente}>
+              <Ionicons name="cut-outline" size={15} color="rgba(0,0,0,0.6)" />
+              <Text style={s.siguienteT} numberOfLines={1}>
+                {[llamado.turno_servicios?.nombre, minutosEnSilla(llamado) ? `lleva ${minutosEnSilla(llamado)} min` : null]
+                  .filter(Boolean).join(' · ') || 'En la silla'}
+                {minutosEnSilla(llamado) > Math.max(45, (llamado.turno_servicios?.duracion_min ?? 30) * 2) ? ' · ¿ya terminaste?' : ''}
+              </Text>
+              <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
+                <Ionicons name="ellipsis-horizontal" size={16} color="rgba(0,0,0,0.6)" />
+              </TouchableOpacity>
             </View>
           )}
 
@@ -912,42 +974,11 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             </View>
           )}
 
-          {/* El barbero pulsa Empezar y se olvida de Terminar: el cliente se
-              queda "en la silla" horas y R1 no le deja pedir otro turno.
-              Encontrado en la base con un caso de 2 h 30 min. */}
-          {llamado?.estado === 'atendiendo' && minutosEnSilla(llamado) > Math.max(45, (llamado.turno_servicios?.duracion_min ?? 30) * 2) && (
-            <TouchableOpacity style={s.olvido} onPress={() => atenderCola(llamado)}>
-              <Ionicons name="alarm-outline" size={18} color="#fff" />
-              <Text style={s.olvidoT}>
-                Llevas {minutosEnSilla(llamado)} min con {llamado.turno_usuarios?.nombre ?? 'este cliente'}. ¿Ya terminaste?
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {llamado && (
-            <View style={s.llamado}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.llamadoLbl}>{llamado.estado === 'atendiendo' ? 'EN LA SILLA' : llamado.estado === 'en_camino' ? 'EN CAMINO' : 'LLAMADO'}</Text>
-                <Text style={s.llamadoName}>{llamado.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                <Text style={s.llamadoServ}>{llamado.turno_servicios?.nombre}</Text>
-              </View>
-              <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                {llamado.estado === 'atendiendo'
-                  ? <TouchableOpacity style={s.atenderBtn} onPress={() => atenderCola(llamado)}><Text style={s.atenderT}>Terminar</Text></TouchableOpacity>
-                  : <TouchableOpacity style={s.atenderBtn} onPress={() => empezarCorte(llamado)}><Text style={s.atenderT}>Empezar</Text></TouchableOpacity>}
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {llamado.turno_usuarios?.telefono ? (
-                    <TouchableOpacity style={s.avisarBtn} onPress={() => avisarTurno(llamado.turno_usuarios.telefono, llamado.turno_usuarios?.nombre ?? 'cliente', negocio?.nombre ?? 'el local')}>
-                      <Ionicons name="logo-whatsapp" size={14} color="#fff" /><Text style={s.avisarT}>Avisar</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity style={s.masBtn} onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
-                    <Ionicons name="ellipsis-horizontal" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          )}
+          {/* Aquí vivían la tarjeta verde de "EN LA SILLA / LLAMADO" y el aviso
+              de "llevas 2 h con este cliente". Las dos se mudaron DENTRO del
+              panel de estado: eran cuadros de estado compitiendo con el cuadro
+              de estado. Lo que sigue debajo no es estado —el vale, la ficha del
+              cliente, la fila— y por eso se queda fuera. */}
 
           {llamado && vale && (
             <TouchableOpacity style={s.valeBar} onPress={aplicarVale}>
@@ -977,6 +1008,33 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           ESTABAN siguen valiendo: si cambió el modo con gente ya reservada,
           esconderlas sería hacerle perder clientes que van a aparecer igual.
           Por eso la sección se calla solo cuando de verdad no hay nada. */}
+      {/* SIN CERRAR. La agenda enseña un día, así que lo que quedó abierto el
+          martes solo existía si a alguien se le ocurría volver al martes: el
+          barbero cierra el local, no repasa la semana hacia atrás. El cron las
+          cierra solo pasado un día —y como 'no llegó', que puede ser mentira si
+          sí vino y nadie lo marcó—, así que entre medias esto es lo único que
+          le da la oportunidad de decir qué pasó de verdad.
+
+          Va ARRIBA de las citas de hoy y solo cuando hay alguna: es una deuda,
+          y las deudas se enseñan al entrar, no al final. */}
+      {esHoy && sinCerrar.length > 0 && (
+        <>
+          <Text style={s.sec}>SIN CERRAR · DÍAS PASADOS</Text>
+          {sinCerrar.map((c: any) => (
+            <TouchableOpacity key={c.id} style={[s.row, s.rowDeuda]} onPress={() => accionCita(c)}>
+              <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.rowName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                <Text style={s.rowServ}>
+                  {fechaLarga(fechaDeISO(c.fecha))} · {hora12(c.hora_inicio)}
+                </Text>
+              </View>
+              <Text style={s.rowDeudaT}>¿Vino?</Text>
+            </TouchableOpacity>
+          ))}
+        </>
+      )}
+
       {(daCitas || citas.length > 0) && <Text style={s.sec}>CITAS DEL DÍA</Text>}
       {citas.length === 0 && daCitas && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
@@ -1225,9 +1283,12 @@ const s = StyleSheet.create({
   modoChipT: { fontFamily: FONTS.bold, fontSize: 10.5, color: 'rgba(0,0,0,0.65)', letterSpacing: 0.2 },
   cuenta: { backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13, padding: 11, marginTop: 10 },
   cuentaTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9 },
-  cuentaT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  cuentaBtns: { flexDirection: 'row', gap: 7 },
-  cuentaBtn: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
+  cuentaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
+  cuentaSub: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: -5, marginBottom: 9 },
+  // Envuelve: con teléfono son cinco botones y en un teléfono estrecho la
+  // última se salía de la tarjeta.
+  cuentaBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  cuentaBtn: { flexGrow: 1, flexBasis: 84, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.18)' },
   cuentaBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   cuentaBtnFuerte: { backgroundColor: '#fff' },
@@ -1280,17 +1341,9 @@ const s = StyleSheet.create({
   ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
   ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
   ocupadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  olvido: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 10 },
-  olvidoT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  llamado: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.success, borderRadius: 14, padding: 16, marginBottom: 14 },
-  llamadoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.85)', letterSpacing: 1 },
-  llamadoName: { fontFamily: FONTS.extrabold, fontSize: 18, color: '#fff', marginTop: 4 },
-  llamadoServ: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  atenderBtn: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  atenderT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.success },
-  avisarBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
-  avisarT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
-  masBtn: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, justifyContent: 'center' },
+  // Aquí estaban `olvido`, `llamado` y sus botones: la tarjeta verde que
+  // duplicaba el panel de estado. Se fue entera al panel, y con ella sus
+  // estilos; lo que hacía se hace ahora con `cuenta` y `siguiente`.
   ficha: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 14 },
   fichaTitle: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1, marginBottom: 10 },
   fichaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -1305,6 +1358,10 @@ const s = StyleSheet.create({
   rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   rowName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   rowServ: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  // Una deuda, no una alarma: borde rojo y nada más. Van arriba del todo, y
+  // pintarlas de rojo entero sería gritar por algo que no urge.
+  rowDeuda: { borderColor: COLORS.red },
+  rowDeudaT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red },
   walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
   walkinT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   // NEGRO, no azul: el azul es el estado "atendiendo" del cuadro de arriba, y

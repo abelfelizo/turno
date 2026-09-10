@@ -548,6 +548,30 @@ export async function getCitasHoy(perfil_id: string) {
   return getCitasFecha(perfil_id, fechaISOLocal())
 }
 
+/**
+ * LAS QUE SE QUEDARON SIN CERRAR.
+ *
+ * Reportado desde el teléfono: "las citas abandonadas de días anteriores no
+ * desaparecen ni se gestionan". Cerrarlas solas ya lo hace el cron (y desde la
+ * migración 75 vuelve a funcionar), pero eso tarda hasta un día entero, y
+ * mientras tanto el barbero no las ve: la agenda enseña UN día, así que lo que
+ * quedó abierto el martes solo existe si a alguien se le ocurre volver al
+ * martes.
+ *
+ * Esto las trae todas juntas para poder cerrarlas donde se está mirando: hoy.
+ */
+export async function getCitasSinCerrar(perfil_id: string) {
+  const { data, error } = await supabase.from(T('citas'))
+    .select('*, turno_usuarios!cliente_id(nombre, telefono), turno_servicios!servicio_id(nombre, duracion_min, precio)')
+    .eq('perfil_id', perfil_id)
+    .lt('fecha', fechaISOLocal())
+    .in('estado', ['creada', 'confirmada', 'no_confirmada', 'en_camino'])
+    .order('fecha', { ascending: false })
+    .limit(20)
+  if (error) throw error
+  return data || []
+}
+
 /** Cuántas citas vivas hay por día en un rango → { '2026-09-08': 3, … }.
  *  Alimenta los puntitos del selector de días: sin esto el barbero tiene que
  *  ir día por día a ciegas para saber dónde tiene trabajo. */
@@ -928,8 +952,20 @@ export async function getNotaBarbero(usuario_barbero_id: string, cliente_id: str
   return data?.nota || ''
 }
 export async function guardarNotaBarbero(usuario_barbero_id: string, cliente_id: string, nota: string) {
+  if (!usuario_barbero_id || !cliente_id) throw new Error('falta saber de quién es la nota')
   const { error } = await supabase.from(T('notas_barbero')).upsert({ usuario_barbero_id, cliente_id, nota }, { onConflict: 'usuario_barbero_id,cliente_id' })
   if (error) throw error
+}
+
+/** Todas las notas de este barbero de una vez, para marcar la lista. Una nota
+ *  guardada que no se ve en ningún sitio es indistinguible de una que no se
+ *  guardó: esto es lo que hace visible que quedó escrita. */
+export async function getNotasBarbero(usuario_barbero_id: string) {
+  const { data, error } = await supabase.from(T('notas_barbero')).select('cliente_id, nota').eq('usuario_barbero_id', usuario_barbero_id)
+  if (error) throw error
+  const map: Record<string, string> = {}
+  for (const n of (data ?? []) as any[]) if (n.nota) map[n.cliente_id] = n.nota
+  return map
 }
 
 export async function getEstadisticasBarbero(perfil_id: string) {
