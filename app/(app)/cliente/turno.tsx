@@ -6,7 +6,7 @@ import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola, yaLlegue,
   getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
-  getRatingsNegocio, getPuesto,
+  getRatingsNegocio, getPuesto, getMiPreferido, marcarPreferido,
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
@@ -39,6 +39,9 @@ export default function MiTurno() {
   // se mira para decidir con quién te sientas.
   const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
   const [resenasDe, setResenasDe] = useState<{ id: string; nombre?: string } | null>(null)
+  // Su barbero de confianza en este local (migración 83).
+  const [preferido, setPreferido] = useState<string | null>(null)
+  const [negocioId, setNegocioId] = useState<string | null>(null)
   const [tic, setTic] = useState(0)
 
   // La ventana de llegada corre desde que el barbero llama (`expira_at`, que lo
@@ -63,7 +66,7 @@ export default function MiTurno() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [ts, neg, perf, cfg, cts, yo, rt] = await Promise.all([
+    const [ts, neg, perf, cfg, cts, yo, rt, pref] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
@@ -73,7 +76,10 @@ export default function MiTurno() {
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMiUsuario().catch(() => null),
       getRatingsNegocio(ss.negocio_id).catch(() => ({})),
+      getMiPreferido(ss.negocio_id).catch(() => null),
     ])
+    setNegocioId(ss.negocio_id)
+    setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
     setRatings(rt as any)
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
@@ -173,6 +179,22 @@ export default function MiTurno() {
     }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
   }
+  /**
+   * MARCAR A MI BARBERO. Un toque en la estrella, sin pantalla intermedia: es
+   * una preferencia, no una configuración, y se cambia el día que te cambias de
+   * barbero. Se guarda en el acto y se refleja aquí mismo.
+   */
+  async function alternarPreferido(p: any) {
+    if (!negocioId) return
+    const nuevo = preferido === p.id ? null : p.id
+    setPreferido(nuevo)                       // optimista: el toque se ve al instante
+    try { await marcarPreferido(negocioId, nuevo) }
+    catch (e: any) {
+      setPreferido(preferido)                 // se deshace si el servidor dice que no
+      Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.')
+    }
+  }
+
   function salir(t: any) {
     Alert.alert('Salir de la fila digital', '¿Seguro que quieres cancelar este turno?', [
       { text: 'No' },
@@ -341,7 +363,10 @@ export default function MiTurno() {
             <View style={{ flex: 1 }}>
               <Text style={s.cualquieraT}>Cualquiera disponible</Text>
               <Text style={s.cualquieraD}>
-                {abiertos.length ? 'Te atiende el primero que se desocupe' : 'Ahora mismo no hay nadie abierto en el local'}
+                {!abiertos.length ? 'Ahora mismo no hay nadie abierto en el local'
+                  : preferido && conFila.some((p: any) => p.id === preferido && filaAbierta(p))
+                    ? `Te ponemos con ${conFila.find((p: any) => p.id === preferido)?.turno_usuarios?.nombre ?? 'tu barbero'}, que está abierto`
+                    : 'Te atiende el primero que se desocupe'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
@@ -383,7 +408,16 @@ export default function MiTurno() {
                         )
                       })()}
                 </View>
+                {/* MI BARBERO. La estrella es la relación que sostiene una
+                    barbería —"voy donde Abel"— y hasta ahora la app no sabía
+                    nada de ella: cada turno había que volver a buscarlo en la
+                    lista. Marcado, "cualquiera disponible" lo intenta a él. */}
+                <TouchableOpacity style={s.estrella} onPress={() => alternarPreferido(p)} hitSlop={10}>
+                  <Ionicons name={preferido === p.id ? 'star' : 'star-outline'} size={20}
+                    color={preferido === p.id ? COLORS.red : COLORS.textLight} />
+                </TouchableOpacity>
               </View>
+              {preferido === p.id && <Text style={s.esMio}>Tu barbero · te lo asignamos cuando pidas turno</Text>}
               {abierta && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
                 <TouchableOpacity key={sv.id} style={s.servRow} onPress={() => setHoja({ negocio, perfil: p, servicio: sv })}>
                   <Text style={s.servN}>{sv.nombre} · {sv.duracion_min} min</Text>
@@ -450,6 +484,8 @@ const s = StyleSheet.create({
   barberoCerrado: { opacity: 0.55, backgroundColor: COLORS.bg },
   barberoCerradoT: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   barberoMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  estrella: { padding: 4 },
+  esMio: { fontFamily: FONTS.bold, fontSize: 11.5, color: COLORS.red, marginTop: -2, marginBottom: 6 },
   servRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 12, marginTop: 6 },
   servN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   servP: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.red },

@@ -10,6 +10,7 @@ import { dinero, relojesDeSilla } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, PuntoVivo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import ClientesLocal from '../../../components/clientes-local'
 
 const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
 
@@ -38,6 +39,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [verClientes, setVerClientes] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
@@ -232,6 +234,19 @@ export default function Dashboard() {
           <Text style={s.colaVacia}>Nadie en la fila ahora mismo. Cuando un cliente entre —desde la app o como walk-in— aparecerá aquí con su nombre y servicio.</Text>
         )}
       </View>
+
+      {/* LOS CLIENTES DEL LOCAL. El dueño no tenía por dónde mirarlos: la
+          cartera existía solo en la pestaña del barbero, y desde aquí lo único
+          que veía eran nombres pasando por la fila. */}
+      <TouchableOpacity style={s.silla} onPress={() => setVerClientes(true)}>
+        <View style={[s.sillaIcon, { backgroundColor: COLORS.blue }]}><Ionicons name="people-outline" size={20} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.sillaT}>Clientes del local</Text>
+          <Text style={s.sillaD}>Quién viene, cada cuánto y con quién se corta.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+      </TouchableOpacity>
+      <ClientesLocal negocioId={negocio?.id ?? null} moneda={negocio?.moneda} visible={verClientes} onClose={() => setVerClientes(false)} />
 
       {/* El dueño que atiende llega a su propia silla desde aquí (servicios, horarios) */}
       {perfilPropio && (

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas, getMiPreferido } from '../../../lib/db'
 import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
@@ -45,7 +45,24 @@ export default function Agendar() {
         // Quien trabaja SOLO POR ORDEN DE LLEGADA no da citas: su agenda no
         // tiene huecos y turno_agendar_cita lo rechaza. Listarlo aquí sería
         // llevar al cliente a una pantalla vacía sin explicarle por qué.
-        setPerfiles((ps as any[]).filter(aceptaCitas)); setNegocio(neg)
+        const conCitas = (ps as any[]).filter(aceptaCitas)
+        setPerfiles(conCitas); setNegocio(neg)
+
+        // TU BARBERO, YA ELEGIDO (migración 83). Quien tiene barbero de
+        // confianza no debería tener que buscarlo en la tira cada vez que
+        // reserva: si da citas, entra preseleccionado con su primer servicio.
+        // Se salta cuando la pantalla viene con un barbero por parámetro, que
+        // es reprogramar una cita concreta y ahí manda la cita.
+        if (!params.perfil) {
+          const pref = await getMiPreferido(ss.negocio_id).catch(() => null)
+          const suyo = pref ? conCitas.find((x: any) => x.id === pref) : null
+          if (suyo) {
+            setPerfil(suyo)
+            const sv = (suyo.turno_servicios ?? []).filter((x: any) => x.activo)[0]
+            if (sv) setServicio(sv)
+          }
+        }
+
         // Preselección al reprogramar
         if (params.perfil) {
           const p = ps.find((x: any) => x.id === params.perfil)

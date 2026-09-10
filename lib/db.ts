@@ -962,6 +962,25 @@ export async function getPuesto(cola_id: string): Promise<number | null> {
   return data == null ? null : Number(data)
 }
 
+/**
+ * MI BARBERO (migración 83).
+ *
+ * Nadie dice "voy a cortarme", dice "voy donde Abel". Marcarlo hace dos cosas:
+ * queda preseleccionado al reservar, y "cualquiera disponible" intenta ponerte
+ * con él cuando puede atender. No da prioridad ninguna en la fila: decide QUIÉN
+ * te atiende, no CUÁNDO.
+ */
+export async function marcarPreferido(negocio_id: string, perfil_id: string | null) {
+  const { error } = await supabase.rpc('turno_marcar_preferido', { p_negocio: negocio_id, p_perfil: perfil_id })
+  if (error) throw error
+}
+
+export async function getMiPreferido(negocio_id: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('turno_mi_preferido', { p_negocio: negocio_id })
+  if (error) throw error
+  return (data as string) ?? null
+}
+
 /** Resumen de la fila antes de entrar (R3): personas delante y espera estimada. */
 export async function getResumenFila(negocio_id: string, perfil_id?: string): Promise<{ delante: number; espera_min: number }> {
   const { data, error } = await supabase.rpc('turno_resumen_fila', { p_negocio: negocio_id, p_perfil: perfil_id ?? null })
