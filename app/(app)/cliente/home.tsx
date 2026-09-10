@@ -4,19 +4,16 @@ import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
-  getNegocioById, getPerfilesNegocio, getMiTurnoActivo, getMisCitas,
-  getRatingsNegocio, confirmarCita, cancelarCita, getMisNegociosCliente, getConfiguracion,
+  getNegocioById, getEstadoLocal, getResumenFila, getMiTurnoActivo, getMisCitas,
+  confirmarCita, cancelarCita, getMisNegociosCliente,
   getMisTarjetas, getHistorialCliente, getMiUsuario,
 } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
-import { aceptaFila, aceptaCitas, filaAbierta, fraseFila } from '../../../lib/atencion'
-import { Display, Avatar, Badge, Dot } from '../../../components/ui'
-import HojaFila from '../../../components/hoja-fila'
-
-const TIPO_LABEL: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
+import { Display, Avatar, Badge } from '../../../components/ui'
+import EstadoLocal from '../../../components/estado-local'
 
 function cuentaRegresiva(fecha: string, hora: string) {
   const ms = new Date(`${fecha}T${hora}`).getTime() - Date.now()
@@ -33,17 +30,16 @@ export default function Home() {
   const [miNombre, setMiNombre] = useState('')
   const [negocio, setNegocio] = useState<any>(null)
   const [negocios, setNegocios] = useState<any[]>([])
-  const [config, setConfig] = useState<any>(null)
-  const [perfiles, setPerfiles] = useState<any[]>([])
+  // El local silla por silla y la espera de ahora: lo que alimenta el cuadro
+  // de estado. Ver components/estado-local.tsx.
+  const [sillas, setSillas] = useState<any[]>([])
+  const [resumen, setResumen] = useState<{ delante: number; espera_min: number }>({ delante: 0, espera_min: 0 })
   const [turno, setTurno] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
-  const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
   const [tarjetas, setTarjetas] = useState<any[]>([])
   const [historial, setHistorial] = useState<any[]>([])
-  const [expandido, setExpandido] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [hoja, setHoja] = useState<any>(null)   // selección para la hoja de confirmación de fila
 
   /** El barbero descubría los huecos al abrir la agenda; ahora se entera. */
   function avisarCancelacion(cita: any) {
@@ -57,19 +53,19 @@ export default function Home() {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.negocio_id || !ss?.usuario_id) { setLoading(false); return }
-    const [neg, perf, t, cs, rt, negs, cfg, pts, hist, yo] = await Promise.all([
-      getNegocioById(ss.negocio_id), getPerfilesNegocio(ss.negocio_id),
+    const [neg, est, res, t, cs, negs, pts, hist, yo] = await Promise.all([
+      getNegocioById(ss.negocio_id),
+      getEstadoLocal(ss.negocio_id).catch(() => []),
+      getResumenFila(ss.negocio_id).catch(() => ({ delante: 0, espera_min: 0 })),
       getMiTurnoActivo(ss.usuario_id, ss.negocio_id),
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
-      getRatingsNegocio(ss.negocio_id).catch(() => ({})),
       getMisNegociosCliente(ss.usuario_id).catch(() => []),
-      getConfiguracion(ss.negocio_id).catch(() => null),
       getMisTarjetas(ss.negocio_id).catch(() => []),
       getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMiUsuario().catch(() => null),
     ])
-    setNegocio(neg); setPerfiles(perf as any[]); setTurno(t); setCitas(cs as any[])
-    setRatings(rt as any); setNegocios(negs as any[]); setConfig(cfg); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
+    setNegocio(neg); setSillas(est as any[]); setResumen(res); setTurno(t); setCitas(cs as any[])
+    setNegocios(negs as any[]); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
   }, [])
@@ -83,17 +79,19 @@ export default function Home() {
 
   async function cambiarNegocio(negocio_id: string) {
     const ss = await getSesion(); if (!ss) return
-    await guardarSesion({ ...ss, negocio_id }); setExpandido(null); setLoading(true); cargar()
-  }
-  // Abre la hoja de confirmación (R3) en vez de entrar a la fila de un toque.
-  function pedir(perfil: any | undefined, servicio: any) {
-    if (!sesion?.negocio_id || !negocio) return
-    setHoja({ negocio, perfil, servicio })
+    await guardarSesion({ ...ss, negocio_id }); setLoading(true); cargar()
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
-  const porDueno = !!config?.asignacion_por_dueno
+  // Lo que hay detrás de cada puerta, para escribirlo EN la puerta. Sale del
+  // servidor (migración 77): la misma respuesta que daría al rechazar el turno.
+  const hayFilaAbierta = sillas.some((x: any) => x.fila_abierta)
+  const hayCitas = sillas.some((x: any) => x.acepta_citas)
+  const motivos = Array.from(new Set(sillas.map((x: any) => x.fila_motivo).filter(Boolean))) as string[]
+  const motivoFilaLocal = !hayFilaAbierta && motivos.length === 1
+    ? motivos[0].charAt(0).toUpperCase() + motivos[0].slice(1)
+    : null
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -123,6 +121,12 @@ export default function Home() {
         <TouchableOpacity style={s.tabMas} onPress={() => router.push('/(auth)/cliente-codigo')}><Ionicons name="add" size={20} color={COLORS.red} /></TouchableOpacity>
         <TouchableOpacity style={s.tabMas} onPress={() => router.push('/(app)/cliente/buscar-barbero')}><Ionicons name="person-add-outline" size={18} color={COLORS.blue} /></TouchableOpacity>
       </ScrollView>
+
+      {/* CÓMO ESTÁ LA BARBERÍA AHORA. Lo primero, porque es lo primero que se
+          pregunta quien abre la app: el barbero tiene su panel y el dueño su
+          cola del local, y el cliente no tenía nada — abría Inicio y veía un
+          catálogo. */}
+      <EstadoLocal sillas={sillas as any} delante={resumen.delante} esperaMin={resumen.espera_min} />
 
       {turno && (
         <TouchableOpacity style={s.fila} onPress={() => router.push('/(app)/cliente/turno')}>
@@ -159,79 +163,43 @@ export default function Home() {
         </View>
       ))}
 
-      <Text style={s.sec}>RESERVAR CITA</Text>
-      <TouchableOpacity style={s.reservar} onPress={() => router.push('/(app)/cliente/agendar')}>
-        <View style={s.resIcon}><Ionicons name="calendar-outline" size={22} color={COLORS.red} /></View>
+      {/* ── QUÉ PUEDES HACER ────────────────────────────────────────────────
+          Aquí había DOS cosas: un botón de reservar cita y, debajo, la lista
+          entera de barberos con sus servicios y precios para entrar a la fila
+          —la misma lista, con los mismos botones, que ya existe en "Mi turno"—.
+          Dos sitios para hacer lo mismo obligan a recordar en cuál estabas, y
+          además Inicio acababa siendo un catálogo de cuatro pantallas de largo.
+
+          Ahora Inicio contesta "¿cómo está esto y qué tengo yo?" y ofrece las
+          dos puertas, con lo que hay detrás de cada una escrito en la puerta:
+          la espera real de la fila, o el día y la hora si prefieres reservar.
+          Elegir barbero y servicio pasa en la pantalla donde se elige. */}
+      <Text style={s.sec}>¿QUÉ QUIERES HACER?</Text>
+
+      <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/turno')}>
+        <View style={s.accIcon}><Ionicons name="flash-outline" size={22} color={COLORS.red} /></View>
         <View style={{ flex: 1 }}>
-          <Text style={s.resTitle}>Agendar para otro día u hora</Text>
-          <Text style={s.resSub}>Eliges fecha y hora · tu lugar queda reservado</Text>
+          <Text style={s.accTitle}>Entrar a la fila</Text>
+          <Text style={s.accSub}>
+            {!hayFilaAbierta
+              ? (motivoFilaLocal ?? 'Ahora mismo no hay nadie abierto')
+              : resumen.delante === 0 ? 'Nadie esperando · entras directo'
+              : `${resumen.delante} esperando${resumen.espera_min > 0 ? ` · unos ${resumen.espera_min} min` : ''}`}
+          </Text>
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
       </TouchableOpacity>
 
-      <Text style={s.sec}>FILA DIGITAL · ENTRA AHORA</Text>
-      {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
-      {porDueno
-        ? perfiles.flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))
-            .filter((sv: any, i: number, arr: any[]) => arr.findIndex(x => x.nombre === sv.nombre) === i)
-            .map((sv: any) => (
-              <TouchableOpacity key={sv.id} style={s.servSolo} onPress={() => pedir(undefined, sv)}>
-                <Text style={s.servNombre}>{sv.nombre}</Text>
-                <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
-              </TouchableOpacity>))
-        : perfiles.map((p: any) => {
-            const r = ratings[p.id]; const abierto = expandido === p.id
-            // Aquí se reserva CITA, y un descanso es solo de hoy: seguir
-            // apareciendo es lo correcto. Solo el inactivo cierra la agenda.
-            const disp = p.estado_actual === 'disponible'
-            const fuera = p.estado_actual === 'inactivo'
-            // Y por dónde acepta trabajo (migración 70). Estar "disponible" ya
-            // no basta para ofrecerle la fila: hay barberos que solo trabajan
-            // con cita, y turno_entrar_a_cola los rechaza.
-            const fila = aceptaFila(p)
-            const citas = aceptaCitas(p)
-            // Y si su fila admite gente AHORA (migración 74). Estar
-            // "disponible" tampoco basta: el horario también manda, y el
-            // motivo viene del servidor con las mismas palabras con las que
-            // rechazaría el turno. Antes esto se decidía solo con el modo, así
-            // que a las siete de la mañana los servicios salían pulsables y el
-            // turno reventaba al tocarlos.
-            const abiertaFila = filaAbierta(p)
-            const motivo = fraseFila(p)
-            return (
-              <View key={p.id} style={s.barbero}>
-                <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
-                  <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} />
-                  <View style={{ flex: 1 }}>
-                    <View style={s.nombreRow}>
-                      <Text style={s.barberoNombre}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-                      <View style={s.tipoTag}><Text style={s.tipoTagT}>{TIPO_LABEL[p.tipo_servicio] ?? 'Barbería'}</Text></View>
-                    </View>
-                    {p.turno_usuarios?.especialidad ? <Text style={s.barberoEsp}>{p.turno_usuarios.especialidad}</Text> : null}
-                    <View style={s.estadoRow}>
-                      <Dot color={disp ? COLORS.success : COLORS.textLight} />
-                      <Text style={s.barberoEstado}>{disp ? 'Disponible' : fuera ? 'No disponible' : 'En descanso hoy · puedes reservar'}{p.domicilio_activo ? '  · Domicilio' : ''}{r ? `   ★ ${r.promedio} (${r.total})` : '   Sin reseñas'}</Text>
-                    </View>
-                  </View>
-                  <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={18} color={COLORS.textLight} />
-                </TouchableOpacity>
-                {/* El texto tiene que decir la verdad de ESTE barbero. "Puedes
-                    agendar una cita" a uno que trabaja solo por orden de
-                    llegada manda al cliente a una pantalla sin horas. */}
-                {abierto && !abiertaFila && (
-                  <Text style={s.noDisp}>
-                    {!fila
-                      ? 'Trabaja solo con cita: no tiene fila. Resérvale una hora desde “Reservar una cita”.'
-                      : `${motivo ?? 'No recibe turnos ahora mismo'}.${citas ? ' Puedes agendar una cita.' : ''}`}
-                  </Text>
-                )}
-                {abierto && abiertaFila && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
-                  <TouchableOpacity key={sv.id} style={s.servicio} onPress={() => pedir(p, sv)}>
-                    <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
-                    <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>
-                  </TouchableOpacity>))}
-              </View>)
-          })}
+      <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/agendar')}>
+        <View style={s.accIcon}><Ionicons name="calendar-outline" size={22} color={COLORS.red} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.accTitle}>Reservar una cita</Text>
+          <Text style={s.accSub}>
+            {hayCitas ? 'Eliges día y hora · tu lugar queda reservado' : 'Aquí nadie está tomando citas ahora mismo'}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
+      </TouchableOpacity>
 
       {/* Recortes, no puntos: "cada X recortes te ganas esto". Puede haber una
           tarjeta por barbero si el local alquila asientos. */}
@@ -267,12 +235,6 @@ export default function Home() {
         </>
       )}
 
-      <HojaFila
-        seleccion={hoja}
-        visible={!!hoja}
-        onClose={() => setHoja(null)}
-        onEntrado={() => { setHoja(null); cargar(); router.push('/(app)/cliente/turno') }}
-      />
     </ScrollView>
   )
 }
@@ -285,8 +247,6 @@ const s = StyleSheet.create({
   marcaSlogan: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
   marcaMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
   marcaMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight },
-  barberoEsp: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 2 },
-  noDisp: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, paddingHorizontal: 4, paddingTop: 10 },
   tab: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   tabOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   tabT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid, maxWidth: 160 },
@@ -311,24 +271,14 @@ const s = StyleSheet.create({
   citaReprog: { fontFamily: FONTS.semibold, color: COLORS.blue, fontSize: 13 },
   citaCancel: { fontFamily: FONTS.semibold, color: COLORS.textLight, fontSize: 13 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 20, textAlign: 'center' },
-  reservar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginBottom: 22, borderWidth: 1, borderColor: COLORS.border },
-  resIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },
-  resTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  resSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  barbero: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 14, marginBottom: 12 },
-  barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nombreRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  barberoNombre: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  tipoTag: { backgroundColor: COLORS.surfaceAlt, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  tipoTagT: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMid },
-  estadoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  barberoEstado: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight },
-  servicio: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14, marginTop: 8 },
-  servSolo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 16, marginBottom: 8 },
-  servNombre: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  precio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.red },
+  // Las dos puertas. Misma forma las dos: ninguna es "la buena" — depende de
+  // si tienes prisa o de si quieres una hora.
+  // Aquí vivían los estilos del catálogo de barberos y servicios: se fueron
+  // con él a "Mi turno", que es donde se elige.
+  accion: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
+  accIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },
+  accTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  accSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   pts: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 16, marginTop: 6, marginBottom: 22 },
   ptsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ptsLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 },

@@ -5,6 +5,7 @@ import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola, yaLlegue,
   getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
+  getRatingsNegocio,
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
@@ -29,6 +30,10 @@ export default function MiTurno() {
   const [hoja, setHoja] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
   const [usuarioNombre, setUsuarioNombre] = useState('')
+  // Especialidad y estrellas: estaban en Inicio, dentro del catálogo que se
+  // quitó. Van donde se elige de verdad — aquí — porque son exactamente lo que
+  // se mira para decidir con quién te sientas.
+  const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
   const [tic, setTic] = useState(0)
 
   // La ventana de llegada corre desde que el barbero llama (`expira_at`, que lo
@@ -53,7 +58,7 @@ export default function MiTurno() {
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [ts, neg, perf, cfg, cts, yo] = await Promise.all([
+    const [ts, neg, perf, cfg, cts, yo, rt] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
@@ -62,8 +67,10 @@ export default function MiTurno() {
       // obligaba a recordar en qué pantalla estaba cada cosa.
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMiUsuario().catch(() => null),
+      getRatingsNegocio(ss.negocio_id).catch(() => ({})),
     ])
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
+    setRatings(rt as any)
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     await calcularEtas(ts as any[])
@@ -329,7 +336,14 @@ export default function MiTurno() {
                 <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={38} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.barberoN}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-                  {!abierta && !!motivo && <Text style={s.barberoCerradoT}>{motivo}</Text>}
+                  {!abierta && !!motivo
+                    ? <Text style={s.barberoCerradoT}>{motivo}</Text>
+                    : (() => {
+                        const r = ratings[p.id]
+                        const linea = [p.turno_usuarios?.especialidad,
+                          r ? `★ ${r.promedio} (${r.total})` : 'Sin reseñas'].filter(Boolean).join(' · ')
+                        return <Text style={s.barberoMeta}>{linea}</Text>
+                      })()}
                 </View>
               </View>
               {abierta && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
@@ -395,6 +409,7 @@ const s = StyleSheet.create({
   // hora abre sin salir de la pantalla.
   barberoCerrado: { opacity: 0.55, backgroundColor: COLORS.bg },
   barberoCerradoT: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  barberoMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 12, marginTop: 6 },
   servN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   servP: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.red },
