@@ -447,6 +447,35 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     } catch { /* un aviso que no sale no puede romper el cierre de la visita */ }
   }
 
+  /** Cerrar una cita: es lo que el barbero hace al terminar el corte. Se
+   *  pregunta porque marcarla atendida es lo que la cuenta como dinero. */
+  function cerrarCita(c: any) {
+    Alert.alert(c.turno_usuarios?.nombre ?? 'Cita',
+      `${c.turno_servicios?.nombre ?? 'Servicio'} de las ${hora12(c.hora_inicio)}. ¿Ya lo atendiste?`, [
+      { text: 'Todavía no', style: 'cancel' },
+      { text: 'Sí, atendida', onPress: async () => {
+        try {
+          await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() })
+          refrescar()
+        } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+      } },
+    ])
+  }
+
+  /** No llegó. Separado del cierre a propósito: es una decisión distinta y con
+   *  consecuencia distinta — el cliente pasa a la fila con prioridad, así que
+   *  no se le echa, se le da otra oportunidad. El texto lo dice. */
+  function citaNoLlego(c: any) {
+    Alert.alert('No llegó',
+      `${c.turno_usuarios?.nombre ?? 'Tu cliente'} no apareció a las ${hora12(c.hora_inicio)}. Pasa a tu fila con prioridad, así que si aparece más tarde entra antes que los demás.`, [
+      { text: 'Esperar un poco más', style: 'cancel' },
+      { text: 'No llegó', style: 'destructive', onPress: async () => {
+        try { await actualizarEstadoCita(c.id, 'no_llego'); refrescar() }
+        catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+      } },
+    ])
+  }
+
   function accionCita(c: any) {
     const opts: any[] = [{ text: 'Cerrar', style: 'cancel' }]
     if (c.estado === 'confirmada' || c.estado === 'en_camino') opts.unshift({ text: 'Marcar atendida', onPress: async () => { await actualizarEstadoCita(c.id, 'atendida', { atendida_at: new Date().toISOString() }); refrescar() } })
@@ -502,6 +531,41 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const daCitas = estado?.acepta_citas !== false
   const daFila = estado?.acepta_fila !== false
 
+  /**
+   * LA CITA DE AHORA.
+   *
+   * Para un barbero que solo trabaja con hora, su jornada entera son las citas
+   * — y hasta ahora vivían en una lista al final de la pantalla, con sus dos
+   * únicas decisiones (atendida / no llegó) escondidas en un menú de alerta a
+   * tres toques. Mientras tanto, la mitad de arriba le hablaba de una fila que
+   * no usa.
+   *
+   * El margen de 15 minutos es de PRESENTACIÓN, no una regla: decide cuándo la
+   * tarjeta aparece, nada más. Lo que se puede hacer con la cita lo siguen
+   * decidiendo las RPC, que traen sus propios plazos (ventana de llegada y
+   * tolerancia). Una fecha de corte en la pantalla nunca debe poder autorizar
+   * algo que el servidor no autorice.
+   */
+  const MARGEN_CITA_MIN = 15
+  const citasVivas = citas.filter((c: any) => ['creada', 'confirmada', 'en_camino'].includes(c.estado))
+  const minutosHasta = (hhmm: string) => {
+    void tic
+    const [h, m] = String(hhmm).split(':').map(Number)
+    const t = new Date(); t.setHours(h, m, 0, 0)
+    return Math.round((t.getTime() - Date.now()) / 60000)
+  }
+  const citaAhora = esHoy
+    ? citasVivas.find((c: any) => {
+        const faltan = minutosHasta(c.hora_inicio)
+        const dura = c.turno_servicios?.duracion_min ?? 30
+        return faltan <= MARGEN_CITA_MIN && faltan > -(dura + MARGEN_CITA_MIN)
+      })
+    : null
+  const citaProxima = esHoy
+    ? citasVivas.filter((c: any) => minutosHasta(c.hora_inicio) > MARGEN_CITA_MIN)
+        .sort((a: any, b: any) => String(a.hora_inicio).localeCompare(String(b.hora_inicio)))[0]
+    : null
+
   const ocupado = esHoy
     ? bloqueos.find(b => b.hora_inicio <= sumarMinutos(ahora, 2) && b.hora_fin > ahora)
     : null
@@ -518,8 +582,8 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     const partes: string[] = []
     if (estado?.estado === 'atendiendo' && estado?.hasta) partes.push(`hasta ${hora12(estado.hasta)}`)
     if (enFila.length > 0) partes.push(`${enFila.length} esperando`)
-    const citasVivas = citas.filter((c: any) => !['cancelada', 'atendida', 'no_llego'].includes(c.estado)).length
-    if (esHoy && citasVivas > 0) partes.push(`${citasVivas} ${citasVivas === 1 ? 'cita' : 'citas'} hoy`)
+    const nCitas = citas.filter((c: any) => !['cancelada', 'atendida', 'no_llego'].includes(c.estado)).length
+    if (esHoy && nCitas > 0) partes.push(`${nCitas} ${nCitas === 1 ? 'cita' : 'citas'} hoy`)
     if (estado && !estado.acepta) partes.push('no apareces para los clientes')
     if (partes.length) return partes.join(' · ')
     // El vacío también tiene que decir la verdad de ESTE barbero: "sin citas
@@ -568,6 +632,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     }
     if (enFila.length > 0) {
       return { texto: `Llamar a ${enFila[0].turno_usuarios?.nombre ?? 'el siguiente'}`, icono: 'megaphone-outline', onPress: llamar }
+    }
+    // LA CITA DE AHORA. Va después de la fila —quien está esperando de pie
+    // tiene preferencia sobre quien todavía no ha llegado— pero antes que
+    // "atender sin cita", que era lo único que se ofrecía a un barbero de solo
+    // citas aunque tuviera a alguien citado en ese momento.
+    if (citaAhora) {
+      return {
+        texto: `Atender a ${citaAhora.turno_usuarios?.nombre ?? 'tu cita'} · ${hora12(citaAhora.hora_inicio)}`,
+        icono: 'calendar-outline',
+        onPress: () => cerrarCita(citaAhora),
+      }
     }
     if (estado && !estado.acepta) return null   // en descanso: la fila está cerrada
     // La silla ocupada por un walk-in ya tiene su propia tarjeta con "Terminé".
@@ -688,6 +763,53 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               <Ionicons name={accion.icono as any} size={18} color={COLORS.ink} />
               <Text style={s.accionPralT}>{accion.texto}</Text>
             </TouchableOpacity>
+          )}
+
+          {/* LA CITA DE AHORA, con sus dos salidas a un toque.
+              Para quien solo trabaja con hora, esto ES su día — y vivía en una
+              lista al final de la pantalla, con "atendida" y "no llegó"
+              escondidas en un menú de alerta a tres toques. El minutero dice si
+              va con retraso, que es la única pregunta que se hace mirando el
+              reloj: ¿le espero o paso al siguiente? */}
+          {citaAhora && !llamado && (
+            <View style={s.cuenta}>
+              <View style={s.cuentaTop}>
+                <Ionicons name="calendar" size={16} color="#fff" />
+                <Text style={s.cuentaT}>
+                  {citaAhora.turno_usuarios?.nombre ?? 'Tu cita'} · {hora12(citaAhora.hora_inicio)}
+                  {(() => {
+                    const m = minutosHasta(citaAhora.hora_inicio)
+                    return m > 0 ? ` · en ${m} min` : m < 0 ? ` · ${-m} min tarde` : ' · ahora'
+                  })()}
+                </Text>
+              </View>
+              <View style={s.cuentaBtns}>
+                <TouchableOpacity style={[s.cuentaBtn, s.cuentaBtnFuerte]} onPress={() => cerrarCita(citaAhora)}>
+                  <Text style={s.cuentaBtnFuerteT}>Atendida</Text>
+                </TouchableOpacity>
+                {citaAhora.turno_usuarios?.telefono ? (
+                  <TouchableOpacity style={s.cuentaBtn}
+                    onPress={() => recordarCita(citaAhora.turno_usuarios.telefono, citaAhora.turno_usuarios?.nombre ?? 'cliente', citaAhora.hora_inicio, negocio?.nombre ?? 'tu barbería')}>
+                    <Text style={s.cuentaBtnT}>Escribirle</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity style={s.cuentaBtn} onPress={() => citaNoLlego(citaAhora)}>
+                  <Text style={s.cuentaBtnT}>No llegó</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Y si no hay ninguna ahora, la siguiente: un barbero de solo citas
+              necesita saber a qué hora vuelve a tener trabajo, no que su fila
+              está vacía. */}
+          {!citaAhora && !llamado && citaProxima && (
+            <View style={s.siguiente}>
+              <Ionicons name="time-outline" size={15} color="rgba(0,0,0,0.6)" />
+              <Text style={s.siguienteT}>
+                Después: {citaProxima.turno_usuarios?.nombre ?? 'cita'} a las {hora12(citaProxima.hora_inicio)}
+              </Text>
+            </View>
           )}
 
           {/* LLAMADO: el reloj y las tres salidas.
@@ -1110,6 +1232,9 @@ const s = StyleSheet.create({
   cuentaBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   cuentaBtnFuerte: { backgroundColor: '#fff' },
   cuentaBtnFuerteT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
+  siguiente: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10,
+    backgroundColor: 'rgba(255,255,255,0.45)', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 11 },
+  siguienteT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(0,0,0,0.7)' },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
   panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },

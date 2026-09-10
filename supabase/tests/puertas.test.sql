@@ -46,17 +46,20 @@ declare
   v_cod text := 'PT-' || upper(substr(md5(random()::text),1,5));
   a_due uuid := gen_random_uuid(); a_bar uuid := gen_random_uuid();
   a_cli uuid := gen_random_uuid(); a_ext uuid := gen_random_uuid();
-  u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid;
+  a_cli2 uuid := gen_random_uuid();
+  u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid; u_cli2 uuid;
   v_neg uuid; v_neg2 uuid; p_due uuid; p_bar uuid; p_ext uuid;
   s_corte uuid; q_cli uuid; v_bloq uuid;
+  cita_a uuid; cita_b uuid; cita_c uuid; cita_d uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
-  v_int int; v_txt text; v_sentado text; abiertas text := '';
+  v_int int; v_pts int; v_txt text; v_sentado text; abiertas text := '';
 begin
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
   values (a_due,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pd_'||v_cod||'@t.test','',now(),now()),
          (a_bar,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pb_'||v_cod||'@t.test','',now(),now()),
          (a_cli,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pc_'||v_cod||'@t.test','',now(),now()),
-         (a_ext,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','px_'||v_cod||'@t.test','',now(),now());
+         (a_ext,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','px_'||v_cod||'@t.test','',now(),now()),
+         (a_cli2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p2_'||v_cod||'@t.test','',now(),now());
 
   -- ── EL LOCAL OBJETIVO ─────────────────────────────────────────────────────
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
@@ -197,6 +200,103 @@ begin
     if v_txt is not null and v_sentado is null then ok:=ok+1;
     else fallos:=fallos||E'\n  x '||c||' - vio a: '||coalesce(v_sentado,'?'); end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- ── QUIÉN CIERRA LA CITA (migración 73) ───────────────────────────────────
+  -- Las puertas de arriba son funciones. Esta es una TABLA, y por eso se coló:
+  -- la app escribe en turno_citas con un update normal, así que quien manda es
+  -- la política RLS. Decía "cliente_id = turno_uid() OR negocio_id IN
+  -- (turno_mis_negocios())", y turno_mis_negocios() incluye los locales donde
+  -- eres SOLO CLIENTE. Ejecutado contra la base antes de arreglarlo: un cliente
+  -- marcó SU cita como 'atendida' (visita + punto de fidelidad, sin ir ni
+  -- pagar) y canceló la cita de OTRO.
+  --
+  -- Aquí se prueban las dos capas: la política (de quién es la fila) y el
+  -- trigger (qué valores puede escribir su dueño). Con una sola no llega:
+  -- 'atendida' es la firma del cobro y RLS no sabe leer valores.
+  --
+  -- OJO: `set local role` y `set_config` van FUERA de los bloques con
+  -- exception. Al capturar, el bloque revierte también la suplantación que se
+  -- hizo dentro, y el caso siguiente corre como quien no es.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  perform turno_unirse_cliente(v_cod, 'Cliente Dos', '8095559999');
+  select id into u_cli2 from turno_usuarios where auth_id = a_cli2;
+
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli2, v_neg, s_corte, current_date+1, time '10:00', time '10:30', 'creada') returning id into cita_a;
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli,  v_neg, s_corte, current_date+1, time '11:00', time '11:30', 'creada') returning id into cita_b;
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli2, v_neg, s_corte, current_date+1, time '12:00', time '12:30', 'creada') returning id into cita_c;
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli2, v_neg, s_corte, current_date+1, time '13:00', time '13:30', 'creada') returning id into cita_d;
+
+  -- Desde aquí se escribe COMO CLIENTE de verdad: sin `set local role` las
+  -- políticas no se evalúan y la prueba pasaría siempre.
+  set local role authenticated;
+
+  n:=n+1; c:='cita · el cliente NO puede marcar SU cita como atendida';
+  begin
+    update turno_citas set estado='atendida', atendida_at=now() where id=cita_a;
+    fallos:=fallos||E'\n  x '||c||' - la firmó él mismo';
+  exception when others then ok:=ok+1; end;
+
+  reset role;
+
+  -- Lo que hace grave al caso anterior no es el estado: es lo que arrastra.
+  n:=n+1; c:='cita · el intento fallido NO dejó visita ni punto de fidelidad';
+  select count(*) into v_int from turno_historial_visitas where cliente_id=u_cli2;
+  select coalesce(max(visitas_totales),0) into v_pts from turno_puntos where usuario_id=u_cli2 and negocio_id=v_neg;
+  if v_int = 0 and v_pts = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - visitas '||v_int||', puntos '||v_pts; end if;
+
+  set local role authenticated;
+
+  n:=n+1; c:='cita · el cliente NO puede firmar atendida_at por su cuenta';
+  begin
+    update turno_citas set atendida_at=now() where id=cita_a;
+    fallos:=fallos||E'\n  x '||c||' - firmó el cobro sin tocar el estado';
+  exception when others then ok:=ok+1; end;
+
+  -- Sabotaje: borrarle la hora a otro cliente del mismo local. Aquí no hay
+  -- excepción que capturar —RLS simplemente no ve la fila— así que el caso
+  -- mira si la cita ajena cambió.
+  update turno_citas set estado='cancelada' where id=cita_b;
+
+  n:=n+1; c:='cita · el cliente SÍ puede cancelar la SUYA';
+  begin
+    update turno_citas set estado='cancelada' where id=cita_c;
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm||' (se cerró de más)'; end;
+
+  reset role;
+
+  n:=n+1; c:='cita · el cliente NO puede cancelar la cita de OTRO';
+  select estado into v_txt from turno_citas where id=cita_b;
+  if v_txt = 'creada' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la dejó en '||v_txt; end if;
+
+  -- La otra mitad: una regla que cierra de más rompe el trabajo del barbero.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+
+  n:=n+1; c:='cita · el barbero SÍ la cierra';
+  begin
+    update turno_citas set estado='atendida', atendida_at=now() where id=cita_a;
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  n:=n+1; c:='cita · el barbero SÍ puede marcar no llegó';
+  begin
+    update turno_citas set estado='no_llego' where id=cita_d;
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  reset role;
+
+  n:=n+1; c:='cita · cerrada por el barbero, esa SÍ cuenta como visita';
+  select count(*) into v_int from turno_historial_visitas where cliente_id=u_cli2;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' visitas'; end if;
 
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
