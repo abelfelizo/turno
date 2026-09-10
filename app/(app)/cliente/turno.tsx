@@ -227,21 +227,27 @@ export default function MiTurno() {
                 decir que venía de camino estando dentro, y el reloj le seguía
                 corriendo igual. */}
             <View style={s.acciones}>
-              {!atendiendo && (t.estado === 'en_fila' || llamado || enCamino) && (
+              {/* Ya dijo que está aquí: no quedan respuestas que dar, y dejar el
+                  hueco vacío al lado de "Salir" descuadra la fila de botones. */}
+              {!atendiendo && (t.estado === 'en_fila' || llamado || enCamino) && !t.llego_at && (
                 puede[t.id]
                   ? <View style={s.respuestas}>
-                      {!t.llego_at && (
-                        <TouchableOpacity style={s.cta} onPress={() => llegue(t)} disabled={accion === t.id}>
-                          {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Ya estoy aquí</Text>}
-                        </TouchableOpacity>
-                      )}
-                      {!enCamino && !t.llego_at && (
+                      <TouchableOpacity style={s.cta} onPress={() => llegue(t)} disabled={accion === t.id}>
+                        {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Ya estoy aquí</Text>}
+                      </TouchableOpacity>
+                      {!enCamino && (
                         <TouchableOpacity style={s.ctaSec} onPress={() => voy(t)} disabled={accion === t.id}>
                           <Text style={s.ctaSecT}>Voy en camino</Text>
                         </TouchableOpacity>
                       )}
                     </View>
                   : <View style={s.ctaOff}><Ionicons name="lock-closed" size={14} color={COLORS.textLight} /><Text style={s.ctaOffT}>Se activa cuando estés cerca</Text></View>
+              )}
+              {!atendiendo && t.llego_at && (
+                <View style={s.yaAqui}>
+                  <Ionicons name="checkmark-circle" size={15} color={COLORS.success} />
+                  <Text style={s.yaAquiT}>El barbero sabe que estás aquí</Text>
+                </View>
               )}
               {!atendiendo && <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>}
             </View>
@@ -351,6 +357,9 @@ const s = StyleSheet.create({
   ctaT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   ctaSec: { borderRadius: 12, padding: 13, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border },
   ctaSecT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid },
+  yaAqui: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
+    backgroundColor: COLORS.successLight, borderRadius: 12, padding: 14 },
+  yaAquiT: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.ink },
   ctaOff: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14 },
   ctaOffT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
   salir: { padding: 14, alignItems: 'center' },

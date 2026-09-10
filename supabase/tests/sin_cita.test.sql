@@ -154,6 +154,24 @@ begin
 
   -- Una regla que solo vive en la lista de huecos es una regla que solo vive en
   -- la interfaz: con la pantalla abierta desde hace media hora se reservaría.
+  -- La fila SIN barbero asignado también ocupa a alguien (migración 69). Nadie
+  -- lo reportó: hoy no se puede disparar porque ningún local tiene activado
+  -- "el dueño asigna". Es la trampa puesta para el día que alguien lo active,
+  -- y hasta la 69 esos turnos no contaban para NADIE — la carga daba 0 y la
+  -- agenda volvía a ofrecer citas por encima de una fila llena.
+  n:=n+1; c:='fila · un turno SIN barbero asignado también suma a la carga';
+  a := gen_random_uuid();
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+  values (a,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','sx_'||v_cod||'@t.test','',now(),now());
+  perform set_config('request.jwt.claims', json_build_object('sub', a::text)::text, true);
+  perform turno_unirse_cliente(v_cod, 'Sin Asignar', '829');
+  perform turno_entrar_a_cola(v_neg, s_corte, 'digital', null);
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  select turno_carga_de_fila(p_bar) into v_int;
+  -- Una sola silla en este local: el suelto se lo come entero. 180 + 36.
+  if v_int = 216 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - dio '||coalesce(v_int::text,'?')||' (esperaba 216)'; end if;
+
   n:=n+1; c:='fila · reservar directo TAMBIÉN se niega, no solo la lista';
   begin
     perform turno_agendar_cita(p_bar, s_corte, v_ahora::date, (v_ahora + interval '70 min')::time);
@@ -163,9 +181,12 @@ begin
     else fallos:=fallos||E'\n  x '||c||' - se negó por otra razón: '||sqlerrm; end if;
   end;
 
+  -- 240, no 200: con el turno suelto del caso anterior la carga es 216 min.
+  -- Este número tiene que ir detrás de la carga real, no de la que había cuando
+  -- se escribió el caso — si no, la prueba se rompe sola al añadir una regla.
   n:=n+1; c:='fila · pasada la fila, SÍ deja reservar';
   begin
-    perform turno_agendar_cita(p_bar, s_corte, v_ahora::date, (v_ahora + interval '200 min')::time);
+    perform turno_agendar_cita(p_bar, s_corte, v_ahora::date, (v_ahora + interval '240 min')::time);
     ok:=ok+1;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
