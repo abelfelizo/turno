@@ -74,8 +74,13 @@ begin
 
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)
   values (p_bar,'Corte',30,500,true) returning id into s_corte;
+  -- Jornada de 00:01 a 23:59 A PROPÓSITO. Desde la migración 72 la fila
+  -- respeta el horario, y con un fixture de 08:00 a 21:00 esta suite fallaba
+  -- sola al correrla de madrugada o de noche: contaba la hora, no la regla.
+  -- Aquí el horario no es lo que se mide, así que se abre entero para que no
+  -- interfiera; quien sí lo mide es horarios.test.sql y modo_atencion.test.sql.
   insert into turno_horarios (perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
-    select p_bar, d, time '08:00', time '21:00', true, 10 from generate_series(0,6) d;
+    select p_bar, d, time '00:01', time '23:59', true, 10 from generate_series(0,6) d;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_c1::text)::text, true);
   perform turno_unirse_cliente(v_cod, 'Cliente Uno', '829');
