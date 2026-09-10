@@ -107,8 +107,22 @@ export default function ColaLocal() {
                 <Opcion icon="arrow-down" t="Bajar un puesto" onPress={() => op(() => moverEnCola(sel.id, 1), 'No se pudo mover')} />
               </>
             )}
-            <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
-              onPress={() => op(() => sacarDeCola(sel.id), 'No se pudo sacar')} />
+            {/* EN LA SILLA NO SE TOCA. El dueño podía sacar de la fila a un
+                cliente que un barbero estaba atendiendo: se lo levantaba a
+                mitad de corte y, de paso, el turno quedaba 'abandonado', que no
+                registra visita — o sea que el corte que se estaba dando
+                desaparecía de las cuentas del barbero. Desde la migración 76 el
+                servidor lo niega; aquí ni se ofrece, y se dice por qué, que es
+                distinto de esconder el botón sin explicación. */}
+            {sel?.estado === 'atendiendo' ? (
+              <Text style={s.enSilla}>
+                Lo está atendiendo {sel?.turno_perfiles?.turno_usuarios?.nombre ?? 'un barbero'}. Lo que pase en esa
+                silla lo cierra quien está cortando.
+              </Text>
+            ) : (
+              <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
+                onPress={() => op(() => sacarDeCola(sel.id), 'No se pudo sacar')} />
+            )}
             <TouchableOpacity onPress={() => setSel(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
           </View>
         </View>
@@ -153,5 +167,7 @@ const s = StyleSheet.create({
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
+  enSilla: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 12, padding: 13, lineHeight: 19 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

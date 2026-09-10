@@ -49,7 +49,7 @@ declare
   a_cli2 uuid := gen_random_uuid();
   u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid; u_cli2 uuid;
   v_neg uuid; v_neg2 uuid; p_due uuid; p_bar uuid; p_ext uuid;
-  s_corte uuid; q_cli uuid; v_bloq uuid;
+  s_corte uuid; q_cli uuid; q_libre uuid; v_bloq uuid;
   cita_a uuid; cita_b uuid; cita_c uuid; cita_d uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
   v_int int; v_pts int; v_txt text; v_sentado text; abiertas text := '';
@@ -297,6 +297,60 @@ begin
   select count(*) into v_int from turno_historial_visitas where cliente_id=u_cli2;
   if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - '||v_int||' visitas'; end if;
+
+  -- ── LA SILLA ES DE QUIEN ATIENDE (migración 76) ───────────────────────────
+  -- Reportado desde el teléfono mirando el panel del dueño: puede sacar de la
+  -- fila a alguien que un barbero está atendiendo. Y buscando por dónde entraba
+  -- salió algo peor del mismo hueco: turno_cola_operable solo comprobaba el
+  -- perfil cuando el turno TENÍA barbero asignado, así que sobre un turno de
+  -- "cualquiera disponible" bastaba con pertenecer al local — y al local
+  -- pertenecen los clientes. Ejecutado contra la base antes de arreglarlo, un
+  -- cliente cualquiera sacó de la fila el turno de otro y lo dejó 'abandonado'.
+  --
+  -- Estos casos son el hueco que esta suite tenía: su intruso es de OTRO local
+  -- y rebota antes, en "sin acceso al negocio". El que hay que temer es el de
+  -- dentro, que sí pertenece.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', null);
+  q_libre := r.id;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  perform turno_llamar_a(q_cli);
+  perform turno_iniciar_atencion(q_cli);
+
+  n:=n+1; c:='silla · el DUEÑO no saca de la fila a quien está en la silla del barbero';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  begin
+    perform turno_sacar_de_cola(q_cli);
+    fallos:=fallos||E'\n  x '||c||' - se lo levantó a mitad de corte (y sin visita: el corte no se cobra)';
+  exception when others then
+    if sqlerrm like '%silla de otro barbero%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='fila · un CLIENTE no puede sacar de la fila el turno sin barbero de OTRO';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  begin
+    perform turno_sacar_de_cola(q_libre);
+    fallos:=fallos||E'\n  x '||c||' - echó de la fila a otro cliente';
+  exception when others then
+    if sqlerrm like '%la maneja el equipo%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  -- Y las dos mitades de "no cerrar de más", que es la otra forma de romperlo.
+  n:=n+1; c:='silla · el barbero QUE ATIENDE sí puede';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  begin
+    perform turno_devolver_a_fila(q_cli);
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  n:=n+1; c:='fila · el equipo del local SÍ maneja el turno sin barbero';
+  begin
+    perform turno_sacar_de_cola(q_libre);
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
 
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
