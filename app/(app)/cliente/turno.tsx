@@ -8,7 +8,7 @@ import {
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
-import { aceptaFila } from '../../../lib/atencion'
+import { aceptaFila, filaAbierta, fraseFila } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -170,8 +170,16 @@ export default function MiTurno() {
   // elegir servicio primero, este es el punto por donde crece.
   // Quien trabaja SOLO CON CITA no tiene fila: ofrecerle un turno al cliente
   // sería mandarlo a un error, porque turno_entrar_a_cola lo rechaza.
-  const conFila = perfiles.filter((p: any) => p.estado_actual === 'disponible' && aceptaFila(p))
-  const servicioComun = conFila
+  //
+  // Los DEMÁS salen todos, abiertos o no. Antes se filtraba por
+  // estado_actual === 'disponible' y el barbero desaparecía sin más; ahora el
+  // que está cerrado se queda a la vista, apagado y CON EL MOTIVO —"abre de
+  // 09:00 a 18:00"—, que es justo lo que el cliente necesita saber. El motivo
+  // lo da el servidor (migración 74) con las mismas palabras que usaría para
+  // rechazar el turno: el letrero y la puerta dicen lo mismo.
+  const conFila = perfiles.filter((p: any) => aceptaFila(p))
+  const abiertos = conFila.filter((p: any) => filaAbierta(p))
+  const servicioComun = abiertos
     .flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))[0] ?? null
 
   return (
@@ -294,12 +302,17 @@ export default function MiTurno() {
           se lo asigna el dueño desde su panel. */}
       {perfiles.length > 0 && (
         <>
-          <TouchableOpacity style={s.cualquiera} onPress={() => setHoja({ negocio, perfil: undefined, servicio: servicioComun })}
-            disabled={!servicioComun}>
+          {/* Sin nadie abierto esto no es "cualquiera disponible": es un botón
+              que va a dar error. Se apaga y lo dice. */}
+          <TouchableOpacity style={[s.cualquiera, !abiertos.length && s.barberoCerrado]}
+            onPress={() => setHoja({ negocio, perfil: undefined, servicio: servicioComun })}
+            disabled={!servicioComun || !abiertos.length}>
             <Ionicons name="people-outline" size={20} color={COLORS.ink} />
             <View style={{ flex: 1 }}>
               <Text style={s.cualquieraT}>Cualquiera disponible</Text>
-              <Text style={s.cualquieraD}>Te atiende el primero que se desocupe</Text>
+              <Text style={s.cualquieraD}>
+                {abiertos.length ? 'Te atiende el primero que se desocupe' : 'Ahora mismo no hay nadie abierto en el local'}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
           </TouchableOpacity>
@@ -307,18 +320,24 @@ export default function MiTurno() {
         </>
       )}
 
-      {conFila.map((p: any) => (
-            <View key={p.id} style={s.barbero}>
+      {conFila.map((p: any) => {
+            const abierta = filaAbierta(p)
+            const motivo = fraseFila(p)
+            return (
+            <View key={p.id} style={[s.barbero, !abierta && s.barberoCerrado]}>
               <View style={s.barberoHead}>
                 <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={38} />
-                <Text style={s.barberoN}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.barberoN}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                  {!abierta && !!motivo && <Text style={s.barberoCerradoT}>{motivo}</Text>}
+                </View>
               </View>
-              {(p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
+              {abierta && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
                 <TouchableOpacity key={sv.id} style={s.servRow} onPress={() => setHoja({ negocio, perfil: p, servicio: sv })}>
                   <Text style={s.servN}>{sv.nombre} · {sv.duracion_min} min</Text>
                   <Text style={s.servP}>{dinero(sv.precio, negocio?.moneda)}</Text>
                 </TouchableOpacity>))}
-            </View>))}
+            </View>)})}
 
       <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }} />
     </ScrollView>
@@ -372,6 +391,10 @@ const s = StyleSheet.create({
   barbero: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 10 },
   barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   barberoN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  // Cerrado se ve apagado, no escondido: el cliente tiene que poder leer a qué
+  // hora abre sin salir de la pantalla.
+  barberoCerrado: { opacity: 0.55, backgroundColor: COLORS.bg },
+  barberoCerradoT: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   servRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 12, marginTop: 6 },
   servN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   servP: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.red },

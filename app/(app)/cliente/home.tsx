@@ -12,7 +12,7 @@ import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
-import { aceptaFila, aceptaCitas } from '../../../lib/atencion'
+import { aceptaFila, aceptaCitas, filaAbierta, fraseFila } from '../../../lib/atencion'
 import { Display, Avatar, Badge, Dot } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 
@@ -190,6 +190,14 @@ export default function Home() {
             // con cita, y turno_entrar_a_cola los rechaza.
             const fila = aceptaFila(p)
             const citas = aceptaCitas(p)
+            // Y si su fila admite gente AHORA (migración 74). Estar
+            // "disponible" tampoco basta: el horario también manda, y el
+            // motivo viene del servidor con las mismas palabras con las que
+            // rechazaría el turno. Antes esto se decidía solo con el modo, así
+            // que a las siete de la mañana los servicios salían pulsables y el
+            // turno reventaba al tocarlos.
+            const abiertaFila = filaAbierta(p)
+            const motivo = fraseFila(p)
             return (
               <View key={p.id} style={s.barbero}>
                 <TouchableOpacity style={s.barberoHead} onPress={() => setExpandido(abierto ? null : p.id)} activeOpacity={0.8}>
@@ -210,16 +218,14 @@ export default function Home() {
                 {/* El texto tiene que decir la verdad de ESTE barbero. "Puedes
                     agendar una cita" a uno que trabaja solo por orden de
                     llegada manda al cliente a una pantalla sin horas. */}
-                {abierto && !disp && (
+                {abierto && !abiertaFila && (
                   <Text style={s.noDisp}>
-                    {citas ? 'No recibe turnos ahora mismo. Puedes agendar una cita.'
-                           : 'No recibe turnos ahora mismo. Trabaja por orden de llegada, así que vuelve cuando esté disponible.'}
+                    {!fila
+                      ? 'Trabaja solo con cita: no tiene fila. Resérvale una hora desde “Reservar una cita”.'
+                      : `${motivo ?? 'No recibe turnos ahora mismo'}.${citas ? ' Puedes agendar una cita.' : ''}`}
                   </Text>
                 )}
-                {abierto && disp && !fila && (
-                  <Text style={s.noDisp}>Trabaja solo con cita: no tiene fila. Resérvale una hora desde “Reservar una cita”.</Text>
-                )}
-                {abierto && disp && fila && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
+                {abierto && abiertaFila && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
                   <TouchableOpacity key={sv.id} style={s.servicio} onPress={() => pedir(p, sv)}>
                     <View><Text style={s.servNombre}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text></View>
                     <Text style={s.precio}>{dinero(sv.precio, negocio?.moneda)}</Text>

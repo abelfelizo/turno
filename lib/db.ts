@@ -266,7 +266,23 @@ export async function getPerfilesNegocio(negocio_id: string) {
     .in('rol', ['empleado', 'barbero_renta', 'dueno'])
   const rol: Record<string, string> = {}
   for (const m of (mem ?? []) as any[]) if (!rol[m.usuario_id] || m.rol === 'dueno') rol[m.usuario_id] = m.rol
-  return (data || []).map((p: any) => ({ ...p, rol: rol[p.usuario_id] ?? null }))
+
+  // ¿ESTÁ ABIERTA SU FILA AHORA MISMO? (migración 74). No se puede deducir de
+  // la fila de turno_perfiles: depende del horario del día, de la hora local
+  // del negocio y del modo. La respuesta la da el servidor —el mismo que luego
+  // abre o cierra la puerta— para que la pantalla no ofrezca lo que él va a
+  // rechazar. Si esta llamada falla, la lista sale igual y sin motivo: perder
+  // el letrero no puede dejar al cliente sin ver a sus barberos.
+  const { data: filas } = await supabase.rpc('turno_filas_abiertas', { p_negocio: negocio_id })
+  const abierta: Record<string, { abierta: boolean; motivo: string | null }> = {}
+  for (const f of (filas ?? []) as any[]) abierta[f.perfil_id] = { abierta: f.abierta, motivo: f.motivo }
+
+  return (data || []).map((p: any) => ({
+    ...p,
+    rol: rol[p.usuario_id] ?? null,
+    fila_abierta: abierta[p.id]?.abierta ?? null,
+    fila_motivo: abierta[p.id]?.motivo ?? null,
+  }))
 }
 
 // ── IDENTIDAD DEL BARBERO (nivel persona; sigue al barbero entre locales) ──
@@ -303,9 +319,15 @@ export type EstadoBarbero = {
    *  que esto sigue en true; solo el inactivo cierra la agenda. */
   /** ¿Se le puede reservar hora? Cierra por 'inactivo' o por modo 'solo_fila'. */
   acepta_citas: boolean
-  /** ¿Se puede uno meter en su fila desde el teléfono? Cierra por 'descanso',
-   *  'inactivo' o modo 'solo_citas'. */
+  /** ¿Este barbero TRABAJA por fila? Cierra por 'descanso', 'inactivo' o modo
+   *  'solo_citas'. No mira el reloj: su fila no deja de existir de madrugada,
+   *  solo está cerrada. El panel del barbero se monta sobre esto. */
   acepta_fila: boolean
+  /** ¿Puede alguien entrar a su fila AHORA MISMO? Esto sí mira el horario
+   *  (migración 74), y es lo que tiene que apagar el botón del cliente. */
+  fila_abierta: boolean
+  /** Por qué no, con las MISMAS palabras que daría turno_entrar_a_cola. */
+  fila_motivo: string | null
   /** ambos | solo_citas | solo_fila (migración 70). */
   modo: string
   cliente: string | null

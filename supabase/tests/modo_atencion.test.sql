@@ -41,6 +41,7 @@ declare
   u_bar uuid; v_neg uuid; p_bar uuid; s_corte uuid; r record;
   n int := 0; ok int := 0; fallos text := ''; c text; v_int int;
   v_manana date; v_ahora timestamp; v_dow int; v_ini time; v_fin time;
+  v_abierta boolean; v_acepta boolean; v_motivo text; v_err text; v_lista record;
 begin
   v_ahora  := (now() at time zone 'America/Santo_Domingo');
   v_manana := v_ahora::date + 1;
@@ -209,6 +210,83 @@ begin
     update turno_cola set estado='atendido', atendido_at=now() where id = r.id;
     ok:=ok+1;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- ── LA PUERTA Y EL LETRERO (migración 74) ─────────────────────────────────
+  -- La 72 puso el horario a decidir quién entra, pero solo DENTRO de
+  -- turno_entrar_a_cola. El estado que lee la pantalla no se enteró.
+  -- Reproducido contra la base antes de arreglarlo, con el horario de hoy de
+  -- 22:00 a 23:00 y a las 07:08 de la mañana:
+  --
+  --   estado_barbero.acepta_fila = true
+  --   entrar_a_cola             -> 'ahora está cerrado: su fila abre de 22:00 a 23:00'
+  --
+  -- Es el mismo error de siempre girado del revés: la regla vive en el servidor
+  -- y la interfaz promete lo que la puerta rechaza. Para el cliente es idéntico:
+  -- el botón encendido que da error al tocarlo.
+  --
+  -- Estos casos no comprueban que la puerta cierre —eso ya lo hace la sección de
+  -- arriba— sino que EL LETRERO DIGA LO MISMO QUE LA PUERTA, palabra por
+  -- palabra. Comparar los dos textos es lo único que impide que vuelvan a
+  -- separarse: cualquiera de los dos lados que cambie solo, pone esto rojo.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+
+  n:=n+1; c:='letrero · día cerrado: el motivo es EL MISMO que da la puerta';
+  select e.fila_abierta, e.fila_motivo, e.acepta_fila
+    into v_abierta, v_motivo, v_acepta from turno_estado_barbero(p_bar) e;
+  v_err := 'NINGUNO';
+  begin perform turno_entrar_a_cola(v_neg, s_corte, 'digital', p_bar);
+  exception when others then v_err := sqlerrm; end;
+  if v_abierta = false and v_motivo = v_err then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - letrero: '||coalesce(v_motivo,'(abierta)')||' | puerta: '||v_err; end if;
+
+  -- acepta_fila responde a OTRA pregunta: "¿este barbero trabaja por fila?".
+  -- El panel del barbero está montado sobre ella, y su fila no deja de existir
+  -- a las siete de la mañana: solo está cerrada. Si se apagara con el reloj, al
+  -- barbero le desaparecería media pantalla antes de abrir.
+  n:=n+1; c:='letrero · acepta_fila NO se apaga con el horario';
+  if v_acepta then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - se apagó: el panel del barbero se queda sin fila'; end if;
+
+  n:=n+1; c:='letrero · el listado del local dice lo mismo que la ficha';
+  select * into v_lista from turno_filas_abiertas(v_neg) where perfil_id = p_bar;
+  if v_lista.abierta = false and v_lista.motivo = v_motivo then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - lista: '||coalesce(v_lista.motivo,'(abierta)'); end if;
+
+  n:=n+1; c:='letrero · sin nadie abierto, "cualquiera disponible" también se niega';
+  v_err := 'NINGUNO';
+  begin perform turno_entrar_a_cola(v_neg, s_corte, 'digital', null);
+  exception when others then v_err := sqlerrm; end;
+  if v_err like '%nadie abierto%' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_err; end if;
+
+  -- Modo, no reloj: el motivo tiene que explicar la razón de verdad.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  update turno_horarios set activo = true, hora_inicio = v_ini, hora_fin = v_fin where perfil_id = p_bar;
+  update turno_perfiles set modo_atencion = 'solo_citas', estado_actual = 'disponible' where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+
+  n:=n+1; c:='letrero · solo citas: el motivo lo dice con palabras, no con el horario';
+  select e.fila_abierta, e.fila_motivo into v_abierta, v_motivo from turno_estado_barbero(p_bar) e;
+  v_err := 'NINGUNO';
+  begin perform turno_entrar_a_cola(v_neg, s_corte, 'digital', p_bar);
+  exception when others then v_err := sqlerrm; end;
+  if v_abierta = false and v_motivo = 'solo trabaja con cita' and v_err = v_motivo then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - letrero: '||coalesce(v_motivo,'(abierta)')||' | puerta: '||v_err; end if;
+
+  -- Cerrar de más rompe igual: dentro de hora y en modo ambos, abierta y sin
+  -- motivo, y la puerta de verdad se abre.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  update turno_perfiles set modo_atencion = 'ambos' where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+
+  n:=n+1; c:='letrero · dentro de hora: abierta, sin motivo, y se entra';
+  select e.fila_abierta, e.fila_motivo into v_abierta, v_motivo from turno_estado_barbero(p_bar) e;
+  begin
+    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_bar);
+    delete from turno_cola where id = r.id;
+    if v_abierta and v_motivo is null then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - la puerta abrió y el letrero decía: '||coalesce(v_motivo,'?'); end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
 
   raise exception E'\n=== MODO DE ATENCIÓN · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
