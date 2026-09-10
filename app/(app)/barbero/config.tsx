@@ -8,6 +8,7 @@ import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { hora12 } from '../../../lib/format'
 import { planDeMiSilla } from '../../../lib/pricing'
+import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
@@ -347,6 +348,11 @@ export default function Config() {
     || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
   const estadoActual = ESTADOS.find(e => e.k === (perfil?.estado_actual ?? 'disponible'))
   const modoActual = MODOS.find(m => m.k === (perfil?.modo_atencion ?? 'ambos'))
+  // Qué reglas tiene sentido enseñar. Cada ajuste vive donde su modo lo puede
+  // disparar; el resto se calla, porque un control que no hace nada enseña al
+  // barbero a desconfiar de los que sí hacen algo.
+  const daCitas = aceptaCitas(perfil)
+  const daFila = aceptaFila(perfil)
   const localActivo = locales.find((l: any) => l.negocio_id === sesion?.negocio_id)
 
   const MENU = [
@@ -570,17 +576,28 @@ export default function Config() {
       {seccion === 'reglas' && (
         <>
         <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
-        <View style={s.regla}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={s.reglaL}>Límite de fila</Text>
-            <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
+        {/* Cada regla vive solo si su modo la puede disparar. Enseñar ajustes
+            que no hacen nada no es inofensivo: el barbero los mueve, no pasa
+            nada, y deja de fiarse del resto de la pantalla.
+
+            El límite de fila lo comprueba turno_entrar_a_cola, que en "solo
+            citas" está cerrada — así que ahí no cabe nadie a quien limitar. */}
+        {daFila && (
+          <View style={s.regla}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.reglaL}>Límite de fila</Text>
+              <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
+            </View>
+            <View style={s.stepCtrl}>
+              <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+              <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+              <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+            </View>
           </View>
-          <View style={s.stepCtrl}>
-            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-            <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
-            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-          </View>
-        </View>
+        )}
+        {!daFila && (
+          <Text style={s.deLocal}>Trabajas solo con cita, así que no hay fila que limitar. Cámbialo en Estado si quieres volver a tenerla.</Text>
+        )}
   
         {/* Las reglas de tiempo eran del local y solo del local, así que el
             dueño se las imponía a alguien que le paga un asiento. Ahora el
@@ -608,12 +625,24 @@ export default function Config() {
               </View>
               {propias && (
                 <>
-                  <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
-                    v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                  {/* Estas dos solo existen si hay citas: la antelación la lee
+                      turno_slots_disponibles y la tolerancia la usa
+                      turno_llamar_siguiente para respetar una cita confirmada.
+                      Sin citas, ninguna de las dos llega a ejecutarse nunca. */}
+                  {daCitas && (
+                    <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
+                      v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                  )}
+                  {/* Esta SÍ va en los tres modos: la ventana de llegada corre
+                      cada vez que llamas a alguien, y llamar se hace siempre —
+                      incluso en "solo citas", donde la fila se llena con quien
+                      no llegó a su hora. */}
                   <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
                     v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
-                  <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
-                    v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                  {daCitas && (
+                    <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
+                      v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                  )}
                   {/* Decía: «Avisar "voy en camino" · Se activa cuando le
                       quedan 2 delante». No se entendía, y con razón: no dice
                       QUIÉN avisa a quién, ni qué pasa. Lo que hace es mandarle

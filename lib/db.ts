@@ -301,7 +301,13 @@ export type EstadoBarbero = {
   acepta: boolean
   /** ¿Se puede reservar con él para más adelante? Un descanso es de hoy, así
    *  que esto sigue en true; solo el inactivo cierra la agenda. */
+  /** ¿Se le puede reservar hora? Cierra por 'inactivo' o por modo 'solo_fila'. */
   acepta_citas: boolean
+  /** ¿Se puede uno meter en su fila desde el teléfono? Cierra por 'descanso',
+   *  'inactivo' o modo 'solo_citas'. */
+  acepta_fila: boolean
+  /** ambos | solo_citas | solo_fila (migración 70). */
+  modo: string
   cliente: string | null
   hasta: string | null
   en_cola: number

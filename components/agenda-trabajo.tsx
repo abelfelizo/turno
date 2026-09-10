@@ -489,6 +489,19 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   // Tolerancia de 2 min al inicio: el bloqueo lo sella el servidor con la hora
   // del local, y el reloj del teléfono puede ir unos segundos por detrás. Sin
   // ella, la silla recién ocupada no se reconocía como vigente.
+  /**
+   * POR DÓNDE ACEPTA TRABAJO (migración 70). Sale de turno_estado_barbero, que
+   * ya se pedía en cada carga.
+   *
+   * OJO con `daFila`: NO significa "no puede haber nadie en la fila". Un
+   * barbero 'solo_citas' sigue teniendo fila, porque a quien no llega a su cita
+   * se le mete en ella con prioridad (turno_cita_a_cola_prioritaria), y eso es
+   * correcto — ya tenía hora, se le está dando una segunda oportunidad. Así que
+   * esto solo sirve para no OFRECER lo que no aplica, nunca para esconder gente.
+   */
+  const daCitas = estado?.acepta_citas !== false
+  const daFila = estado?.acepta_fila !== false
+
   const ocupado = esHoy
     ? bloqueos.find(b => b.hora_inicio <= sumarMinutos(ahora, 2) && b.hora_fin > ahora)
     : null
@@ -508,7 +521,13 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     const citasVivas = citas.filter((c: any) => !['cancelada', 'atendida', 'no_llego'].includes(c.estado)).length
     if (esHoy && citasVivas > 0) partes.push(`${citasVivas} ${citasVivas === 1 ? 'cita' : 'citas'} hoy`)
     if (estado && !estado.acepta) partes.push('no apareces para los clientes')
-    return partes.length ? partes.join(' · ') : 'Nadie esperando y sin citas hoy'
+    if (partes.length) return partes.join(' · ')
+    // El vacío también tiene que decir la verdad de ESTE barbero: "sin citas
+    // hoy" a uno que trabaja solo por orden de llegada nombra algo que en su
+    // caso no existe, y le hace dudar de si se le ha perdido una.
+    if (!daCitas) return 'Nadie esperando'
+    if (!daFila) return 'Sin citas hoy'
+    return 'Nadie esperando y sin citas hoy'
   })()
 
   /**
@@ -636,6 +655,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           <View style={s.panelTop}>
             <PuntoVivo color="rgba(255,255,255,0.95)" vivo={estado.estado === 'libre' || estado.estado === 'atendiendo'} />
             <View style={{ flex: 1 }}>
+              {/* El modo, donde el barbero mira todo el día. Sin esto se cambia
+                  en Config y desde fuera no se nota nada: la app se comporta
+                  distinta y nada en pantalla dice por qué. Solo aparece cuando
+                  NO es el normal — un chip permanente que dice "citas y fila"
+                  sería ruido en el noventa por ciento de los perfiles. */}
+              {estado.modo && estado.modo !== 'ambos' && (
+                <View style={s.modoChip}>
+                  <Ionicons name={estado.modo === 'solo_citas' ? 'calendar' : 'people'} size={11} color="rgba(0,0,0,0.65)" />
+                  <Text style={s.modoChipT}>{estado.modo === 'solo_citas' ? 'Solo con cita' : 'Solo fila'}</Text>
+                </View>
+              )}
               <Text style={s.estadoT}>
                 {estado.estado === 'atendiendo'
                   ? (estado.cliente ? `Atendiendo a ${estado.cliente}` : 'Silla ocupada')
@@ -821,8 +851,12 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </>
       )}
 
-      <Text style={s.sec}>CITAS DEL DÍA</Text>
-      {citas.length === 0 && <Text style={s.empty}>Sin citas este día</Text>}
+      {/* Con el modo "solo fila" no van a entrar citas nuevas, pero LAS QUE YA
+          ESTABAN siguen valiendo: si cambió el modo con gente ya reservada,
+          esconderlas sería hacerle perder clientes que van a aparecer igual.
+          Por eso la sección se calla solo cuando de verdad no hay nada. */}
+      {(daCitas || citas.length > 0) && <Text style={s.sec}>CITAS DEL DÍA</Text>}
+      {citas.length === 0 && daCitas && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
         <TouchableOpacity key={c.id} style={s.row} onPress={() => accionCita(c)}>
           <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
@@ -1064,6 +1098,9 @@ const s = StyleSheet.create({
   // Va dentro del cuadro de estado, que ya tiene fondo de color: por eso el
   // panel es un velo oscuro translúcido y no un color propio — así funciona
   // igual sobre el verde de "libre" y el azul de "atendiendo".
+  modoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, marginBottom: 4 },
+  modoChipT: { fontFamily: FONTS.bold, fontSize: 10.5, color: 'rgba(0,0,0,0.65)', letterSpacing: 0.2 },
   cuenta: { backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13, padding: 11, marginTop: 10 },
   cuentaTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9 },
   cuentaT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
