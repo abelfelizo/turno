@@ -8,7 +8,7 @@ import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, PuntoVivo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 
 const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
@@ -109,9 +109,39 @@ export default function Dashboard() {
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
-  const n1 = cola.filter(c => c.prioridad === 1).length
-  const n2 = cola.filter(c => c.prioridad === 2).length
-  const n3 = cola.filter(c => c.prioridad === 3).length
+  // Cuánto lleva esperando cada uno. El mismo cálculo que en el panel del
+  // barbero: es el número con el que se decide a quién se adelanta.
+  const esperaDe = (q: any): number | null => {
+    if (!q?.created_at) return null
+    const m = Math.floor((Date.now() - new Date(q.created_at).getTime()) / 60000)
+    return m > 0 ? m : null
+  }
+
+  const esperando = cola.filter(c => c.estado === 'en_fila').length
+  const atendiendo = equipo.filter((p: any) => estados[p.id]?.estado === 'atendiendo').length
+  const libres = equipo.filter((p: any) => estados[p.id]?.estado === 'libre').length
+  const masEspera = cola.filter(c => c.estado === 'en_fila')
+    .map(esperaDe).filter((m): m is number => m != null).sort((a, b) => b - a)[0] ?? null
+  const sinAsignar = cola.filter(c => c.estado === 'en_fila' && !c.perfil_id).length
+
+  // Una línea, en el orden en que se mira: quién está trabajando, cuánta gente
+  // hay y qué es lo que urge. Si nadie espera no se inventa urgencia.
+  const resumenLocal = [
+    `${atendiendo} atendiendo`,
+    libres > 0 ? `${libres} libre${libres === 1 ? '' : 's'}` : null,
+    esperando > 0 ? `${esperando} esperando` : 'nadie esperando',
+    masEspera && masEspera >= 15 ? `el que más lleva, ${masEspera} min` : null,
+    sinAsignar > 0 ? `${sinAsignar} sin asignar` : null,
+  ].filter(Boolean).join(' · ')
+
+  const COLOR_SILLA: Record<string, string> = {
+    libre: COLORS.success, atendiendo: '#8AB4FF', descanso: COLORS.warning, inactivo: 'rgba(255,255,255,0.35)',
+  }
+  const sillas = equipo.map((p: any) => ({
+    id: p.id,
+    nombre: (p.turno_usuarios?.nombre ?? 'Profesional').split(' ')[0],
+    color: COLOR_SILLA[estados[p.id]?.estado ?? 'inactivo'] ?? 'rgba(255,255,255,0.35)',
+  }))
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -138,28 +168,65 @@ export default function Dashboard() {
         <View style={s.metric}><Text style={s.mNum}>{dinero(stats?.ingresosHoy ?? 0, negocio?.moneda)}</Text><Text style={s.mLbl}>Ingresos hoy</Text></View>
       </View>
 
-      {/* Cola del local */}
+      {/* ── LA COLA DEL LOCAL ────────────────────────────────────────────────
+          Es el mismo cuadro de estado del barbero, pero SUMADO: allí es una
+          silla, aquí son todas. Lo que se trae de allá:
+
+          · El punto latiendo, para saber que esto es de ahora y no una captura.
+          · Una línea que dice lo que pasa —"2 atendiendo · 5 esperando"— en vez
+            de que el dueño lo deduzca de cuatro números.
+          · La espera de cada uno en minutos, que es el dato con el que se
+            decide a quién adelantar y no estaba en ninguna parte.
+
+          Y lo que se va: el desglose Prioritario / Digital / Físico. Era
+          vocabulario del sistema —nadie atiende categorías, se atiende gente en
+          orden— y ocupaba la mitad de la tarjeta. Lo único que aportaba, quién
+          tenía cita, se queda como etiqueta en su fila.
+
+          Lo que NO tiene el del barbero y aquí manda: de quién es cada cliente.
+          Un dueño mirando la fila del local necesita ver qué silla lo va a
+          coger, o que no lo va a coger nadie todavía. */}
       <View style={s.colaBox}>
-        <Text style={s.colaTitle}>COLA DEL LOCAL</Text>
-        <View style={s.colaStats}>
-          <Grupo n={n1} l="Prioritario" />
-          <Grupo n={n2} l="Digital" />
-          <Grupo n={n3} l="Físico" />
-          <Grupo n={cola.length} l="Total" hl />
+        <View style={s.colaHead}>
+          <PuntoVivo color="rgba(255,255,255,0.95)" vivo={atendiendo > 0 || cola.length > 0} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.colaTitle}>COLA DEL LOCAL</Text>
+            <Text style={s.colaResumen}>{resumenLocal}</Text>
+          </View>
         </View>
+
+        {/* Las sillas, de un vistazo: quién está libre y quién ocupado. */}
+        {sillas.length > 0 && (
+          <View style={s.sillasRow}>
+            {sillas.map((x: any) => (
+              <View key={x.id} style={s.sillaChip}>
+                <View style={[s.sillaPunto, { backgroundColor: x.color }]} />
+                <Text style={s.sillaChipT} numberOfLines={1}>{x.nombre}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {cola.length > 0 && (
           <View style={s.colaLista}>
             {cola.map((c: any, i: number) => (
               <View key={c.id} style={s.colaRow}>
                 <Text style={s.colaPos}>{i + 1}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.colaName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                  <Text style={s.colaServ}>{c.turno_servicios?.nombre ?? 'Servicio'}{c.turno_servicios?.duracion_min ? ` · ${c.turno_servicios.duracion_min} min` : ''}</Text>
+                  <Text style={s.colaName}>
+                    {c.turno_usuarios?.nombre ?? 'Cliente'}
+                    {c.prioridad === 1 ? <Text style={s.colaTag}>  tenía cita</Text> : null}
+                  </Text>
+                  <Text style={s.colaServ}>
+                    {[c.turno_servicios?.nombre ?? 'Servicio',
+                      c.turno_perfiles?.turno_usuarios?.nombre ?? 'sin asignar',
+                      esperaDe(c) ? `lleva ${esperaDe(c)} min` : null].filter(Boolean).join(' · ')}
+                  </Text>
                 </View>
                 {config?.asignacion_por_dueno && c.estado === 'en_fila'
                   ? <TouchableOpacity style={s.asignar} onPress={() => asignar(c)}><Text style={s.asignarT}>Asignar</Text></TouchableOpacity>
-                  : <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }]}>
-                      {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : 'En camino'}
+                  : <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }, c.estado === 'atendiendo' && { color: '#8AB4FF' }]}>
+                      {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : c.estado === 'atendiendo' ? 'En la silla' : 'En camino'}
                     </Text>}
               </View>
             ))}
@@ -234,10 +301,6 @@ export default function Dashboard() {
   )
 }
 
-function Grupo({ n, l, hl }: { n: number; l: string; hl?: boolean }) {
-  return <View style={{ alignItems: 'center' }}><Text style={[gs.num, hl && { color: COLORS.red }]}>{n}</Text><Text style={gs.lbl}>{l}</Text></View>
-}
-const gs = StyleSheet.create({ num: { fontFamily: FONTS.display, fontSize: 30, color: '#fff' }, lbl: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 } })
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
@@ -253,8 +316,18 @@ const s = StyleSheet.create({
   mNum: { fontFamily: FONTS.display, fontSize: 30, color: COLORS.ink },
   mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 22 },
-  colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
-  colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
+  colaHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
+  colaResumen: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginTop: 3 },
+  // Las sillas: nombre y un punto de color. Sin números, porque el número de
+  // cada silla no se decide desde aquí; lo que se mira es quién puede coger al
+  // siguiente.
+  sillasRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  sillaChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 999, paddingVertical: 5, paddingHorizontal: 10, maxWidth: '48%' },
+  sillaPunto: { width: 7, height: 7, borderRadius: 4 },
+  sillaChipT: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
+  colaTag: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red },
   colaLista: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6 },
   colaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
   colaPos: { fontFamily: FONTS.display, fontSize: 20, color: 'rgba(255,255,255,0.4)', width: 24, textAlign: 'center' },

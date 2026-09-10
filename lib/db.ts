@@ -672,7 +672,11 @@ export async function crearCita(cita: {
 
 // COLA
 export async function getColaActiva(negocio_id: string, perfil_id?: string) {
-  let query = supabase.from(T('cola')).select('*, turno_usuarios(nombre, telefono), turno_servicios(nombre, duracion_min)').eq('negocio_id', negocio_id).in('estado', ['en_fila','llamado','en_camino','atendiendo']).order('prioridad').order('posicion')
+  // El nombre del BARBERO asignado viaja con cada turno. Sin él, las dos
+  // pantallas del dueño que lo enseñan —la cola del panel y "Cola del local"—
+  // escribían "Sin asignar" en todas las filas, incluidas las que sí tenían
+  // barbero: leían turno_perfiles y nadie lo estaba trayendo.
+  let query = supabase.from(T('cola')).select('*, turno_usuarios(nombre, telefono), turno_servicios(nombre, duracion_min), turno_perfiles(usuario_id, turno_usuarios(nombre))').eq('negocio_id', negocio_id).in('estado', ['en_fila','llamado','en_camino','atendiendo']).order('prioridad').order('posicion')
   if (perfil_id) query = query.eq('perfil_id', perfil_id)
   const { data, error } = await query
   if (error) throw error

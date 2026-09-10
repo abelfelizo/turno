@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share, Animated, Easing } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Modal, TextInput, Share } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -15,7 +15,7 @@ import { enviarPush, avisos } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
-import { Display, Avatar, Badge } from './ui'
+import { Display, Avatar, Badge, PuntoVivo } from './ui'
 import PanelBadge from './panel-badge'
 
 const EST_FONDO: Record<string, string> = {
@@ -30,53 +30,6 @@ const DIAS_ADELANTE = 20
  *  se corrigen en uno. */
 const ABIERTAS = ['creada', 'confirmada', 'no_confirmada', 'en_camino']
 
-/**
- * El punto de estado, latiendo.
- *
- * El cuadro principal decía la verdad pero parecía una captura de pantalla: no
- * había forma de distinguir "la app está viva y esto es de ahora" de "esto se
- * quedó colgado hace media hora". Un pulso lento resuelve eso sin pedir nada al
- * usuario ni añadir texto.
- *
- * Late solo cuando hay algo vivo que representar. En descanso o inactivo se
- * queda quieto a propósito: un punto parado ES el estado, y animarlo diría lo
- * contrario de lo que pasa.
- *
- * `useNativeDriver` manda la animación al hilo de UI, así que sigue latiendo
- * aunque el hilo de JS esté ocupado recargando la fila — que es justo cuando
- * más importa que la pantalla no parezca muerta.
- */
-function PuntoVivo({ color, vivo }: { color: string; vivo: boolean }) {
-  const pulso = useRef(new Animated.Value(0)).current
-
-  useEffect(() => {
-    if (!vivo) { pulso.setValue(0); return }
-    const bucle = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulso, { toValue: 1, duration: 1100, easing: Easing.out(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulso, { toValue: 0, duration: 900, easing: Easing.in(Easing.ease), useNativeDriver: true }),
-      ]),
-    )
-    bucle.start()
-    return () => bucle.stop()
-  }, [vivo, pulso])
-
-  return (
-    <View style={s.puntoWrap}>
-      {vivo && (
-        <Animated.View
-          pointerEvents="none"
-          style={[s.puntoHalo, {
-            backgroundColor: color,
-            opacity: pulso.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
-            transform: [{ scale: pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
-          }]}
-        />
-      )}
-      <View style={[s.puntoNucleo, { backgroundColor: color }]} />
-    </View>
-  )
-}
 
 /** Suma minutos a una hora "HH:MM:SS" sin salirse del día. */
 function sumarMinutos(hhmmss: string, min: number) {
@@ -1331,9 +1284,6 @@ const s = StyleSheet.create({
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   // El halo crece y se desvanece por encima; el núcleo no se mueve, para que
   // el punto siga leyéndose como un indicador y no como una animación.
-  puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
-  puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
-  puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
   estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
   estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
   estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },

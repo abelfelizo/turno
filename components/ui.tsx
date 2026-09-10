@@ -2,8 +2,8 @@
  * Sistema visual NAVAJA · Barber Co. — primitivos reutilizables.
  * Rojo primario, azul secundario, blanco, negro carbón. Display = Anton.
  */
-import { ReactNode } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp } from 'react-native'
+import { ReactNode, useEffect, useRef } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants'
 
@@ -113,7 +113,60 @@ export function KV({ k, v, valueColor = COLORS.ink }: { k: string; v?: ReactNode
   return <View style={s.kv}><Text style={s.kvK}>{k}</Text><Text style={[s.kvV, { color: valueColor }]}>{v}</Text></View>
 }
 
+/**
+ * EL PUNTO DE ESTADO, LATIENDO.
+ *
+ * Nació en el panel del barbero: el cuadro decía la verdad pero parecía una
+ * captura de pantalla, sin forma de distinguir "esto es de ahora" de "esto se
+ * quedó colgado hace media hora". Un pulso lento lo resuelve sin pedir nada al
+ * usuario ni añadir texto. Vive aquí porque el panel del dueño enseña lo mismo
+ * —la fila del local, en vivo— y dos latidos distintos para la misma idea es
+ * exactamente lo que hace que dos pantallas parezcan de dos apps.
+ *
+ * Late solo cuando hay algo vivo que representar. En descanso o inactivo se
+ * queda quieto a propósito: un punto parado ES el estado, y animarlo diría lo
+ * contrario de lo que pasa.
+ *
+ * `useNativeDriver` manda la animación al hilo de UI, así que sigue latiendo
+ * aunque el hilo de JS esté ocupado recargando la fila — que es justo cuando
+ * más importa que la pantalla no parezca muerta.
+ */
+export function PuntoVivo({ color, vivo }: { color: string; vivo: boolean }) {
+  const pulso = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!vivo) { pulso.setValue(0); return }
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulso, { toValue: 1, duration: 1100, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulso, { toValue: 0, duration: 900, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+      ]),
+    )
+    bucle.start()
+    return () => bucle.stop()
+  }, [vivo, pulso])
+
+  return (
+    <View style={s.puntoWrap}>
+      {vivo && (
+        <Animated.View
+          pointerEvents="none"
+          style={[s.puntoHalo, {
+            backgroundColor: color,
+            opacity: pulso.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+            transform: [{ scale: pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
+          }]}
+        />
+      )}
+      <View style={[s.puntoNucleo, { backgroundColor: color }]} />
+    </View>
+  )
+}
+
 const s = StyleSheet.create({
+  puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
+  puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
+  puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
   section: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid, letterSpacing: 0.3 },
   sectionAction: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue },
