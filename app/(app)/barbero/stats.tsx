@@ -22,6 +22,10 @@ export default function Stats() {
   const [moneda, setMoneda] = useState('')
   const [periodo, setPeriodo] = useState<PeriodoK>('todo')
   const [pstats, setPstats] = useState<StatsPeriodo | null>(null)
+  // Lo de HOY va aparte del período elegido: es la segunda escala de tiempo que
+  // el panel del dueño enseña bajo el número grande, y sin ella la tarjeta dice
+  // "30 días" y no dice cómo va el día que estás trabajando.
+  const [hoy, setHoy] = useState<StatsPeriodo | null>(null)
   const [perfilId, setPerfilId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -30,11 +34,12 @@ export default function Stats() {
     const ss = await getSesion()
     if (!ss?.perfil_id) { setLoading(false); return }
     setPerfilId(ss.perfil_id)
-    const [st, neg] = await Promise.all([
+    const [st, neg, hy] = await Promise.all([
       getMisEstadisticas().catch(() => null),
       ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
+      getStatsPeriodoPerfil(ss.perfil_id, fechaISOLocal(), fechaISOLocal()).catch(() => null),
     ])
-    setData(st); setMoneda(neg?.moneda ?? '')
+    setData(st); setMoneda(neg?.moneda ?? ''); setHoy(hy)
     setLoading(false); setRefreshing(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -60,6 +65,20 @@ export default function Stats() {
       <PanelBadge />
       <Display size={30} style={{ marginBottom: 14 }}>Estadísticas</Display>
 
+      {/* EL MISMO ORDEN QUE EL PANEL DEL DUEÑO, que es el que está bien: el
+          número grande primero —lo que se viene a ver— con la segunda escala de
+          tiempo debajo en rojo, y solo después los mandos y el desglose. Aquí
+          estaba al revés, con los mandos arriba: se entraba a la pantalla y lo
+          primero que había que hacer era decidir un período.
+
+          Adaptado a quien lo mira: el dueño ve el local y su equipo, el barbero
+          ve su silla y sus últimos cortes. */}
+      <View style={s.bigCard}>
+        <Text style={s.bigLbl}>MIS INGRESOS · {PERIODOS.find(p => p.k === periodo)?.l.toUpperCase()}</Text>
+        <Text style={s.bigNum}>{dinero(ingresos, moneda)}</Text>
+        <Text style={s.bigSub}>{dinero(hoy?.ingresos ?? 0, moneda)} hoy · citas y fila</Text>
+      </View>
+
       <View style={s.periodos}>
         {PERIODOS.map(p => (
           <TouchableOpacity key={p.k} style={[s.periodo, periodo === p.k && s.periodoOn]} onPress={() => setPeriodo(p.k)}>
@@ -67,12 +86,7 @@ export default function Stats() {
           </TouchableOpacity>
         ))}
       </View>
-
-      <View style={s.bigCard}>
-        <Text style={s.bigLbl}>INGRESOS · {PERIODOS.find(p => p.k === periodo)?.l.toUpperCase()}</Text>
-        <Text style={s.bigNum}>{dinero(ingresos, moneda)}</Text>
-      </View>
-
+      <Text style={s.periodoLbl}>Tu movimiento · {PERIODOS.find(p => p.k === periodo)?.l.toLowerCase()}</Text>
       <View style={s.grid}>
         <Metric n={nVisitas} l="Visitas" />
         <Metric n={nClientes} l="Clientes" />
@@ -101,14 +115,19 @@ function Metric({ n, l }: { n: number; l: string }) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  periodos: { flexDirection: 'row', gap: 6, marginBottom: 14 },
+  periodos: { flexDirection: 'row', gap: 6, marginBottom: 10 },
   periodo: { flex: 1, paddingVertical: 9, borderRadius: 10, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   periodoOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
   periodoT: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid },
   periodoTOn: { color: '#fff' },
+  // Tarjeta, rejilla y mandos son LOS MISMOS valores que en dueno/stats.tsx.
+  // Dos pantallas que cuentan lo mismo para dos personas distintas no tienen
+  // por qué verse distintas.
   bigCard: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 20, marginBottom: 12 },
   bigLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   bigNum: { fontFamily: FONTS.display, fontSize: 48, color: '#fff', marginTop: 6 },
+  bigSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 2 },
+  periodoLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 10 },
   grid: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, alignItems: 'flex-start' },
   mNum: { fontFamily: FONTS.display, fontSize: 26, color: COLORS.ink },

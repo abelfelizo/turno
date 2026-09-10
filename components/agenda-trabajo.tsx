@@ -1072,25 +1072,27 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
       )}
-      {/* Compartir el código es cómo le llegan clientes nuevos: es lo único de
-          esta pantalla que hace crecer el negocio en vez de administrar el día.
-          Estaba en gris, del mismo tamaño que "bloquear hora", y en azul —el
-          secundario de la marca— se ve sin competir con el rojo de las acciones
-          de la fila. */}
+      {/* EL CÓDIGO, COMO EN EL PANEL DEL DUEÑO.
+          Compartirlo es cómo le llegan clientes nuevos: lo único de esta
+          pantalla que hace crecer el negocio en vez de administrar el día. Era
+          una fila con el código metido en un chip de trece puntos a la derecha,
+          o sea el dato importante en lo más pequeño de la tarjeta. El panel del
+          dueño ya tenía resuelta exactamente esta tarjeta —etiqueta arriba,
+          código enorme, botón de compartir en rojo— y es la que mejor respeta
+          la línea de la marca. Misma tarjeta, mismo sitio en la jerarquía: dos
+          códigos que se comparten igual deben verse igual. */}
       {usuario?.codigo_barbero ? (
-        <TouchableOpacity style={s.compartir} activeOpacity={0.85}
-          onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-          <View style={s.compartirIcono}>
-            <Ionicons name="share-social" size={17} color="#fff" />
-          </View>
+        <View style={s.codeCard}>
           <View style={{ flex: 1 }}>
-            <Text style={s.compartirT}>Comparte tu código</Text>
-            <Text style={s.compartirD}>Para que reserven contigo</Text>
+            <Text style={s.codeLbl}>MI CÓDIGO DE BARBERO</Text>
+            <Text style={s.codeVal}>{usuario.codigo_barbero}</Text>
+            <Text style={s.codeSub}>Compártelo para que reserven contigo</Text>
           </View>
-          <View style={s.compartirChip}>
-            <Text style={s.compartirC}>{usuario.codigo_barbero}</Text>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity style={s.codeShare} activeOpacity={0.85}
+            onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
+            <Ionicons name="share-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
       ) : null}
 
       {/* Bloquear cierra horas al público: es destructivo en el sentido que
@@ -1364,22 +1366,18 @@ const s = StyleSheet.create({
   rowDeudaT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red },
   walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
   walkinT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  // NEGRO, no azul: el azul es el estado "atendiendo" del cuadro de arriba, y
-  // dos cosas del mismo azul en una pantalla se leen como relacionadas cuando
-  // no tienen nada que ver.
-  //
-  // La composición: icono en su caja, texto a la izquierda con etiqueta y
-  // explicación, y el código en una pastilla a la derecha alineada con el
-  // icono. Antes era icono + dos líneas + un chevrón, todo apretado contra el
-  // borde y con el código haciendo de subtítulo: ni justificación ni ritmo.
-  compartir: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.carbon,
-    borderRadius: 16, paddingVertical: 14, paddingHorizontal: 14, marginTop: 10 },
-  compartirIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)',
+  // LA MISMA TARJETA QUE EL PANEL DEL DUEÑO, hasta en los números: fondo
+  // carbón, etiqueta de once puntos, el código en la tipografía de display a
+  // cuarenta y el botón de compartir en rojo. Copiada a propósito y no
+  // "inspirada": son dos códigos que se comparten igual, y verlos distintos en
+  // dos pantallas de la misma app hace dudar de si son la misma cosa.
+  codeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon,
+    borderRadius: 16, padding: 18, marginTop: 10 },
+  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
+  codeVal: { fontFamily: FONTS.display, fontSize: 40, color: '#fff', letterSpacing: 3, marginTop: 4 },
+  codeSub: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
+  codeShare: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.red,
     alignItems: 'center', justifyContent: 'center' },
-  compartirT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  compartirD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  compartirChip: { backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 9, paddingVertical: 6, paddingHorizontal: 10 },
-  compartirC: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', letterSpacing: 1.2 },
   nombrePropio: { color: COLORS.red },
   localSel: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6,
     backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 999,

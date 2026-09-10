@@ -1,6 +1,7 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
 import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal, cambiarTipoNegocio } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
@@ -13,6 +14,12 @@ import PanelBadge from '../../../components/panel-badge'
 
 export default function Config() {
   const router = useRouter()
+  // La pantalla era una tira de secciones seguidas —marca, suscripción,
+  // modalidad, funciones, tiempos, cuenta— y había que bajarla entera para ver
+  // cómo estaba puesto el local. El panel del barbero ya tenía resuelto esto:
+  // un menú donde cada fila LLEVA SU VALOR debajo, y la sección se abre encima.
+  // El menú se lee de un vistazo y hace de resumen.
+  const [seccion, setSeccion] = useState<string | null>(null)
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
@@ -125,19 +132,80 @@ export default function Config() {
       } }])
   }
 
+  // El atrás de Android vuelve al menú, no fuera de Configuración.
+  //
+  // VA ANTES DEL `if (loading)`: en el panel del barbero este mismo hook estuvo
+  // debajo y tumbaba la pantalla ("algo salió mal"). Mientras cargaba se salía
+  // por el return y el hook no se registraba; al terminar, React encontraba un
+  // hook más que en el render anterior. Se cuentan por orden: ninguno puede
+  // quedar detrás de un return condicional.
+  useEffect(() => {
+    if (!seccion) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
+    return () => sub.remove()
+  }, [seccion])
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   // La modalidad decide qué controles tiene sentido enseñar aquí: en un local
   // de asientos alquilados el dueño no manda sobre los puntos ni sobre a quién
   // le toca cada cliente.
   const esRentado = negocio?.tipo === 'espacios_rentados'
+  const plan = planDueno(asientos)
+
+  const TITULO: Record<string, string> = {
+    marca: 'Marca y contacto', suscripcion: 'Suscripción', modalidad: 'Cómo trabaja tu local',
+    funciones: 'Funciones del local', tiempos: 'Tiempos', otros: 'Otros',
+  }
+
+  // El valor de cada fila: es lo que convierte el menú en un resumen del local.
+  const MENU = [
+    { k: 'marca', t: 'Marca y contacto', icono: 'storefront-outline',
+      v: [negocio?.nombre, negocio?.direccion].filter(Boolean).join(' · ') || 'Sin datos todavía' },
+    { k: 'suscripcion', t: 'Suscripción', icono: 'card-outline',
+      v: `${plan.montoTexto} · ${asientos} asiento${asientos === 1 ? '' : 's'}` },
+    { k: 'modalidad', t: 'Cómo trabaja tu local', icono: 'people-outline',
+      v: esRentado ? 'Alquilo asientos' : 'Tengo empleados' },
+    { k: 'funciones', t: 'Funciones del local', icono: 'options-outline',
+      v: esRentado
+        ? (config?.doble_servicio_activo ? 'Doble servicio activo' : 'Doble servicio apagado')
+        : [config?.puntos_activos ? `Puntos cada ${config?.visitas_para_gratis ?? 8}` : 'Sin puntos',
+           config?.asignacion_por_dueno ? 'Tú asignas' : 'Elige el cliente'].join(' · ') },
+    { k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
+      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` },
+    { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal',
+      v: 'Cerrar sesión, cerrar el local' },
+  ]
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <PanelBadge />
-      <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
 
-      <Text style={s.sec}>MARCA Y CONTACTO</Text>
+      {seccion === null ? (
+        <>
+          <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
+          {MENU.map(m => (
+            <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
+              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.menuT}>{m.t}</Text>
+                <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+            </TouchableOpacity>
+          ))}
+          {/* Cambiar de panel es navegación, no configuración: va en la raíz. */}
+          <CambiarRol />
+        </>
+      ) : (
+        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
+          <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
+          <Text style={s.volverT}>Configuración</Text>
+        </TouchableOpacity>
+      )}
+      {seccion && <Display size={28} style={{ marginBottom: 16 }}>{TITULO[seccion]}</Display>}
+
+      {seccion === 'marca' && (<>
       <View style={s.marcaCard}>
         <View style={s.marcaTop}>
           <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85}>
@@ -174,11 +242,10 @@ export default function Config() {
           {guardandoMarca ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar marca</Text>}
         </TouchableOpacity>
       </View>
+      </>)}
 
-      <Text style={s.sec}>SUSCRIPCIÓN</Text>
-      {(() => {
-        const plan = planDueno(asientos)
-        return (
+      {seccion === 'suscripcion' && (
+        <>
           <View style={s.susCard}>
             <View style={s.susTop}>
               <View style={{ flex: 1 }}>
@@ -195,13 +262,13 @@ export default function Config() {
             </View>
             <Text style={s.susNota}>El pago dentro de la app se habilitará próximamente.</Text>
           </View>
-        )
-      })()}
+        </>
+      )}
 
       {/* De esta elección cuelga quién decide precios y horarios de todo el
           equipo (R11). Se hacía una sola vez en el onboarding y no se podía
           deshacer: equivocarse dejaba el local atrapado. */}
-      <Text style={s.sec}>CÓMO TRABAJA TU LOCAL</Text>
+      {seccion === 'modalidad' && (<>
       <View style={s.modRow}>
         <TouchableOpacity style={[s.modChip, negocio?.tipo === 'espacios_rentados' && s.modChipOn]}
           onPress={() => pedirCambioTipo('espacios_rentados')} disabled={tipoBusy}>
@@ -217,12 +284,13 @@ export default function Config() {
           ? 'Tus barberos trabajan para ti: los servicios, los precios y el horario los pones tú, y cubres su suscripción.'
           : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
       </Text>
+      </>)}
 
       {/* En un local de asientos alquilados el dueño NO manda sobre los puntos
           ni sobre a quién le toca cada cliente: cada barbero es un negocio
           aparte, con su clientela y sus reglas. Enseñar esos interruptores ahí
           no es solo ruido — hace creer que deciden algo que no deciden. */}
-      <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
+      {seccion === 'funciones' && (<>
       {esRentado && (
         <Text style={s.modNota}>
           Alquilas asientos, así que los puntos y la asignación de clientes los lleva cada barbero desde su propia configuración. Aquí solo quedan las que sí son del local.
@@ -250,8 +318,9 @@ export default function Config() {
       )}
       {!esRentado && <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
+      </>)}
 
-      <Text style={s.sec}>TIEMPOS</Text>
+      {seccion === 'tiempos' && (<>
       <Text style={s.modNota}>
         {esRentado
           ? 'Aquí son solo el punto de partida: cada barbero que alquila puede poner los suyos, y entonces mandan los de él.'
@@ -266,18 +335,33 @@ export default function Config() {
       <Stepper label="Tolerancia de retraso"
         desc={`Esperas ${config?.gracia_cita_min ?? 5} minutos a quien tiene cita antes de darla por perdida.`}
         suf="min" value={config?.gracia_cita_min ?? 5} onMinus={() => ajustar('gracia_cita_min', -5, 0, 30)} onPlus={() => ajustar('gracia_cita_min', 5, 0, 30)} />
+      </>)}
 
-      <CambiarRol />
+      {/* CUENTA, con la misma composición que en el panel del barbero: cada
+          acción con su icono, su nombre y UNA LÍNEA QUE DICE QUÉ PASA. Eran dos
+          botones sueltos —un texto rojo centrado y una caja roja— y ninguno
+          contaba las consecuencias antes de tocarlo. */}
+      {seccion === 'otros' && (<>
+      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
 
-      <Text style={s.sec}>CUENTA</Text>
-      
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-
-      <Text style={[s.sec, { color: COLORS.danger }]}>ZONA PELIGROSA</Text>
-      <TouchableOpacity style={s.cerrarLocal} onPress={cerrarEsteLocal}>
-        <Text style={s.cerrarLocalT}>Cerrar este local</Text>
-        <Text style={s.cerrarLocalD}>Baja definitiva del negocio. Los barberos rentados conservan su cuenta.</Text>
+      <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+        <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Cerrar sesión</Text>
+          <Text style={s.cuentaD}>Tu local, tu equipo y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
       </TouchableOpacity>
+
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+      <TouchableOpacity style={s.cuentaBorrar} onPress={cerrarEsteLocal}>
+        <Ionicons name="trash-outline" size={18} color="#fff" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaBorrarT}>Cerrar este local</Text>
+          <Text style={s.cuentaBorrarD}>Deja de aparecer, se cancelan las citas futuras y se vacía la fila. Se avisa a clientes y equipo. Los barberos que alquilan conservan su cuenta.</Text>
+        </View>
+      </TouchableOpacity>
+      </>)}
     </ScrollView>
   )
 }
@@ -345,9 +429,23 @@ const s = StyleSheet.create({
   stepBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   stepBtnT: { fontFamily: FONTS.bold, fontSize: 20, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink, minWidth: 56, textAlign: 'center' },
-  salir: { padding: 16, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  cerrarLocal: { backgroundColor: COLORS.dangerLight, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 14, padding: 16, marginBottom: 20 },
-  cerrarLocalT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  cerrarLocalD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 3 },
+  // Menú y cuenta: LOS MISMOS valores que en barbero/config.tsx. Es la misma
+  // pantalla para otra persona, y verse distinta solo confunde a quien lleva
+  // los dos paneles — que es justo el caso del dueño que también atiende.
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
+  menuIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
+  volverT: { color: COLORS.textMid, fontSize: 14.5, fontWeight: '600' },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
+    borderRadius: 14, padding: 14, marginBottom: 16 },
+  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
 })
