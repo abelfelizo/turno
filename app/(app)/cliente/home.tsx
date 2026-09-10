@@ -1,10 +1,10 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'expo-router'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
-  getNegocioById, getEstadoLocal, getResumenFila, getMiTurnoActivo, getMisCitas,
+  getNegocioById, getEstadoLocal, getResumenFila, getMiTurnoActivo, getMisCitas, getPuesto,
   confirmarCita, cancelarCita, getMisNegociosCliente,
   getMisTarjetas, getHistorialCliente, getMiUsuario,
 } from '../../../lib/db'
@@ -35,6 +35,7 @@ export default function Home() {
   const [sillas, setSillas] = useState<any[]>([])
   const [resumen, setResumen] = useState<{ delante: number; espera_min: number }>({ delante: 0, espera_min: 0 })
   const [turno, setTurno] = useState<any>(null)
+  const [puesto, setPuesto] = useState<number | null>(null)
   const [citas, setCitas] = useState<any[]>([])
   const [tarjetas, setTarjetas] = useState<any[]>([])
   const [historial, setHistorial] = useState<any[]>([])
@@ -65,6 +66,7 @@ export default function Home() {
       getMiUsuario().catch(() => null),
     ])
     setNegocio(neg); setSillas(est as any[]); setResumen(res); setTurno(t); setCitas(cs as any[])
+    setPuesto(t?.id ? await getPuesto(t.id).catch(() => null) : null)
     setNegocios(negs as any[]); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
     setLoading(false); setRefreshing(false)
@@ -76,6 +78,24 @@ export default function Home() {
     getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => cargar()) })
     return () => { if (sub) desuscribir(sub) }
   }, [cargar])
+
+  /**
+   * VOLVER A ESTA PANTALLA ES UN MOTIVO PARA RECARGAR.
+   *
+   * Reportado desde el teléfono: "hice dos citas y no aparecen; hay que esperar
+   * un rato para que se vean". La suscripción en vivo es de la COLA, no de las
+   * citas, así que reservar no disparaba nada aquí; y `cargar()` solo corría al
+   * montar. Se reservaba, se volvía, y la pantalla seguía enseñando lo que
+   * había antes de salir — hasta que algo tocaba la cola por otro motivo.
+   *
+   * El primer foco se salta porque el montaje ya cargó: si no, cada entrada a
+   * Inicio pide todo dos veces.
+   */
+  const yaEnfocado = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!yaEnfocado.current) { yaEnfocado.current = true; return }
+    cargar()
+  }, [cargar]))
 
   async function cambiarNegocio(negocio_id: string) {
     const ss = await getSesion(); if (!ss) return
@@ -132,7 +152,13 @@ export default function Home() {
         <TouchableOpacity style={s.fila} onPress={() => router.push('/(app)/cliente/turno')}>
           <View style={s.rowLbl}><Ionicons name="flash" size={13} color={COLORS.red} /><Text style={s.filaLbl}>EN LA FILA</Text></View>
           <Text style={s.filaTitle}>{turno.turno_servicios?.nombre}</Text>
-          <Text style={s.filaSub}>{turno.estado === 'en_fila' ? `Posición ${turno.posicion}` : turno.estado === 'llamado' ? 'Te están llamando' : 'Vas en camino'}</Text>
+          {/* El puesto sale de turno_puesto, no de la columna `posicion`: esa
+              cuenta también al que ya está en la silla. Ver getPuesto. */}
+          <Text style={s.filaSub}>
+            {turno.estado === 'en_fila'
+              ? (puesto === 1 ? 'Eres el siguiente' : puesto ? `Puesto ${puesto} en la fila digital` : 'En la fila digital')
+              : turno.estado === 'llamado' ? 'Te están llamando' : 'Vas en camino'}
+          </Text>
           <View style={s.linkRow}><Text style={s.filaLink}>Ver mi turno</Text><Ionicons name="chevron-forward" size={16} color="#fff" /></View>
         </TouchableOpacity>
       )}

@@ -6,7 +6,7 @@ import { getSesion, guardarSesion } from '../../../lib/storage'
 import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola, getEstadoLocal } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
-import { dinero } from '../../../lib/format'
+import { dinero, relojesDeSilla } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, PuntoVivo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
@@ -137,11 +137,17 @@ export default function Dashboard() {
   const COLOR_SILLA: Record<string, string> = {
     libre: COLORS.success, atendiendo: '#8AB4FF', descanso: COLORS.warning, inactivo: 'rgba(255,255,255,0.35)',
   }
-  const sillas = equipo.map((p: any) => ({
-    id: p.id,
-    nombre: (p.turno_usuarios?.nombre ?? 'Profesional').split(' ')[0],
-    color: COLOR_SILLA[estados[p.id]?.estado ?? 'inactivo'] ?? 'rgba(255,255,255,0.35)',
-  }))
+  const sillas = equipo.map((p: any) => {
+    const e = estados[p.id]
+    // Y a qué hora queda libre (migración 79): el dueño reparte mirando eso.
+    const r = e?.estado === 'atendiendo' ? relojesDeSilla(e.desde, e.fin_estimado) : null
+    return {
+      id: p.id,
+      nombre: (p.turno_usuarios?.nombre ?? 'Profesional').split(' ')[0],
+      color: COLOR_SILLA[e?.estado ?? 'inactivo'] ?? 'rgba(255,255,255,0.35)',
+      detalle: r?.fin ? (r.tarde ? `+${Math.abs(r.faltan ?? 0)} min` : `~${r.fin}`) : null,
+    }
+  })
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -201,7 +207,9 @@ export default function Dashboard() {
             {sillas.map((x: any) => (
               <View key={x.id} style={s.sillaChip}>
                 <View style={[s.sillaPunto, { backgroundColor: x.color }]} />
-                <Text style={s.sillaChipT} numberOfLines={1}>{x.nombre}</Text>
+                <Text style={s.sillaChipT} numberOfLines={1}>
+                  {x.nombre}{x.detalle ? <Text style={s.sillaChipD}>  {x.detalle}</Text> : null}
+                </Text>
               </View>
             ))}
           </View>
@@ -327,6 +335,7 @@ const s = StyleSheet.create({
     borderRadius: 999, paddingVertical: 5, paddingHorizontal: 10, maxWidth: '48%' },
   sillaPunto: { width: 7, height: 7, borderRadius: 4 },
   sillaChipT: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.9)', flexShrink: 1 },
+  sillaChipD: { fontFamily: FONTS.medium, fontSize: 11.5, color: 'rgba(255,255,255,0.6)' },
   colaTag: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red },
   colaLista: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6 },
   colaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },

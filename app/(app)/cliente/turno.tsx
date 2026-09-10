@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola, yaLlegue,
   getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
-  getRatingsNegocio,
+  getRatingsNegocio, getPuesto,
 } from '../../../lib/db'
 import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
@@ -20,6 +21,8 @@ export default function MiTurno() {
   const [turnos, setTurnos] = useState<any[]>([])
   const [etas, setEtas] = useState<Record<string, number | null>>({})
   const [puede, setPuede] = useState<Record<string, boolean>>({})
+  // El puesto REAL en la fila, no la columna posicion. Ver getPuesto.
+  const [puestos, setPuestos] = useState<Record<string, number | null>>({})
   const [expirado, setExpirado] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
@@ -86,12 +89,14 @@ export default function MiTurno() {
     const res = await Promise.all(ts.map(async (t: any) => ({
       id: t.id,
       eta: t.estado === 'en_fila' ? await etaCola(t.id).catch(() => null) : null,
+      puesto: t.estado === 'en_fila' ? await getPuesto(t.id).catch(() => null) : null,
       puede: await puedeConfirmar(t.id).catch(() => false),   // gating R2
     })))
     const map: Record<string, number | null> = {}
     const pmap: Record<string, boolean> = {}
-    for (const r of res) { map[r.id] = r.eta; pmap[r.id] = r.puede }
-    setEtas(map); setPuede(pmap)
+    const qmap: Record<string, number | null> = {}
+    for (const r of res) { map[r.id] = r.eta; pmap[r.id] = r.puede; qmap[r.id] = r.puesto }
+    setEtas(map); setPuede(pmap); setPuestos(qmap)
   }, [])
 
   /**
@@ -118,6 +123,14 @@ export default function MiTurno() {
     pendiente.current = setTimeout(() => { pendiente.current = null; cargarVivo() }, 250)
   }, [cargarVivo])
   useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
+
+  // Igual que en Inicio: volver a la pantalla recarga. Aquí también viven las
+  // citas, y reservar una no dispara ningún evento de cola.
+  const yaEnfocado = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!yaEnfocado.current) { yaEnfocado.current = true; return }
+    cargarVivo()
+  }, [cargarVivo]))
 
   useEffect(() => {
     cargar()
@@ -212,9 +225,14 @@ export default function MiTurno() {
         return (
           <View key={t.id} style={s.turnoCard}>
             <View style={[s.hero, { backgroundColor: heroBg }]}>
+              {/* EL PUESTO, no la columna `posicion`. Con un walk-in en la
+                  silla, aquí salía un 2 siendo el siguiente: `posicion` es el
+                  contador de entrada y cuenta al que ya está sentado. */}
               {t.estado === 'en_fila' && (<>
-                <Text style={s.heroNum}>{t.posicion}</Text>
-                <Text style={s.heroLabel}>tu posición en la fila</Text>
+                <Text style={s.heroNum}>{puestos[t.id] ?? '—'}</Text>
+                <Text style={s.heroLabel}>
+                  {puestos[t.id] === 1 ? 'eres el siguiente' : 'tu puesto en la fila digital'}
+                </Text>
                 {etas[t.id] != null && <View style={s.etaPill}><Text style={s.etaT}>≈ {etas[t.id]} min de espera</Text></View>}
               </>)}
               {/* El mismo reloj que ve el barbero. Sin el número, "es tu turno"

@@ -9,7 +9,7 @@ import {
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
 } from '../lib/db'
-import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias } from '../lib/format'
+import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
 import { enviarPush, avisos } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
@@ -850,19 +850,39 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               Ahora el estado es UNO y esto es su detalle: el servicio, el
               minutero, y el aviso de que llevas demasiado. Terminar sigue
               siendo la acción principal de arriba, así que no se repite. */}
-          {esHoy && llamado?.estado === 'atendiendo' && (
-            <View style={s.siguiente}>
-              <Ionicons name="cut-outline" size={15} color="rgba(0,0,0,0.6)" />
-              <Text style={s.siguienteT} numberOfLines={1}>
-                {[llamado.turno_servicios?.nombre, minutosEnSilla(llamado) ? `lleva ${minutosEnSilla(llamado)} min` : null]
-                  .filter(Boolean).join(' · ') || 'En la silla'}
-                {minutosEnSilla(llamado) > Math.max(45, (llamado.turno_servicios?.duracion_min ?? 30) * 2) ? ' · ¿ya terminaste?' : ''}
-              </Text>
-              <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
-                <Ionicons name="ellipsis-horizontal" size={16} color="rgba(0,0,0,0.6)" />
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* LOS CUATRO RELOJES DE LA SILLA. Antes solo decía "lleva 20 min",
+              que no contesta la pregunta que se hace todo el mundo mirando esa
+              silla: ¿a qué hora le toca al siguiente? Ahora están los cuatro
+              —empezó, lleva, faltan, termina— y los dos que importan de verdad,
+              faltan y termina, salen del servidor (migración 79) para que el
+              barbero, el dueño y el cliente vean la misma hora.
+
+              Cuando se pasa del tiempo no se disimula: se dice cuánto lleva de
+              más. Eso reemplaza la barra roja de "¿ya terminaste?" que había
+              suelta debajo, que gritaba lo mismo con menos información. */}
+          {esHoy && llamado?.estado === 'atendiendo' && (() => {
+            void tic
+            const r = relojesDeSilla(estado?.desde, estado?.fin_estimado)
+            return (
+              <View style={s.siguiente}>
+                <Ionicons name="cut-outline" size={15} color="rgba(0,0,0,0.6)" />
+                <Text style={s.siguienteT} numberOfLines={2}>
+                  {[
+                    llamado.turno_servicios?.nombre,
+                    r ? `empezó ${r.inicio}` : null,
+                    r ? `lleva ${r.lleva} min` : (minutosEnSilla(llamado) ? `lleva ${minutosEnSilla(llamado)} min` : null),
+                    r?.faltan != null
+                      ? (r.tarde ? `${Math.abs(r.faltan)} min de más` : `faltan ~${r.faltan}`)
+                      : null,
+                    r?.fin && !r.tarde ? `termina ~${r.fin}` : null,
+                  ].filter(Boolean).join(' · ') || 'En la silla'}
+                </Text>
+                <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
+                  <Ionicons name="ellipsis-horizontal" size={16} color="rgba(0,0,0,0.6)" />
+                </TouchableOpacity>
+              </View>
+            )
+          })()}
 
           {esHoy && enFila.length > 0 && (
             <View style={s.siguen}>

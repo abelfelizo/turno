@@ -330,6 +330,11 @@ export type EstadoBarbero = {
   fila_motivo: string | null
   /** ambos | solo_citas | solo_fila (migración 70). */
   modo: string
+  /** Cuándo se sentó el que está en la silla (migración 79). */
+  desde: string | null
+  /** A qué hora debería quedar libre: inicio + duración del servicio. Es una
+   *  estimación, y que quede atrás es la señal de que se está pasando. */
+  fin_estimado: string | null
   cliente: string | null
   hasta: string | null
   en_cola: number
@@ -680,7 +685,29 @@ export async function getColaActiva(negocio_id: string, perfil_id?: string) {
   if (perfil_id) query = query.eq('perfil_id', perfil_id)
   const { data, error } = await query
   if (error) throw error
-  return data || []
+  return (data || []).sort(ordenDeAtencion)
+}
+
+/**
+ * EL ORDEN EN QUE SE ATIENDE, que no es el orden de (prioridad, posicion).
+ *
+ * Reportado desde el panel del dueño: "arriba aparece el dos y el 1 abajo, que
+ * realmente es el que va arriba". Con un walk-in en la silla pasa siempre: el
+ * walk-in entra con prioridad 3 —la de quien llega sin avisar— y el cliente
+ * digital con prioridad 2, así que ordenando por prioridad el que ESTÁ SIENDO
+ * ATENDIDO cae al fondo de la lista y el que espera sale primero.
+ *
+ * La prioridad decide a quién se LLAMA antes, no quién está delante ahora
+ * mismo. Quien ya está en la silla, o va en camino, va primero porque ya le
+ * tocó; después la fila, y esa sí por prioridad y orden de llegada.
+ */
+const RANGO_ESTADO: Record<string, number> = { atendiendo: 0, en_camino: 1, llamado: 1, en_fila: 2 }
+export function ordenDeAtencion(a: any, b: any) {
+  const ra = RANGO_ESTADO[a?.estado] ?? 3
+  const rb = RANGO_ESTADO[b?.estado] ?? 3
+  if (ra !== rb) return ra - rb
+  if ((a?.prioridad ?? 9) !== (b?.prioridad ?? 9)) return (a?.prioridad ?? 9) - (b?.prioridad ?? 9)
+  return (a?.posicion ?? 0) - (b?.posicion ?? 0)
 }
 
 /** Entrar a la cola (RPC transaccional: posición atómica + anti-duplicado caso 18). */
@@ -863,6 +890,23 @@ export async function getTurnoExpirado(cliente_id: string, negocio_id: string) {
   // Solo relevante si expiró hace poco (última hora)
   if (data?.expira_at && Date.now() - new Date(data.expira_at).getTime() < 3600_000) return data
   return null
+}
+
+/**
+ * QUÉ PUESTO OCUPA EN LA FILA (migración 78).
+ *
+ * No es `turno_cola.posicion`. Esa columna es el CONTADOR DE ENTRADA —
+ * max(posicion)+1 sobre todo lo activo, incluido quien ya está en la silla— y
+ * la pantalla la enseñaba tal cual: con un walk-in sentado, el siguiente en
+ * llegar leía "posición 2" aunque delante no tuviera a nadie esperando.
+ *
+ * El puesto se cuenta contra los que ESPERAN y dentro de su propia cola. 0 es
+ * "ya te toca".
+ */
+export async function getPuesto(cola_id: string): Promise<number | null> {
+  const { data, error } = await supabase.rpc('turno_puesto', { p_cola: cola_id })
+  if (error) throw error
+  return data == null ? null : Number(data)
 }
 
 /** Resumen de la fila antes de entrar (R3): personas delante y espera estimada. */

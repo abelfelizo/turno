@@ -20,6 +20,7 @@
  */
 import { View, Text, StyleSheet } from 'react-native'
 import { COLORS, FONTS } from '../constants'
+import { relojesDeSilla } from '../lib/format'
 import { PuntoVivo } from './ui'
 
 export type SillaEstado = {
@@ -30,6 +31,9 @@ export type SillaEstado = {
   fila_abierta?: boolean | null
   fila_motivo?: string | null
   modo?: string | null
+  /** Relojes de la silla ocupada (migración 79). */
+  desde?: string | null
+  fin_estimado?: string | null
 }
 
 const COLOR: Record<string, string> = {
@@ -95,9 +99,15 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
               <View style={[s.punto, { backgroundColor: cerrada ? COLOR.inactivo : COLOR[x.estado] ?? COLOR.inactivo }]} />
               <Text style={s.chipT} numberOfLines={1}>
                 {x.barbero?.split(' ')[0] ?? 'Barbero'}
+                {/* Con la silla ocupada, la hora a la que queda libre es lo
+                    único que el cliente necesita para decidir si espera. Sale
+                    del servidor, no del reloj del teléfono. */}
                 <Text style={s.chipD}>
                   {cerrada ? (x.modo === 'solo_citas' ? '  solo con cita' : '  cerrado')
-                    : x.estado === 'atendiendo' ? '  atendiendo'
+                    : x.estado === 'atendiendo' ? (() => {
+                        const r = relojesDeSilla(x.desde, x.fin_estimado)
+                        return r?.fin && !r.tarde ? `  libre ~${r.fin}` : '  atendiendo'
+                      })()
                     : x.en_cola > 0 ? `  ${x.en_cola} esperando`
                     : '  libre'}
                 </Text>
