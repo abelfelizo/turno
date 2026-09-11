@@ -530,6 +530,56 @@ begin
     update turno_perfiles set estado_actual = 'disponible' where id = p_barb;
   end;
 
+  -- ── CASOS 31-33 · LA COLA QUE VE EL BARBERO ES LA QUE LE VAN A DAR ───────
+  --
+  -- Reportado desde el teléfono: «el barbero no puede ver la cola mientras
+  -- atiende a alguien, hay que exponerla». El panel filtraba por `perfil_id` a
+  -- secas, así que enseñaba SOLO a quien lo había elegido a él por nombre y
+  -- escondía a todos los de "cualquiera disponible" — que en una barbería son
+  -- la mayoría.
+  --
+  -- Y no era solo información que faltaba: era la pantalla contradiciendo al
+  -- servidor. turno_llamar_siguiente sirve
+  --
+  --     (p_perfil is null or perfil_id is null or perfil_id = p_perfil)
+  --
+  -- o sea que la siguiente persona que le toca puede ser una que su panel no
+  -- lista. Mientras atiende mira la pantalla para saber cuánta gente le queda y
+  -- le salía menos de la que hay.
+  --
+  -- El caso mira las DOS mitades, porque arreglarlo en la consulta de la app no
+  -- serviría de nada si RLS no le dejara leer esas filas.
+  update turno_cola set estado = 'atendido'
+   where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+  update turno_perfiles set estado_actual = 'disponible' where id = p_barb;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', null);
+
+  n:=n+1; c:='montaje · el segundo entró SIN barbero (si no, lo de abajo no prueba nada)';
+  if r.perfil_id is null then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — se le asignó '||r.perfil_id::text; end if;
+
+  -- Con RLS de verdad: sin `set local role` las políticas ni se evalúan.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int  from turno_cola
+   where negocio_id = v_neg and estado = 'en_fila' and perfil_id = p_barb;
+  select count(*) into v_int2 from turno_cola
+   where negocio_id = v_neg and estado = 'en_fila' and perfil_id is null;
+  reset role;
+
+  n:=n+1; c:='cola · el barbero ve al que lo eligió a él';
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — vio '||v_int; end if;
+
+  n:=n+1; c:='cola · y RLS le deja ver también al de "cualquiera disponible"';
+  if v_int2 = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — vio '||v_int2
+       ||': el panel seguiría escondiendo a quien el servidor le va a entregar'; end if;
+
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ─────────────────────
   raise exception E'\n═══ MOTOR DE COLA · % / % casos OK ═══%',
     ok, n, case when fallos = '' then E'\n  TODO VERDE' else fallos end;

@@ -8,7 +8,7 @@ import {
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
-  alargarJornada, cerrarJornada, jornadaNormal, actualizarBloqueo,
+  alargarJornada, adelantarJornada, jornadaNormal, cerrarJornada, getJornadaDe, actualizarBloqueo,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
@@ -115,7 +115,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const router = useRouter()
   const [verTodos, setVerTodos] = useState(false)
   const [estado, setEstado] = useState<any>(null)
+  const [jornada, setJornada] = useState<{ hora_inicio: string; hora_fin: string } | null>(null)
   const esHoy = fecha === hoy
+
+  /**
+   * ¿POR QUÉ PUNTA ESTÁ CERRADA LA FILA?
+   *
+   * turno_fila_abierta la cierra por las dos —antes de abrir y después de
+   * cerrar— y devuelve el mismo motivo en ambos casos, así que la pantalla no
+   * podía distinguirlas y las trataba igual. A las seis de la mañana ofrecía
+   * "seguir abierto un rato", que no es lo que pasa: todavía no has abierto, y
+   * alargar el cierre de la tarde no deja entrar a nadie ahora.
+   */
+  const antesDeAbrir = esHoy && !!jornada && horaAhora() < jornada.hora_inicio
+  const yaCerre = esHoy && !!jornada && horaAhora() >= jornada.hora_fin
   // Los locales donde trabaja. Con uno solo es una línea informativa; con
   // varios, el selector — antes había que salir a Configuración > Mis locales
   // para cambiar de sitio, que es un viaje raro para algo que se hace al llegar
@@ -126,9 +139,9 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl, est, sc] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est, sc, jo] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
-      getColaActiva(ss.negocio_id!, ss.perfil_id),
+      getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
       getNegocioById(ss.negocio_id!).catch(() => null),
       getMiUsuario().catch(() => null),
@@ -136,10 +149,13 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
       getEstadoBarbero(ss.perfil_id).catch(() => null),
       getCitasSinCerrar(ss.perfil_id).catch(() => []),
+      // A qué hora abre y cierra hoy. Sin esto la pantalla no sabe por QUÉ
+      // punta está cerrada la fila y llamaba "seguir abierto" a las 6 am.
+      getJornadaDe(ss.perfil_id, fecha).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
-    setSinCerrar(sc as any[])
+    setSinCerrar(sc as any[]); setJornada(jo as any)
     setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
@@ -167,17 +183,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargarVivo = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.perfil_id) return
-    const [c, q, bl, est, sc] = await Promise.all([
+    const [c, q, bl, est, sc, jo] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
-      getColaActiva(ss.negocio_id!, ss.perfil_id),
+      getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
       getEstadoBarbero(ss.perfil_id).catch(() => null),
       // Va también aquí porque cerrar una de ellas es una acción como otra
       // cualquiera: si no se recarga, la que acabas de cerrar sigue en la lista.
       getCitasSinCerrar(ss.perfil_id).catch(() => []),
+      // Y la jornada, porque adelantar o alargar la cambia: si no se recarga,
+      // el cuadro sigue proponiendo abrir antes después de haber abierto.
+      getJornadaDe(ss.perfil_id, fecha).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setBloqueos(bl as any[]); setEstado(est)
-    setSinCerrar(sc as any[])
+    setSinCerrar(sc as any[]); setJornada(jo as any)
   }, [fecha])
 
   /**
@@ -539,6 +558,9 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   // cliente no confirmó a tiempo. Dejarla fuera hacía que la cita de ahora
   // desapareciera del panel justo cuando el barbero más la mira.
   const citasVivas = citas.filter((c: any) => ABIERTAS.includes(c.estado))
+  // La lista del día: todo menos las canceladas. Ver la nota de CITAS DEL DÍA.
+  const citasDelDia = citas.filter((c: any) => c.estado !== 'cancelada')
+  const canceladasDelDia = citas.filter((c: any) => c.estado === 'cancelada')
   const minutosHasta = (hhmm: string) => {
     void tic
     const [h, m] = String(hhmm).split(':').map(Number)
@@ -762,13 +784,18 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             <View style={s.cerrado}>
               <Ionicons name="moon-outline" size={15} color="rgba(0,0,0,0.7)" />
               <Text style={s.cerradoT} numberOfLines={2}>
-                {estado.fila_motivo
-                  ? `Tu fila digital está cerrada: ${estado.fila_motivo}.`
-                  : 'Tu fila digital está cerrada.'}
+                {antesDeAbrir
+                  ? `Tu fila digital abre a las ${hora12(jornada!.hora_inicio)}. Hasta entonces no te entra nadie por la app.`
+                  : estado.fila_motivo
+                    ? `Tu fila digital está cerrada: ${estado.fila_motivo}.`
+                    : 'Tu fila digital está cerrada.'}
                 {' '}Puedes seguir atendiendo a quien tengas delante.
               </Text>
+              {/* El botón decía "Seguir abierto" también a las seis de la
+                  mañana, que es cuando menos sentido tiene: no has cerrado
+                  nada, todavía no has abierto. */}
               <TouchableOpacity style={s.cerradoBtn} onPress={() => setHoja({ tipo: 'jornada' })}>
-                <Text style={s.cerradoBtnT}>Seguir abierto</Text>
+                <Text style={s.cerradoBtnT}>{antesDeAbrir ? 'Abrir antes' : 'Seguir abierto'}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -822,7 +849,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               está vacía. */}
           {!citaAhora && !llamado && citaProxima && (
             <View style={s.siguiente}>
-              <Ionicons name="time-outline" size={15} color="rgba(0,0,0,0.6)" />
+              <Ionicons name="time-outline" size={15} color="rgba(255,255,255,0.8)" />
               <Text style={s.siguienteT}>
                 Después: {citaProxima.turno_usuarios?.nombre ?? 'cita'} a las {hora12(citaProxima.hora_inicio)}
               </Text>
@@ -904,7 +931,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
             const r = relojesDeSilla(estado?.desde, estado?.fin_estimado)
             return (
               <View style={s.siguiente}>
-                <Ionicons name="cut-outline" size={15} color="rgba(0,0,0,0.6)" />
+                <Ionicons name="cut-outline" size={15} color="rgba(255,255,255,0.8)" />
                 <Text style={s.siguienteT} numberOfLines={2}>
                   {[
                     llamado.turno_servicios?.nombre,
@@ -917,7 +944,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                   ].filter(Boolean).join(' · ') || 'En la silla'}
                 </Text>
                 <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: llamado })}>
-                  <Ionicons name="ellipsis-horizontal" size={16} color="rgba(0,0,0,0.6)" />
+                  <Ionicons name="ellipsis-horizontal" size={16} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
             )
@@ -934,10 +961,14 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                     <Text style={s.siguenServ}>
                       {q.turno_servicios?.nombre}
                       {q.prioridad === 1 ? ' · tenía cita' : ''}
+                      {/* Quien pidió "cualquiera disponible". Se marca porque
+                          no es lo mismo que alguien que te eligió a ti: puede
+                          acabar en otra silla si un compañero llama antes. */}
+                      {!q.perfil_id ? ' · de la fila del local' : ''}
                       {esperaDe(q) ? ` · lleva ${esperaDe(q)} min` : ''}
                     </Text>
                   </View>
-                  <Ionicons name="ellipsis-vertical" size={16} color={COLORS.textLight} />
+                  <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.7)" />
                 </TouchableOpacity>
               ))}
               {enFila.length > 4 && (
@@ -1047,9 +1078,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </>
       )}
 
-      {(daCitas || citas.length > 0) && <Text style={s.sec}>CITAS DEL DÍA</Text>}
-      {citas.length === 0 && daCitas && <Text style={s.empty}>Sin citas este día</Text>}
-      {citas.map((c: any) => (
+      {/* LAS CANCELADAS NO SON TRABAJO.
+          Reportado desde el teléfono: «hay una cita cancelada en citas de hoy
+          que se mantiene ahí». Se quedaba en la lista, con su badge, entre las
+          vivas — y ahí parece una cita que atender. Una atendida o un "no
+          llegó" SÍ son registro (dinero cobrado, ausencia que cuenta); una
+          cancelada no dejó nada: la hora volvió a estar libre y no pasó nada.
+          Se saca de la lista y se cuenta aparte, para no perder el dato de que
+          ese día hubo cancelaciones. */}
+      {(daCitas || citasDelDia.length > 0) && <Text style={s.sec}>CITAS DEL DÍA</Text>}
+      {citasDelDia.length === 0 && daCitas && <Text style={s.empty}>Sin citas este día</Text>}
+      {citasDelDia.map((c: any) => (
         <TouchableOpacity key={c.id} style={s.row} onPress={() => setHoja({ tipo: 'cita', item: c })}>
           <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
           <View style={{ flex: 1 }}>
@@ -1059,6 +1098,13 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           <Badge tone={badgeCita(c.estado) as any}>{c.estado.replace('_', ' ')}</Badge>
         </TouchableOpacity>
       ))}
+      {canceladasDelDia.length > 0 && (
+        <Text style={s.canceladas}>
+          {canceladasDelDia.length === 1
+            ? '1 cita cancelada este día'
+            : `${canceladasDelDia.length} citas canceladas este día`}
+        </Text>
+      )}
 
       {bloqueosLista.length > 0 && (
         <>
@@ -1187,29 +1233,53 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                 desde Configuración. Nadie hace eso a las nueve de la noche.
                 Esto es la excepción de HOY: caduca sola y no toca la norma. */}
             {hoja?.tipo === 'jornada' && (() => {
-              const cerrada = estado?.fila_abierta === false
+              // Las dos puntas del día son cosas distintas y hasta ahora la
+              // pantalla las contaba como una. Adelantar la apertura no es
+              // "seguir abierto": es abrir antes de lo anunciado.
               return (
                 <>
-                  <Display size={22}>{cerrada ? 'Seguir abierto un rato' : 'Tu jornada de hoy'}</Display>
+                  <Display size={22}>
+                    {antesDeAbrir ? 'Hoy abro antes' : yaCerre ? 'Seguir abierto un rato' : 'Tu jornada de hoy'}
+                  </Display>
                   <Text style={s.modalSub}>
-                    {cerrada
-                      ? 'Tu fila digital ya cerró por horario. Puedes dejarla abierta un rato más solo por hoy: mañana vuelves a tu horario de siempre.'
-                      : 'Puedes alargar el cierre de hoy o apagar la fila ya. En los dos casos es solo para hoy — tu horario de siempre no se toca.'}
+                    {antesDeAbrir
+                      ? `Hoy abres a las ${hora12(jornada!.hora_inicio)} y todavía no es la hora, así que por la app no te entra nadie. Puedes adelantar la apertura solo por hoy: mañana vuelves a tu horario de siempre.`
+                      : yaCerre
+                        ? 'Tu fila digital ya cerró por horario. Puedes dejarla abierta un rato más solo por hoy: mañana vuelves a tu horario de siempre.'
+                        : 'Puedes alargar el cierre de hoy o apagar la fila ya. En los dos casos es solo para hoy — tu horario de siempre no se toca.'}
                   </Text>
-                  {[30, 60, 120].map(min => (
-                    <Opcion key={min} icon="time-outline"
-                      t={min < 60 ? `${min} minutos más` : min === 60 ? 'Una hora más' : 'Dos horas más'}
-                      d="Vuelve a entrar gente por la app"
-                      onPress={() => op(async () => {
-                        const h = await alargarJornada(sesion.perfil_id, min)
-                        Alert.alert('Listo', `Hoy cierras a las ${hora12(h)}.`)
-                      }, 'No se pudo alargar')} />
-                  ))}
+
+                  {antesDeAbrir
+                    ? [30, 60, 120].map(min => (
+                        <Opcion key={min} icon="sunny-outline"
+                          t={min < 60 ? `Abrir ${min} minutos antes` : min === 60 ? 'Abrir una hora antes' : 'Abrir dos horas antes'}
+                          d="Empieza a entrarte gente por la app"
+                          onPress={() => op(async () => {
+                            const h = await adelantarJornada(sesion.perfil_id, min)
+                            Alert.alert('Listo', `Hoy abres a las ${hora12(h)}.`)
+                          }, 'No se pudo adelantar')} />
+                      ))
+                    : [30, 60, 120].map(min => (
+                        <Opcion key={min} icon="time-outline"
+                          t={min < 60 ? `${min} minutos más` : min === 60 ? 'Una hora más' : 'Dos horas más'}
+                          d="Vuelve a entrar gente por la app"
+                          onPress={() => op(async () => {
+                            const h = await alargarJornada(sesion.perfil_id, min)
+                            Alert.alert('Listo', `Hoy cierras a las ${hora12(h)}.`)
+                          }, 'No se pudo alargar')} />
+                      ))}
                   {/* La vuelta atrás. Sin esto, alargar deja al barbero
                       recibiendo clientes hasta la hora que puso aunque se haya
                       ido a su casa — y eso es peor que no poder alargar. */}
-                  <Opcion icon="moon-outline" t="Ya cierro por hoy" rojo
-                    d="Apaga tu fila ahora mismo; mañana abre a tu hora"
+                  {/* Antes de abrir, "ya cierro por hoy" se lee raro pero es la
+                      acción correcta: cerrar_jornada pone el cierre AHORA, y
+                      con el cierre por delante de la apertura turno_jornada_de
+                      no devuelve jornada — el día queda cerrado entero. Es
+                      justo lo que quiere decir "hoy no abro". */}
+                  <Opcion icon="moon-outline" t={antesDeAbrir ? 'Hoy no abro' : 'Ya cierro por hoy'} rojo
+                    d={antesDeAbrir
+                      ? 'Deja tu fila cerrada todo el día; mañana abre a tu hora'
+                      : 'Apaga tu fila ahora mismo; mañana abre a tu hora'}
                     onPress={() => op(() => cerrarJornada(sesion.perfil_id), 'No se pudo cerrar')} />
                   <Opcion icon="refresh-outline" t="Volver a mi horario de siempre"
                     d="Deshace los cambios de hoy"
@@ -1493,9 +1563,11 @@ const s = StyleSheet.create({
   cuentaBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   cuentaBtnFuerte: { backgroundColor: '#fff' },
   cuentaBtnFuerteT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
+  // Velo OSCURO y texto blanco, igual que `cuenta`. Estaba al revés —velo claro
+  // y texto casi negro— y es el mismo fallo que tenía SIGUEN: ver abajo.
   siguiente: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10,
-    backgroundColor: 'rgba(255,255,255,0.45)', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 11 },
-  siguienteT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(0,0,0,0.7)' },
+    backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 11 },
+  siguienteT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#fff' },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   cerrado: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.9)',
     borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
@@ -1510,12 +1582,32 @@ const s = StyleSheet.create({
   accionPral: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingVertical: 14, marginTop: 12 },
   accionPralT: { color: COLORS.ink, fontSize: 15.5, fontWeight: '800' },
-  siguen: { marginTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.10)', paddingTop: 8 },
-  siguenLbl: { color: 'rgba(0,0,0,0.55)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
+  // LA LISTA DE LOS QUE SIGUEN, LEGIBLE.
+  //
+  // Reportado desde el teléfono tres veces seguidas: «el barbero no puede ver
+  // la cola mientras atiende», «no puede ver la lista de los que siguen ni su
+  // estado», «tampoco después de terminar y llamar al siguiente». Las tres son
+  // el mismo fallo y no era que no se pintara: se pintaba en CASI NEGRO sobre
+  // el fondo del panel.
+  //
+  // Los cuatro fondos del cuadro de estado son oscuros —azul #1646E0 para
+  // atendiendo, verde #1E7E34 para libre, ámbar #B45309, gris #9A9CA6— y todo
+  // lo demás que vive ahí dentro está escrito en blanco (`cuenta*`) o sobre un
+  // velo claro (`accionPral`, `cerrado`). Este bloque se quedó con los colores
+  // de cuando vivía FUERA del panel: texto COLORS.ink sobre azul fuerte es un
+  // contraste de ~2:1. Invisible. Y en cuanto hay alguien llamado o sentado el
+  // panel se pone azul, que es justo cuando el barbero necesita la lista — por
+  // eso los tres reportes hablan de "mientras atiende" y "al llamar".
+  //
+  // Ahora sigue el patrón de `cuenta`: velo oscuro translúcido y texto blanco,
+  // que funciona igual sobre los cuatro colores en vez de sobre ninguno.
+  siguen: { marginTop: 10, backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13,
+    paddingHorizontal: 11, paddingTop: 9, paddingBottom: 3 },
+  siguenLbl: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
   siguenRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  siguenPos: { width: 18, textAlign: 'center', color: 'rgba(0,0,0,0.55)', fontSize: 13, fontWeight: '800' },
-  siguenName: { color: COLORS.ink, fontSize: 14.5, fontWeight: '700' },
-  siguenServ: { color: 'rgba(0,0,0,0.6)', fontSize: 12.5, marginTop: 1 },
+  siguenPos: { width: 18, textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '800' },
+  siguenName: { color: '#fff', fontSize: 14.5, fontWeight: '700' },
+  siguenServ: { color: 'rgba(255,255,255,0.8)', fontSize: 12.5, marginTop: 1 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
@@ -1555,9 +1647,11 @@ const s = StyleSheet.create({
   fichaNota: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 8, fontStyle: 'italic' },
   fichaNotaPriv: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 6 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
-  verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, textAlign: 'center', paddingVertical: 10 },
+  // Vive dentro del velo oscuro de `siguen`: el rojo de marca ahí no se lee.
+  verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', textAlign: 'center', paddingVertical: 10 },
   secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
+  canceladas: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, paddingVertical: 8, paddingHorizontal: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
   rowName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },

@@ -35,7 +35,7 @@ declare
   v_cod text := 'JO-' || upper(substr(md5(random()::text),1,5));
   v_tz text := 'America/Santo_Domingo'; v_ahora timestamp; v_hoy date; v_dow int;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
-  v_txt text; v_int int; v_fin time; abiertas text := '';
+  v_txt text; v_int int; v_ini time; v_fin time; abiertas text := '';
 begin
   v_ahora := (now() at time zone v_tz); v_hoy := v_ahora::date; v_dow := extract(dow from v_ahora);
 
@@ -172,13 +172,14 @@ begin
   -- gran cosa —las horas de una barbería están en la puerta de la calle— pero
   -- devolver algo y negarse se parecen mientras la consulta funcione, que es
   -- justo la lección de la migración 84.
-  n:=n+1; c:='puerta · un anónimo no llega a ninguna de las cuatro';
+  n:=n+1; c:='puerta · un anónimo no llega a ninguna de las cinco';
   perform set_config('request.jwt.claims', null, true);
   set local role anon;
   begin perform turno_alargar_jornada(p_due, 30); abiertas := abiertas||' alargar';    exception when others then null; end;
   begin perform turno_cerrar_jornada(p_due);      abiertas := abiertas||' cerrar';     exception when others then null; end;
   begin perform turno_jornada_normal(p_due);      abiertas := abiertas||' normal';     exception when others then null; end;
   begin perform turno_jornada_de(p_due, v_hoy);   abiertas := abiertas||' jornada_de'; exception when others then null; end;
+  begin perform turno_adelantar_jornada(p_due, 30); abiertas := abiertas||' adelantar'; exception when others then null; end;
   reset role;
   if abiertas = '' then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - abiertas:'||abiertas; end if;
@@ -301,6 +302,94 @@ begin
     insert into turno_jornadas (perfil_id, fecha, hora_fin) values (p_ren, v_hoy + 1, time '23:59');
     reset role; ok:=ok+1;
   exception when others then reset role; fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  -- ═══ LA OTRA PUNTA DEL DÍA: HOY ABRO ANTES (migración 91) ═════════════════
+  --
+  -- La 87 dio "hoy cierro más tarde" y se olvidó de la mañana. Reportado desde
+  -- el teléfono: «si abro a las 8am y quiero abrir a las 6am ese día no debería
+  -- decir seguir abierto porque no sería una extensión sino un adelanto». Y no
+  -- había cómo: alargar solo mueve hora_fin, y a las 6am eso no deja entrar a
+  -- nadie AHORA.
+  --
+  -- Adelantar INVENTA disponibilidad igual que alargar —compromete a estar ahí
+  -- antes de lo anunciado— así que va por la misma puerta: turno_manda_en_el_
+  -- horario (R11). Los casos de abajo son los de alargar, en espejo.
+  --
+  -- Se limpia la jornada de hoy de los dos perfiles antes de empezar: los casos
+  -- de arriba llamaron a turno_cerrar_jornada, que deja un hora_fin en el
+  -- pasado, y con el cierre por delante de la apertura turno_jornada_de no
+  -- devuelve nada. Sin esto estos casos rebotarían con "hoy no tienes jornada"
+  -- y pasarían por la razón equivocada.
+  delete from turno_jornadas where perfil_id in (p_emp, p_ren) and fecha = v_hoy;
+  insert into turno_horarios (perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
+  select pf, v_dow, time '23:00', time '23:59', true, 0 from (values (p_emp), (p_ren)) x(pf)
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = time '23:00', hora_fin = time '23:59', activo = true;
+
+  n:=n+1; c:='adelantar · mueve la APERTURA y deja el cierre donde estaba';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  begin
+    perform turno_adelantar_jornada(p_emp, 60);
+    select j.hora_inicio, j.hora_fin into v_ini, v_fin from turno_jornada_de(p_emp, v_hoy) j;
+    if v_ini = time '22:00' and v_fin = time '23:59' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - abre '||coalesce(v_ini::text,'?')
+         ||' y cierra '||coalesce(v_fin::text,'?')||' (esperado 22:00 / 23:59)'; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  n:=n+1; c:='adelantar · el DUEÑO sí le abre antes a su empleado (R11)';
+  begin perform turno_adelantar_jornada(p_emp, 30); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  n:=n+1; c:='adelantar · el EMPLEADO no se abre el día por su cuenta (R11)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  begin
+    perform turno_adelantar_jornada(p_emp, 30);
+    fallos:=fallos||E'\n  x '||c||' - se saltó que en su local el horario lo decide la barbería';
+  exception when others then
+    if sqlerrm like '%no lo decides tú%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó con "'||sqlerrm||'", que no es la regla'; end if;
+  end;
+
+  n:=n+1; c:='adelantar · el RENTADO sí se abre la suya (R11)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  begin perform turno_adelantar_jornada(p_ren, 60); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  -- El espejo del caso de alargar, y la razón de que la 88 exista: moverle las
+  -- horas a quien te RENTA el asiento es cambiarle el negocio a otro dentro de
+  -- tu local.
+  n:=n+1; c:='adelantar · el dueño de asientos NO le abre el día a quien le renta (R11)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  begin
+    perform turno_adelantar_jornada(p_ren, 60);
+    fallos:=fallos||E'\n  x '||c||' - le movió las horas a un negocio ajeno dentro de su local';
+  exception when others then
+    if sqlerrm like '%no lo decides tú%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó con "'||sqlerrm||'", que no es la regla'; end if;
+  end;
+
+  n:=n+1; c:='adelantar · ni cinco minutos ni medio día';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  begin
+    perform turno_adelantar_jornada(p_ren, 5);
+    fallos:=fallos||E'\n  x '||c||' - aceptó 5 minutos';
+  exception when others then
+    if sqlerrm like '%entre 15 minutos y 4 horas%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  -- Abrir un día que no trabajas no es adelantar: es cambiar el horario, y esa
+  -- decisión se toma mirándola, no desde un botón de "hoy".
+  n:=n+1; c:='adelantar · un día sin jornada no se abre desde aquí';
+  update turno_horarios set activo = false where perfil_id = p_ren and dia_semana = v_dow;
+  delete from turno_jornadas where perfil_id = p_ren and fecha = v_hoy;
+  begin
+    perform turno_adelantar_jornada(p_ren, 60);
+    fallos:=fallos||E'\n  x '||c||' - abrió un día libre sin tocar el horario';
+  exception when others then
+    if sqlerrm like '%no tienes jornada%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
 
   raise exception E'\n=== JORNADA DE HOY · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

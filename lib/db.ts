@@ -471,6 +471,33 @@ export async function alargarJornada(perfil_id: string, minutos: number): Promis
   if (error) throw error
   return String(data ?? '')
 }
+/**
+ * "Hoy abro antes" (migración 91).
+ *
+ * La otra punta del día, que a la 87 se le olvidó. Alargar mueve `hora_fin`, y
+ * a las 6 de la mañana eso no deja entrar a nadie AHORA: lo que hace falta es
+ * mover `hora_inicio` hacia atrás. Inventa disponibilidad igual que alargar, así
+ * que el servidor la decide con la misma regla (R11).
+ */
+export async function adelantarJornada(perfil_id: string, minutos: number): Promise<string> {
+  const { data, error } = await supabase.rpc('turno_adelantar_jornada', { p_perfil: perfil_id, p_minutos: minutos })
+  if (error) throw error
+  return String(data ?? '')
+}
+/**
+ * A qué hora abre y cierra HOY esta silla, ya con las excepciones aplicadas.
+ *
+ * Hace falta en la pantalla para saber por QUÉ punta está cerrada la fila:
+ * turno_fila_abierta la cierra tanto antes de abrir como después de cerrar, y
+ * devuelve el mismo motivo en los dos casos. Sin esto la app llamaba "seguir
+ * abierto" a las seis de la mañana, cuando todavía no había abierto nada.
+ */
+export async function getJornadaDe(perfil_id: string, fecha: string):
+  Promise<{ hora_inicio: string; hora_fin: string; gap: number } | null> {
+  const { data, error } = await supabase.rpc('turno_jornada_de', { p_perfil: perfil_id, p_fecha: fecha })
+  if (error) throw error
+  return (data && data[0]) || null
+}
 /** "Ya cierro": apaga la fila de hoy a esta hora. Mañana abre a su hora. */
 export async function cerrarJornada(perfil_id: string) {
   const { error } = await supabase.rpc('turno_cerrar_jornada', { p_perfil: perfil_id })
@@ -807,13 +834,43 @@ export async function crearCita(cita: {
 }
 
 // COLA
-export async function getColaActiva(negocio_id: string, perfil_id?: string) {
+/**
+ * LA COLA QUE DE VERDAD LE TOCA A ESTE BARBERO.
+ *
+ * Reportado desde el teléfono: «el barbero no puede ver la cola mientras
+ * atiende a alguien, hay que exponerla». Filtrando por `perfil_id` a secas, el
+ * panel enseñaba SOLO a quien lo eligió a él por nombre — y escondía a todos
+ * los que pidieron "cualquiera disponible", que en una barbería son la mayoría.
+ *
+ * Y eso no es solo información que falta: es la pantalla contradiciendo al
+ * servidor. turno_llamar_siguiente sirve
+ *
+ *     (p_perfil is null or perfil_id is null or perfil_id = p_perfil)
+ *
+ * o sea que la siguiente persona que le va a tocar puede ser perfectamente una
+ * que su panel no lista. Mientras está atendiendo mira la pantalla para saber
+ * cuánta gente le queda, y le salía menos de la que hay.
+ *
+ * `incluirSinAsignar` hace que la pantalla enseñe la misma cola que el servidor
+ * le va a dar. Los turnos ya llamados nunca llegan aquí sin barbero:
+ * turno_llamar_siguiente hace `coalesce(perfil_id, p_perfil)` al llamar, así que
+ * un turno sin asignar solo puede estar 'en_fila'.
+ */
+export async function getColaActiva(
+  negocio_id: string,
+  perfil_id?: string,
+  opts?: { incluirSinAsignar?: boolean },
+) {
   // El nombre del BARBERO asignado viaja con cada turno. Sin él, las dos
   // pantallas del dueño que lo enseñan —la cola del panel y "Cola del local"—
   // escribían "Sin asignar" en todas las filas, incluidas las que sí tenían
   // barbero: leían turno_perfiles y nadie lo estaba trayendo.
   let query = supabase.from(T('cola')).select('*, turno_usuarios(nombre, telefono), turno_servicios(nombre, duracion_min), turno_perfiles(usuario_id, turno_usuarios(nombre))').eq('negocio_id', negocio_id).in('estado', ['en_fila','llamado','en_camino','atendiendo']).order('prioridad').order('posicion')
-  if (perfil_id) query = query.eq('perfil_id', perfil_id)
+  if (perfil_id) {
+    query = opts?.incluirSinAsignar
+      ? query.or(`perfil_id.eq.${perfil_id},perfil_id.is.null`)
+      : query.eq('perfil_id', perfil_id)
+  }
   const { data, error } = await query
   if (error) throw error
   return (data || []).sort(ordenDeAtencion)

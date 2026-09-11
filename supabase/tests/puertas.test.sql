@@ -563,6 +563,11 @@ begin
   -- Migración 87. Alargar o cerrar la jornada de otro es moverle el negocio.
   begin perform turno_alargar_jornada(p_bar, 30);
     abiertas := abiertas || ' alargar_jornada'; exception when others then null; end;
+  -- Migración 91, el mismo día que se escribe. La regla ya no depende de que me
+  -- acuerde —el censo de abajo lo cazaría— pero el censo mira permisos y esto
+  -- mira porteros, que son cosas distintas.
+  begin perform turno_adelantar_jornada(p_bar, 30);
+    abiertas := abiertas || ' adelantar_jornada'; exception when others then null; end;
   begin perform turno_cerrar_jornada(p_bar);
     abiertas := abiertas || ' cerrar_jornada'; exception when others then null; end;
   begin perform turno_jornada_normal(p_bar);
@@ -659,7 +664,7 @@ begin
   --     exención es una decisión, no una categoría en la que colar cosas.
   declare
     v_red text[] := array[
-      'turno_agendar_grupo','turno_alargar_jornada','turno_aplicar_canje',
+      'turno_adelantar_jornada','turno_agendar_grupo','turno_alargar_jornada','turno_aplicar_canje',
       'turno_asientos_negocio','turno_asignar_cola','turno_atender_sin_cita',
       'turno_avisos_de_espera','turno_cambiar_modalidad','turno_cambiar_servicio',
       'turno_cambiar_tipo_negocio','turno_carga_de_fila','turno_cerrar_citas_viejas',
