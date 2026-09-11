@@ -44,7 +44,7 @@ declare
   v_hoy date; v_manana date; v_t time;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
   v_int int; v_txt text; v_bool boolean;
-  q_ausente uuid; q_detras uuid; q_presente uuid; v_pos_antes int;
+  q_ausente uuid; q_detras uuid; q_presente uuid; v_pos_antes int; v_bloq_edit uuid;
 begin
   v_hoy    := (now() at time zone v_tz)::date;
   v_manana := v_hoy + 1;
@@ -168,6 +168,46 @@ begin
   -- ── AGENDA × FILA ─────────────────────────────────────────────────────────
   -- Una cita confirmada en curso reserva al barbero: la fila espera su turno,
   -- no se lo come.
+  -- ── EL BLOQUEO SE MODIFICA, NO SOLO SE QUITA ──────────────────────────────
+  -- Del piloto: «si el barbero llega antes puede borrarla o modificarla luego».
+  -- Antes solo se podía liberar entero: para pasar de "12 a 2" a "12 a 1" había
+  -- que borrarlo y recrearlo, y en ese hueco podía colarse una reserva justo en
+  -- la hora que se estaba protegiendo.
+  --
+  -- Lo que hay que fijar es que modificar NO sea una puerta trasera: el
+  -- disparador trg_turno_bloqueo_citas es BEFORE INSERT OR UPDATE, así que
+  -- alargar encima de una cita tiene que negarse igual que crearlo encima.
+  insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
+  values (p_bar, v_manana, time '15:00', time '17:00', 'Diligencia larga') returning id into v_bloq_edit;
+
+  n:=n+1; c:='bloqueo · acortarlo libera las horas que suelta';
+  update turno_bloqueos set hora_fin = time '16:00' where id = v_bloq_edit;
+  select count(*) into v_int from turno_slots_disponibles(p_bar, v_manana, s_corte) s
+   where s >= time '16:00' and s < time '17:00';
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la hora soltada sigue sin ofrecerse'; end if;
+
+  n:=n+1; c:='bloqueo · y lo que sigue bloqueado sigue bloqueado';
+  select count(*) into v_int from turno_slots_disponibles(p_bar, v_manana, s_corte) s
+   where s >= time '15:00' and s < time '16:00';
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos dentro'; end if;
+
+  n:=n+1; c:='bloqueo · alargarlo NO puede taparle una cita ya reservada';
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_c2, v_neg, s_corte, v_manana, time '18:00', time '18:30', 'confirmada');
+  begin
+    update turno_bloqueos set hora_fin = time '19:00' where id = v_bloq_edit;
+    fallos:=fallos||E'\n  x '||c||' - modificar se saltó lo que crear tiene prohibido';
+  exception when others then
+    if sqlerrm like '%cita%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - se negó por otra razón: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='bloqueo · tras el intento fallido se queda como estaba';
+  select hora_fin::text into v_txt from turno_bloqueos where id = v_bloq_edit;
+  if v_txt = '16:00:00' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'NULL'); end if;
+
   n:=n+1; c:='agenda · una cita en curso frena la fila';
   insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
   values (p_bar, u_c2, v_neg, s_corte, v_hoy,

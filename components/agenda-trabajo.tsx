@@ -8,7 +8,7 @@ import {
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
-  alargarJornada, cerrarJornada, jornadaNormal,
+  alargarJornada, cerrarJornada, jornadaNormal, actualizarBloqueo,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
@@ -102,7 +102,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     | { tipo: 'sacar'; item: any }
     | { tipo: 'servicios'; modo: 'ocupar' }
     | { tipo: 'servicios'; modo: 'cambiar'; item: any }
-    | { tipo: 'bloqueo' }
+    | { tipo: 'bloqueo'; item?: any }
     | { tipo: 'cita'; item: any }
     | { tipo: 'bloqueoVer'; item: any }
     | { tipo: 'jornada' }
@@ -231,10 +231,19 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     finally { setWEnviando(false) }
   }
 
-  async function guardarBloqueo() {
+  async function guardarBloqueo(editando?: any) {
     setBEnviando(true)
+    const desde = `${String(bIni).padStart(2, '0')}:00`
+    const hasta = `${String(bFin).padStart(2, '0')}:00`
     try {
-      await crearBloqueo({ perfil_id: sesion.perfil_id, fecha, hora_inicio: `${String(bIni).padStart(2, '0')}:00`, hora_fin: `${String(bFin).padStart(2, '0')}:00`, motivo: bMotivo.trim() || undefined })
+      if (editando?.id) {
+        // Se MODIFICA en su sitio, no se borra y se recrea: entre el borrado y
+        // el alta nueva quedaría un hueco abierto por el que puede colarse una
+        // reserva justo en la hora que se está protegiendo.
+        await actualizarBloqueo(editando.id, { hora_inicio: desde, hora_fin: hasta, motivo: bMotivo.trim() || undefined })
+      } else {
+        await crearBloqueo({ perfil_id: sesion.perfil_id, fecha, hora_inicio: desde, hora_fin: hasta, motivo: bMotivo.trim() || undefined })
+      }
       setHoja(null); setBMotivo(''); refrescar()
     } catch (e: any) { Alert.alert('No se pudo bloquear', e.message ?? 'Intenta de nuevo.') }
     finally { setBEnviando(false) }
@@ -1225,6 +1234,21 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                       ? 'Esta hora ya pasó, así que no le quita sitio a nadie. Se borra sola esta noche.'
                       : 'Mientras esté puesta, nadie puede reservar esa hora contigo. Si terminas antes, libérala y vuelve a aparecer en la agenda.'}
                   </Text>
+                  {/* CAMBIARLA, NO SOLO QUITARLA (pedido del piloto: «si el
+                      barbero llega antes puede borrarla o modificarla luego»).
+                      Antes solo se podía liberar entera: para pasar de "12 a 2"
+                      a "12 a 1" había que borrarla y volver a crearla, y en ese
+                      hueco podía colarse una reserva. */}
+                  {!yaPaso && (
+                    <Opcion icon="create-outline" t="Cambiar la hora"
+                      d="Si terminas antes, o si necesitas más rato"
+                      onPress={() => {
+                        setBIni(parseInt(String(b.hora_inicio).slice(0, 2), 10))
+                        setBFin(parseInt(String(b.hora_fin).slice(0, 2), 10))
+                        setBMotivo(b.motivo ?? '')
+                        setHoja({ tipo: 'bloqueo', item: b })
+                      }} />
+                  )}
                   <Opcion icon="lock-open-outline" t="Liberar esta hora" rojo
                     d="Vuelve a estar disponible para reservas"
                     onPress={() => op(() => borrarBloqueo(b.id), 'No se pudo liberar')} />
@@ -1367,8 +1391,11 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
 
             {hoja?.tipo === 'bloqueo' && (
               <>
-                <Display size={22}>Bloquear hora</Display>
-                <Text style={s.modalSub}>{fechaLarga(fechaDeISO(fecha))}. Ese rango no se ofrecerá para citas.</Text>
+                <Display size={22}>{hoja.item ? 'Cambiar la hora bloqueada' : 'Bloquear hora'}</Display>
+                <Text style={s.modalSub}>
+                  {fechaLarga(fechaDeISO(fecha))}. Ese rango no se ofrecerá para citas.
+                  {hoja.item ? ' Si lo acortas, las horas que sueltes vuelven a estar libres.' : ''}
+                </Text>
                 <Text style={s.flabel}>Desde</Text>
                 <View style={s.stepRow}>
                   <TouchableOpacity style={s.stepBtn} onPress={() => setBIni(Math.max(0, bIni - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
@@ -1383,7 +1410,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                 </View>
                 <Text style={s.flabel}>Motivo (opcional)</Text>
                 <TextInput style={s.input} placeholder="Almuerzo, descanso…" placeholderTextColor={COLORS.textLight} value={bMotivo} onChangeText={setBMotivo} />
-                <TouchableOpacity style={s.modalBtn} onPress={guardarBloqueo} disabled={bEnviando}>{bEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnT}>Bloquear</Text>}</TouchableOpacity>
+                <TouchableOpacity style={s.modalBtn} onPress={() => guardarBloqueo(hoja.item)} disabled={bEnviando}>{bEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.modalBtnT}>{hoja.item ? 'Guardar el cambio' : 'Bloquear'}</Text>}</TouchableOpacity>
                 <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cancelar</Text></TouchableOpacity>
               </>
             )}

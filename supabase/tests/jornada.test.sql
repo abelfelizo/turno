@@ -28,6 +28,10 @@ do $$
 declare
   a_due uuid := gen_random_uuid(); a_cli uuid := gen_random_uuid();
   u_due uuid; u_cli uuid; v_neg uuid; p_due uuid; s_corte uuid;
+  -- El segundo local y sus dos personas, para la parte de "de quién es la
+  -- jornada": hace falta un local de CADA modalidad para poder distinguirlas.
+  a_emp uuid := gen_random_uuid(); a_due2 uuid := gen_random_uuid(); a_ren uuid := gen_random_uuid();
+  u_due2 uuid; v_neg2 uuid; p_emp uuid; p_due2 uuid; p_ren uuid; v_cod2 text;
   v_cod text := 'JO-' || upper(substr(md5(random()::text),1,5));
   v_tz text := 'America/Santo_Domingo'; v_ahora timestamp; v_hoy date; v_dow int;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
@@ -178,6 +182,125 @@ begin
   reset role;
   if abiertas = '' then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - abiertas:'||abiertas; end if;
+
+  -- ══ DE QUIÉN ES LA JORNADA (migración 88) ═════════════════════════════════
+  --
+  -- La 87 dejó las tres funciones detrás de turno_perfil_operable —"mi silla o
+  -- soy el dueño"— y esa es la puerta equivocada. Al lado de la regla que este
+  -- repo ya tenía para los horarios (R11):
+  --
+  --   (es_mi_perfil AND autonomo) OR (perfil_admin AND NOT autonomo)
+  --
+  -- se colaban dos cosas: el dueño de un local de asientos alquilados podía
+  -- moverle el cierre a quien le RENTA —cambiarle las horas a un negocio ajeno
+  -- dentro de su propio local— y un empleado podía alargarse el día saltándose
+  -- que en su local el horario lo pone la barbería.
+  --
+  -- PERO NO LAS DOS IGUAL. La doctrina de los bloqueos ya lo resuelve: «son del
+  -- barbero en todos los casos: solo QUITAN disponibilidad, nunca la inventan».
+  --
+  --   · ALARGAR inventa: compromete a alguien a estar ahí → manda el horario.
+  --   · CERRAR quita: es un bloqueo que dura lo que queda del día → es de quien
+  --     opera la silla. Si el barbero se va, se va.
+  --
+  -- Hace falta un local de CADA tipo: con uno solo, la mitad de estos casos no
+  -- se puede distinguir de la otra.
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+  values (a_emp ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','je_'||v_cod||'@t.test','',now(),now()),
+         (a_due2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','j2_'||v_cod||'@t.test','',now(),now()),
+         (a_ren ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','jr_'||v_cod||'@t.test','',now(),now());
+
+  -- El de arriba ya es un local de EMPLEADOS; le entra un empleado.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  select * into r from turno_unirse_profesional(v_cod,'barbero','empleado','Empleado','809');
+  p_emp := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set aprobado = true where id = p_emp;
+
+  -- Y uno de ASIENTOS ALQUILADOS aparte.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  perform turno_crear_negocio('Local Rentado','espacios_rentados','DOP',true,'barbero','Duenno2','809',
+                              1, 10, 5, true, 1, 3, false, true);
+  select id into u_due2 from turno_usuarios where auth_id = a_due2;
+  select id, negocio_id into p_due2, v_neg2 from turno_perfiles where usuario_id = u_due2 limit 1;
+  select codigo_acceso into v_cod2 from turno_negocios where id = v_neg2;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  select * into r from turno_unirse_profesional(v_cod2,'barbero','barbero_renta','Rentado','809');
+  p_ren := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  update turno_perfiles set aprobado = true where id = p_ren;
+
+  n:=n+1; c:='montaje · el empleado NO es autónomo y el rentado SÍ';
+  if not turno_perfil_autonomo(p_emp) and turno_perfil_autonomo(p_ren) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' (sin esto, lo de abajo no prueba nada)'; end if;
+
+  n:=n+1; c:='alargar · el DUEÑO sí alarga a su empleado (en su local él pone el horario)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  begin perform turno_alargar_jornada(p_emp, 30); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  n:=n+1; c:='alargar · el EMPLEADO no se alarga el día solo';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  begin
+    perform turno_alargar_jornada(p_emp, 30);
+    fallos:=fallos||E'\n  x '||c||' - se saltó que el horario lo pone la barbería';
+  exception when others then
+    if sqlerrm like '%no lo decides tú%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - se negó por otra razón: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='alargar · el RENTADO sí se alarga el suyo';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  begin perform turno_alargar_jornada(p_ren, 30); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- EL CASO QUE MOTIVÓ LA MIGRACIÓN 88.
+  n:=n+1; c:='alargar · el dueño NO le mueve las horas a quien le RENTA el asiento';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  begin
+    perform turno_alargar_jornada(p_ren, 30);
+    fallos:=fallos||E'\n  x '||c||' - le cambió las horas a un negocio ajeno dentro de su local';
+  exception when others then
+    if sqlerrm like '%no lo decides tú%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='cerrar · el EMPLEADO sí puede cerrar su fila hoy (quita, no inventa)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  begin perform turno_cerrar_jornada(p_emp); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm
+       ||' (si se va, se va: nadie le obliga a seguir recibiendo gente)'; end;
+
+  n:=n+1; c:='cerrar · y el RENTADO también la suya';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  begin perform turno_cerrar_jornada(p_ren); ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  n:=n+1; c:='cerrar · el dueño AJENO sigue sin poder tocar nada';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  begin
+    perform turno_cerrar_jornada(p_ren);
+    fallos:=fallos||E'\n  x '||c||' - cerró la fila de otro local';
+  exception when others then ok:=ok+1; end;
+
+  -- UNA REGLA QUE SOLO VALE POR LA FUNCIÓN NO ES UNA REGLA. La tabla lleva la
+  -- misma política que turno_horarios, así que entrar por detrás tampoco cuela.
+  n:=n+1; c:='RLS · el empleado no se escribe la jornada a mano saltándose la función';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_jornadas (perfil_id, fecha, hora_fin) values (p_emp, v_hoy + 1, time '23:59');
+    reset role;
+    fallos:=fallos||E'\n  x '||c||' - entró por la tabla lo que la función le negaba';
+  exception when others then reset role; ok:=ok+1; end;
+
+  n:=n+1; c:='RLS · el rentado SÍ escribe la suya';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_jornadas (perfil_id, fecha, hora_fin) values (p_ren, v_hoy + 1, time '23:59');
+    reset role; ok:=ok+1;
+  exception when others then reset role; fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
 
   raise exception E'\n=== JORNADA DE HOY · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

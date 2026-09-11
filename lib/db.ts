@@ -572,6 +572,23 @@ export async function borrarBloqueo(id: string) {
 }
 
 /**
+ * CORREGIR UN BLOQUEO YA PUESTO (pedido del piloto).
+ *
+ * «Si el barbero llega antes puede borrarla o modificarla luego.» Antes solo se
+ * podía liberar entera: para cambiar "de 12 a 2" por "de 12 a 1" había que
+ * borrarla y volver a crearla, y en medio quedaba un hueco abierto por el que
+ * podía colarse una reserva.
+ *
+ * El trigger que impide tapar una cita ya reservada corre también en el UPDATE,
+ * así que acortar siempre pasa y alargar se niega si pisa algo — que es lo que
+ * tiene que ocurrir.
+ */
+export async function actualizarBloqueo(id: string, patch: { hora_inicio?: string; hora_fin?: string; motivo?: string }) {
+  const { error } = await supabase.from(T('bloqueos')).update(patch).eq('id', id)
+  if (error) throw error
+}
+
+/**
  * SIN CITA: entra a la fila como todo el mundo, y ya sentado.
  *
  * Antes esto llamaba a `turno_ocupar_ahora`, que en vez de crear un turno metía

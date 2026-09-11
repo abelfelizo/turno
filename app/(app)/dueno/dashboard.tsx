@@ -136,8 +136,30 @@ export default function Dashboard() {
       nombre: (p.turno_usuarios?.nombre ?? 'Profesional').split(' ')[0],
       color: COLOR_SILLA[e?.estado ?? 'inactivo'] ?? 'rgba(255,255,255,0.35)',
       detalle: r?.fin ? (r.tarde ? `+${Math.abs(r.faltan ?? 0)} min` : `~${r.fin}`) : null,
+      cerrada: e?.fila_abierta === false,
+      motivo: e?.fila_motivo ?? null,
     }
   })
+
+  /**
+   * EL LOCAL CERRADO, VISTO POR EL DUEÑO (pedido del piloto: «local cerrado, la
+   * tarjeta de estado debe ser diferente en dueños y barbero»).
+   *
+   * Y tiene que ser diferente porque la pregunta es otra. El barbero mira SU
+   * silla y lo que necesita es una salida: "sigo abierto un rato". El dueño mira
+   * TODAS y lo que necesita es saber si por la app le puede entrar alguien —y si
+   * no, por qué—, sin poder decidir por la silla de otro.
+   *
+   * Aquí no hay botón de alargar a propósito. Desde la migración 88 alargar la
+   * jornada INVENTA disponibilidad y por tanto la decide quien manda en el
+   * horario de esa silla: en un local de empleados, él; donde alquila asientos,
+   * cada barbero. Un botón que a veces funciona y a veces no, según a quién
+   * apuntes, enseña peor que no tenerlo. Su propia silla la maneja entera desde
+   * "Mi silla", que es donde vive esa decisión.
+   */
+  const sillasCerradas = sillas.filter((x: any) => x.cerrada)
+  const todasCerradas = sillas.length > 0 && sillasCerradas.length === sillas.length
+  const motivosCierre = Array.from(new Set(sillasCerradas.map((x: any) => x.motivo).filter(Boolean))) as string[]
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -191,17 +213,38 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Las sillas, de un vistazo: quién está libre y quién ocupado. */}
+        {/* Las sillas, de un vistazo: quién está libre y quién ocupado. La que
+            tiene la fila cerrada se marca aparte: puede estar "libre" y no
+            entrarle nadie, que es lo que confundía. */}
         {sillas.length > 0 && (
           <View style={s.sillasRow}>
             {sillas.map((x: any) => (
-              <View key={x.id} style={s.sillaChip}>
+              <View key={x.id} style={[s.sillaChip, x.cerrada && s.sillaChipOff]}>
                 <View style={[s.sillaPunto, { backgroundColor: x.color }]} />
                 <Text style={s.sillaChipT} numberOfLines={1}>
-                  {x.nombre}{x.detalle ? <Text style={s.sillaChipD}>  {x.detalle}</Text> : null}
+                  {x.nombre}
+                  {x.cerrada
+                    ? <Text style={s.sillaChipD}>  sin fila</Text>
+                    : x.detalle ? <Text style={s.sillaChipD}>  {x.detalle}</Text> : null}
                 </Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {/* EL LOCAL CERRADO PARA LA APP. Lo que el dueño necesita saber y no
+            estaba en ninguna parte: si por la fila digital le puede entrar
+            alguien ahora mismo, y si no, por qué. Sin botón de alargar — ver la
+            nota de arriba: esa decisión es de quien manda en cada horario. */}
+        {sillasCerradas.length > 0 && (
+          <View style={s.cerradoBox}>
+            <Ionicons name="moon-outline" size={15} color="rgba(255,255,255,0.8)" />
+            <Text style={s.cerradoT}>
+              {todasCerradas
+                ? `Nadie puede entrar a la fila digital ahora mismo${motivosCierre.length === 1 ? `: ${motivosCierre[0]}` : '.'}`
+                : `${sillasCerradas.length} de ${sillas.length} sillas tienen la fila cerrada.`}
+              {' '}Quien llegue al local se atiende igual: la silla es del barbero.
+            </Text>
           </View>
         )}
 
@@ -352,6 +395,10 @@ const s = StyleSheet.create({
   // cada silla no se decide desde aquí; lo que se mira es quién puede coger al
   // siguiente.
   sillasRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  sillaChipOff: { opacity: 0.55, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
+  cerradoBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 12, padding: 11, marginTop: 10 },
+  cerradoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', lineHeight: 17 },
   sillaChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 999, paddingVertical: 5, paddingHorizontal: 10, maxWidth: '48%' },
   sillaPunto: { width: 7, height: 7, borderRadius: 4 },
