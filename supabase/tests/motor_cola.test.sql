@@ -29,7 +29,7 @@ declare
   n int := 0; ok int := 0; fallos text := ''; c text;
   -- scratch
   r record; v_bool boolean; v_int int; v_int2 int; v_uuid uuid; v_uuid2 uuid;
-  v_id1 uuid; v_id2 uuid; v_bloq uuid; c2_estado text;
+  v_id1 uuid; v_id2 uuid; v_bloq uuid; c2_estado text; v_txt_motivo text;
 begin
   -- ── FIXTURES ───────────────────────────────────────────────────────────────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -436,6 +436,95 @@ begin
     else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
   end;
   update turno_configuracion_negocio set doble_servicio_activo = true where negocio_id = v_neg;
+
+  -- ── CASOS 25–29 · EL PUESTO NO ES LA POSICIÓN ────────────────────────────
+  --
+  -- Reportado desde el teléfono: «el estado del turno indica que soy el número
+  -- 2, pero realmente soy el siguiente». Las dos mitades del error:
+  --
+  --   · turno_cola.posicion es un CONTADOR DE ENTRADA (max+1 sobre todas las
+  --     filas activas), no un puesto. El segundo en llegar es posicion 2 aunque
+  --     el primero ya esté sentado.
+  --   · y el que está EN LA SILLA seguía contándose como gente delante.
+  --
+  -- turno_puesto (migración 78) es la respuesta a "¿cuántos hay delante de mí
+  -- esperando?". Estos casos existen porque la cuenta buena y la mala dan lo
+  -- mismo mientras nadie esté sentado: hay que sentar a alguien para verlo.
+  update turno_cola set estado = 'atendido'
+   where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  v_id1 := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  v_id2 := r.id;
+
+  n:=n+1; c:='puesto · el primero de la fila es el 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select turno_puesto(v_id1) into v_int;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — turno_puesto devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  n:=n+1; c:='puesto · el segundo es el 2 mientras nadie esté sentado';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select turno_puesto(v_id2) into v_int;
+  if v_int = 2 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — turno_puesto devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  -- EL CASO. Se sienta el primero: el segundo pasa a ser el siguiente, aunque
+  -- su columna posicion sigue diciendo 2. Con la cuenta vieja veía "eres el 2".
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  perform turno_llamar_a(v_id1);
+  perform turno_iniciar_atencion(v_id1);
+
+  n:=n+1; c:='puesto · el que está EN LA SILLA no hace fila: el siguiente es el 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select turno_puesto(v_id2) into v_int;
+  select posicion into v_int2 from turno_cola where id = v_id2;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — puesto '||coalesce(v_int::text,'NULL')
+       ||' con posicion '||coalesce(v_int2::text,'NULL')||' (es el bug de "soy el número 2")'; end if;
+
+  n:=n+1; c:='puesto · el que está en la silla tiene puesto 0, no 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select turno_puesto(v_id1) into v_int;
+  if v_int = 0 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  -- Y la otra mitad del mismo reporte: «55 minutos en una pantalla y 22 en la
+  -- otra». turno_resumen_fila (lo que ve quien AÚN NO ha entrado) y turno_eta
+  -- (lo que ve quien YA está) eran dos cuentas distintas. Desde la migración 78
+  -- resumen_fila delega en turno_carga_de_fila, que es de donde sale el ETA.
+  n:=n+1; c:='espera · el resumen de la fila no cuenta al que está sentado';
+  begin
+    select f.delante into v_int from turno_resumen_fila(v_neg, p_barb) f;
+    if v_int = 1 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — dice '||coalesce(v_int::text,'NULL')
+         ||' delante con uno en la silla y uno esperando'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 30 · LA PUERTA Y EL LETRERO DICEN LO MISMO ──────────────────────
+  -- turno_fila_abierta (migración 74) es el letrero; turno_entrar_a_cola es la
+  -- puerta. Antes cada uno tenía sus propias condiciones, así que la pantalla
+  -- invitaba a entrar y el servidor se negaba, o al revés. Ahora la puerta
+  -- PREGUNTA al letrero, y esto comprueba que siguen siendo el mismo.
+  n:=n+1; c:='puerta · el motivo con el que rebota es el mismo que enseña el letrero';
+  begin
+    update turno_perfiles set estado_actual = 'descanso' where id = p_barb;
+    select turno_fila_abierta(p_barb, v_neg) into v_txt_motivo;
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+    begin
+      perform turno_entrar_a_cola(v_neg, s_unas, 'digital', p_barb);
+      fallos := fallos || E'\n  ✗ '||c||' — entró a una fila cerrada (letrero: '||coalesce(v_txt_motivo,'abierta')||')';
+    exception when others then
+      if v_txt_motivo is not null and sqlerrm = v_txt_motivo then ok:=ok+1;
+      else fallos := fallos || E'\n  ✗ '||c||' — letrero "'||coalesce(v_txt_motivo,'NULL')
+           ||'" / puerta "'||sqlerrm||'"'; end if;
+    end;
+    update turno_perfiles set estado_actual = 'disponible' where id = p_barb;
+  end;
 
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ─────────────────────
   raise exception E'\n═══ MOTOR DE COLA · % / % casos OK ═══%',

@@ -352,6 +352,28 @@ begin
     ok:=ok+1;
   exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
 
+  -- ── LO QUE TRAJERON LAS MIGRACIONES 81–83 ─────────────────────────────────
+  -- El intruso registrado, que es el que importa: un desconocido sin fila en
+  -- turno_usuarios rebota en el "no autenticado" genérico y no prueba nada.
+  n:=n+1; c:='suspender · un dueño AJENO no puede suspender a un barbero de este local';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ext::text)::text, true);
+  begin
+    perform turno_suspender_barbero(p_bar, true, 'porque sí');
+    fallos:=fallos||E'\n  x '||c||' - dejó sin trabajar a un barbero de otro local';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='reseñas · no se leen las de un barbero de otro local';
+  begin
+    perform turno_resumen_resenas(p_bar);
+    fallos:=fallos||E'\n  x '||c||' - se llevó el promedio de un barbero ajeno';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='preferido · no se marca a un barbero de un local del que no eres cliente';
+  begin
+    perform turno_marcar_preferido(v_neg, p_bar);
+    fallos:=fallos||E'\n  x '||c||' - se apuntó en la membresía de un local ajeno';
+  exception when others then ok:=ok+1; end;
+
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
   perform set_config('request.jwt.claims', null, true);
@@ -431,6 +453,33 @@ begin
     abiertas := abiertas || ' dar_mas_tiempo'; exception when others then null; end;
   begin perform turno_ocupar_ahora(p_bar, s_corte, 'x');
     abiertas := abiertas || ' ocupar_ahora'; exception when others then null; end;
+
+  -- Las de las migraciones 74–83. Se añaden a la vez que la migración 84, que es
+  -- la que les puso portero: cuatro de ellas —puesto, eta, fila_abierta y
+  -- mi_preferido— no lanzaban, DEVOLVÍAN NULL. Nadie se llevaba nada con eso,
+  -- pero devolver vacío y negarse se parecen mientras la consulta funcione, y
+  -- el día que el filtro se caiga la red no lo ve. Es el camino exacto por el
+  -- que clientes_del_local llegó a producción sin portero.
+  begin perform turno_puesto(q_cli);
+    abiertas := abiertas || ' puesto'; exception when others then null; end;
+  begin perform turno_eta(q_cli);
+    abiertas := abiertas || ' eta'; exception when others then null; end;
+  begin perform turno_fila_abierta(p_bar, v_neg);
+    abiertas := abiertas || ' fila_abierta'; exception when others then null; end;
+  begin perform turno_filas_abiertas(v_neg);
+    abiertas := abiertas || ' filas_abiertas'; exception when others then null; end;
+  begin perform turno_resumen_fila(v_neg, p_bar);
+    abiertas := abiertas || ' resumen_fila'; exception when others then null; end;
+  begin perform turno_suspender_barbero(p_bar, true, 'x');
+    abiertas := abiertas || ' suspender_barbero'; exception when others then null; end;
+  begin perform turno_resenas_de(p_bar, 5);
+    abiertas := abiertas || ' resenas_de'; exception when others then null; end;
+  begin perform turno_resumen_resenas(p_bar);
+    abiertas := abiertas || ' resumen_resenas'; exception when others then null; end;
+  begin perform turno_marcar_preferido(v_neg, p_bar);
+    abiertas := abiertas || ' marcar_preferido'; exception when others then null; end;
+  begin perform turno_mi_preferido(v_neg);
+    abiertas := abiertas || ' mi_preferido'; exception when others then null; end;
 
   reset role;
 

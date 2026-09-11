@@ -11,8 +11,12 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
 | `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
 | `puertas.test.sql` | Recorre el API **como un desconocido** y comprueba que se le cierra. Las demás prueban que las cosas funcionan; esta, que no funcionan para quien no debe. |
+| `horarios.test.sql` | La jornada: un día, una jornada; los huecos de la agenda; el tiempo entre clientes. |
+| `sin_cita.test.sql` | El cliente de la calle: que se cuente como visita, que no se cuele por delante de la fila y que no deje bloqueos de más. |
+| `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
+| `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
 
-Las tres últimas existen porque los fallos de **flujo** y de **permisos** no se
+Las suites de flujo y permisos existen porque esos fallos no se
 ven mirando funciones de una en una. Cada una encontró bugs de producción en su
 primera corrida: un barbero sin aprobar podía llamar clientes; se podía bloquear
 tiempo encima de una cita ya reservada; y la cartera de clientes de un barbero
@@ -38,6 +42,17 @@ turno_negocios_admin()     → ¿soy dueño de este local?
 `puertas.test.sql` tiene una red que **llama** a cada función alcanzable por un
 anónimo y falla si alguna muta. No lee el código: eso ya falló tres veces.
 
+**Toda función nueva se añade a esa red el mismo día que se escribe.** No es una
+formalidad: las migraciones 74–83 dejaron diez funciones fuera, y cuatro de ellas
+—`turno_puesto`, `turno_eta`, `turno_fila_abierta`, `turno_mi_preferido`— no
+tenían portero ninguno. No se escapaba nada, porque devolvían vacío. Pero
+
+> devolver vacío y negarse **se parecen mientras la consulta funcione**.
+
+El día que el filtro se cae, una sigue en silencio y la otra se pone roja. Es el
+camino exacto por el que `turno_clientes_del_local` llegó a producción sin
+portero. Cerrado en la migración 84.
+
 Y ojo al revocar permisos: los ayudantes que aparecen **dentro de las políticas
 RLS** se evalúan con el rol de quien consulta. Quitarle el permiso a `anon`
 sobre uno de ellos no lo deja fuera — hace que la política reviente con
@@ -54,7 +69,7 @@ se crean fuera.
 
 ```bash
 export DATABASE_URL='postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres'
-npm run test:db          # las cinco
+npm run test:db          # todas
 npm run test:db:obstaculos   # una sola
 ```
 
