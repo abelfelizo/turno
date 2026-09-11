@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **90** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **93** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -21,17 +21,26 @@ nada avise, y ya pasó dos veces.
 
 ## Lo último que se cerró
 
-- **Migraciones 66–90.** El sin cita es un cliente (cuenta como dinero), la fila se come la
+- **Migraciones 66–93.** El sin cita es un cliente (cuenta como dinero), la fila se come la
   agenda, "te toca y el reloj corre", cómo te llega el trabajo (`modo_atencion`), la puerta
   y el letrero, la silla es de quien atiende, el que está en la silla no hace fila, los
   cuatro relojes del servicio, dónde queda el local (país + moneda), suspender no es echar,
   las reseñas se leen, mi barbero, devolver vacío no es negarse, una barbería nace abierta,
   la prueba gratis existe de verdad, "hoy cierro más tarde" (87), de quién es esa decisión
-  (88), la red anti-anónimos que se cuenta sola (89), y hasta cuándo manda el cliente en su
-  cita (90).
-- **Doce suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
+  (88), la red anti-anónimos que se cuenta sola (89), hasta cuándo manda el cliente en su
+  cita (90), "hoy abro antes" (91), **el casero no es el jefe** (92) y **cada silla paga la
+  suya** (93).
+- **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
+  producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
+  cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
+  local pero no le apaga el negocio. Con su consecuencia: el barbero paga SU silla y no
+  depende de que el local pague. Y con su salida: puede montarse el suyo desde la app.
+- **Doce suites de base, todas verdes** contra la BD real: cola 34, autonomía 25, fidelidad
   6, viaje 17, obstáculos 32, puertas 38, horarios 26, sin cita 22, modo 21, confianza 27,
-  suscripción 10, jornada 25.
+  suscripción 21, jornada 32.
+
+  (`puertas` no sube de 38 aunque la red haya crecido: la red entera es **un** caso, y las
+  funciones nuevas se añaden a la llamada, no al conteo.)
 
 ## Los cuatro fallos que más enseñaron
 
@@ -82,9 +91,12 @@ Van aquí porque el que retome esto los va a volver a encontrar si no los conoce
    `turno_push_tokens`. El envío es peer-to-peer (la base no puede hacer HTTP), así que si
    el teléfono que recibe nunca registró el suyo, el push no llega **y no da error**. No se
    puede dar por bueno hasta ver dos tokens y un aviso recibido.
-4. **Cobro y suscripciones.** El estado ya existe (migración 86): el local nace con 30 días
-   de prueba y la pantalla dice cuántos quedan. Falta la pasarela entera, y antes que ella
-   **la decisión de qué pasa cuando alguien no paga** — hoy no pasa nada, a propósito.
+4. **Cobro y suscripciones.** El estado ya existe y ya sabe QUIÉN paga: el local en los
+   locales de empleados (86) y **cada silla** en los de asientos alquilados (93), con 30 días
+   de prueba y la pantalla diciendo cuántos quedan a quien de verdad paga. Falta la pasarela
+   entera, y antes que ella **la decisión de qué pasa cuando alguien no paga** — hoy no pasa
+   nada, a propósito, y hay dos casos rojos esperando en `suscripcion.test.sql` para que esa
+   decisión se tome mirándolos.
 5. **Rediseño del panel del cliente**, rehecho contra esta rama.
 
 ## Constraint de infraestructura (CRÍTICO)
@@ -101,7 +113,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–90), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–93), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

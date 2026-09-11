@@ -27,6 +27,13 @@ export default function Welcome() {
       <TouchableOpacity style={s.btn2} onPress={() => router.push('/(auth)/barbero-tipo')}>
         <Text style={s.btn2T}>Trabajo en una barbería</Text>
       </TouchableOpacity>
+      {/* LA TERCERA PUERTA. Sin ella, el barbero que alquila un sillón en un
+          local que NO usa la app se queda fuera aquí mismo: no "tiene una
+          barbería", y "trabajo en una barbería" le pide el código de un local
+          que no existe en Turno. Ver app/(auth)/solo-tipo.tsx. */}
+      <TouchableOpacity style={s.btn2} onPress={() => router.push('/(auth)/solo-tipo')}>
+        <Text style={s.btn2T}>Trabajo por mi cuenta</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={s.btn2} onPress={() => router.push('/(auth)/cliente-codigo')}>
         <Text style={s.btn2T}>Soy cliente</Text>
       </TouchableOpacity>

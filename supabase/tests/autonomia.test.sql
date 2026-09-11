@@ -241,6 +241,83 @@ begin
   exception when others then fallos := fallos || E'\n  x '||c||' - '||sqlerrm;
   end;
 
+  -- ═══ EL CASERO NO ES EL JEFE (migración 92) ═══════════════════════════════
+  --
+  -- R11 decía quién pone los precios y los horarios. Faltaba el resto del
+  -- poder, que iba por turno_perfil_operable —«mi silla, O soy el dueño del
+  -- local»— sin mirar la modalidad. Con eso, el dueño podía sobre la silla de
+  -- alguien que le PAGA RENTA: llamarle clientes, sentarle gente, levantarle al
+  -- que tuviera en la silla, cerrarle la jornada, leerle la cartera CON
+  -- TELÉFONOS y leerle la facturación. Eso no es agrupar, es dirigir.
+  --
+  -- La regla nueva tiene la misma forma que turno_manda_en_el_horario, para que
+  -- las dos se lean igual:  es mía  OR  (soy el dueño  AND  no es autónomo).
+  --
+  -- OJO CON EL FIXTURE: p_ren es 'barbero_renta' DENTRO de un local de
+  -- empleados, que es el caso mixto y el más exigente — si la regla mirase el
+  -- tipo del local en vez de la autonomía de la persona, estos casos pasarían
+  -- por la razón equivocada.
+
+  n:=n+1; c:='casero · el dueño SÍ opera la silla de su EMPLEADO';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  if turno_perfil_operable(p_emp) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='casero · y SÍ le lee la cartera';
+  begin
+    perform turno_clientes_por_recuperar(p_emp); ok:=ok+1;
+  exception when others then fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  n:=n+1; c:='casero · pero NO opera la silla de quien le RENTA';
+  if not turno_perfil_operable(p_ren) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - le sigue manejando la silla a su inquilino'; end if;
+
+  n:=n+1; c:='casero · ni le lee la cartera con teléfonos';
+  begin
+    perform turno_clientes_por_recuperar(p_ren);
+    fallos := fallos || E'\n  x '||c||' - se llevó los clientes de su inquilino';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='casero · ni le lee la facturación';
+  begin
+    perform turno_stats_periodo_perfil(p_ren, current_date - 3650, current_date);
+    fallos := fallos || E'\n  x '||c||' - se llevó las cuentas de su inquilino';
+  exception when others then ok:=ok+1; end;
+
+  -- La otra mitad: cerrar de más sería dejar al inquilino sin su propia silla.
+  n:=n+1; c:='casero · el rentado SÍ opera lo suyo';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  if turno_perfil_operable(p_ren) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS: se quedó sin su propia silla'; end if;
+
+  -- ── SUSPENDER YA NO ES UN INTERRUPTOR DE APAGADO ──────────────────────────
+  -- «Si el dueño decide suspenderlo, el barbero podría seguir operando con su
+  -- app.» Exacto, y eso es lo que debe pasar: si pudiera apagarle la app no
+  -- sería su casero, sería su jefe. Lo que el dueño controla es el acceso a lo
+  -- que es DEL LOCAL — la fila y la fachada—, no el trabajo del otro.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  perform turno_suspender_barbero(p_ren, true, 'no pagó la renta');
+
+  n:=n+1; c:='suspender · al rentado lo saca de la fachada del local';
+  if turno_fila_abierta(p_ren, v_neg) = 'no pagó la renta' then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - el letrero dice "'
+       ||coalesce(turno_fila_abierta(p_ren, v_neg),'abierta')||'"'; end if;
+
+  -- LA MITAD NUEVA, Y LA QUE IMPORTA.
+  n:=n+1; c:='suspender · pero NO le apaga la silla: sigue atendiendo a quien tiene delante';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  if turno_perfil_operable(p_ren) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c
+       ||' - el casero le apagó el negocio, no solo la fila del local'; end if;
+
+  -- Y al empleado sí se le para del todo: eso sí es de su patrón.
+  n:=n+1; c:='suspender · al EMPLEADO sí se le para del todo';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  perform turno_suspender_barbero(p_emp, true, 'suspendido');
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  if not turno_perfil_operable(p_emp) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - siguió operable suspendido'; end if;
+
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ──────────────────────
   raise exception E'\n═══ AUTONOMÍA · % / % casos OK ═══%',
     ok, n, case when fallos = '' then E'\n  TODO VERDE' else fallos end;

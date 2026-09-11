@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **90** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **93** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -20,6 +20,15 @@ en BD (`negocio_id` NOT NULL en `turno_perfiles`, `turno_membresias`, `turno_cit
 `turno_cola`) y en el onboarding. Para ser "independiente total" se crea su propia
 barbería como dueño. El **código de barbero** es solo descubrimiento: identifica a la
 persona y su historial la sigue, pero **reservar siempre pasa por un local**.
+
+Pero «local» no quiere decir «sitio con gente»: quiere decir **el contenedor de su
+negocio**. El barbero que alquila un sillón en una barbería que NO usa la app monta el suyo
+de una silla y trabaja igual. Eso existía en el modelo desde siempre y no existía en la
+pantalla: las tres puertas de bienvenida eran "tengo una barbería" —no la tiene—, "trabajo
+en una barbería" —que pide el código de un local que no está en Turno— y "soy cliente". Se
+quedaba fuera en la pantalla uno. Desde `app/(auth)/solo-tipo.tsx` hay una tercera puerta,
+**"Trabajo por mi cuenta"**, y desde Config > Mis locales se puede montar el propio sin
+tener que quedarse antes sin ninguno.
 
 ### 2. La base NO puede hacer llamadas HTTP
 No hay `pg_net` ni `http` en este proyecto. Consecuencia directa y no negociable: **todo
@@ -83,8 +92,28 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
   disponibilidad, nunca la inventan.
 - **Modo de atención** por barbero (`modo_atencion`): `solo_citas`, `solo_fila`, `ambos`.
   Cubre al que solo trabaja con cita sin obligarle a apagar nada más.
-- **Suspender no es echar** (migración 81): el dueño para a un empleado unos días sin
-  desvincularlo — conserva clientes, citas e historial.
+- **El casero no es el jefe** (migración 92). R11 decía quién pone precios y horarios;
+  faltaba el resto del poder, que iba por `turno_perfil_operable` —«mi silla, O soy el dueño
+  del local»— sin mirar la modalidad. Con eso el dueño podía, sobre la silla de alguien que
+  le PAGA RENTA, llamarle clientes, sentarle gente, cerrarle la jornada, leerle la cartera
+  con teléfonos y leerle la facturación. Ahora todo eso pasa por
+  **`turno_manda_en_la_silla`**, con la misma forma que `turno_manda_en_el_horario`:
+
+  > **es mía  OR  (soy el dueño del local  AND  no es autónomo)**
+
+  Al empleado lo dirige su barbería; al que renta, nadie. El perfil dueño, en un local de
+  asientos alquilados, **solo agrupa**.
+- **Suspender no es echar** (migración 81) — y desde la 92 tampoco es apagar. Para un
+  EMPLEADO sigue parándolo del todo: eso le corresponde a su patrón. Para un AUTÓNOMO
+  significa «te saco de la fila y de la fachada del local»: desaparece del escaparate y la
+  puerta lo rechaza, pero **sigue atendiendo a quien tenga delante**, con su agenda, sus
+  precios y su dinero. Si el dueño pudiera apagarle la app no sería su casero, sería su jefe
+  — y entonces no es un alquiler.
+- **Cada silla paga la suya** (migración 93), y decide la modalidad del LOCAL, igual que
+  R11: `espacios_rentados` → paga cada silla, la del dueño incluida si atiende (agrupar no
+  cuesta); `empleados` → paga el local. La app pregunta por **una sola puerta**,
+  `turno_suscripcion_de(perfil)`, que además devuelve `quien` para poder decirlo con
+  palabras. Un local que no paga ya no arrastra al barbero que sí paga.
 - **El barbero de confianza** (migración 83) decide QUIÉN te atiende, nunca CUÁNDO. Vive en
   la membresía porque el mismo cliente puede ir a dos sitios.
 
@@ -92,7 +121,7 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 
 ## Backend
 
-**90 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**93 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 

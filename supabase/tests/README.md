@@ -6,7 +6,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | Suite | Qué mira |
 |---|---|
 | `motor_cola.test.sql` | Las invariantes sueltas: orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2), límite de fila, orden de llamado, autorización de stats, bajas, citas grupales. |
-| `autonomia.test.sql` | Quién decide qué (R11). Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
+| `autonomia.test.sql` | Quién decide qué (R11) y **quién manda en la silla de quién** (migración 92): el dueño dirige a su empleado, pero no al que le paga renta — ni le opera la silla, ni le lee la cartera, ni le lee la facturación. Y suspender a un autónomo le quita la fila y la fachada del local, no su trabajo. Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
 | `fidelidad.test.sql` | Visitas, meta, premio y canje, con la tarjeta del local y la del barbero rentado. |
 | `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
 | `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
@@ -15,7 +15,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `sin_cita.test.sql` | El cliente de la calle: que se cuente como visita, que no se cuele por delante de la fila y que no deje bloqueos de más. |
 | `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
 | `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
-| `suscripcion.test.sql` | La prueba gratis, el pago y la cortesía — y sobre todo **que un local vencido siga funcionando**, porque cortar el servicio es una decisión de producto sin tomar. |
+| `suscripcion.test.sql` | La prueba gratis, el pago y la cortesía — y **quién paga**: en un local de asientos alquilados, cada silla (migración 93); en uno de empleados, el local. Sobre todo, **que un vencido siga funcionando**, local o silla, porque cortar el servicio es una decisión de producto sin tomar. |
 | `jornada.test.sql` | "Hoy cierro más tarde" y "hoy me voy antes": alargar la jornada, cerrarla, volver a la norma — y **de quién es cada una de esas decisiones**. Alargar INVENTA disponibilidad y la decide quien manda en el horario (R11); cerrar solo QUITA, como un bloqueo, y la decide quien opera la silla. |
 
 Las suites de flujo y permisos existen porque esos fallos no se

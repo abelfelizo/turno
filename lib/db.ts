@@ -125,6 +125,32 @@ export async function getSuscripcion(negocio_id: string): Promise<Suscripcion | 
   return (Array.isArray(data) ? data[0] : data) ?? null
 }
 
+/**
+ * QUIÉN PAGA POR ESTA SILLA (migración 93).
+ *
+ * La 86 dejó la suscripción con el negocio como única clave, y con eso el
+ * barbero que alquila un asiento no existía: no había forma de que pagara lo
+ * suyo si su local no paga. Ahora la modalidad del LOCAL decide —asientos
+ * alquilados, cada silla; empleados, la barbería— y esta es la única puerta que
+ * debe usar la app, para que la regla no se reparta entre pantallas.
+ *
+ * `quien` permite decirlo con palabras: "tu suscripción" no es lo mismo que
+ * "la de tu barbería". Y `estado: 'la_cubre_el_local'` es lo que ve un
+ * empleado: lo que paga su local no es asunto suyo, así que no lleva fechas.
+ */
+export type SuscripcionDe = {
+  estado: 'prueba' | 'activa' | 'vencida' | 'cortesia' | 'la_cubre_el_local'
+  al_dia: boolean | null
+  hasta: string | null
+  dias_restantes: number | null
+  quien: 'silla' | 'local'
+}
+export async function getSuscripcionDe(perfil_id: string): Promise<SuscripcionDe | null> {
+  const { data, error } = await supabase.rpc('turno_suscripcion_de', { p_perfil: perfil_id })
+  if (error) throw error
+  return (Array.isArray(data) ? data[0] : data) ?? null
+}
+
 /** Stats del negocio. Los ingresos son SOLO los propios (empleados + silla del
  * dueño). De los asientos alquilados se devuelve el número de visitas, nunca el
  * dinero: es un negocio independiente que paga por el espacio. */

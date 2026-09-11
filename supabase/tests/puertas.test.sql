@@ -558,6 +558,12 @@ begin
   -- que hay aquí dentro.
   begin perform turno_suscripcion(v_neg);
     abiertas := abiertas || ' suscripcion'; exception when others then null; end;
+  -- Migración 93. Lo que paga —o debe— un barbero suelto es igual de privado
+  -- que lo que paga su local.
+  begin perform turno_suscripcion_silla(p_bar);
+    abiertas := abiertas || ' suscripcion_silla'; exception when others then null; end;
+  begin perform turno_suscripcion_de(p_bar);
+    abiertas := abiertas || ' suscripcion_de'; exception when others then null; end;
   begin perform turno_asientos_negocio(v_neg);
     abiertas := abiertas || ' asientos_negocio'; exception when others then null; end;
   -- Migración 87. Alargar o cerrar la jornada de otro es moverle el negocio.
@@ -583,6 +589,11 @@ begin
   -- añadirla el censo de abajo encontró otras diecisiete. De ahí viene la 89.
   begin perform turno_manda_en_el_horario(p_bar);
     abiertas := abiertas || ' manda_en_el_horario'; exception when others then null; end;
+  -- Migración 92, el mismo día. Es la que decide de quién es el negocio de una
+  -- silla, así que si algún día contesta a un desconocido, contesta la regla
+  -- entera del reparto de poder.
+  begin perform turno_manda_en_la_silla(p_bar);
+    abiertas := abiertas || ' manda_en_la_silla'; exception when others then null; end;
 
   -- ── LAS DIECIOCHO DEL CENSO (migración 89) ────────────────────────────────
   -- Nunca habían pasado por aquí. Ocho ya se negaban —tenían portero y nadie lo
@@ -677,12 +688,14 @@ begin
       'turno_iniciar_atencion','turno_jornada_de','turno_jornada_normal',
       'turno_liberar_ahora','turno_limpiar_pasado','turno_llamar_a',
       'turno_llamar_siguiente','turno_manda_en_el_horario','turno_marcar_preferido',
+      'turno_manda_en_la_silla',
       'turno_mi_preferido','turno_mis_tarjetas','turno_mover_en_cola',
       'turno_negocio_por_codigo','turno_no_esta','turno_ocupar_ahora','turno_puesto',
       'turno_regla_tiempo','turno_resenas_de','turno_resumen_fila',
       'turno_resumen_resenas','turno_sacar_de_cola','turno_salir_local',
       'turno_stats_periodo_negocio',
-      'turno_stats_periodo_perfil','turno_suscripcion','turno_suspender_barbero',
+      'turno_stats_periodo_perfil','turno_suscripcion','turno_suscripcion_de',
+      'turno_suscripcion_silla','turno_suspender_barbero',
       'turno_sustituir_ausente','turno_ya_llegue'
     ];
     v_exentas text[] := array[

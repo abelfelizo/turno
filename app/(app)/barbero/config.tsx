@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { guardarReglasBarbero, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
+import { guardarReglasBarbero, getSuscripcionDe, type SuscripcionDe, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
@@ -91,21 +91,28 @@ export default function Config() {
     catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
   }
   const [locales, setLocales] = useState<any[]>([])
+  // Quién paga por SU silla (migración 93). Hasta ahora la suscripción solo
+  // existía a nivel de local y en la pantalla del dueño, así que el barbero que
+  // alquila un asiento —el que de verdad paga lo suyo— no la veía en ningún
+  // sitio.
+  const [suscripcion, setSuscripcion] = useState<SuscripcionDe | null>(null)
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [u, p, sv, hr, mems, cfg] = await Promise.all([
+    const [u, p, sv, hr, mems, cfg, sus] = await Promise.all([
       getMiUsuario().catch(() => null),
       getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
       getServiciosPerfil(ss.perfil_id, false).catch(() => []),
       getHorariosPerfil(ss.perfil_id).catch(() => []),
       getMisMembresias(ss.usuario_id).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
+      getSuscripcionDe(ss.perfil_id).catch(() => null),
     ])
     setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setCfgLocal(cfg)
+    setSuscripcion(sus)
     setPremio((p as any)?.premio ?? 'Corte gratis')
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
@@ -341,6 +348,7 @@ export default function Config() {
     cuenta: 'Mi cuenta', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
     horario: empleado ? 'Horario del local' : 'Mi horario', reglas: 'Reglas', puntos: 'Sistema de puntos',
     recordatorios: 'Recordatorios', locales: 'Mis locales', otros: 'Otros',
+    suscripcion: 'Mi suscripción',
   }
 
   // El valor actual de cada fila. Es lo que convierte el menú en un resumen:
@@ -399,6 +407,16 @@ export default function Config() {
       v: `Por recuperar a los ${perfil?.revisita_dias ?? 30} días` },
     { k: 'locales', t: 'Mis locales', icono: 'storefront-outline', ver: true,
       v: locales.length > 1 ? `${localActivo?.nombre ?? 'Local'} y ${locales.length - 1} más` : (localActivo?.nombre ?? negocioNombre ?? 'Un local') },
+    // Solo se enseña cuando la paga ÉL. Al empleado la cubre su barbería y una
+    // fila que no decide nada solo estorba — la misma razón por la que el
+    // sistema de puntos tampoco le sale.
+    { k: 'suscripcion', t: 'Mi suscripción', icono: 'card-outline',
+      ver: suscripcion?.quien === 'silla',
+      v: suscripcion?.estado === 'cortesia' ? 'Cortesía'
+        : suscripcion?.estado === 'vencida' ? 'Vencida'
+        : suscripcion?.dias_restantes != null
+          ? `${suscripcion.estado === 'prueba' ? 'Prueba' : 'Activa'} · ${suscripcion.dias_restantes} días`
+          : '—' },
     { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal', ver: true,
       v: 'Cerrar sesión, dejar el local, eliminar cuenta' },
   ]
@@ -749,6 +767,39 @@ export default function Config() {
         </>
       )}
 
+      {/* MI SUSCRIPCIÓN. Solo la ve quien la paga: en un local de asientos
+          alquilados, cada silla; al empleado lo cubre su barbería y lo que ésta
+          pague no es asunto suyo (migración 93).
+
+          No hay botón de pagar todavía, y decirlo es más honesto que enseñar
+          uno que no lleva a ningún sitio. Tampoco corta nada al vencerse: qué
+          pasa cuando alguien no paga sigue siendo una decisión sin tomar, y
+          está fijada a propósito en suscripcion.test.sql. */}
+      {seccion === 'suscripcion' && suscripcion && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>MI SUSCRIPCIÓN</Text>
+        <View style={s.miSusCard}>
+          <Text style={s.miSusEstado}>
+            {suscripcion.estado === 'cortesia' ? 'Cortesía'
+              : suscripcion.estado === 'vencida' ? 'Vencida'
+              : suscripcion.estado === 'prueba' ? 'Prueba gratis'
+              : 'Al día'}
+          </Text>
+          <Text style={s.miSusD}>
+            {suscripcion.estado === 'cortesia'
+              ? 'Tu espacio está cubierto sin fecha de vencimiento.'
+              : suscripcion.estado === 'vencida'
+                ? 'Se te pasó la fecha. Tu fila, tu agenda y tus clientes siguen funcionando igual: todavía no cobramos.'
+                : `Te quedan ${suscripcion.dias_restantes} días${suscripcion.hasta ? `, hasta el ${suscripcion.hasta}` : ''}.`}
+          </Text>
+          <Text style={s.miSusNota}>
+            Esta silla es tuya y la pagas tú, trabajes donde trabajes. Si el local donde estás
+            no paga la app, a ti no te afecta.
+          </Text>
+        </View>
+        </>
+      )}
+
       {seccion === 'locales' && (
         <>
         <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
@@ -767,7 +818,24 @@ export default function Config() {
         <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
           <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
         </TouchableOpacity>
-  
+
+        {/* LA SALIDA.
+            El dueño de un local de asientos alquilados no manda en la silla de
+            quien le renta (migración 92) y no puede apagarle la app — pero sí
+            puede dejar de alquilarle. Para que eso sea "se acabó el trato" y no
+            "se acabó tu negocio", el barbero tiene que poder montar el suyo.
+            Y hasta ahora no podía: negocio-tipo solo se alcanza desde welcome,
+            y a welcome solo se llega con CERO membresías. El que trabaja en dos
+            sitios y lo sacan de uno se quedaba sin puerta. */}
+        <TouchableOpacity style={s.otroLocal} onPress={() => router.push('/(auth)/solo-tipo')}>
+          <Ionicons name="storefront-outline" size={17} color={COLORS.red} />
+          <Text style={s.otroLocalT}>Montar mi propio espacio</Text>
+        </TouchableOpacity>
+        <Text style={s.otroLocalD}>
+          Tu código, tu fila y tu agenda, sin depender de ningún local. Puedes tenerlo a la vez
+          que trabajas en otro sitio.
+        </Text>
+
         <CambiarRol />
         </>
       )}
@@ -985,6 +1053,13 @@ const s = StyleSheet.create({
   localE: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 13, marginBottom: 8 },
   otroLocalT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.red },
+  otroLocalD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid,
+    lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
+  miSusCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16,
+    borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+  miSusEstado: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink },
+  miSusD: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
+  miSusNota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
   rolChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center' },
   rolChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },

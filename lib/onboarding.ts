@@ -12,6 +12,15 @@ export interface BorradorOnboarding {
   // dueño
   tipoNegocio?: TipoNegocio
   atiende?: boolean
+  /**
+   * El barbero que trabaja por su cuenta.
+   *
+   * Por dentro es un negocio como cualquier otro —turno_perfiles.negocio_id es
+   * NOT NULL, no existe el barbero suelto— pero por fuera no puede preguntarle
+   * si alquila asientos o tiene empleados, porque no hace ninguna de las dos.
+   * Esta bandera solo cambia las PALABRAS del alta; el modelo es el mismo.
+   */
+  solo?: boolean
   nombreNegocio?: string
   moneda?: string
   // barbero
