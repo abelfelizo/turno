@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **86** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **89** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -38,6 +38,16 @@ Corolario operativo: **toda función nueva se añade a la red anti-anónimos de
 `puertas.test.sql` el mismo día que se escribe.** Y **devolver vacío no es negarse** — se
 parecen mientras la consulta funcione, y el día que el filtro se cae una sigue contestando
 en silencio (migración 84).
+
+Esa regla dependía de que alguien se acordara, y no bastó: al ir a añadir UNA función que
+faltaba, el censo contra `pg_proc` encontró **dieciocho** que la red nunca había llamado.
+Desde la migración 89 la red **se cuenta sola** — `puertas.test.sql` enumera `pg_proc` y se
+pone roja cuando existe una función `turno_*` que un anónimo puede ejecutar y la red no
+nombra. Tres de aquellas dieciocho estaban abiertas de verdad; la peor,
+`turno_stats_periodo_perfil`, soltaba la facturación de cualquier silla a un anónimo porque
+`v_dueno <> turno_uid()` con uid nulo no es `true`, es `NULL`, y un `if NULL` no entra.
+**Comparar contra `turno_uid()` no es comprobar que hay sesión: primero se pregunta si hay
+alguien, después se compara.**
 
 ### 4. `posicion` no es el puesto
 `turno_cola.posicion` es un **contador de entrada** (`max+1` sobre las filas activas,
@@ -82,7 +92,7 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 
 ## Backend
 
-**86 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**89 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -90,7 +100,7 @@ limpieza nocturna.
 entero en la migración 73 por no tenerlo en cuenta (arreglado en la 75), así que cualquier
 trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 
-### Pruebas de base — `supabase/tests/` (11 suites, `npm run test:db`)
+### Pruebas de base — `supabase/tests/` (12 suites, `npm run test:db`)
 
 | Suite | Qué mira |
 |---|---|
@@ -99,12 +109,13 @@ trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 | `fidelidad` | Visitas, meta, premio y canje, con la tarjeta del local y la del rentado |
 | `viaje` | El camino feliz de punta a punta, con las mismas RPC que la app y en el mismo orden |
 | `obstaculos` | El mismo día con fila, agenda y bloqueos **a la vez**: los fallos vivían en los cruces |
-| `puertas` | Recorre el API **como un desconocido** y exige que se le cierre. Incluye la red anti-anónimos |
+| `puertas` | Recorre el API **como un desconocido** y exige que se le cierre. Incluye la red anti-anónimos y **el censo** que la cuenta sola (migración 89) |
 | `horarios` | La jornada, los huecos de la agenda, y cómo nace una barbería (migración 85) |
 | `sin_cita` | El cliente de la calle: que cuente como visita y no se cuele |
 | `modo_atencion` | Por dónde acepta trabajo cada barbero, y que el letrero diga lo mismo que la puerta |
 | `confianza` | Suspender, leer reseñas y el barbero de confianza — sobre todo donde se cruzan |
 | `suscripcion` | La prueba gratis, el pago y la cortesía — y que un local vencido **siga funcionando** |
+| `jornada` | "Hoy cierro más tarde": alargar, cerrar antes, volver a la norma, y de quién es esa decisión (R11) |
 
 **Cómo se corren.** Con `DATABASE_URL` puesto, `npm run test:db`. Sin él (el caso normal en
 un entorno remoto), pegando cada archivo en el SQL editor de Supabase o por MCP

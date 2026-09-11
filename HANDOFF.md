@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **86** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **89** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -21,17 +21,18 @@ nada avise, y ya pasó dos veces.
 
 ## Lo último que se cerró
 
-- **Migraciones 66–86.** El sin cita es un cliente (cuenta como dinero), la fila se come la
+- **Migraciones 66–89.** El sin cita es un cliente (cuenta como dinero), la fila se come la
   agenda, "te toca y el reloj corre", cómo te llega el trabajo (`modo_atencion`), la puerta
   y el letrero, la silla es de quien atiende, el que está en la silla no hace fila, los
   cuatro relojes del servicio, dónde queda el local (país + moneda), suspender no es echar,
   las reseñas se leen, mi barbero, devolver vacío no es negarse, una barbería nace abierta,
-  y la prueba gratis existe de verdad.
-- **Once suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
-  6, viaje 17, obstáculos 28, puertas 30, horarios 26, sin cita 21 (+1 declarado sin
-  evaluar), modo 21, confianza 27, suscripción 10.
+  la prueba gratis existe de verdad, "hoy cierro más tarde" (87), de quién es esa decisión
+  (88), y la red anti-anónimos que se cuenta sola (89).
+- **Doce suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
+  6, viaje 17, obstáculos 32, puertas 33, horarios 26, sin cita 22, modo 21, confianza 27,
+  suscripción 10, jornada 25.
 
-## Los tres fallos que más enseñaron
+## Los cuatro fallos que más enseñaron
 
 Van aquí porque el que retome esto los va a volver a encontrar si no los conoce.
 
@@ -50,6 +51,23 @@ Van aquí porque el que retome esto los va a volver a encontrar si no los conoce
    y con eso tumbó el mantenimiento nocturno entero (vencer llamados, cerrar olvidados y
    cerrar citas viejas iban en la misma transacción). Arreglado en la 75. Cualquier trigger
    nuevo tiene que decidir explícitamente qué hace cuando `turno_uid()` es null.
+
+4. **Un portero escrito con `<>` no es un portero** (migración 89).
+   `turno_stats_periodo_perfil` decía
+
+   ```sql
+   if v_dueno <> public.turno_uid() and not (v_neg in (...)) then raise ...
+   ```
+
+   y parecía correcto — lo es, para un intruso registrado. Pero sin sesión `turno_uid()` es
+   null, `v_dueno <> null` es **NULL**, `NULL and true` es NULL, y un `if NULL` no entra: el
+   portero se queda callado y deja pasar. Comprobado contra la base real, un anónimo con la
+   llave del APK se llevó ingresos, visitas, clientes y ticket medio de una silla existente.
+   **Primero se pregunta si hay alguien; después se compara.**
+
+   Y la lección de método, que es la que más duele: ese mismo fallo se probó antes con un
+   uuid de ceros y salió "cerrada" — rebotaba en `perfil inexistente` mucho antes de llegar
+   al portero. **Un portero se prueba con la puerta que de verdad existe.**
 
 ## Qué sigue, en orden
 
@@ -82,7 +100,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–86), `supabase/functions/turno-enviar-push/`
-- Pruebas: `supabase/tests/` (11 suites) y su `README.md`
+- Backend: `supabase/migrations/` (01–89), `supabase/functions/turno-enviar-push/`
+- Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

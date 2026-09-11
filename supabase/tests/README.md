@@ -16,6 +16,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
 | `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
 | `suscripcion.test.sql` | La prueba gratis, el pago y la cortesía — y sobre todo **que un local vencido siga funcionando**, porque cortar el servicio es una decisión de producto sin tomar. |
+| `jornada.test.sql` | "Hoy cierro más tarde" y "hoy me voy antes": alargar la jornada, cerrarla, volver a la norma — y **de quién es cada una de esas decisiones**. Alargar INVENTA disponibilidad y la decide quien manda en el horario (R11); cerrar solo QUITA, como un bloqueo, y la decide quien opera la silla. |
 
 Las suites de flujo y permisos existen porque esos fallos no se
 ven mirando funciones de una en una. Cada una encontró bugs de producción en su
@@ -43,10 +44,29 @@ turno_negocios_admin()     → ¿soy dueño de este local?
 `puertas.test.sql` tiene una red que **llama** a cada función alcanzable por un
 anónimo y falla si alguna muta. No lee el código: eso ya falló tres veces.
 
-**Toda función nueva se añade a esa red el mismo día que se escribe.** No es una
-formalidad: las migraciones 74–83 dejaron diez funciones fuera, y cuatro de ellas
-—`turno_puesto`, `turno_eta`, `turno_fila_abierta`, `turno_mi_preferido`— no
-tenían portero ninguno. No se escapaba nada, porque devolvían vacío. Pero
+**Toda función nueva se añade a esa red el mismo día que se escribe** — y desde la
+migración 89 **eso ya no depende de que nadie se acuerde**: `puertas.test.sql`
+enumera `pg_proc` y se pone roja cuando existe una función `turno_*` que un
+anónimo puede ejecutar y que la red no nombra. Hizo falta: al ir a añadir UNA
+función olvidada (`turno_manda_en_el_horario`), el censo encontró **dieciocho**
+que la red nunca había llamado. De aquellas, tres estaban abiertas de verdad y
+una estaba muerta —`turno_siguiente_adelantado` leía una columna inexistente, así
+que se negaba **por estar rota**, que es la peor forma de pasar una prueba.
+
+Dos avisos que salieron de ahí y valen para cualquier portero futuro:
+
+> **Comparar contra `turno_uid()` no es comprobar que hay sesión.** `algo <>
+> turno_uid()` con uid nulo da `NULL`, no `true`, y un `if NULL` no entra: el
+> portero se calla y deja pasar. Primero se pregunta si hay alguien.
+
+> **Un portero se prueba con la puerta que de verdad existe.** Con un uuid de
+> ceros, `turno_stats_periodo_perfil` rebotaba en "perfil inexistente" y parecía
+> cerrada; con el id de una silla real soltaba la facturación entera.
+
+No es una formalidad: las migraciones 74–83 dejaron diez funciones fuera, y
+cuatro de ellas —`turno_puesto`, `turno_eta`, `turno_fila_abierta`,
+`turno_mi_preferido`— no tenían portero ninguno. No se escapaba nada, porque
+devolvían vacío. Pero
 
 > devolver vacío y negarse **se parecen mientras la consulta funcione**.
 
@@ -57,7 +77,21 @@ portero. Cerrado en la migración 84.
 Y ojo al revocar permisos: los ayudantes que aparecen **dentro de las políticas
 RLS** se evalúan con el rol de quien consulta. Quitarle el permiso a `anon`
 sobre uno de ellos no lo deja fuera — hace que la política reviente con
-"permission denied" en vez de devolver `false`.
+"permission denied" en vez de devolver `false`. Por eso el censo los exime
+uno a uno, por nombre y con su razón escrita, en vez de por categoría.
+
+Y ojo también al **conceder**: en Postgres `PUBLIC` tiene `EXECUTE` por defecto
+sobre toda función nueva, y `anon` hereda de `PUBLIC`. Un
+
+```sql
+grant execute on function f(...) to authenticated;
+```
+
+sin su `revoke ... from public, anon` al lado **no cierra nada**: solo repite en
+voz alta un permiso que ya estaba puesto. Ese descuido es el origen de casi todas
+las dieciocho del censo. La defensa de verdad sigue siendo el portero dentro de
+la función — por eso la red **llama**, no lee — pero el `revoke` es el segundo
+cerrojo y va escrito al lado del `grant`.
 
 ## Al escribir una suite nueva
 

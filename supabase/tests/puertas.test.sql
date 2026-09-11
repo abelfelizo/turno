@@ -378,6 +378,16 @@ begin
     fallos:=fallos||E'\n  x '||c||' - se apuntó en la membresía de un local ajeno';
   exception when others then ok:=ok+1; end;
 
+  -- Lo que factura una silla es de las dos personas que mandan en ella y de
+  -- nadie más. El agujero de la migración 89 era solo para anónimos —el `<>`
+  -- contra un uid nulo daba NULL y el if no entraba— pero la regla se escribe
+  -- entera: ni un dueño de otro local la lee.
+  n:=n+1; c:='ventas · un dueño AJENO no lee lo que factura esta silla';
+  begin
+    perform turno_stats_periodo_perfil(p_bar, current_date-3650, current_date);
+    fallos:=fallos||E'\n  x '||c||' - se llevó ingresos, visitas y ticket de un barbero ajeno';
+  exception when others then ok:=ok+1; end;
+
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
   perform set_config('request.jwt.claims', null, true);
@@ -504,12 +514,152 @@ begin
     abiertas := abiertas || ' jornada_de'; exception when others then null; end;
   begin perform turno_limpiar_pasado();
     abiertas := abiertas || ' limpiar_pasado'; exception when others then null; end;
+  -- Migración 88. Esta se me quedó fuera el día que se escribió, y al ir a
+  -- añadirla el censo de abajo encontró otras diecisiete. De ahí viene la 89.
+  begin perform turno_manda_en_el_horario(p_bar);
+    abiertas := abiertas || ' manda_en_el_horario'; exception when others then null; end;
+
+  -- ── LAS DIECIOCHO DEL CENSO (migración 89) ────────────────────────────────
+  -- Nunca habían pasado por aquí. Ocho ya se negaban —tenían portero y nadie lo
+  -- había comprobado—, seis son ayudantes de políticas y quedan exentas abajo,
+  -- una estaba MUERTA (turno_siguiente_adelantado leía una columna inexistente:
+  -- se borró, porque negarse por estar rota es la peor forma de pasar una
+  -- prueba) y tres estaban abiertas: turno_mis_tarjetas devolvía vacío,
+  -- turno_negocio_por_codigo contestaba a cualquiera y
+  -- turno_stats_periodo_perfil soltaba la facturación.
+  --
+  -- Que una función se defienda sola no es razón para no llamarla: hasta que la
+  -- red la llama, que se defienda es una creencia.
+  begin perform turno_agendar_grupo(p_bar, s_corte, current_date+1, time '10:00', 2);
+    abiertas := abiertas || ' agendar_grupo'; exception when others then null; end;
+  begin perform turno_aplicar_canje(v_neg);
+    abiertas := abiertas || ' aplicar_canje'; exception when others then null; end;
+  begin perform turno_dejar_local(p_bar);
+    abiertas := abiertas || ' dejar_local'; exception when others then null; end;
+  begin perform turno_eliminar_cuenta();
+    abiertas := abiertas || ' eliminar_cuenta'; exception when others then null; end;
+  begin perform turno_emitir_canje(v_neg, p_bar);
+    abiertas := abiertas || ' emitir_canje'; exception when others then null; end;
+  begin perform turno_llamar_a(q_cli);
+    abiertas := abiertas || ' llamar_a'; exception when others then null; end;
+  begin perform turno_salir_local(v_neg);
+    abiertas := abiertas || ' salir_local'; exception when others then null; end;
+  -- OJO CON ESTA. Con un uuid inventado rebotaba con "perfil inexistente" y
+  -- parecía cerrada; con el id de una silla que EXISTE soltaba la facturación
+  -- entera. Va con p_bar, que es real, a propósito: un portero se prueba con la
+  -- puerta que de verdad está ahí. (Migración 89.)
+  begin perform turno_stats_periodo_perfil(p_bar, current_date-30, current_date);
+    abiertas := abiertas || ' stats_periodo_perfil'; exception when others then null; end;
+  begin perform turno_cola_operable(q_cli);
+    abiertas := abiertas || ' cola_operable'; exception when others then null; end;
+  -- Las dos que estaban abiertas de verdad. Si alguna vuelve a aparecer aquí,
+  -- es que a alguien se le cayó el portero de la migración 89.
+  begin perform turno_mis_tarjetas(v_neg);
+    abiertas := abiertas || ' mis_tarjetas'; exception when others then null; end;
+  begin perform turno_negocio_por_codigo('ABC-1234');
+    abiertas := abiertas || ' negocio_por_codigo'; exception when others then null; end;
 
   reset role;
 
   n:=n+1; c:='RED · ninguna función queda al alcance de un anónimo';
   if abiertas = '' then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||E'\n      abiertas:'||abiertas; end if;
+
+  -- ── EL CENSO: QUE LA RED NO DEPENDA DE QUE ALGUIEN SE ACUERDE ─────────────
+  -- Todo lo de arriba es una lista escrita a mano, y las listas escritas a mano
+  -- se pudren. El README de esta carpeta dice desde hace meses «toda función
+  -- nueva se añade a esa red el mismo día que se escribe», y aun así al ir a
+  -- meter UNA que faltaba aparecieron dieciocho. Una regla que depende de la
+  -- memoria de quien escribe no es una regla.
+  --
+  -- Así que aquí la red se cuenta sola: enumera pg_proc y se pone roja cuando
+  -- existe una función turno_* que un anónimo puede ejecutar y que las líneas
+  -- de arriba no nombran. No sustituye a las llamadas —el censo mira permisos,
+  -- las llamadas miran porteros, y son cosas distintas— pero garantiza que no
+  -- vuelva a haber funciones que esta suite ni siquiera sabe que existen.
+  --
+  -- CÓMO SABE EL CENSO QUÉ SE HA LLAMADO. `v_red` es el índice de las llamadas
+  -- de arriba. Sí, es una segunda lista, y no finjo que se mantenga sola: lo
+  -- que el censo garantiza es que no vuelva a existir una función que esta
+  -- suite ni siquiera sabe que existe —que es el fallo que de verdad ocurrió,
+  -- dieciocho veces— y, en el otro sentido, que un nombre del índice que ya no
+  -- exista en la base salte en vez de quedarse ahí dando confianza falsa.
+  -- Meter un nombre en el índice sin escribir su llamada sigue siendo posible,
+  -- pero hay que hacerlo a propósito y se ve en el diff.
+  --
+  -- Dos exenciones, las dos por motivos escritos:
+  --   · Las funciones de trigger no se pueden llamar a mano: Postgres las
+  --     rechaza con "trigger functions can only be called as triggers". Se
+  --     descartan por su tipo de retorno, no por su nombre, para que una
+  --     función normal no se cuele diciéndose trigger.
+  --   · Los ayudantes que viven DENTRO de una política RLS o de un CHECK se
+  --     evalúan con el rol de quien consulta. Quitarles el EXECUTE a anon no
+  --     los deja fuera: hace que la política reviente con "permission denied"
+  --     en vez de devolver false, que es peor. Van nombrados uno a uno: la
+  --     exención es una decisión, no una categoría en la que colar cosas.
+  declare
+    v_red text[] := array[
+      'turno_agendar_grupo','turno_alargar_jornada','turno_aplicar_canje',
+      'turno_asientos_negocio','turno_asignar_cola','turno_atender_sin_cita',
+      'turno_avisos_de_espera','turno_cambiar_modalidad','turno_cambiar_servicio',
+      'turno_cambiar_tipo_negocio','turno_carga_de_fila','turno_cerrar_citas_viejas',
+      'turno_cerrar_jornada','turno_cerrar_local','turno_cerrar_olvidados',
+      'turno_clientes_del_local','turno_clientes_por_recuperar','turno_dar_mas_tiempo',
+      'turno_dejar_local','turno_desvincular_barbero','turno_devolver_a_fila',
+      'turno_eliminar_cuenta','turno_emitir_canje','turno_estadisticas_negocio',
+      'turno_estado_barbero','turno_estado_local','turno_eta','turno_fidelidad',
+      'turno_fila_abierta','turno_filas_abiertas','turno_guardar_reglas_barbero',
+      'turno_iniciar_atencion','turno_jornada_de','turno_jornada_normal',
+      'turno_liberar_ahora','turno_limpiar_pasado','turno_llamar_a',
+      'turno_llamar_siguiente','turno_manda_en_el_horario','turno_marcar_preferido',
+      'turno_mi_preferido','turno_mis_tarjetas','turno_mover_en_cola',
+      'turno_negocio_por_codigo','turno_no_esta','turno_ocupar_ahora','turno_puesto',
+      'turno_regla_tiempo','turno_resenas_de','turno_resumen_fila',
+      'turno_resumen_resenas','turno_sacar_de_cola','turno_salir_local',
+      'turno_stats_periodo_negocio',
+      'turno_stats_periodo_perfil','turno_suscripcion','turno_suspender_barbero',
+      'turno_sustituir_ausente','turno_ya_llegue'
+    ];
+    v_exentas text[] := array[
+      'turno_perfil_admin', 'turno_perfil_autonomo', 'turno_perfil_operable',
+      'turno_perfil_acepta', 'turno_puede_confirmar', 'turno_cola_operable',
+      'turno_codigo_prefijo', 'turno_bloqueo_sin_pisar_citas',
+      'turno_puntos_coherentes', 'turno_puntos_perfil_coherentes'
+    ];
+    v_sin_censar text;
+    v_fantasmas text;
+  begin
+    select string_agg(distinct p.proname, ' ' order by p.proname)
+      into v_sin_censar
+      from pg_proc p
+      join pg_namespace ns on ns.oid = p.pronamespace
+      join pg_type t on t.oid = p.prorettype
+     where ns.nspname = 'public'
+       and p.proname like 'turno\_%'
+       and t.typname <> 'trigger'
+       and has_function_privilege('anon', p.oid, 'EXECUTE')
+       and not (p.proname = any(v_red))
+       and not (p.proname = any(v_exentas));
+
+    n:=n+1; c:='CENSO · toda función que anon puede ejecutar pasa por la red';
+    if v_sin_censar is null then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c
+      ||E'\n      sin llamar:'||v_sin_censar
+      ||E'\n      → añade arriba su `begin perform ...` Y su nombre a v_red; si'
+      ||E'\n        es ayudante de política/CHECK, a v_exentas CON su razón.'; end if;
+
+    -- El índice al revés: un nombre que ya no existe en la base es una línea
+    -- que dejó de probar nada sin que nadie se enterara.
+    select string_agg(x, ' ' order by x) into v_fantasmas
+      from unnest(v_red) as x
+     where not exists (
+       select 1 from pg_proc p join pg_namespace ns on ns.oid = p.pronamespace
+        where ns.nspname='public' and p.proname = x);
+
+    n:=n+1; c:='CENSO · el índice de la red no nombra funciones que ya no existen';
+    if v_fantasmas is null then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||E'\n      fantasmas: '||v_fantasmas; end if;
+  end;
 
   raise exception E'\n=== PUERTAS DEL API · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
