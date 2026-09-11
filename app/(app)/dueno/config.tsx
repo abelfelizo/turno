@@ -9,6 +9,7 @@ import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { planDueno } from '../../../lib/pricing'
 import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
+import Selector from '../../../components/selector'
 import { fechaLarga, fechaDeISO } from '../../../lib/format'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
@@ -280,26 +281,22 @@ export default function Config() {
         <Text style={s.flabel}>Punto de referencia</Text>
         <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} value={referencia} onChangeText={setReferencia} />
 
-        <Text style={s.flabel}>País</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 2 }} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-          {PAISES.map(p => (
-            <TouchableOpacity key={p.codigo} style={[s.pill, pais === p.codigo && s.pillOn]}
-              onPress={() => { setPais(p.codigo); setMoneda(p.moneda) }}>
-              <Text style={[s.pillT, pais === p.codigo && { color: '#fff' }]}>{p.nombre}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* DESPLEGABLES, NO CARRUSELES (pedido del piloto). Con veinticuatro
+            países, un carrusel horizontal esconde lo que no cabe: quien no veía
+            el suyo en los tres primeros no podía saber si estaba más allá o si
+            no estaba, porque las dos cosas se ven igual. */}
+        <Selector etiqueta="PAÍS" titulo="¿Dónde está tu barbería?"
+          valor={pais}
+          opciones={PAISES.map(p => ({ valor: p.codigo, etiqueta: p.nombre }))}
+          onElegir={(v) => { setPais(v); const p = paisDe(v); if (p) setMoneda(p.moneda) }} />
 
         {/* La moneda se propone con el país y se puede cambiar: hay locales que
-            cobran en dólares en sitios donde la moneda es otra. */}
-        <Text style={s.flabel}>Moneda</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
-          {MONEDAS.map(m => (
-            <TouchableOpacity key={m.codigo} style={[s.pill, moneda === m.codigo && s.pillOn]} onPress={() => setMoneda(m.codigo)}>
-              <Text style={[s.pillT, moneda === m.codigo && { color: '#fff' }]}>{m.etiqueta}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+            cobran en dólares en sitios donde la moneda es otra — en Venezuela y
+            Cuba es casi la norma. */}
+        <Selector etiqueta="MONEDA" titulo="¿En qué cobras?"
+          valor={moneda}
+          opciones={MONEDAS.map(m => ({ valor: m.codigo, etiqueta: m.etiqueta }))}
+          onElegir={setMoneda} />
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>

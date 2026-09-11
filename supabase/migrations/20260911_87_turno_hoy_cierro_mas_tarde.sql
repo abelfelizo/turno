@@ -73,6 +73,15 @@ declare
   v_ini time; v_fin time; v_gap int;
   v_jini time; v_jfin time; v_hay boolean;
 begin
+  -- El portero, aunque esto sea de solo lectura y las horas de una barbería
+  -- estén en la puerta de la calle. La red de puertas.test.sql lo cazó al
+  -- primer intento: sin esto, un anónimo obtenía la jornada de cualquiera. No
+  -- se escapa gran cosa, pero devolver algo y negarse se parecen mientras la
+  -- consulta funcione — es exactamente lo de la migración 84, y la red está
+  -- para que no vuelva a colarse. Las tres funciones que la llaman por dentro
+  -- son SECURITY DEFINER y ya exigen sesión antes de llegar aquí.
+  if public.turno_uid() is null then raise exception 'no autenticado'; end if;
+
   select h.hora_inicio, h.hora_fin, coalesce(h.tiempo_entre_clientes, 0)
     into v_ini, v_fin, v_gap
     from turno_horarios h

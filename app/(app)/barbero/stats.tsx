@@ -19,6 +19,9 @@ function desdeDe(p: PeriodoK): string {
   return '2000-01-01'
 }
 
+/** De cuántas en cuántas se abre la lista de visitas. */
+const PASO_VISITAS = 12
+
 export default function Stats() {
   const [data, setData] = useState<any>(null)
   const [moneda, setMoneda] = useState('')
@@ -32,6 +35,10 @@ export default function Stats() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [verResenas, setVerResenas] = useState(false)
+  // Cuántas visitas se enseñan. Crece por tandas en vez de pintarlas todas:
+  // una lista de cuatrocientas filas en un ScrollView es lo que hacía que la
+  // pantalla "se alargara sin fin".
+  const [verVisitas, setVerVisitas] = useState(PASO_VISITAS)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
@@ -53,10 +60,24 @@ export default function Stats() {
     getStatsPeriodoPerfil(perfilId, desdeDe(periodo), fechaISOLocal()).then(setPstats).catch(() => setPstats(null))
   }, [perfilId, periodo])
 
+  // Cambiar de período empieza la lista de nuevo: si no, viniendo de "Todo"
+  // con cien filas abiertas, "Hoy" heredaba el desplegado y se veía un botón de
+  // "ver más" que no tenía nada que abrir.
+  useEffect(() => { setVerVisitas(PASO_VISITAS) }, [periodo])
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   const visitas: any[] = data?.visitas ?? []
   // "Todo" usa el agregado de por vida; los demás, el período.
+  /** Las visitas del período elegido, que es lo que los botones de arriba
+   *  prometen. `todo` no filtra; el resto compara contra la misma fecha de
+   *  corte que se le manda al servidor para los números, para que la lista y el
+   *  titular no puedan discrepar. */
+  const visitasDelPeriodo = (() => {
+    if (periodo === 'todo') return visitas
+    const desde = desdeDe(periodo)
+    return visitas.filter((v: any) => String(v.fecha) >= desde)
+  })()
   const ingresos = periodo === 'todo' ? (data?.totalIngresos ?? 0) : (pstats?.ingresos ?? 0)
   const nVisitas = periodo === 'todo' ? (data?.totalVisitas ?? 0) : (pstats?.visitas ?? 0)
   const nClientes = periodo === 'todo' ? (data?.clientesUnicos ?? 0) : (pstats?.clientes ?? 0)
@@ -108,9 +129,29 @@ export default function Stats() {
       </TouchableOpacity>
       <Resenas perfilId={perfilId} nombre={null} visible={verResenas} onClose={() => setVerResenas(false)} />
 
-      <Text style={s.sec}>VISITAS RECIENTES</Text>
-      {visitas.length === 0 && <Text style={s.empty}>Aún no tienes visitas registradas.</Text>}
-      {visitas.slice(0, 12).map((v: any, i: number) => (
+      {/* LA LISTA OBEDECE AL FILTRO DE ARRIBA.
+          Reportado desde el teléfono: «los filtros de estadísticas deberían
+          filtrar también la lista». Antes los botones de período cambiaban los
+          números de arriba y la lista seguía enseñando las últimas doce visitas
+          de siempre, así que mirando "7 días" se veían cortes de hace dos meses
+          debajo del titular. Dos respuestas distintas a la misma pregunta en la
+          misma pantalla.
+
+          Y crecía de doce en doce sin decir cuántas había: «las listas se
+          alargan sin fin». Ahora el encabezado trae el total del período y la
+          lista se abre por tandas. */}
+      <Text style={s.sec}>
+        VISITAS · {PERIODOS.find(p => p.k === periodo)?.l.toUpperCase()}
+        {visitasDelPeriodo.length > 0 ? ` · ${visitasDelPeriodo.length}` : ''}
+      </Text>
+      {visitasDelPeriodo.length === 0 && (
+        <Text style={s.empty}>
+          {visitas.length === 0
+            ? 'Aún no tienes visitas registradas.'
+            : 'Ninguna visita en este período. Prueba con uno más largo.'}
+        </Text>
+      )}
+      {visitasDelPeriodo.slice(0, verVisitas).map((v: any, i: number) => (
         <View key={i} style={s.row}>
           <View style={{ flex: 1 }}>
             <Text style={s.rowName}>{v.turno_servicios?.nombre ?? 'Servicio'}</Text>
@@ -119,6 +160,14 @@ export default function Stats() {
           <Text style={s.rowPrecio}>{dinero(v.precio_cobrado, moneda)}</Text>
         </View>
       ))}
+      {visitasDelPeriodo.length > verVisitas && (
+        <TouchableOpacity onPress={() => setVerVisitas(n => n + PASO_VISITAS)}>
+          <Text style={s.verMas}>
+            Ver {Math.min(PASO_VISITAS, visitasDelPeriodo.length - verVisitas)} más
+            {' '}· quedan {visitasDelPeriodo.length - verVisitas}
+          </Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   )
 }
@@ -142,6 +191,7 @@ const s = StyleSheet.create({
   bigLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   bigNum: { fontFamily: FONTS.display, fontSize: 48, color: '#fff', marginTop: 6 },
   bigSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 2 },
+  verMas: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.red, textAlign: 'center', paddingVertical: 14 },
   periodoLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 10 },
   grid: { flexDirection: 'row', gap: 10, marginBottom: 22 },
   metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, alignItems: 'flex-start' },

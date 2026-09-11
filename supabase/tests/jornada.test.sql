@@ -31,7 +31,7 @@ declare
   v_cod text := 'JO-' || upper(substr(md5(random()::text),1,5));
   v_tz text := 'America/Santo_Domingo'; v_ahora timestamp; v_hoy date; v_dow int;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
-  v_txt text; v_int int; v_fin time;
+  v_txt text; v_int int; v_fin time; abiertas text := '';
 begin
   v_ahora := (now() at time zone v_tz); v_hoy := v_ahora::date; v_dow := extract(dow from v_ahora);
 
@@ -162,13 +162,22 @@ begin
     fallos:=fallos||E'\n  x '||c||' - le cerró la fila a otro';
   exception when others then ok:=ok+1; end;
 
-  n:=n+1; c:='puerta · un anónimo no llega';
+  -- LAS CUATRO, NO UNA. En la primera corrida esta comprobación solo miraba
+  -- `alargar` y la red de puertas.test.sql encontró al instante lo que se me
+  -- había escapado: turno_jornada_de le contestaba a un anónimo. No se escapaba
+  -- gran cosa —las horas de una barbería están en la puerta de la calle— pero
+  -- devolver algo y negarse se parecen mientras la consulta funcione, que es
+  -- justo la lección de la migración 84.
+  n:=n+1; c:='puerta · un anónimo no llega a ninguna de las cuatro';
   perform set_config('request.jwt.claims', null, true);
   set local role anon;
-  begin
-    perform turno_alargar_jornada(p_due, 30);
-    reset role; fallos:=fallos||E'\n  x '||c||' - alargar';
-  exception when others then reset role; ok:=ok+1; end;
+  begin perform turno_alargar_jornada(p_due, 30); abiertas := abiertas||' alargar';    exception when others then null; end;
+  begin perform turno_cerrar_jornada(p_due);      abiertas := abiertas||' cerrar';     exception when others then null; end;
+  begin perform turno_jornada_normal(p_due);      abiertas := abiertas||' normal';     exception when others then null; end;
+  begin perform turno_jornada_de(p_due, v_hoy);   abiertas := abiertas||' jornada_de'; exception when others then null; end;
+  reset role;
+  if abiertas = '' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - abiertas:'||abiertas; end if;
 
   raise exception E'\n=== JORNADA DE HOY · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

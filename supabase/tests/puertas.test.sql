@@ -497,6 +497,13 @@ begin
     abiertas := abiertas || ' cerrar_jornada'; exception when others then null; end;
   begin perform turno_jornada_normal(p_bar);
     abiertas := abiertas || ' jornada_normal'; exception when others then null; end;
+  -- Esta es la que la red cazó el día que se escribió la 87: un ayudante de
+  -- solo lectura al que se le olvidó el portero. Devolver la jornada de
+  -- cualquiera no es una fuga grave, pero tampoco es negarse.
+  begin perform turno_jornada_de(p_bar, current_date);
+    abiertas := abiertas || ' jornada_de'; exception when others then null; end;
+  begin perform turno_limpiar_pasado();
+    abiertas := abiertas || ' limpiar_pasado'; exception when others then null; end;
 
   reset role;
 
