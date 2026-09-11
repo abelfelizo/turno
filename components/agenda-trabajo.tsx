@@ -8,6 +8,7 @@ import {
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
+  alargarJornada, cerrarJornada, jornadaNormal,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
@@ -30,6 +31,29 @@ const DIAS_ADELANTE = 20
  *  son los mismos que mira turno_cerrar_citas_viejas; escritos en dos sitios,
  *  se corrigen en uno. */
 const ABIERTAS = ['creada', 'confirmada', 'no_confirmada', 'en_camino']
+
+/**
+ * EN QUÉ ESTADO ESTÁ LA CITA, DICHO CON PALABRAS.
+ *
+ * Reportado desde el teléfono: «programo la cita, no confirmo y no llego, y mi
+ * cita se queda ahí con los mismos botones como si estuviera activa». Los dos
+ * lados del problema eran el mismo: la pantalla pintaba el estado crudo de la
+ * base —`no_confirmada`, `no_llego`— o no lo pintaba en absoluto, y los botones
+ * no cambiaban. Así una cita de hace tres días se veía igual que la de mañana.
+ *
+ * `no_confirmada` es el estado al que las manda SOLO el reloj, al pasar la hora
+ * de anticipación sin que el cliente confirme. No está muerta: el cliente puede
+ * aparecer igual, y por eso sigue siendo una cita abierta con sus dos salidas.
+ */
+const FRASE_CITA: Record<string, string> = {
+  creada: 'Reservada. Falta que el cliente confirme que viene.',
+  confirmada: 'Confirmada por el cliente.',
+  no_confirmada: 'Se pasó la hora de confirmar y no dijo nada. Puede aparecer igual: decides tú.',
+  en_camino: 'Va en camino.',
+  atendida: 'Atendida. Ya cuenta como visita y como cobro.',
+  no_llego: 'No llegó. Pasó a la fila con prioridad por si aparece.',
+  cancelada: 'Cancelada.',
+}
 
 
 /** Suma minutos a una hora "HH:MM:SS" sin salirse del día. */
@@ -79,6 +103,9 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     | { tipo: 'servicios'; modo: 'ocupar' }
     | { tipo: 'servicios'; modo: 'cambiar'; item: any }
     | { tipo: 'bloqueo' }
+    | { tipo: 'cita'; item: any }
+    | { tipo: 'bloqueoVer'; item: any }
+    | { tipo: 'jornada' }
   const [hoja, setHoja] = useState<Hoja | null>(null)
 
   const hoy = fechaISOLocal()
@@ -443,43 +470,19 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     ])
   }
 
-  function accionCita(c: any) {
-    const opts: any[] = [{ text: 'Cerrar', style: 'cancel' }]
-    // ABIERTA ES ABIERTA. Antes "Marcar atendida" solo salía en confirmada y
-    // en_camino, y "Marcar no llegó" solo en creada: una cita en
-    // 'no_confirmada' —el estado al que las manda solo el reloj, cuando pasa la
-    // hora de anticipación— no ofrecía NINGUNA de las dos. La única salida que
-    // le quedaba al barbero era cancelarla, que dice otra cosa. Esa es la mitad
-    // de "las citas viejas no se gestionan": no es que no se vieran, es que no
-    // se podían cerrar.
-    if (ABIERTAS.includes(c.estado)) {
-      opts.unshift({ text: 'Marcar atendida', onPress: () => cerrarCita(c) })
-      opts.unshift({ text: 'Marcar no llegó', style: 'destructive', onPress: () => citaNoLlego(c) })
+  /** Cancelar la cita desde el lado del barbero. No es lo mismo que "no llegó":
+   *  eso es del cliente, esto es suyo. */
+  async function cancelarCitaBarbero(c: any) {
+    await actualizarEstadoCita(c.id, 'cancelada', { cancelada_by: 'barbero' })
+    if (c.cliente_id) {
+      avisos.clienteCitaCancelada(c.cliente_id, negocio?.nombre ?? 'la barbería',
+        `${fechaLarga(fechaDeISO(c.fecha))} a las ${hora12(c.hora_inicio)}`)
     }
-    // Cancelar desde el lado del barbero no existía: solo podía marcar que el
-    // cliente no llegó, que es una acusación distinta.
-    if (ABIERTAS.includes(c.estado)) {
-      opts.unshift({ text: 'Cancelar la cita', style: 'destructive', onPress: async () => {
-        await actualizarEstadoCita(c.id, 'cancelada', { cancelada_by: 'barbero' })
-        if (c.cliente_id) {
-          avisos.clienteCitaCancelada(c.cliente_id, negocio?.nombre ?? 'la barbería',
-            `${fechaLarga(fechaDeISO(c.fecha))} a las ${hora12(c.hora_inicio)}`)
-        }
-        // Los puntitos del selector de día salen del conteo del mes, que solo se
-        // recarga entero. Quedan un momento desactualizados a cambio de que la
-        // cancelación se vea al instante; se ajustan al cambiar de día o al tirar
-        // de la pantalla.
-        refrescar()
-      } })
-    }
-    if (c.turno_usuarios?.telefono) opts.unshift({ text: 'Recordar por WhatsApp', onPress: () => recordarCita(c.turno_usuarios.telefono, c.turno_usuarios?.nombre ?? 'cliente', c.hora_inicio, negocio?.nombre ?? 'tu barbería') })
-    Alert.alert(c.turno_usuarios?.nombre ?? 'Cita', `${c.turno_servicios?.nombre} · ${hora12(c.hora_inicio)}`, opts)
-  }
-  function quitarBloqueo(b: any) {
-    Alert.alert(b.motivo || 'Bloqueo', `${hora12(b.hora_inicio)} – ${hora12(b.hora_fin)}`, [
-      { text: 'Cerrar', style: 'cancel' },
-      { text: 'Liberar esta hora', style: 'destructive', onPress: () => op(() => borrarBloqueo(b.id), 'No se pudo liberar') },
-    ])
+    // Los puntitos del selector de día salen del conteo del mes, que solo se
+    // recarga entero. Quedan un momento desactualizados a cambio de que la
+    // cancelación se vea al instante; se ajustan al cambiar de día o al tirar
+    // de la pantalla.
+    refrescar()
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator color={COLORS.red} size="large" /></View>
@@ -734,6 +737,32 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               <Text style={s.estadoBtnT}>{estado.acepta ? 'Pausar' : 'Volver'}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* LA FILA ESTÁ CERRADA Y HASTA AHORA NADIE LO DECÍA.
+              turno_estado_barbero devuelve `fila_abierta` y `fila_motivo` desde
+              la migración 74, y esta pantalla no los miraba: a las once de la
+              noche se leía "Libre · nadie esperando", igual que a las once de la
+              mañana. El barbero apretaba "atender sin cita", funcionaba —su
+              silla es suya, eso está bien— y se quedaba sin saber que por la app
+              no le podía entrar nadie.
+
+              Solo sale cuando está cerrada POR EL HORARIO. Los demás motivos
+              (descanso, suspendido, solo citas) ya se ven arriba en el estado, y
+              repetirlos aquí sería decir dos veces lo mismo. */}
+          {esHoy && estado?.fila_abierta === false && estado?.acepta && (
+            <View style={s.cerrado}>
+              <Ionicons name="moon-outline" size={15} color="rgba(0,0,0,0.7)" />
+              <Text style={s.cerradoT} numberOfLines={2}>
+                {estado.fila_motivo
+                  ? `Tu fila digital está cerrada: ${estado.fila_motivo}.`
+                  : 'Tu fila digital está cerrada.'}
+                {' '}Puedes seguir atendiendo a quien tengas delante.
+              </Text>
+              <TouchableOpacity style={s.cerradoBtn} onPress={() => setHoja({ tipo: 'jornada' })}>
+                <Text style={s.cerradoBtnT}>Seguir abierto</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* UNA acción, la que toca ahora. Antes había que decidir entre
               "Llamar", "Atender sin cita" y las opciones de cada fila. */}
@@ -995,7 +1024,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         <>
           <Text style={s.sec}>SIN CERRAR · DÍAS PASADOS</Text>
           {sinCerrar.map((c: any) => (
-            <TouchableOpacity key={c.id} style={[s.row, s.rowDeuda]} onPress={() => accionCita(c)}>
+            <TouchableOpacity key={c.id} style={[s.row, s.rowDeuda]} onPress={() => setHoja({ tipo: 'cita', item: c })}>
               <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
               <View style={{ flex: 1 }}>
                 <Text style={s.rowName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
@@ -1012,7 +1041,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {(daCitas || citas.length > 0) && <Text style={s.sec}>CITAS DEL DÍA</Text>}
       {citas.length === 0 && daCitas && <Text style={s.empty}>Sin citas este día</Text>}
       {citas.map((c: any) => (
-        <TouchableOpacity key={c.id} style={s.row} onPress={() => accionCita(c)}>
+        <TouchableOpacity key={c.id} style={s.row} onPress={() => setHoja({ tipo: 'cita', item: c })}>
           <Avatar name={c.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
           <View style={{ flex: 1 }}>
             <Text style={s.rowName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
@@ -1026,7 +1055,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         <>
           <Text style={s.sec}>HORAS BLOQUEADAS</Text>
           {bloqueosLista.map((b: any) => (
-            <TouchableOpacity key={b.id} style={s.rowBloq} onPress={() => quitarBloqueo(b)}>
+            <TouchableOpacity key={b.id} style={s.rowBloq} onPress={() => setHoja({ tipo: 'bloqueoVer', item: b })}>
               <Ionicons name="lock-closed" size={16} color={COLORS.textMid} />
               <View style={{ flex: 1 }}>
                 <Text style={s.rowName}>{hora12(b.hora_inicio)} – {hora12(b.hora_fin)}</Text>
@@ -1080,32 +1109,171 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {/* Una sola hoja para todo lo que se abre desde esta pantalla. */}
       <Hoja visible={!!hoja} onClose={() => setHoja(null)}>
 
+            {/* LA CITA, EN UNA HOJA Y NO EN UNA ALERTA.
+                Esto era un Alert.alert al que se le iban metiendo botones hasta
+                cinco: recordar, cancelar, no llegó, atendida y cerrar. En
+                Android el diálogo nativo solo pinta TRES y descarta el resto en
+                silencio — y el que caía era justo "Cerrar", el único que
+                cerraba. Reportado desde el teléfono: «me aparecen 3 opciones en
+                un cuadro pero no me permite salir de la pantalla, tengo que
+                forzar cierre». No era la pantalla: era el diálogo sin salida.
+
+                La hoja compartida no tiene ese techo, se cierra tocando fuera y
+                además deja sitio para DECIR en qué estado está la cita, que es
+                justo lo que faltaba. */}
+            {hoja?.tipo === 'cita' && (() => {
+              const c = hoja.item
+              const abierta = ABIERTAS.includes(c.estado)
+              const pasada = c.fecha < hoy || (c.fecha === hoy && minutosHasta(c.hora_inicio) < 0)
+              return (
+                <>
+                  <Display size={22}>{c.turno_usuarios?.nombre ?? 'Cita'}</Display>
+                  <Text style={s.modalSub}>
+                    {[c.turno_servicios?.nombre, hora12(c.hora_inicio), fechaLarga(fechaDeISO(c.fecha))]
+                      .filter(Boolean).join(' · ')}
+                  </Text>
+
+                  {/* EN QUÉ ESTADO ESTÁ, con palabras. Antes el barbero veía los
+                      mismos botones en una cita de mañana y en una de hace tres
+                      días, y tenía que deducir de la fecha si seguía viva. */}
+                  <Text style={s.citaEstado}>{FRASE_CITA[c.estado] ?? c.estado}</Text>
+
+                  {abierta ? (
+                    <>
+                      <Opcion icon="checkmark-circle-outline" t="Marcar atendida"
+                        d="Cuenta la visita y el cobro"
+                        onPress={() => { setHoja(null); cerrarCita(c) }} />
+                      <Opcion icon="person-remove-outline" t="No llegó" rojo
+                        d="Pasa a tu fila con prioridad por si aparece"
+                        onPress={() => { setHoja(null); citaNoLlego(c) }} />
+                      <Opcion icon="close-circle-outline" t="Cancelar la cita" rojo
+                        d="La cancelas tú y se le avisa"
+                        onPress={() => op(() => cancelarCitaBarbero(c), 'No se pudo cancelar')} />
+                    </>
+                  ) : (
+                    <Text style={s.ordenNota}>
+                      Esta cita ya está cerrada. Se queda en la agenda del día como registro de lo
+                      que pasó; no hay nada más que hacer con ella.
+                    </Text>
+                  )}
+
+                  {c.turno_usuarios?.telefono && abierta && !pasada ? (
+                    <Opcion icon="logo-whatsapp" t="Recordarle por WhatsApp" d="Abre el chat con el mensaje escrito"
+                      onPress={() => recordarCita(c.turno_usuarios.telefono, c.turno_usuarios?.nombre ?? 'cliente', c.hora_inicio, negocio?.nombre ?? 'tu barbería')} />
+                  ) : null}
+                  {c.cliente_id && (
+                    <Opcion icon="person-outline" t="Ver su ficha" d="Historial, puntos y tu nota"
+                      onPress={() => { setHoja(null); router.push({ pathname: '/(app)/barbero/clientes', params: { cliente: c.cliente_id, nombre: c.turno_usuarios?.nombre ?? 'Cliente', telefono: c.turno_usuarios?.telefono ?? '' } } as any) }} />
+                  )}
+                  <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
+                </>
+              )
+            })()}
+
+            {/* HOY CIERRO MÁS TARDE (migración 87).
+                El horario semanal es la norma: dice "abro de 9 a 6" y eso es lo
+                que ve el cliente. Pero una barbería cierra cuando se va el
+                último, y hasta ahora seguir recibiendo gente por la app después
+                de la hora obligaba a cambiar el horario del martes PARA SIEMPRE
+                desde Configuración. Nadie hace eso a las nueve de la noche.
+                Esto es la excepción de HOY: caduca sola y no toca la norma. */}
+            {hoja?.tipo === 'jornada' && (() => {
+              const cerrada = estado?.fila_abierta === false
+              return (
+                <>
+                  <Display size={22}>{cerrada ? 'Seguir abierto un rato' : 'Tu jornada de hoy'}</Display>
+                  <Text style={s.modalSub}>
+                    {cerrada
+                      ? 'Tu fila digital ya cerró por horario. Puedes dejarla abierta un rato más solo por hoy: mañana vuelves a tu horario de siempre.'
+                      : 'Puedes alargar el cierre de hoy o apagar la fila ya. En los dos casos es solo para hoy — tu horario de siempre no se toca.'}
+                  </Text>
+                  {[30, 60, 120].map(min => (
+                    <Opcion key={min} icon="time-outline"
+                      t={min < 60 ? `${min} minutos más` : min === 60 ? 'Una hora más' : 'Dos horas más'}
+                      d="Vuelve a entrar gente por la app"
+                      onPress={() => op(async () => {
+                        const h = await alargarJornada(sesion.perfil_id, min)
+                        Alert.alert('Listo', `Hoy cierras a las ${hora12(h)}.`)
+                      }, 'No se pudo alargar')} />
+                  ))}
+                  {/* La vuelta atrás. Sin esto, alargar deja al barbero
+                      recibiendo clientes hasta la hora que puso aunque se haya
+                      ido a su casa — y eso es peor que no poder alargar. */}
+                  <Opcion icon="moon-outline" t="Ya cierro por hoy" rojo
+                    d="Apaga tu fila ahora mismo; mañana abre a tu hora"
+                    onPress={() => op(() => cerrarJornada(sesion.perfil_id), 'No se pudo cerrar')} />
+                  <Opcion icon="refresh-outline" t="Volver a mi horario de siempre"
+                    d="Deshace los cambios de hoy"
+                    onPress={() => op(() => jornadaNormal(sesion.perfil_id), 'No se pudo deshacer')} />
+                  <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
+                </>
+              )
+            })()}
+
+            {/* El bloqueo, por el mismo motivo: era otra alerta. */}
+            {hoja?.tipo === 'bloqueoVer' && (() => {
+              const b = hoja.item
+              const yaPaso = b.fecha < hoy || (b.fecha === hoy && minutosHasta(b.hora_fin) < 0)
+              return (
+                <>
+                  <Display size={22}>{b.motivo || 'Hora bloqueada'}</Display>
+                  <Text style={s.modalSub}>
+                    {hora12(b.hora_inicio)} – {hora12(b.hora_fin)} · {fechaLarga(fechaDeISO(b.fecha))}
+                  </Text>
+                  <Text style={s.ordenNota}>
+                    {yaPaso
+                      ? 'Esta hora ya pasó, así que no le quita sitio a nadie. Se borra sola esta noche.'
+                      : 'Mientras esté puesta, nadie puede reservar esa hora contigo. Si terminas antes, libérala y vuelve a aparecer en la agenda.'}
+                  </Text>
+                  <Opcion icon="lock-open-outline" t="Liberar esta hora" rojo
+                    d="Vuelve a estar disponible para reservas"
+                    onPress={() => op(() => borrarBloqueo(b.id), 'No se pudo liberar')} />
+                  <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
+                </>
+              )
+            })()}
+
+            {/* EL MENÚ DE LOS TRES PUNTOS, SEGÚN DÓNDE ESTÉ ESA PERSONA.
+                Reportado desde el teléfono: «con un cliente sentado, los tres
+                puntos muestran varias opciones y algunas no parecen
+                necesarias». Y era verdad: el menú era el mismo para quien
+                espera, para quien acaba de ser llamado y para quien ya está en
+                la silla. Al sentado le ofrecía "Devolver a la fila · deshace el
+                llamado" —no hay ningún llamado que deshacer— y "Sacar de la
+                fila · se fue del local o no apareció", cuando lo tiene delante
+                con la capa puesta.
+
+                Las acciones no cambian por capricho: cambia lo que significan.
+                Levantar de la silla a quien te estás cortando NO es sacarlo de
+                la fila, es que te equivocaste de persona o que se marchó a
+                medias — y eso último cuesta un cobro, así que se avisa. */}
             {hoja?.tipo === 'acciones' && (() => {
               const it = hoja.item
               const enEspera = it.estado === 'en_fila'
+              const sentado = it.estado === 'atendiendo'
               return (
                 <>
                   <Display size={22}>{it.turno_usuarios?.nombre ?? 'Turno'}</Display>
-                  <Text style={s.modalSub}>{it.turno_servicios?.nombre}{enEspera ? '' : ` · ${String(it.estado).replace('_', ' ')}`}</Text>
-                  {enEspera ? (
-                    <>
-                      {/* Adelantar y reordenar ya no existen: el orden de la
-                          fila es una REGLA, no una sugerencia. Quien reservó
-                          cita va primero, después quien se metió en la fila, y
-                          el que llega sin cita solo cuando no queda nadie
-                          esperando. Un botón para saltárselo convierte la
-                          promesa que ve el cliente en una mentira. Se llama al
-                          siguiente desde el cuadro de arriba; aquí solo queda
-                          lo que no altera el turno de nadie. */}
-                      <Text style={s.ordenNota}>
-                        {it.prioridad === 1 ? 'Tenía cita, por eso va primero.'
-                          : it.prioridad === 3 ? 'Llegó sin cita: entra cuando no quede nadie en la fila, o cuando a quien le toca no esté.'
-                          : 'Entró a la fila desde la app.'}
-                      </Text>
-                    </>
-                  ) : (
-                    <Opcion icon="return-down-back" t="Devolver a la fila" d="Deshace el llamado y conserva su puesto" onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
+                  <Text style={s.modalSub}>
+                    {it.turno_servicios?.nombre}
+                    {enEspera ? '' : sentado ? ' · en la silla' : ` · ${String(it.estado).replace('_', ' ')}`}
+                  </Text>
+
+                  {enEspera && (
+                    /* Adelantar y reordenar no existen: el orden de la fila es
+                       una REGLA, no una sugerencia. Quien reservó cita va
+                       primero, después quien se metió en la fila, y el que llega
+                       sin cita solo cuando no queda nadie esperando. Un botón
+                       para saltárselo convierte en mentira la promesa que ve el
+                       cliente. Aquí solo queda lo que no altera el turno de
+                       nadie. */
+                    <Text style={s.ordenNota}>
+                      {it.prioridad === 1 ? 'Tenía cita, por eso va primero.'
+                        : it.prioridad === 3 ? 'Llegó sin cita: entra cuando no quede nadie en la fila, o cuando a quien le toca no esté.'
+                        : 'Entró a la fila desde la app.'}
+                    </Text>
                   )}
+
                   {/* Lo tienes delante y hasta ahora no había forma de mirar su
                       historial sin salir a buscarlo en otra pestaña — y la lista
                       de allí solo trae a quien ya te visitó, así que un cliente
@@ -1114,26 +1282,64 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                     <Opcion icon="person-outline" t="Ver su ficha" d="Historial, puntos, preferencias y tu nota"
                       onPress={() => { setHoja(null); router.push({ pathname: '/(app)/barbero/clientes', params: { cliente: it.cliente_id, nombre: it.turno_usuarios?.nombre ?? 'Cliente', telefono: it.turno_usuarios?.telefono ?? '' } } as any) }} />
                   )}
-                  <Opcion icon="swap-horizontal" t="Cambiar servicio" d="Pidió otra cosa" onPress={() => setHoja({ tipo: 'servicios', modo: 'cambiar', item: it })} />
-                  <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo onPress={() => setHoja({ tipo: 'sacar', item: it })} />
+
+                  {/* Cambiar servicio vale en los tres sitios, y con el cliente
+                      ya sentado es cuando más: "hazme la barba también" se dice
+                      en la silla, y cambia lo que se cobra. */}
+                  <Opcion icon="swap-horizontal" t="Cambiar servicio"
+                    d={sentado ? 'Pidió algo más o algo distinto' : 'Pidió otra cosa'}
+                    onPress={() => setHoja({ tipo: 'servicios', modo: 'cambiar', item: it })} />
+
+                  {/* Llamado o en camino: deshacer el llamado es lo natural. */}
+                  {!enEspera && !sentado && (
+                    <Opcion icon="return-down-back" t="Devolver a la fila"
+                      d="Deshace el llamado y conserva su puesto"
+                      onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
+                  )}
+
+                  {/* Sentado: la vuelta atrás es "me equivoqué", y se dice así. */}
+                  {sentado && (
+                    <Opcion icon="return-down-back" t="Levantarlo de la silla"
+                      d="Te equivocaste de persona: vuelve a la fila con su puesto"
+                      onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
+                  )}
+
+                  {!sentado && (
+                    <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
+                      onPress={() => setHoja({ tipo: 'sacar', item: it })} />
+                  )}
+                  {sentado && (
+                    <Opcion icon="exit-outline" t="Se fue sin terminar" d="Cierra el turno sin contar la visita" rojo
+                      onPress={() => setHoja({ tipo: 'sacar', item: it })} />
+                  )}
                   <TouchableOpacity onPress={() => setHoja(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
                 </>
               )
             })()}
 
-            {hoja?.tipo === 'sacar' && (
-              <>
-                <Display size={22}>¿Sacarlo de la fila?</Display>
-                <Text style={s.modalSub}>
-                  {hoja.item.turno_usuarios?.nombre ?? 'Este cliente'} deja de estar en la fila y los demás suben.
-                  Si es un cliente de la app, su turno se cierra y podrá volver a entrar cuando quiera.
-                </Text>
-                <TouchableOpacity style={s.peligroBtn} onPress={() => op(() => sacarDeCola(hoja.item.id), 'No se pudo sacar')}>
-                  <Text style={s.peligroT}>Sí, sacarlo</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: hoja.item })}><Text style={s.modalCerrar}>Volver</Text></TouchableOpacity>
-              </>
-            )}
+            {hoja?.tipo === 'sacar' && (() => {
+              const sentado = hoja.item.estado === 'atendiendo'
+              const quien = hoja.item.turno_usuarios?.nombre ?? 'Este cliente'
+              return (
+                <>
+                  <Display size={22}>{sentado ? '¿Se fue sin terminar?' : '¿Sacarlo de la fila?'}</Display>
+                  <Text style={s.modalSub}>
+                    {sentado
+                      // Con alguien en la silla esto NO registra la visita, así
+                      // que el corte no se cobra ni cuenta en las cuentas del
+                      // día. Si de verdad lo atendió, lo que quiere es
+                      // "Terminar", que está arriba. Decirlo evita perder dinero
+                      // por tocar el botón equivocado.
+                      ? `${quien} deja la silla sin que cuente como visita: no entra en las cuentas del día ni suma a su tarjeta. Si sí lo atendiste, cierra con “Terminar” en vez de esto.`
+                      : `${quien} deja de estar en la fila y los demás suben. Si es un cliente de la app, su turno se cierra y podrá volver a entrar cuando quiera.`}
+                  </Text>
+                  <TouchableOpacity style={s.peligroBtn} onPress={() => op(() => sacarDeCola(hoja.item.id), 'No se pudo sacar')}>
+                    <Text style={s.peligroT}>{sentado ? 'Sí, se fue' : 'Sí, sacarlo'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setHoja({ tipo: 'acciones', item: hoja.item })}><Text style={s.modalCerrar}>Volver</Text></TouchableOpacity>
+                </>
+              )
+            })()}
 
             {hoja?.tipo === 'servicios' && (
               <>
@@ -1264,6 +1470,13 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.45)', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 11 },
   siguienteT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(0,0,0,0.7)' },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
+  cerrado: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
+  cerradoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(0,0,0,0.75)', lineHeight: 17 },
+  cerradoBtn: { backgroundColor: COLORS.ink, borderRadius: 9, paddingVertical: 7, paddingHorizontal: 11 },
+  cerradoBtnT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
+  citaEstado: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink, lineHeight: 19,
+    backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 11, marginTop: 12, marginBottom: 4 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
   panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   panelTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },

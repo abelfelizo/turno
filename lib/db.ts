@@ -455,6 +455,33 @@ export async function actualizarEstadoPerfil(perfil_id: string, estado: string) 
   if (error) throw error
 }
 
+/**
+ * LA JORNADA DE HOY (migración 87).
+ *
+ * El horario semanal es la norma; esto es la excepción de UN día. Reportado
+ * desde el teléfono: «es normal que barberos decidan extender su horario».
+ * Antes, para seguir recibiendo gente por la app después de la hora había que
+ * cambiar el horario del martes para siempre — y nadie hace eso a las nueve de
+ * la noche, así que la fila digital se apagaba y el barbero seguía a mano.
+ *
+ * Ninguna de las tres toca `turno_horarios`: mañana el horario es el de siempre.
+ */
+export async function alargarJornada(perfil_id: string, minutos: number): Promise<string> {
+  const { data, error } = await supabase.rpc('turno_alargar_jornada', { p_perfil: perfil_id, p_minutos: minutos })
+  if (error) throw error
+  return String(data ?? '')
+}
+/** "Ya cierro": apaga la fila de hoy a esta hora. Mañana abre a su hora. */
+export async function cerrarJornada(perfil_id: string) {
+  const { error } = await supabase.rpc('turno_cerrar_jornada', { p_perfil: perfil_id })
+  if (error) throw error
+}
+/** Deshace la excepción de hoy y vuelve al horario de siempre. */
+export async function jornadaNormal(perfil_id: string) {
+  const { error } = await supabase.rpc('turno_jornada_normal', { p_perfil: perfil_id })
+  if (error) throw error
+}
+
 /** Identidad pública y reglas del barbero. Solo columnas de personalización. */
 export async function actualizarPerfil(perfil_id: string, patch: {
   bio?: string; especialidad?: string; mensaje_bienvenida?: string

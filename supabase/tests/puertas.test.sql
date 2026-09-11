@@ -490,6 +490,13 @@ begin
     abiertas := abiertas || ' suscripcion'; exception when others then null; end;
   begin perform turno_asientos_negocio(v_neg);
     abiertas := abiertas || ' asientos_negocio'; exception when others then null; end;
+  -- Migración 87. Alargar o cerrar la jornada de otro es moverle el negocio.
+  begin perform turno_alargar_jornada(p_bar, 30);
+    abiertas := abiertas || ' alargar_jornada'; exception when others then null; end;
+  begin perform turno_cerrar_jornada(p_bar);
+    abiertas := abiertas || ' cerrar_jornada'; exception when others then null; end;
+  begin perform turno_jornada_normal(p_bar);
+    abiertas := abiertas || ' jornada_normal'; exception when others then null; end;
 
   reset role;
 
