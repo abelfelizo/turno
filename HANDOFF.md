@@ -1,43 +1,87 @@
 # HANDOFF · Turno
 
-> Punto de entrega para retomar el proyecto (sesión cerrada 2026-06-29).
-> Para el estado completo lee `CONTEXT.md`. Para llevar a producción lee `PRODUCCION.md`.
+> Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
+> checklist de release en `PRODUCCION.md`.
+> Última actualización: **2026-09-11** · migración **85** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
-App de **citas + cola digital para barberías** (Expo/RN, NAVAJA). **Los 4 roles funcionan** (cliente, barbero, dueño, dueño-barbero) y está **lista para piloto**. Esta sesión cerró: dueño-barbero, disparadores WhatsApp, e **infraestructura de notificaciones push + configuración de producción (EAS)**. `tsc` limpio.
 
-## Qué se hizo en esta sesión
-1. **Dueño-barbero** — `components/agenda-trabajo.tsx` es la agenda de trabajo compartida; `barbero/agenda.tsx` la re-exporta y `dueno/agenda.tsx` la usa cuando el dueño atiende (`perfil_id`).
-2. **WhatsApp** — `lib/whatsapp.ts`: `avisarTurno`, `recordarCita`, `escribirCliente`, `cobrarPorWhatsApp`, wired en agenda y clientes.
-3. **Push (código + backend, desplegado):**
-   - BD: tabla `turno_push_tokens` + RPC `turno_guardar_push_token` (migración `supabase/migrations/14_push_tokens.sql`, **aplicada**; RLS + SECURITY DEFINER).
-   - Edge function `turno-enviar-push` (`supabase/functions/turno-enviar-push/index.ts`, **desplegada y ACTIVE**, `verify_jwt=true`, postea a Expo Push API).
-   - Cliente: `lib/notificaciones.ts` — `registrarPush()` al iniciar sesión (`app/index.tsx`) y `enviarPush()` en "Llamar siguiente" (`components/agenda-trabajo.tsx`) → push **"Es tu turno"** al cliente (`cliente_id`).
-4. **Producción:** `eas.json` (perfiles dev/preview/production), `app.json` (splash NAVAJA, plugin notifications, `UIBackgroundModes`, `android.package`), `PRODUCCION.md` (checklist), `tsconfig.json` excluye `supabase/functions` (Deno).
+App de **citas + fila digital para barberías** (Expo/RN + Supabase, sistema NAVAJA). Los
+cuatro roles funcionan y el producto está **completo para un piloto cerrado**: lo que falta
+no son pantallas, es infraestructura de lanzamiento (correo verificado y cobro).
 
-## Estado verificado
-- `tsc --noEmit` → limpio.
-- BD confirmada por SQL: `turno_push_tokens` (1), RPC (1), policy (1); `turno_llamar_siguiente` retorna fila `turno_cola` con `cliente_id`.
-- Edge function ACTIVE.
-- ⚠️ **Sin probar en dispositivo real:** el push end-to-end (permiso → token → recepción) **requiere un dev build EAS**; no se puede validar en Expo Go ni simulador. Todo el código está listo para ese momento.
+Desde la última entrega el trabajo ha venido de **probar la app en el teléfono y corregir
+lo que aparecía**, migración a migración, con el mismo método cada vez:
 
-## Próximos pasos (en orden) — ver `PRODUCCION.md`
-1. `eas-cli` → `eas login` → `eas init` (escribe `extra.eas.projectId` en `app.json`).
-2. Cuenta Apple Developer (iOS) + variables EAS `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
-3. `eas build --profile development` → instalar → probar push "Es tu turno".
-4. Endurecer: `DEV_LOGIN=false` en `constants/index.ts` (oculta botones dev, reactiva ruteo real), moneda por país, borrar seed/cuenta demo.
-5. `eas build --profile production` + `eas submit`. Crear `assets/` (icon/splash reales).
+> reproducir el fallo contra la base real → arreglarlo → verificarlo → dejar los casos en
+> una suite permanente.
 
-## Cómo correr ahora (piloto, Expo Go)
-`npx expo start` **sin `--clear`** → `xcrun simctl openurl <DEVICE> exp://127.0.0.1:8081`. Capturas: `sips -Z 1200`. Gotcha resuelto: si Metro crashea por `async-limiter`, `npm install async-limiter`.
+Ese último paso es el que importa. Sin él, cada corrección se puede volver a romper sin que
+nada avise, y ya pasó dos veces.
 
-## ⚠️ Constraint de infraestructura (CRÍTICO)
-Supabase `pphnaasmirbnuilgzfeo` está **compartido con Prestalo (producción) y `libro_*`**. **Tocar SOLO tablas `turno_`.** Los 8 errores `rls_disabled` del linter son de `libro_*` (otra app, fuera de scope).
+## Lo último que se cerró
+
+- **Migraciones 66–85.** El sin cita es un cliente (cuenta como dinero), la fila se come la
+  agenda, "te toca y el reloj corre", cómo te llega el trabajo (`modo_atencion`), la puerta
+  y el letrero, la silla es de quien atiende, el que está en la silla no hace fila, los
+  cuatro relojes del servicio, dónde queda el local (país + moneda), suspender no es echar,
+  las reseñas se leen, mi barbero, devolver vacío no es negarse, y una barbería nace
+  abierta.
+- **Diez suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
+  6, viaje 17, obstáculos 28, puertas 30, horarios 26, sin cita 21 (+1 declarado sin
+  evaluar), modo 21, confianza 27.
+
+## Los tres fallos que más enseñaron
+
+Van aquí porque el que retome esto los va a volver a encontrar si no los conoce.
+
+1. **La puerta cerrada en la pantalla y abierta en el API.** Apareció tres veces. Las
+   políticas RLS estaban bien; el agujero estaba en las funciones `SECURITY DEFINER`, que se
+   saltan RLS por definición. La red de `puertas.test.sql` **llama** a cada función
+   alcanzable por un anónimo en vez de leer el código, porque leerlo ya falló. Toda función
+   nueva entra en esa red el mismo día que se escribe.
+
+2. **Devolver vacío no es negarse** (migración 84). Cuatro funciones no tenían portero
+   ninguno: contestaban `null` al desconocido. No se escapaba nada — hasta el día que
+   alguien toque ese `where` y la función siga contestando, ahora con datos, sin que nada se
+   ponga rojo.
+
+3. **El cron corre sin sesión.** La migración 73 metió un trigger que exigía ser del equipo,
+   y con eso tumbó el mantenimiento nocturno entero (vencer llamados, cerrar olvidados y
+   cerrar citas viejas iban en la misma transacción). Arreglado en la 75. Cualquier trigger
+   nuevo tiene que decidir explícitamente qué hace cuando `turno_uid()` es null.
+
+## Qué sigue, en orden
+
+### 🔴 Sin esto no hay piloto de verdad
+1. **Comprar el dominio y verificar el subdominio en Brevo (SPF/DKIM).** Hoy el correo de
+   OTP cae en spam: la gente no puede ni entrar. Es el único bloqueo duro.
+2. **Rotar la clave SMTP** que se pegó en un chat, y actualizarla en Supabase.
+
+### 🟠 Después
+3. **Probar las notificaciones con dos teléfonos.** Hay **un solo token** en
+   `turno_push_tokens`. El envío es peer-to-peer (la base no puede hacer HTTP), así que si
+   el teléfono que recibe nunca registró el suyo, el push no llega **y no da error**. No se
+   puede dar por bueno hasta ver dos tokens y un aviso recibido.
+4. **Cobro y suscripciones.** `lib/pricing.ts` ya calcula los planes; la pantalla dice que
+   el pago se habilitará próximamente. Falta la pasarela entera.
+5. **Rediseño del panel del cliente**, rehecho contra esta rama.
+
+## Constraint de infraestructura (CRÍTICO)
+
+Supabase `pphnaasmirbnuilgzfeo` está **compartido con otro proyecto en producción con datos
+reales**. **Tocar SOLO objetos `turno_`.** `auth.users` y el SMTP también son compartidos.
+Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcance.
 
 ## Mapa de archivos
-- Diseño/tokens: `constants/index.ts`, `components/ui.tsx`
-- Lógica: `lib/db.ts`, `lib/notificaciones.ts`, `lib/whatsapp.ts`, `lib/format.ts`, `lib/storage.ts`, `lib/realtime.ts`, `lib/auth.ts`
-- Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/` (onboarding)
-- Compartido clave: `components/agenda-trabajo.tsx`
-- Backend: `supabase/migrations/` (01–14), `supabase/functions/turno-enviar-push/`
-- Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), este `HANDOFF.md`
+
+- Diseño y piezas: `constants/index.ts`, `components/ui.tsx`, `components/hoja.tsx`,
+  `components/tabs.tsx`
+- Compartido clave: `components/agenda-trabajo.tsx` (barbero y dueño-barbero)
+- Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
+  `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
+- Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
+- Backend: `supabase/migrations/` (01–85), `supabase/functions/turno-enviar-push/`
+- Pruebas: `supabase/tests/` (10 suites) y su `README.md`
+- Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
+  julio), este `HANDOFF.md`

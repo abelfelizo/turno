@@ -1,41 +1,90 @@
 # Checklist de producción · Turno
 
-Pasos para pasar del piloto en Expo Go a una app instalable con push reales.
-Marca cada uno al completarlo.
+> Lo que falta para pasar del piloto a una app instalable con gente de verdad.
+> Última actualización: **2026-09-11** · migración **85**.
+> Estado general en `CONTEXT.md`.
 
-## 1. Notificaciones push (requiere dev build — NO funcionan en Expo Go)
-El código ya está implementado y desplegado. Falta solo la infraestructura EAS:
+## 0. 🔴 EL BLOQUEO REAL: el correo
 
-- [ ] `npm i -g eas-cli` y `eas login` (cuenta Expo).
-- [ ] `eas init` en la raíz del proyecto → crea el proyecto EAS y escribe `extra.eas.projectId` en `app.json`. **Sin este projectId, `getExpoPushTokenAsync` no devuelve token** (el código lo maneja y no crashea, simplemente no registra).
-- [ ] Apple: cuenta de Apple Developer (US$99/año) para push en iOS. Android no requiere cuenta para push vía Expo (FCM lo gestiona Expo).
-- [ ] Pasar las claves públicas al build (no se leen del `.env` en build de nube): definir como variables EAS
-      `eas env:create --name EXPO_PUBLIC_SUPABASE_URL --value <url> --environment production`
-      y lo mismo con `EXPO_PUBLIC_SUPABASE_ANON_KEY`. (o llenarlas en `eas.json > build.production.env`).
-- [ ] Build de desarrollo para probar: `eas build --profile development --platform ios` (corre en simulador) o `--platform android`.
-- [ ] Instalar el dev build, abrir la app, iniciar sesión → debe pedir permiso de notificaciones y guardar el token en `turno_push_tokens`.
-- [ ] Probar el flujo "es tu turno": como barbero, "Llamar siguiente" → el cliente recibe push. (lo dispara `enviarPush` → edge function `turno-enviar-push`).
+Todo lo demás puede esperar; esto no. La app entra con **código OTP por email**, y hoy ese
+correo **cae en spam**. Un piloto en el que la gente no puede ni iniciar sesión no es un
+piloto.
 
-### Qué quedó hecho (no tocar, ya está)
-- Tabla `turno_push_tokens` + RPC `turno_guardar_push_token` (migración `14_push_tokens.sql`, aplicada). RLS: cada quien gestiona su token.
-- Edge function `turno-enviar-push` (desplegada, ACTIVE, `verify_jwt=true`). Lee tokens con service role y postea a `https://exp.host/--/api/v2/push/send`.
-- Cliente: `lib/notificaciones.ts` (`registrarPush` al iniciar sesión en `app/index.tsx`; `enviarPush` en `components/agenda-trabajo.tsx` al llamar al siguiente).
-- `app.json`: plugin `expo-notifications` con color de marca, `UIBackgroundModes: remote-notification`, `android.package`.
+- [ ] **Comprar un dominio.**
+- [ ] **Verificar el subdominio en Brevo: SPF y DKIM.** Es lo único que saca el correo de
+      spam de forma fiable.
+- [ ] Apuntar el SMTP de Supabase Auth a ese remitente ya verificado.
+- [ ] Probar el alta desde un teléfono que nunca haya usado la app, con Gmail y con
+      Hotmail — no desde el correo de siempre, que ya tiene el remitente "aprendido".
 
-### Mejora opcional (post-piloto)
-Hoy el push "es tu turno" lo dispara la **app del barbero** al pulsar "Llamar siguiente". Para que sea 100% server-side (no depende de que la app del barbero esté online), añadir un trigger en `turno_cola` al pasar a `llamado` que invoque la edge function vía `pg_net`. No incluido para no añadir HTTP-en-trigger en la BD compartida sin probarlo a fondo.
+- [ ] 🔴 **Rotar la clave SMTP** que se pegó en un chat y actualizarla en Supabase. Mientras
+      no se haga, esa clave hay que darla por comprometida.
 
-## 2. Endurecer para producción
-- [ ] `constants/index.ts`: `DEV_LOGIN = false`. Esto: (a) deja de arrancar siempre como cliente, (b) oculta los botones "Barbero (dev)" / "Dueño (dev)" en `cliente/perfil.tsx`, (c) reactiva el ruteo real por rol.
-- [ ] Reactivar verificación de correo / OTP si se había relajado para preview (revisar `lib/auth.ts` y Supabase Auth).
-- [ ] Borrar/9 deshabilitar la cuenta demo `dev@turno.test` y el seed de demo en producción (`supabase/seed.sql` es solo para desarrollo).
-- [ ] Moneda por país: hoy se asume RD$. Definir `moneda` por negocio (la columna existe) y mostrarla consistentemente en precios.
-- [ ] Revisar que no queden `console.log` ruidosos en caliente.
+## 1. Notificaciones push — probarlas de verdad
+
+Todo el código está desplegado y el `projectId` de EAS ya está en `app.json`. Lo que **no**
+está hecho es comprobar que funcionan, y hay una razón concreta para dudarlo:
+
+> En `turno_push_tokens` hay **un solo token**, de un solo usuario.
+
+El envío es **peer-to-peer**: lo dispara la app del barbero, porque la base de datos de este
+proyecto **no puede hacer llamadas HTTP** (no hay `pg_net`). Si el teléfono que tiene que
+recibir nunca registró su token, el push no va a ninguna parte **y no da ningún error**. Por
+eso "no me llegan las notificaciones" no tiene por qué ser un fallo del envío.
+
+- [ ] Instalar el build en **dos** teléfonos y entrar con dos cuentas distintas.
+- [ ] Confirmar en `turno_push_tokens` que hay **dos** filas.
+- [ ] Como barbero, "Llamar siguiente" → el otro teléfono recibe "Es tu turno".
+- [ ] Si no llega con los dos tokens presentes, entonces sí: mirar los logs de la edge
+      function `turno-enviar-push`.
+
+### Qué ya está hecho (no rehacer)
+- Tabla `turno_push_tokens` + RPC `turno_guardar_push_token` (upsert por token). RLS: cada
+  quien gestiona el suyo.
+- Edge function `turno-enviar-push`, desplegada y ACTIVE (`verify_jwt=true`); lee tokens con
+  service role y postea a `https://exp.host/--/api/v2/push/send`.
+- `lib/notificaciones.ts`: `registrarPush()` al iniciar sesión y `enviarPush()` al llamar al
+  siguiente. `estadoAvisos()` dice si hay permiso y si el token quedó registrado, que es
+  justo lo que hacía falta para no diagnosticar a ciegas.
+- `app.json`: plugin `expo-notifications`, `UIBackgroundModes: remote-notification`,
+  `android.package`, `extra.eas.projectId`.
+
+### Por qué NO es server-side
+Un trigger en `turno_cola` que llamara a la edge function necesitaría `pg_net`, es decir
+**HTTP desde dentro de una base compartida con otro proyecto en producción**. No se hace.
+
+## 2. Cobro y suscripciones — no existe
+
+`lib/pricing.ts` calcula los planes (modelo *por asiento, con piso y tope*: cliente gratis,
+barbero independiente paga el mínimo, al empleado lo cubre el dueño, el dueño paga
+`clamp(mínimo×asientos, mínimo, máximo)`), y la pantalla dice que el pago "se habilitará
+próximamente".
+
+- [ ] Decidir la vía: compra dentro de la app (IAP + RevenueCat) o pasarela local.
+- [ ] Cuentas de tienda y, si es IAP, productos dados de alta.
+- [ ] Estado de suscripción en BD y qué pasa exactamente cuando alguien **no** paga. Esa
+      decisión es de producto, no técnica, y hay que tomarla antes de escribir nada.
 
 ## 3. Build de tienda
+
+- [ ] `assets/`: `icon.png` (1024×1024) y splash reales, referenciados en `app.json`. Hoy
+      no existe la carpeta y el build usa los de por defecto.
 - [ ] `eas build --profile production --platform ios` / `--platform android`.
-- [ ] `eas submit` a App Store / Play Store (requiere cuentas de desarrollador).
-- [ ] Iconos y splash reales: crear carpeta `assets/` con `icon.png` (1024×1024) y splash, y referenciarlos en `app.json`. (Hoy no hay `assets/`; el build usa defaults.)
+- [ ] `eas submit` (requiere cuentas de desarrollador: Apple US$99/año, Play pago único).
+
+## 4. Publicar una actualización OTA (lo del día a día)
+
+GitHub → **Actions** → `actualizar.yml` → **Run workflow**, y ahí:
+- **Use workflow from:** `claude/app-status-2o0mdy`
+- **canal:** `preview`
+- **desde:** vacío
+
+> **Ojo:** el `env` de los perfiles de `eas.json` lo aplica `eas build`, **no** `eas update`.
+> Por eso el workflow inyecta las variables a mano. Si se quitan de ahí, la OTA sale sin
+> claves de Supabase y la app arranca en blanco.
 
 ## Recordatorio de infraestructura
-La BD Supabase `pphnaasmirbnuilgzfeo` es **compartida con Prestalo (producción) y libro_***. Tocar **solo** tablas `turno_`. Ver `CONTEXT.md`.
+
+La BD Supabase `pphnaasmirbnuilgzfeo` está **compartida con otro proyecto en producción con
+datos reales**. Tocar **solo** objetos `turno_`. `auth.users` y la configuración SMTP
+también son compartidas: cambiarlas afecta a la otra app.

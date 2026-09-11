@@ -8,6 +8,44 @@
 
 ---
 
+## ⚠️ CÓMO LEER ESTE DOCUMENTO HOY (nota de 2026-09-11, migración 85)
+
+Esto se escribió el **3 de julio** como brief de rediseño, cuando casi nada de lo de abajo
+existía. **Ya está construido casi entero.** Las columnas "Hoy" de la sección 1 y los
+🔴/🟠 de la sección 2 describen el pasado, no el presente: si se leen como estado actual,
+se rehace trabajo ya hecho o se propone algo que contradice una regla que hoy vive en el
+servidor.
+
+Sigue valiendo como **la intención**: por qué cada pantalla es como es. Para saber qué hay
+hoy, `CONTEXT.md`.
+
+Lo que cambió desde entonces, y que este documento no recoge:
+
+| Después del brief | Dónde |
+|---|---|
+| Modo de atención por barbero (solo citas / solo fila / ambos) | mig. 70 |
+| La fila abre y cierra con el horario, y un **letrero** dice por qué está cerrada | mig. 72, 74 |
+| `turno_puesto`: el puesto real, que no cuenta a quien ya está sentado | mig. 78 |
+| Los cuatro relojes del servicio (inicio, transcurrido, restante, fin estimado) | mig. 79 |
+| El sin cita cuenta como visita y como dinero; la fila se come la agenda | mig. 66, 67 |
+| Suspender a un empleado sin desvincularlo | mig. 81 |
+| Las reseñas se leen (barbero, dueño y cliente) | mig. 82 |
+| Barbero de confianza, con asignación automática al pedir "cualquiera" | mig. 83 |
+| País, ciudad, sector y moneda del local | mig. 80 |
+| Una barbería **nace abierta**, con jornada sembrada y avisada | mig. 85 |
+
+Y tres reglas del servidor que **cualquier rediseño tiene que respetar**, porque
+contradecirlas en la pantalla vuelve a abrir agujeros que ya se cerraron:
+
+1. **La cita la cierra el barbero.** El cliente puede confirmar, decir que va en camino o
+   cancelar; no puede marcar "atendida" ni firmar el cobro (mig. 73).
+2. **Cuándo se habilita "voy en camino" lo decide `turno_puede_confirmar`**, no un número
+   escrito en la pantalla.
+3. **No existe ninguna columna de "confiabilidad"**: hay `no_shows`, `llegadas_tarde` y
+   `abandonos`. Inventar un 4.9 es inventarse un dato.
+
+---
+
 ## 1. Decisiones de producto (reglas que cambian)
 
 Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
