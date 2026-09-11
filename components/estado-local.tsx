@@ -20,7 +20,7 @@
  */
 import { View, Text, StyleSheet } from 'react-native'
 import { COLORS, FONTS } from '../constants'
-import { relojesDeSilla } from '../lib/format'
+import { relojesDeSilla, hora12 } from '../lib/format'
 import { PuntoVivo } from './ui'
 
 export type SillaEstado = {
@@ -34,6 +34,17 @@ export type SillaEstado = {
   /** Relojes de la silla ocupada (migración 79). */
   desde?: string | null
   fin_estimado?: string | null
+  /**
+   * Hora a la que termina el bloqueo que tiene la silla ahora mismo, si lo hay.
+   *
+   * Hace falta porque `estado` no distingue dos cosas que para el cliente son
+   * MUY distintas: turno_estado_barbero marca 'atendiendo' tanto cuando hay
+   * alguien en la silla como cuando el barbero tiene una hora bloqueada. Sin
+   * esto, el que salió a almorzar aparecía "atendiendo" — y como los relojes
+   * (`desde`/`fin_estimado`) solo se rellenan desde la cola, el chip ni
+   * siquiera podía decir hasta cuándo.
+   */
+  hasta?: string | null
 }
 
 const COLOR: Record<string, string> = {
@@ -106,7 +117,13 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
                   {cerrada ? (x.modo === 'solo_citas' ? '  solo con cita' : '  cerrado')
                     : x.estado === 'atendiendo' ? (() => {
                         const r = relojesDeSilla(x.desde, x.fin_estimado)
-                        return r?.fin && !r.tarde ? `  libre ~${r.fin}` : '  atendiendo'
+                        if (r?.fin && !r.tarde) return `  libre ~${r.fin}`
+                        // Sin relojes de cola pero con un bloqueo encima, no
+                        // está atendiendo a nadie: está fuera. Decir
+                        // "atendiendo" manda al cliente a esperar un corte que
+                        // no existe; decir hasta cuándo le deja decidir.
+                        if (x.hasta) return `  vuelve ~${hora12(x.hasta)}`
+                        return '  atendiendo'
                       })()
                     : x.en_cola > 0 ? `  ${x.en_cola} esperando`
                     : '  libre'}
@@ -116,6 +133,24 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
           )
         })}
       </View>
+
+      {/* POR QUÉ ESTÁ CERRADO, CUANDO CADA SILLA TIENE SU RAZÓN.
+          El resumen de arriba solo puede dar el motivo cuando todas coinciden;
+          con dos distintos se quedaba en "ninguna silla está tomando gente
+          ahora", que no dice nada y deja al cliente adivinando si esperar,
+          volver mañana o llamar. Desde la migración 87 cada barbero cierra su
+          jornada por su cuenta, así que motivos distintos dejó de ser el caso
+          raro. Es el mismo texto con el que el servidor rechazaría el turno. */}
+      {!abierto && motivos.length > 1 && (
+        <View style={s.porques}>
+          {sillas.filter(x => x.fila_abierta === false && x.fila_motivo).map(x => (
+            <Text key={x.perfil_id} style={s.porque}>
+              <Text style={s.porqueQuien}>{x.barbero?.split(' ')[0] ?? 'Barbero'}</Text>
+              {'  '}{x.fila_motivo}
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   )
 }
@@ -134,4 +169,7 @@ const s = StyleSheet.create({
   punto: { width: 7, height: 7, borderRadius: 4 },
   chipT: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
   chipD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  porques: { marginTop: 12, gap: 5 },
+  porque: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 17 },
+  porqueQuien: { fontFamily: FONTS.bold, color: 'rgba(255,255,255,0.85)' },
 })

@@ -25,6 +25,39 @@ function cuentaRegresiva(fecha: string, hora: string) {
   return `en ${min} min`
 }
 
+/**
+ * QUÉ LE PASA A MI CITA, DICHO PARA EL CLIENTE.
+ *
+ * El barbero tiene FRASE_CITA en components/agenda-trabajo.tsx desde que se
+ * revisó su lado; el cliente no tenía nada. Una cita a la que se le pasó la
+ * hora de confirmar se veía EXACTAMENTE igual que una recién hecha: mismo
+ * título, mismo "Confirmar", mismo "Reprogramar", mismo "Cancelar". La pantalla
+ * daba por activa una cita que el barbero ya está mirando como dudosa.
+ *
+ * Son las mismas frases que ve el barbero, contadas desde el otro lado de la
+ * silla: lo que uno lee y lo que lee el otro tienen que ser la misma historia.
+ */
+const FRASE_CITA: Record<string, string> = {
+  creada: 'Reservada. Confirma que vas para que te guarden el lugar.',
+  confirmada: 'Confirmada. Te esperan a esa hora.',
+  no_confirmada: 'Se pasó la hora de confirmar. Puedes confirmar todavía, pero tu lugar ya no está garantizado.',
+  en_camino: 'Dijiste que vas en camino.',
+}
+
+/**
+ * Si ya pasó la hora de la cita.
+ *
+ * `getMisCitas` filtra por FECHA (`fecha >= hoy`), no por hora, así que una cita
+ * de las 10:00 seguía saliendo a las seis de la tarde como "PRÓXIMA CITA" — y
+ * cuentaRegresiva, al ser el resto negativo, decía "ahora" durante ocho horas
+ * seguidas. El cron la cierra de madrugada; hasta entonces la pantalla mentía.
+ */
+function yaPaso(cita: any) {
+  const fin = cita?.hora_fin ?? cita?.hora_inicio
+  if (!cita?.fecha || !fin) return false
+  return new Date(`${cita.fecha}T${fin}`).getTime() < Date.now()
+}
+
 export default function Home() {
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
@@ -170,30 +203,57 @@ export default function Home() {
       )}
 
       {citas.length > 0 && <Text style={s.sec}>TUS CITAS</Text>}
-      {citas.map((cita: any, i: number) => (
-        <View key={cita.id} style={s.cita}>
-          <View style={s.citaIcon}><Ionicons name="calendar" size={22} color={COLORS.red} /></View>
+      {citas.map((cita: any, i: number) => {
+        // Una cita cuya hora ya pasó no es una cita próxima, y sobre todo no es
+        // una cita sobre la que el cliente pueda hacer nada útil: quien decide
+        // ahora es el barbero, que la marcará atendida o no llegó. Ofrecerle
+        // "Confirmar" es pedirle que confirme el pasado, y "Cancelar" le avisa
+        // al barbero de la cancelación de algo que ya no va a ocurrir.
+        // Reprogramar sí sigue teniendo sentido: es lo único que arregla algo.
+        const pasada = yaPaso(cita)
+        const porConfirmar = !pasada && (cita.estado === 'creada' || cita.estado === 'no_confirmada')
+        return (
+        <View key={cita.id} style={[s.cita, pasada && s.citaPasada]}>
+          <View style={[s.citaIcon, pasada && s.citaIconPasada]}>
+            <Ionicons name={pasada ? 'time-outline' : 'calendar'} size={22}
+              color={pasada ? COLORS.textLight : COLORS.red} />
+          </View>
           <View style={{ flex: 1 }}>
             <View style={s.citaTop}>
-              <Text style={s.citaKick}>{i === 0 ? 'PRÓXIMA CITA' : 'CITA'}</Text>
-              <Text style={s.citaCd}>{cuentaRegresiva(cita.fecha, cita.hora_inicio)}</Text>
+              <Text style={s.citaKick}>{pasada ? 'SE PASÓ LA HORA' : i === 0 ? 'PRÓXIMA CITA' : 'CITA'}</Text>
+              {!pasada && <Text style={s.citaCd}>{cuentaRegresiva(cita.fecha, cita.hora_inicio)}</Text>}
             </View>
             <Text style={s.citaServ}>{cita.turno_servicios?.nombre}</Text>
             <Text style={s.citaMeta}>{cita.fecha} · {hora12(cita.hora_inicio)} · {cita.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
+
+            {/* En qué estado está, con palabras. Antes no se decía en ningún
+                sitio: una cita a la que se le pasó el plazo de confirmar se
+                veía idéntica a una recién hecha. */}
+            <Text style={s.citaEstado}>
+              {pasada
+                ? 'El barbero dirá si te atendió o si no llegaste. Si quieres otra hora, reprográmala.'
+                : FRASE_CITA[cita.estado] ?? cita.estado}
+            </Text>
+
             <View style={s.citaAcc}>
-              {(cita.estado === 'creada' || cita.estado === 'no_confirmada')
+              {porConfirmar
                 ? <TouchableOpacity style={s.citaBtn} onPress={async () => { await confirmarCita(cita.id); cargar() }}><Text style={s.citaBtnT}>Confirmar</Text></TouchableOpacity>
-                : <Badge tone="success">Confirmada</Badge>}
+                : !pasada && cita.estado === 'en_camino' ? <Badge tone="blue">Vas en camino</Badge>
+                : !pasada ? <Badge tone="success">Confirmada</Badge>
+                : null}
               <TouchableOpacity onPress={() => router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: cita.perfil_id, servicio: cita.servicio_id, reagendar: cita.id } })}>
                 <Text style={s.citaReprog}>Reprogramar</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); avisarCancelacion(cita); cargar() } }])}>
-                <Text style={s.citaCancel}>Cancelar</Text>
-              </TouchableOpacity>
+              {!pasada && (
+                <TouchableOpacity onPress={() => Alert.alert('Cancelar cita', '¿Cancelar esta cita?', [{ text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { await cancelarCita(cita.id); avisarCancelacion(cita); cargar() } }])}>
+                  <Text style={s.citaCancel}>Cancelar</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
-      ))}
+        )
+      })}
 
       {/* ── QUÉ PUEDES HACER ────────────────────────────────────────────────
           Aquí había DOS cosas: un botón de reservar cita y, debajo, la lista
@@ -297,6 +357,9 @@ const s = StyleSheet.create({
   citaCd: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
   citaServ: { fontFamily: FONTS.extrabold, fontSize: 18, color: COLORS.ink, marginTop: 4 },
   citaMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  citaEstado: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 8, lineHeight: 17 },
+  citaPasada: { backgroundColor: COLORS.bg, borderStyle: 'dashed' },
+  citaIconPasada: { backgroundColor: COLORS.border },
   citaAcc: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
   citaBtn: { backgroundColor: COLORS.red, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
   citaBtnT: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13 },

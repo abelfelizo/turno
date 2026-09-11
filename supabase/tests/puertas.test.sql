@@ -50,7 +50,7 @@ declare
   u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid; u_cli2 uuid;
   v_neg uuid; v_neg2 uuid; p_due uuid; p_bar uuid; p_ext uuid;
   s_corte uuid; q_cli uuid; q_libre uuid; v_bloq uuid;
-  cita_a uuid; cita_b uuid; cita_c uuid; cita_d uuid;
+  cita_a uuid; cita_b uuid; cita_c uuid; cita_d uuid; cita_vieja uuid; cita_fut uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
   v_int int; v_pts int; v_txt text; v_sentado text; abiertas text := '';
 begin
@@ -301,6 +301,66 @@ begin
   select count(*) into v_int from turno_historial_visitas where cliente_id=u_cli2;
   if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - '||v_int||' visitas'; end if;
+
+  -- ── HASTA CUÁNDO MANDA EL CLIENTE EN SU CITA (migración 90) ───────────────
+  -- Los casos de arriba miran QUÉ puede escribir el cliente. Faltaba CUÁNDO.
+  -- Sin esta regla podía confirmar —o ponerse en camino— en una cita del martes
+  -- pasado, y el barbero se encontraba una cita vieja en verde en su agenda
+  -- como si fuera a aparecer alguien. No es una fuga: es ruido metido en la
+  -- agenda de otro, que es lo que esta app existe para evitar.
+  -- Las dos se crean AQUÍ, fuera de todo bloque con `exception`: uno que captura
+  -- revierte también sus propios inserts. Y la futura es NUEVA, no cita_c —
+  -- esa ya la canceló el cliente arriba, y un update que no cambia el estado no
+  -- pasa por la comprobación: el caso habría pasado por la razón equivocada.
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli2, v_neg, s_corte, current_date-3, time '10:00', time '10:30', 'creada') returning id into cita_vieja;
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_bar, u_cli2, v_neg, s_corte, current_date+3, time '10:00', time '10:30', 'creada') returning id into cita_fut;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+
+  n:=n+1; c:='cita vieja · el cliente NO la confirma a toro pasado';
+  begin
+    update turno_citas set estado='confirmada' where id=cita_vieja;
+    fallos:=fallos||E'\n  x '||c||' - confirmó una cita de hace tres días';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='cita vieja · tampoco se pone "en camino" a una cita de hace tres días';
+  begin
+    update turno_citas set estado='en_camino' where id=cita_vieja;
+    fallos:=fallos||E'\n  x '||c||' - dijo que iba en camino a algo que ya pasó';
+  exception when others then ok:=ok+1; end;
+
+  n:=n+1; c:='cita vieja · ni la cancela (cancelar avisa al barbero por push)';
+  begin
+    update turno_citas set estado='cancelada' where id=cita_vieja;
+    fallos:=fallos||E'\n  x '||c||' - canceló algo que ya no iba a ocurrir';
+  exception when others then ok:=ok+1; end;
+
+  reset role;
+
+  -- LAS DOS MITADES DE NO CERRAR DE MÁS. Si esta regla se pasa de lista rompe
+  -- dos cosas peores que las que arregla: que el cliente cancele una cita que
+  -- todavía no ha pasado, y que el BARBERO cierre las viejas — que es
+  -- exactamente como se marca "no llegó".
+  n:=n+1; c:='cita futura · el cliente SÍ la sigue cancelando';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_citas set estado='cancelada' where id=cita_fut;
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+  reset role;
+
+  n:=n+1; c:='cita vieja · el BARBERO sí la cierra (así se marca "no llegó")';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_citas set estado='no_llego' where id=cita_vieja;
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+  reset role;
 
   -- ── LA SILLA ES DE QUIEN ATIENDE (migración 76) ───────────────────────────
   -- Reportado desde el teléfono mirando el panel del dueño: puede sacar de la

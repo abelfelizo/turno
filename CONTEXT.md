@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **89** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **90** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -92,7 +92,7 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 
 ## Backend
 
-**89 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**90 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 

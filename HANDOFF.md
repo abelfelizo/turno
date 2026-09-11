@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **89** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **90** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -21,15 +21,16 @@ nada avise, y ya pasó dos veces.
 
 ## Lo último que se cerró
 
-- **Migraciones 66–89.** El sin cita es un cliente (cuenta como dinero), la fila se come la
+- **Migraciones 66–90.** El sin cita es un cliente (cuenta como dinero), la fila se come la
   agenda, "te toca y el reloj corre", cómo te llega el trabajo (`modo_atencion`), la puerta
   y el letrero, la silla es de quien atiende, el que está en la silla no hace fila, los
   cuatro relojes del servicio, dónde queda el local (país + moneda), suspender no es echar,
   las reseñas se leen, mi barbero, devolver vacío no es negarse, una barbería nace abierta,
   la prueba gratis existe de verdad, "hoy cierro más tarde" (87), de quién es esa decisión
-  (88), y la red anti-anónimos que se cuenta sola (89).
+  (88), la red anti-anónimos que se cuenta sola (89), y hasta cuándo manda el cliente en su
+  cita (90).
 - **Doce suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
-  6, viaje 17, obstáculos 32, puertas 33, horarios 26, sin cita 22, modo 21, confianza 27,
+  6, viaje 17, obstáculos 32, puertas 38, horarios 26, sin cita 22, modo 21, confianza 27,
   suscripción 10, jornada 25.
 
 ## Los cuatro fallos que más enseñaron
@@ -100,7 +101,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–89), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–90), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`
