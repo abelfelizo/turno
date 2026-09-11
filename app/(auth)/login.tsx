@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
@@ -30,8 +30,20 @@ export default function Login() {
     finally { setCargando(false) }
   }
 
+  // MISMO ARREGLO QUE EL ONBOARDING (ver components/onb.tsx).
+  // Aquí era peor: sin ScrollView, el titular de 68pt no deja nada que encoger,
+  // así que con el teclado abierto el campo se iba fuera de pantalla y no había
+  // forma de alcanzarlo. Ahora el contenido puede subir, y
+  // `automaticallyAdjustKeyboardInsets` lleva el foco a la vista.
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.c}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: COLORS.carbon }}
+      contentContainerStyle={s.c}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
+      showsVerticalScrollIndicator={false}
+    >
       <StatusBar style="light" />
       <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
@@ -65,12 +77,12 @@ export default function Login() {
           <TouchableOpacity onPress={() => setPaso('email')} disabled={cargando}><Text style={s.link}>Cambiar correo</Text></TouchableOpacity>
         </>
       )}
-    </KeyboardAvoidingView>
+    </ScrollView>
   )
 }
 
 const s = StyleSheet.create({
-  c: { flex: 1, backgroundColor: COLORS.carbon, padding: 28, justifyContent: 'center' },
+  c: { flexGrow: 1, padding: 28, paddingBottom: 56, justifyContent: 'center' },
   poleTop: { position: 'absolute', top: 0, left: 0, right: 0 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
   logo: { width: 34, height: 34, borderRadius: 7, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },

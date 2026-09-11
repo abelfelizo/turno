@@ -28,7 +28,7 @@ declare
   a_due uuid := gen_random_uuid(); a_emp uuid := gen_random_uuid(); a_ren uuid := gen_random_uuid();
   u_due uuid; u_emp uuid; u_ren uuid;
   p_due uuid; p_emp uuid; p_ren uuid;
-  a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text; p_new2 uuid;
+  a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text; p_new2 uuid; s_ren uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text; v_bool boolean;
 begin
   -- ── FIXTURES · un local con dueño-que-atiende, un empleado y un rentado ────
@@ -360,6 +360,38 @@ begin
     perform turno_stats_periodo_perfil(p_ren, current_date - 3650, current_date);
     fallos := fallos || E'\n  x '||c||' - se llevó las cuentas de su inquilino';
   exception when others then ok:=ok+1; end;
+
+  -- NI POR LA TABLA (migración 101). El caso de arriba cerró la FUNCIÓN y la
+  -- tabla se quedó abierta un mes entero: con `set local role authenticated`, un
+  -- simple `select sum(precio_cobrado)` le daba al casero la facturación de su
+  -- inquilino. Es el fallo número uno de este repo —una regla que solo vive en
+  -- la función no es una regla— por quinta vez, y esta vez sin siquiera
+  -- necesitar una SECURITY DEFINER de por medio.
+  --
+  -- La visita se inserta AQUÍ, fuera de todo bloque con exception: uno que
+  -- captura revierte sus propios inserts y el caso mediría una tabla vacía.
+  -- `servicio_id` es NOT NULL, así que se coge el servicio que el rentado se
+  -- creó en el caso 4 — y ese caso pasó, o sea que existe.
+  select id into s_ren from turno_servicios where perfil_id = p_ren limit 1;
+  insert into turno_historial_visitas (cliente_id, negocio_id, perfil_id, servicio_id, fecha, precio_cobrado, origen)
+  values (u_new, v_neg, p_ren, s_ren, current_date, 1500, 'cola_digital');
+
+  n:=n+1; c:='casero · ni por la TABLA, que es por donde se entraba de verdad';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_historial_visitas where perfil_id = p_ren;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - leyó '||v_int
+       ||' visitas con su precio saltándose la función'; end if;
+
+  n:=n+1; c:='casero · y el inquilino SÍ lee lo suyo (no cerrar de más)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ren::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_historial_visitas where perfil_id = p_ren;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - vio '||v_int||' de 1: SE CERRÓ DE MÁS'; end if;
 
   -- La otra mitad: cerrar de más sería dejar al inquilino sin su propia silla.
   n:=n+1; c:='casero · el rentado SÍ opera lo suyo';

@@ -448,6 +448,63 @@ begin
     fallos:=fallos||E'\n  x '||c||' - se llevó ingresos, visitas y ticket de un barbero ajeno';
   exception when others then ok:=ok+1; end;
 
+  -- ═══ PERTENECER NO ES PODER MIRAR (migración 101) ════════════════════════
+  --
+  -- Todo lo de arriba prueba FUNCIONES. Estas tres prueban la TABLA, que es por
+  -- donde se entraba de verdad: las políticas de select decían
+  --
+  --   cliente_id = turno_uid()  OR  negocio_id in (select turno_mis_negocios())
+  --
+  -- y `turno_mis_negocios()` incluye los locales donde eres SOLO CLIENTE — lo
+  -- mismo que ya tumbó la migración 73 por el otro lado. Comprobado contra la
+  -- base antes de arreglarlo: un cliente cualquiera, recién unido con el código,
+  -- se llevaba la facturación entera del local y la agenda de los demás.
+  --
+  -- El intruso aquí NO es el de otro local: es el de DENTRO. Un desconocido
+  -- rebota antes, en la pertenencia, y no probaría nada.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_historial_visitas
+   where negocio_id = v_neg and cliente_id <> u_cli2;
+  select count(*) into v_pts from turno_citas
+   where negocio_id = v_neg and cliente_id <> u_cli2;
+  reset role;
+
+  n:=n+1; c:='tabla · un CLIENTE del local no lee lo que factura el local';
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE LLEVÓ '||v_int
+       ||' visitas con su precio, solo por unirse con el código'; end if;
+
+  n:=n+1; c:='tabla · ni las citas de los demás clientes';
+  if v_pts = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_pts||' citas ajenas, con nombre y hora'; end if;
+
+  n:=n+1; c:='tabla · ni los turnos ajenos de la fila';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_cola
+   where negocio_id = v_neg and cliente_id <> u_cli2;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||' turnos ajenos'; end if;
+
+  -- LA OTRA MITAD, porque cerrar de más aquí deja al cliente sin su propia app.
+  n:=n+1; c:='tabla · pero SÍ ve lo suyo (historial y citas propias)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_historial_visitas where cliente_id = u_cli;
+  reset role;
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='tabla · y el BARBERO sigue viendo lo de su silla';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_historial_visitas where perfil_id = p_bar;
+  reset role;
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
   perform set_config('request.jwt.claims', null, true);

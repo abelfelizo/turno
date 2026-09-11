@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, TextInputProps } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, TextInputProps } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { ReactNode } from 'react'
 import { useRouter } from 'expo-router'
@@ -6,12 +6,46 @@ import { Ionicons } from '@expo/vector-icons'
 import { COLORS, FONTS } from '../constants'
 import { Display } from './ui'
 
+/**
+ * EL ARMAZÓN DEL ONBOARDING · y por qué ya no lleva KeyboardAvoidingView.
+ *
+ * Reportado desde el teléfono: «el teclado del onboarding tapa el cuadro de
+ * texto». Llevaba
+ *
+ *   <KeyboardAvoidingView behavior={ios ? 'padding' : undefined}>
+ *     <ScrollView …>
+ *
+ * y esa es justo la combinación que no funciona. `padding` le añade relleno
+ * ABAJO AL CONTENEDOR, pero el ScrollView ya ocupa la pantalla entera: lo único
+ * que consigue es encoger el área visible. No desplaza el campo enfocado, así
+ * que el campo se queda debajo del teclado exactamente igual. Y en Android el
+ * `behavior` era `undefined`, o sea que ahí no hacía nada en absoluto.
+ *
+ * Lo que sí funciona, y es menos código:
+ *
+ *   · iOS → `automaticallyAdjustKeyboardInsets`. El propio ScrollView mete el
+ *     inset del teclado Y desplaza hasta el campo que tiene el foco, que es la
+ *     mitad que faltaba.
+ *   · Android → no hace falta nada: `softwareKeyboardLayoutMode` vale "resize"
+ *     por defecto en Expo, la ventana se encoge y el ScrollView se ocupa solo.
+ *     (Si algún día se pone "pan" en app.json, esto se rompe — y ese cambio es
+ *     nativo, no entra por OTA.)
+ *
+ * Y `paddingBottom` generoso, para que el botón primario no quede pegado al
+ * borde del teclado cuando el formulario es corto.
+ */
 export function OnbScreen({ titulo, subtitulo, children, paso }: { titulo: string; subtitulo?: string; children: ReactNode; paso?: string }) {
   const router = useRouter()
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: COLORS.carbon }}>
+    <View style={{ flex: 1, backgroundColor: COLORS.carbon }}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
         <TouchableOpacity style={s.back} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
           <Ionicons name="chevron-back" size={22} color="#fff" />
         </TouchableOpacity>
@@ -21,7 +55,7 @@ export function OnbScreen({ titulo, subtitulo, children, paso }: { titulo: strin
         <View style={{ height: 24 }} />
         {children}
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   )
 }
 
@@ -55,7 +89,9 @@ export function BotonPrimario({ texto, onPress, cargando, disabled }: { texto: s
 }
 
 const s = StyleSheet.create({
-  scroll: { padding: 28, paddingTop: 64, flexGrow: 1 },
+  // paddingBottom holgado: con el teclado abierto, el último campo y el botón
+  // tienen que poder subir por encima de él. Con 28 el botón quedaba pegado.
+  scroll: { padding: 28, paddingTop: 64, paddingBottom: 56, flexGrow: 1 },
   back: { width: 38, height: 38, borderRadius: 11, backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
   paso: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
   subtitulo: { fontFamily: FONTS.regular, fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 20, marginTop: 8 },
