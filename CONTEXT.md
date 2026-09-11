@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **93** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **97** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -24,11 +24,15 @@ persona y su historial la sigue, pero **reservar siempre pasa por un local**.
 Pero «local» no quiere decir «sitio con gente»: quiere decir **el contenedor de su
 negocio**. El barbero que alquila un sillón en una barbería que NO usa la app monta el suyo
 de una silla y trabaja igual. Eso existía en el modelo desde siempre y no existía en la
-pantalla: las tres puertas de bienvenida eran "tengo una barbería" —no la tiene—, "trabajo
-en una barbería" —que pide el código de un local que no está en Turno— y "soy cliente". Se
-quedaba fuera en la pantalla uno. Desde `app/(auth)/solo-tipo.tsx` hay una tercera puerta,
-**"Trabajo por mi cuenta"**, y desde Config > Mis locales se puede montar el propio sin
-tener que quedarse antes sin ninguno.
+pantalla: "trabajo en una barbería" le pedía el CÓDIGO de un local que no está en Turno, así
+que se quedaba fuera en la pantalla uno.
+
+**El onboarding crea exactamente tres tipos de usuario: cliente, barbero y dueño.** Ni uno
+más — el que trabaja por su cuenta no es un cuarto tipo, es un barbero. Por eso dónde
+trabaja se le pregunta DENTRO de su camino (`app/(auth)/barbero-donde.tsx`): "en una
+barbería que usa Turno" pide el código; "por mi cuenta" le monta su negocio de una silla.
+Y desde Config > Mis locales puede montarse el suyo sin tener que quedarse antes sin
+ninguno.
 
 ### 2. La base NO puede hacer llamadas HTTP
 No hay `pg_net` ni `http` en este proyecto. Consecuencia directa y no negociable: **todo
@@ -81,15 +85,61 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 | Barbero | agenda (estado con cuatro relojes, fila, citas, walk-in, bloquear hora), stats, clientes (notas privadas), config por secciones | ✅ |
 | Dueño | dashboard (código, aprobar, cola del local, stats), agenda, stats, ficha de barbero, config por secciones | ✅ |
 | Dueño-barbero | su "Mi agenda" es la agenda de trabajo real (`components/agenda-trabajo.tsx`, compartida) | ✅ |
-| Onboarding | 11 pantallas + login, con botón atrás | ✅ |
+| Onboarding | 3 puertas (cliente, barbero, dueño) y 12 pantallas + login, con botón atrás | ✅ |
+
+## El esquema, en una tabla
+
+Tres tipos de usuario, y todo lo demás se deriva de la **modalidad del local**:
+
+| | Cliente | Barbero | Dueño de asientos alquilados | Dueño de empleados |
+|---|---|---|---|---|
+| ¿Paga? | **Nunca** | Se paga por él **siempre** | **No**: solo agrupa | **Sí**, cubre a los suyos |
+| ¿Controla la silla de otro? | — | No | **No** | **Sí** |
+| ¿Cómo entra un barbero? | — | — | **Se agrega él** con el código, activo al momento | **Solo el dueño**: entra pendiente y él lo aprueba |
+| ¿Qué le queda al dueño? | — | — | Suspender (quitar de la fila y la fachada) y desvincular | Todo lo de un patrón |
+| ¿Y si no se paga? | Ve el local, no la fila | No aparece ni recibe cola | Su silla se apaga; el local no cuesta nada | Se apagan **todas** las sillas |
+
+La coherencia es la que importa: **quien no dirige, tampoco autoriza ni cobra.** Las
+migraciones 92 (mando), 93 (pago) y 94 (puerta de entrada) son la misma regla aplicada a
+tres cosas distintas.
+
+### El cobro corta de verdad (migraciones 95, 96 y 97)
+
+Durante nueve migraciones la suscripción fue un dato que no apagaba nada, a propósito,
+porque **qué pasa cuando alguien no paga** era una decisión de producto sin tomar. Se tomó,
+y va por **una sola palanca**, `turno_silla_al_dia(perfil)`, enganchada en los dos sitios por
+los que ya pasaba todo — `turno_perfil_acepta` y `turno_perfil_operable`. Una regla escrita
+en quince sitios se corrige en catorce.
+
+- **Una silla que no está al día no aparece, no acepta trabajo y no opera la fila.** El
+  dueño de un local de empleados que no paga se queda sin ninguna silla —todas cuelgan de la
+  misma suscripción, la suya incluida—, que es exactamente «necesita al menos un barbero pago
+  para habilitar las funciones de fila».
+- **El cupo por antigüedad** (96). `turno_suscripciones.sillas_pagadas` dice por cuántas se
+  paga; `NULL` = sin tope (prueba y cortesía, a propósito). Cuando sobran, trabajan las más
+  antiguas: es la única regla que no obliga a nadie a decidir el día que vence el pago. Sin
+  esto se pagaba una silla y trabajaban cinco.
+- **Lo que NO se apaga**: las citas ya reservadas y el historial. Se corta el servicio que se
+  cobra —aparecer y recibir por la app—, no el trabajo de nadie.
+- **Y no se delata a quien no pagó.** `turno_fila_abierta` devuelve la frase neutra «no está
+  tomando clientes ahora mismo»: lo que un barbero deba por la app es entre él y nosotros, no
+  una nota en el escaparate de su negocio. La 97 cerró el atajo que la 95 se había dejado
+  abierta al lado — `turno_silla_al_dia`, `turno_perfil_acepta` y `turno_perfil_operable`
+  contestaban esa misma pregunta a cualquiera con `EXECUTE`.
+- **En la app**: `turno_local_operativo(negocio)` no decide nada —la regla ya se aplica sola,
+  silla a silla— y existe solo para poder DECÍRSELO al dueño en vez de dejarle un panel
+  apagado sin explicación. El cliente de un local sin sillas al día ve el negocio entero
+  (nombre, dirección, sus tarjetas) y ninguna fila.
 
 ## Lo que decide cada quién
 
 - **La modalidad del LOCAL manda, no la persona** (`turno_negocios.tipo`): `empleados` → la
   barbería pone servicios, precios y horarios; `espacios_rentados` → cada barbero paga su
   asiento y pone sus reglas. El rol se **deriva** del tipo del local al entrar con el
-  código. Los **bloqueos** (almuerzo, un rato fuera) son del barbero siempre: solo quitan
-  disponibilidad, nunca la inventan.
+  código, y desde la migración 94 la **aprobación también**: en asientos alquilados el
+  barbero entra ACTIVO —se agrega él— y con empleados entra pendiente. Los **bloqueos**
+  (almuerzo, un rato fuera) son del barbero siempre: solo quitan disponibilidad, nunca la
+  inventan.
 - **Modo de atención** por barbero (`modo_atencion`): `solo_citas`, `solo_fila`, `ambos`.
   Cubre al que solo trabaja con cita sin obligarle a apagar nada más.
 - **El casero no es el jefe** (migración 92). R11 decía quién pone precios y horarios;
@@ -121,7 +171,7 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 
 ## Backend
 
-**93 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**97 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -143,7 +193,7 @@ trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 | `sin_cita` | El cliente de la calle: que cuente como visita y no se cuele |
 | `modo_atencion` | Por dónde acepta trabajo cada barbero, y que el letrero diga lo mismo que la puerta |
 | `confianza` | Suspender, leer reseñas y el barbero de confianza — sobre todo donde se cruzan |
-| `suscripcion` | La prueba gratis, el pago y la cortesía — y que un local vencido **siga funcionando** |
+| `suscripcion` | La prueba, el pago, la cortesía, **quién paga** (local o silla) y **qué se apaga** cuando no se paga: el cupo por antigüedad y que el letrero no delate a nadie |
 | `jornada` | "Hoy cierro más tarde": alargar, cerrar antes, volver a la norma, y de quién es esa decisión (R11) |
 
 **Cómo se corren.** Con `DATABASE_URL` puesto, `npm run test:db`. Sin él (el caso normal en
@@ -195,13 +245,12 @@ haya líneas con `x`.
 2. **Rotar la clave SMTP** que se pegó en un chat, y actualizarla en Supabase.
 
 ### 🟠 Funcional, sin terminar
-3. **Cobro y suscripciones.** El cimiento está (migración 86): cada local nace con **30 días
-   de prueba** y `turno_suscripcion()` dice en qué situación está. `lib/pricing.ts` calcula
-   cuánto tocaría pagar (modelo "por asiento, con piso y tope"). **Lo que falta es el cobro
-   entero**, y antes que él una decisión de producto: **qué pasa cuando alguien no paga.**
-   Hoy no pasa nada a propósito — nada mira `al_dia`, y hay un caso en la suite que se pone
-   rojo si alguien mete una comprobación de pago sin decidirla. Un SDK de pagos es código
-   nativo: **no entra por OTA**.
+3. **La pasarela de pago.** Todo lo de alrededor ya está: cada local y cada silla nacen con
+   **30 días de prueba** (86 y 93), la modalidad del local decide quién paga (93), y desde la
+   95 **no pagar apaga la fila de verdad**, con el cupo por antigüedad de la 96 para que
+   pagar una silla no dé para cinco. `lib/pricing.ts` calcula cuánto tocaría ("por asiento,
+   con piso y tope"). Lo que falta es **cobrarlo**: hoy `pagada_hasta` y `sillas_pagadas` se
+   escriben a mano. Un SDK de pagos es código nativo: **no entra por OTA**.
 4. **Notificaciones sin probar de verdad.** Solo hay **un** token registrado en
    `turno_push_tokens`. Como el envío es peer-to-peer, si el teléfono que recibe nunca
    registró el suyo, el push no va a ninguna parte y **no da error**. Antes de dar por

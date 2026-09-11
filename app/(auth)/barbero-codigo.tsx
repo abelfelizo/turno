@@ -42,7 +42,7 @@ export default function BarberoCodigo() {
   const renta = negocio?.tipo === 'espacios_rentados'
 
   return (
-    <OnbScreen paso="Tu trabajo · 2 de 3" titulo="Código del local"
+    <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Código del local"
       subtitulo="Pídeselo al dueño de la barbería donde vas a trabajar.">
       <Campo label="Código de acceso" placeholder="ABC-1234" autoCapitalize="characters"
         maxLength={9} value={codigo}
@@ -57,9 +57,12 @@ export default function BarberoCodigo() {
           <View style={s.modalidad}>
             <Ionicons name={renta ? 'person' : 'business'} size={16} color={COLORS.textMid} />
             <Text style={s.modalidadT}>
+              {/* Y CUÁNDO EMPIEZAS, que desde la migración 94 va con la
+                  modalidad: si alquila asientos no hay nada que aprobar —el
+                  dueño agrupa, no dirige— y si tiene empleados, él te mete. */}
               {renta
-                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción.'
-                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción.'}
+                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. Entras directo, sin esperar aprobación.'
+                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
             </Text>
           </View>
         </View>

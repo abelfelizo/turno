@@ -29,7 +29,7 @@ declare
   u_due uuid; u_emp uuid; u_ren uuid;
   p_due uuid; p_emp uuid; p_ren uuid;
   a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text;
-  n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text;
+  n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text; v_bool boolean;
 begin
   -- ── FIXTURES · un local con dueño-que-atiende, un empleado y un rentado ────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -170,6 +170,24 @@ begin
     else fallos := fallos || E'\n  x '||c||' - quedo como '||coalesce(v_rol,'NULL'); end if;
   exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
   end;
+
+  -- ── QUIÉN DEJA ENTRAR A QUIÉN (migración 94) ──────────────────────────────
+  -- La aprobación va con el mismo interruptor que el rol y que el mando: quien
+  -- no dirige, tampoco autoriza. Tener al que paga renta esperando el permiso
+  -- del casero era la última pieza de «te dirijo» que quedaba en pie después de
+  -- la 92.
+  n:=n+1; c:='alta · en ASIENTOS ALQUILADOS entra activo, se agrega él';
+  select aprobado into v_bool from turno_perfiles
+   where usuario_id = u_new and negocio_id = v_neg2;
+  if v_bool then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c
+       ||' - se quedó esperando permiso de quien no lo dirige'; end if;
+
+  n:=n+1; c:='alta · en EMPLEADOS entra pendiente: solo el dueño lo mete';
+  select aprobado into v_bool from turno_perfiles
+   where usuario_id = u_new and negocio_id = v_neg;
+  if v_bool = false then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - entró aprobado sin que el dueño lo aprobara'; end if;
 
   -- ── CASO 10 · el local mixto lo decide el dueño ───────────────────────────
   n:=n+1; c:='mixto · el dueño SI puede pasar a un empleado a renta';

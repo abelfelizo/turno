@@ -67,6 +67,9 @@ export default function Home() {
   // El local silla por silla y la espera de ahora: lo que alimenta el cuadro
   // de estado. Ver components/estado-local.tsx.
   const [sillas, setSillas] = useState<any[]>([])
+  // Cero sillas y "no pude preguntar" no son lo mismo. Sin esta distinción, un
+  // fallo de red le diría al cliente que su barbería no atiende.
+  const [sillasOk, setSillasOk] = useState(false)
   const [resumen, setResumen] = useState<{ delante: number; espera_min: number }>({ delante: 0, espera_min: 0 })
   const [turno, setTurno] = useState<any>(null)
   const [puesto, setPuesto] = useState<number | null>(null)
@@ -90,7 +93,7 @@ export default function Home() {
     if (!ss?.negocio_id || !ss?.usuario_id) { setLoading(false); return }
     const [neg, est, res, t, cs, negs, pts, hist, yo] = await Promise.all([
       getNegocioById(ss.negocio_id),
-      getEstadoLocal(ss.negocio_id).catch(() => []),
+      getEstadoLocal(ss.negocio_id).catch(() => null),
       getResumenFila(ss.negocio_id).catch(() => ({ delante: 0, espera_min: 0 })),
       getMiTurnoActivo(ss.usuario_id, ss.negocio_id),
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
@@ -99,7 +102,8 @@ export default function Home() {
       getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMiUsuario().catch(() => null),
     ])
-    setNegocio(neg); setSillas(est as any[]); setResumen(res); setTurno(t); setCitas(cs as any[])
+    setNegocio(neg); setSillas((est ?? []) as any[]); setSillasOk(est != null)
+    setResumen(res); setTurno(t); setCitas(cs as any[])
     setPuesto(t?.id ? await getPuesto(t.id).catch(() => null) : null)
     setNegocios(negs as any[]); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
@@ -146,6 +150,29 @@ export default function Home() {
   const motivoFilaLocal = !hayFilaAbierta && motivos.length === 1
     ? motivos[0].charAt(0).toUpperCase() + motivos[0].slice(1)
     : null
+
+  /**
+   * UNA BARBERÍA QUE TODAVÍA NO ATIENDE POR LA APP (migraciones 95 y 96).
+   *
+   * Dicho desde el teléfono: «un cliente que entra a una barbería sin barberos
+   * con suscripción activa no puede hacer nada, solo ve la información del
+   * negocio; solo ve los barberos con suscripción activa».
+   *
+   * Desde la 96 turno_estado_local ya no devuelve las sillas que no están al
+   * día, así que aquí llegan cero y el cuadro de estado desaparece solo. Lo que
+   * quedaba era peor que nada: dos botones grandes —fila y cita— que llevan a
+   * pantallas vacías. La puerta abierta a un sitio donde no hay nada.
+   *
+   * Y SE DICE SIN DELATAR A NADIE. El cliente no tiene por qué enterarse de que
+   * su barbero no pagó la app: eso es un problema entre el barbero y nosotros,
+   * no una nota en el escaparate de su negocio. Es la misma frase neutra que
+   * usa turno_fila_abierta desde la migración 95, y por la misma razón.
+   *
+   * El negocio NO desaparece: nombre, logo, dirección, sus otras barberías y
+   * sus tarjetas de fidelidad siguen donde estaban. Lo que no se enseña es una
+   * fila que no existe.
+   */
+  const sinServicio = sillasOk && sillas.length === 0
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
@@ -266,6 +293,20 @@ export default function Home() {
           dos puertas, con lo que hay detrás de cada una escrito en la puerta:
           la espera real de la fila, o el día y la hora si prefieres reservar.
           Elegir barbero y servicio pasa en la pantalla donde se elige. */}
+      {sinServicio ? (
+        <View style={s.sinServicio}>
+          <Ionicons name="time-outline" size={20} color={COLORS.textMid} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.sinServT}>Todavía no atienden por la app</Text>
+            <Text style={s.sinServD}>
+              {negocio?.nombre ?? 'Esta barbería'} aún no está recibiendo clientes por Turno, así que
+              por ahora no puedes entrar a la fila ni reservar. Puedes seguir yendo
+              como siempre — y en cuanto activen la app, aparecerá aquí.
+            </Text>
+          </View>
+        </View>
+      ) : (
+      <>
       <Text style={s.sec}>¿QUÉ QUIERES HACER?</Text>
 
       <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/turno')}>
@@ -292,6 +333,8 @@ export default function Home() {
         </View>
         <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
       </TouchableOpacity>
+      </>
+      )}
 
       {/* Recortes, no puntos: "cada X recortes te ganas esto". Puede haber una
           tarjeta por barbero si el local alquila asientos. */}
@@ -374,6 +417,13 @@ const s = StyleSheet.create({
   accIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },
   accTitle: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   accSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  // Ocupa el sitio de "¿qué quieres hacer?" y se parece a una nota, no a una
+  // tarjeta con acción: aquí no hay nada que tocar, y un borde pintado de rojo
+  // haría parecer que la app está rota cuando la barbería solo está sin activar.
+  sinServicio: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 14, padding: 16, marginBottom: 22 },
+  sinServT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  sinServD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 4, lineHeight: 18 },
   pts: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 16, marginTop: 6, marginBottom: 22 },
   ptsHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   ptsLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 },

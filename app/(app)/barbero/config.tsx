@@ -287,9 +287,17 @@ export default function Config() {
     if (!usuario || !perfil) return
     setLcBusy(true)
     try {
-      await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
+      // La RPC devuelve el perfil ya creado, y desde la migración 94 `aprobado`
+      // dice si hace falta esperar a alguien: en un local de asientos alquilados
+      // entras activo —te agregas tú— y en uno de empleados entras pendiente.
+      // Decirlo siempre igual mandaba a esperar a quien ya podía trabajar.
+      const nuevo: any = await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
       setLocalModal(false); setLcCodigo('')
-      Alert.alert('Solicitud enviada', 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
+      Alert.alert(
+        nuevo?.aprobado ? 'Ya estás dentro' : 'Solicitud enviada',
+        nuevo?.aprobado
+          ? 'Ese local alquila asientos, así que entras directo. Lo tienes en "Mis locales" y mandas tú en tus precios y tus horarios.'
+          : 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
       cargar()
     } catch (e: any) { Alert.alert('No se pudo enviar', e.message ?? 'Revisa el código.') }
     finally { setLcBusy(false) }
@@ -827,7 +835,7 @@ export default function Config() {
             Y hasta ahora no podía: negocio-tipo solo se alcanza desde welcome,
             y a welcome solo se llega con CERO membresías. El que trabaja en dos
             sitios y lo sacan de uno se quedaba sin puerta. */}
-        <TouchableOpacity style={s.otroLocal} onPress={() => router.push('/(auth)/solo-tipo')}>
+        <TouchableOpacity style={s.otroLocal} onPress={() => router.push('/(auth)/barbero-tipo')}>
           <Ionicons name="storefront-outline" size={17} color={COLORS.red} />
           <Text style={s.otroLocalT}>Montar mi propio espacio</Text>
         </TouchableOpacity>

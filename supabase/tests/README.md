@@ -15,7 +15,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `sin_cita.test.sql` | El cliente de la calle: que se cuente como visita, que no se cuele por delante de la fila y que no deje bloqueos de más. |
 | `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
 | `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
-| `suscripcion.test.sql` | La prueba gratis, el pago y la cortesía — y **quién paga**: en un local de asientos alquilados, cada silla (migración 93); en uno de empleados, el local. Sobre todo, **que un vencido siga funcionando**, local o silla, porque cortar el servicio es una decisión de producto sin tomar. |
+| `suscripcion.test.sql` | La prueba, el pago y la cortesía; **quién paga** (asientos alquilados → cada silla, migración 93; empleados → el local); y desde la 95, **qué se apaga cuando no se paga**: no aparece, no acepta trabajo, no opera la fila — pero las citas ya reservadas y el historial no se tocan, y el letrero del cliente **no delata a quien no pagó**. Con el cupo por antigüedad de la 96, para que pagar una silla no dé para cinco. |
 | `jornada.test.sql` | "Hoy cierro más tarde" y "hoy me voy antes": alargar la jornada, cerrarla, volver a la norma — y **de quién es cada una de esas decisiones**. Alargar INVENTA disponibilidad y la decide quien manda en el horario (R11); cerrar solo QUITA, como un bloqueo, y la decide quien opera la silla. |
 
 Las suites de flujo y permisos existen porque esos fallos no se
@@ -42,7 +42,7 @@ turno_negocios_admin()     → ¿soy dueño de este local?
 ```
 
 `puertas.test.sql` tiene una red que **llama** a cada función alcanzable por un
-anónimo y falla si alguna muta. No lee el código: eso ya falló tres veces.
+anónimo y falla si alguna muta. No lee el código: eso ya falló cuatro veces.
 
 **Toda función nueva se añade a esa red el mismo día que se escribe** — y desde la
 migración 89 **eso ya no depende de que nadie se acuerde**: `puertas.test.sql`
@@ -79,6 +79,15 @@ RLS** se evalúan con el rol de quien consulta. Quitarle el permiso a `anon`
 sobre uno de ellos no lo deja fuera — hace que la política reviente con
 "permission denied" en vez de devolver `false`. Por eso el censo los exime
 uno a uno, por nombre y con su razón escrita, en vez de por categoría.
+
+> **Una exención se comprueba, no se hereda.** `turno_perfil_acepta` y
+> `turno_perfil_operable` llevaban meses exentas con ese motivo —«viven dentro
+> de una política»— y en la migración 97 se miró: no viven en ninguna
+> (`pg_policies` y `pg_constraint`, cero). Entretanto la 95 les había metido el
+> cobro dentro, así que enumerando perfiles se sacaba la lista de morosos de un
+> local. Antes de escribir un nombre en `v_exentas`, se pregunta a la base; y al
+> tocar una función exenta, se vuelve a preguntar. Una exención con el motivo
+> caducado es peor que ninguna: parece decidida.
 
 Y ojo también al **conceder**: en Postgres `PUBLIC` tiene `EXECUTE` por defecto
 sobre toda función nueva, y `anon` hereda de `PUBLIC`. Un

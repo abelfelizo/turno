@@ -108,9 +108,11 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
  * prometía una prueba que no existía en ningún sitio. Ahora existe: el local
  * nace con 30 días contados y esto dice cuántos le quedan.
  *
- * `al_dia` NO CORTA NADA todavía, a propósito: qué pasa cuando alguien no paga
- * es una decisión de producto sin tomar. Ver la migración 86 y
- * supabase/tests/suscripcion.test.sql.
+ * DESDE LA MIGRACIÓN 95 ESTO YA CORTA. Durante nueve migraciones `al_dia` fue
+ * un dato y nada más, a propósito, porque qué pasa cuando alguien no paga era
+ * una decisión de producto sin tomar. Se tomó: una silla que no está al día no
+ * aparece, no acepta trabajo y no opera la fila. Lo que NO se apaga son las
+ * citas ya reservadas ni el historial. Ver migraciones 95 y 96.
  */
 export type Suscripcion = {
   estado: 'prueba' | 'activa' | 'vencida' | 'cortesia'
@@ -149,6 +151,22 @@ export async function getSuscripcionDe(perfil_id: string): Promise<SuscripcionDe
   const { data, error } = await supabase.rpc('turno_suscripcion_de', { p_perfil: perfil_id })
   if (error) throw error
   return (Array.isArray(data) ? data[0] : data) ?? null
+}
+
+/**
+ * ¿LE QUEDA AL LOCAL ALGUNA SILLA AL DÍA? (migración 95).
+ *
+ * La regla del cobro se aplica sola, silla a silla, y no necesita que ninguna
+ * pantalla la consulte: quien no paga ya no aparece ni recibe fila. Esto existe
+ * para poder DECÍRSELO al dueño —«sin barberos suscritos solo ve la cuenta»— en
+ * vez de dejarle un panel con botones que no hacen nada y ninguna explicación.
+ *
+ * Dicho de otra forma: el servidor no lo necesita; el dueño sí.
+ */
+export async function getLocalOperativo(negocio_id: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('turno_local_operativo', { p_negocio: negocio_id })
+  if (error) throw error
+  return data === true
 }
 
 /** Stats del negocio. Los ingresos son SOLO los propios (empleados + silla del

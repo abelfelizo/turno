@@ -8,7 +8,7 @@ import { crearNegocio } from '../../lib/db'
 export default function NegocioConfig() {
   const router = useRouter()
   // El barbero por su cuenta pasa por aquí con las dos preguntas de modalidad
-  // ya resueltas (ver solo-tipo.tsx). Lo único que cambia son las palabras: por
+  // ya resueltas (ver barbero-donde.tsx). Lo único que cambia son las palabras: por
   // dentro se crea el mismo negocio, porque no existe el barbero sin negocio.
   const solo = !!borrador.solo
   const [nombreNegocio, setNombreNegocio] = useState('')
@@ -53,7 +53,7 @@ export default function NegocioConfig() {
 
   return (
     <OnbScreen
-      paso={solo ? 'Lo tuyo · 2 de 2' : 'Tu barbería · 3 de 3'}
+      paso={solo ? 'Tu trabajo · 3 de 3' : 'Tu barbería · 3 de 3'}
       titulo={solo ? 'Tus datos' : 'Datos del local'}
       subtitulo={solo
         ? 'Generaremos tu código para que tus clientes te encuentren y te pidan turno.'

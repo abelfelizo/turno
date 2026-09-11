@@ -128,7 +128,22 @@ begin
   -- Esta es la trampa puesta a propósito. Si alguien mete una comprobación de
   -- pago en turno_fila_abierta, turno_entrar_a_cola o donde sea, este caso se
   -- pone rojo y obliga a que la decisión se tome mirándola, no de refilón.
-  n:=n+1; c:='nadie corta · el local vencido SIGUE funcionando (decisión sin tomar)';
+  -- ── EL DÍA QUE EMPEZAMOS A COBRAR (migración 95) ──────────────────────────
+  --
+  -- ESTE CASO ESTUVO AL REVÉS HASTA LA MIGRACIÓN 95, y eso es lo que tenía que
+  -- pasar. Decía «el local vencido SIGUE funcionando» y fallaba con:
+  --
+  --   «Si esto fue a propósito, cambia ESTE caso; si no, alguien metió una
+  --    regla de cobro sin decidirla.»
+  --
+  -- Fue a propósito, y la decisión llegó entera: «una cuenta de dueño necesita
+  -- al menos un barbero pago para habilitar las funciones de fila; sin eso no
+  -- puede hacer nada, solo ve la cuenta». Así que el caso cambia de signo con la
+  -- migración delante, que es exactamente el trámite que estaba protegiendo.
+  --
+  -- Se queda aquí, con el mismo peso, mirando en la otra dirección: si alguien
+  -- vuelve a dejar trabajar a un local que no paga, esto se pone rojo.
+  n:=n+1; c:='cobro · el local vencido DEJA de tomar clientes por la app';
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
   update turno_suscripciones set cortesia = false, prueba_hasta = v_hoy - 90, pagada_hasta = null
    where negocio_id = v_neg;
@@ -137,10 +152,40 @@ begin
   on conflict (perfil_id, dia_semana) do update
     set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin, activo = true;
   select turno_fila_abierta(p_due, v_neg) into v_txt;
-  if v_txt is null then ok:=ok+1;
-  else fallos:=fallos||E'\n  x '||c||' - se cerró por falta de pago: "'||v_txt
-       ||'". Si esto fue a propósito, cambia ESTE caso; si no, alguien metió una '
-       ||'regla de cobro sin decidirla'; end if;
+  if v_txt is not null then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la fila sigue abierta sin pagar'; end if;
+
+  -- Y EL CLIENTE NO SE ENTERA DE POR QUÉ. Lo que un barbero deba por la app es
+  -- entre él y nosotros, no una nota en el escaparate de su negocio.
+  n:=n+1; c:='cobro · pero el letrero NO delata al que no pagó';
+  if v_txt = 'no está tomando clientes ahora mismo' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el cliente lee "'||coalesce(v_txt,'null')||'"'; end if;
+
+  n:=n+1; c:='cobro · el dueño sin ninguna silla al día no tiene local operativo';
+  if not turno_local_operativo(v_neg) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c; end if;
+
+  -- EL ESCAPARATE VACÍO, QUE ES DE LO QUE CUELGA LA PANTALLA DEL CLIENTE.
+  -- turno_estado_local no se NIEGA —el cliente sigue siendo del local y sigue
+  -- viendo nombre, dirección y sus tarjetas— sino que devuelve CERO SILLAS. La
+  -- app lo lee así: cero sillas es "todavía no atienden por la app", y con eso
+  -- se le quitan los dos botones que llevarían a pantallas vacías.
+  --
+  -- Va como caso propio y no dentro del de arriba porque son dos cosas
+  -- distintas: una es si el dueño puede operar, otra es qué ve un desconocido.
+  -- Si alguien hace que esto vuelva a devolver las sillas impagadas, el cliente
+  -- recupera los botones rotos Y se entera de quién no pagó, las dos a la vez.
+  n:=n+1; c:='cobro · y el escaparate del cliente queda VACÍO, no roto';
+  select count(*) into v_int from turno_estado_local(v_neg);
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - enseñó '||v_int||' sillas que no se pueden usar'; end if;
+
+  -- LA OTRA MITAD, porque una regla de cobro que cierra de más deja sin trabajar
+  -- a quien sí paga: con UNA sola silla al día el local vuelve a funcionar.
+  n:=n+1; c:='cobro · y con una sola silla al día vuelve a estarlo';
+  update turno_suscripciones set cortesia = true where negocio_id = v_neg;
+  if turno_local_operativo(v_neg) and turno_fila_abierta(p_due, v_neg) is null then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS'; end if;
 
   -- ═══ CADA SILLA PAGA LA SUYA (migración 93) ═══════════════════════════════
   --
@@ -252,23 +297,86 @@ begin
   if v_txt = 'activa' and v_int = 27 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - '||coalesce(v_txt,'?')||' / '||coalesce(v_int::text,'?'); end if;
 
-  -- LA MISMA TRAMPA QUE ARRIBA, PARA LA SILLA. Si alguien mete una comprobación
-  -- de pago en el motor, este caso se pone rojo y obliga a que la decisión se
-  -- tome mirándola. Cortarle la silla a un barbero un sábado por una regla que
-  -- se coló sin querer es mucho peor que no cobrar.
-  n:=n+1; c:='nadie corta · la silla vencida SIGUE trabajando (decisión sin tomar)';
+  -- LA MISMA VUELTA, PARA LA SILLA (migración 95). Este caso también estuvo al
+  -- revés a propósito hasta que la decisión se tomó: «aquellos barberos que
+  -- estén en una barbería y no paguen no aparecen ni tienen acceso a la cola».
+  n:=n+1; c:='cobro · la silla vencida deja de tener acceso a la cola';
   update turno_suscripciones_silla set pagada_hasta = null, prueba_hasta = v_hoy - 90
    where perfil_id = p_ren;
   select s.al_dia into v_bool from turno_suscripcion_de(p_ren) s;
-  begin
-    select * into r from turno_atender_sin_cita(v_neg3, p_ren, s_ren, 'De Paso', '');
-    update turno_cola set estado='atendido', atendido_at=now() where id = r.id;
-    if v_bool = false then ok:=ok+1;
-    else fallos:=fallos||E'\n  x '||c||' - la suscripción no llegó a vencer: el caso no probaba nada'; end if;
-  exception when others then
-    fallos:=fallos||E'\n  x '||c||' - dejó de trabajar por no pagar: "'||sqlerrm
-         ||'". Si esto fue a propósito, cambia ESTE caso; si no, alguien metió '
-         ||'una regla de cobro sin decidirla'; end;
+  if v_bool = false then
+    begin
+      perform turno_atender_sin_cita(v_neg3, p_ren, s_ren, 'De Paso', '');
+      fallos:=fallos||E'\n  x '||c||' - siguió trabajando sin pagar';
+    exception when others then ok:=ok+1; end;
+  else
+    fallos:=fallos||E'\n  x '||c||' - la suscripción no llegó a vencer: el caso no probaba nada';
+  end if;
+
+  n:=n+1; c:='cobro · y deja de aparecer en la fachada del local';
+  if not turno_perfil_acepta(p_ren, null) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - sigue en el escaparate sin pagar'; end if;
+
+  -- LO QUE NO SE APAGA. El cliente que tiene hora el jueves no tiene por qué
+  -- pagar el descuido de nadie: lo que se corta es la fila, no lo ya reservado.
+  n:=n+1; c:='cobro · pero las citas YA RESERVADAS no se tocan';
+  insert into turno_citas (perfil_id, cliente_id, negocio_id, servicio_id, fecha, hora_inicio, hora_fin, estado)
+  values (p_ren, u_d2, v_neg3, s_ren, current_date + 2, time '10:00', time '10:30', 'confirmada');
+  select count(*) into v_int from turno_citas where perfil_id = p_ren and estado = 'confirmada';
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la cita desapareció al vencer la suscripción'; end if;
+
+  -- ═══ UNA SILLA PAGADA ES UNA SILLA (migración 96) ═════════════════════════
+  --
+  -- «Si activa un barbero solo funcionaría con lo que ese barbero aporta a la
+  --  app (para protegernos de que solo uno pague y la usen 5).»
+  --
+  -- En un local de empleados la suscripción es UNA, del negocio, y no llevaba
+  -- cuenta de por cuántas sillas se pagaba: se pagaba una y trabajaban cinco.
+  -- `sillas_pagadas` pone el cupo, y cuando sobran se reparte por ANTIGÜEDAD —
+  -- la única regla que no obliga a nadie a decidir el día que vence el pago.
+  --
+  -- Se usan p_due y p_emp del local de empleados de arriba: p_due se creó con
+  -- el negocio y p_emp entró después, así que el orden está claro. Se fija a
+  -- mano por si dos altas caen en el mismo segundo.
+  update turno_perfiles set created_at = now() - interval '10 days' where id = p_due;
+  update turno_perfiles set created_at = now() - interval '9 days'  where id = p_emp;
+  update turno_suscripciones
+     set cortesia = false, prueba_hasta = v_hoy - 1, pagada_hasta = v_hoy + 30,
+         sillas_pagadas = 1
+   where negocio_id = v_neg;
+
+  n:=n+1; c:='cupo · pagando UNA silla, solo una está al día';
+  select count(*) into v_int from (values (p_due),(p_emp)) x(p) where turno_silla_al_dia(x.p);
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' al día con cupo 1: se paga una y trabajan dos'; end if;
+
+  n:=n+1; c:='cupo · y es la MÁS ANTIGUA';
+  if turno_silla_al_dia(p_due) and not turno_silla_al_dia(p_emp) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el reparto no siguió la antigüedad'; end if;
+
+  n:=n+1; c:='cupo · el que se queda fuera no puede operar la fila';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
+  if not turno_perfil_operable(p_emp) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c; end if;
+
+  -- LA OTRA MITAD: un cupo que cierra de más deja sin trabajar a quien sí paga.
+  n:=n+1; c:='cupo · y el que entra en el cupo SÍ opera';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  if turno_perfil_operable(p_due) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='cupo · el cliente solo ve en el escaparate las sillas al día';
+  select count(*) into v_int from turno_estado_local(v_neg);
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||' sillas con una sola pagada'; end if;
+
+  -- La prueba y la cortesía van SIN tope a propósito: la prueba existe para que
+  -- el local se vea entero funcionando, y la cortesía es un regalo a sabiendas.
+  n:=n+1; c:='cupo · la cortesía no lleva tope';
+  update turno_suscripciones set cortesia = true where negocio_id = v_neg;
+  if turno_silla_al_dia(p_due) and turno_silla_al_dia(p_emp) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el tope se aplicó sobre una cortesía'; end if;
 
   raise exception E'\n=== SUSCRIPCIÓN · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

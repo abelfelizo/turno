@@ -594,6 +594,20 @@ begin
   -- entera del reparto de poder.
   begin perform turno_manda_en_la_silla(p_bar);
     abiertas := abiertas || ' manda_en_la_silla'; exception when others then null; end;
+  -- Migraciones 95, 96 y 97. Las tres contestan la MISMA pregunta que el letrero
+  -- se niega a contestar: si ese barbero está al día. La 95 tuvo el cuidado de
+  -- que la fachada no lo delatara y dejó el grant abierto a anon justo al lado;
+  -- la 97 lo cierra. turno_perfil_acepta y turno_perfil_operable entran aquí
+  -- por lo mismo: llevan el cobro dentro desde la 95, y estaban EXENTAS con un
+  -- motivo —"viven dentro de una política"— que ya no es cierto.
+  begin perform turno_silla_al_dia(p_bar);
+    abiertas := abiertas || ' silla_al_dia'; exception when others then null; end;
+  begin perform turno_local_operativo(v_neg);
+    abiertas := abiertas || ' local_operativo'; exception when others then null; end;
+  begin perform turno_perfil_acepta(p_bar, null);
+    abiertas := abiertas || ' perfil_acepta'; exception when others then null; end;
+  begin perform turno_perfil_operable(p_bar);
+    abiertas := abiertas || ' perfil_operable'; exception when others then null; end;
 
   -- ── LAS DIECIOCHO DEL CENSO (migración 89) ────────────────────────────────
   -- Nunca habían pasado por aquí. Ocho ya se negaban —tenían portero y nadie lo
@@ -694,13 +708,21 @@ begin
       'turno_regla_tiempo','turno_resenas_de','turno_resumen_fila',
       'turno_resumen_resenas','turno_sacar_de_cola','turno_salir_local',
       'turno_stats_periodo_negocio',
+      'turno_local_operativo','turno_perfil_acepta','turno_perfil_operable',
+      'turno_silla_al_dia',
       'turno_stats_periodo_perfil','turno_suscripcion','turno_suscripcion_de',
       'turno_suscripcion_silla','turno_suspender_barbero',
       'turno_sustituir_ausente','turno_ya_llegue'
     ];
+    -- turno_perfil_acepta y turno_perfil_operable ESTABAN AQUÍ, con el motivo
+    -- «viven dentro de una política RLS». Comprobado contra pg_policies y
+    -- pg_constraint: no viven en ninguna, y desde la migración 95 llevan el
+    -- cobro dentro. Se les quitó el EXECUTE en la 97 y suben a la red, donde
+    -- se las llama de verdad. Una exención con el motivo caducado es peor que
+    -- ninguna, porque parece decidida.
     v_exentas text[] := array[
-      'turno_perfil_admin', 'turno_perfil_autonomo', 'turno_perfil_operable',
-      'turno_perfil_acepta', 'turno_puede_confirmar', 'turno_cola_operable',
+      'turno_perfil_admin', 'turno_perfil_autonomo',
+      'turno_puede_confirmar', 'turno_cola_operable',
       'turno_codigo_prefijo', 'turno_bloqueo_sin_pisar_citas',
       'turno_puntos_coherentes', 'turno_puntos_perfil_coherentes'
     ];

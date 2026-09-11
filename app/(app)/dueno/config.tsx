@@ -315,7 +315,27 @@ export default function Config() {
       </View>
       </>)}
 
-      {seccion === 'suscripcion' && (
+      {/* ALQUILO ASIENTOS = NO PAGO NADA (migración 93).
+          Agrupar no cuesta: en este local paga cada silla, la del dueño incluida
+          si además atiende. Enseñarle aquí un plan con precio por asiento le
+          cobraría —de palabra— por barberos que ya pagan lo suyo, que es
+          justo lo contrario del esquema. */}
+      {seccion === 'suscripcion' && esRentado && (
+        <View style={s.susCard}>
+          <Text style={s.susTitulo}>No pagas nada por el local</Text>
+          <Text style={s.susNota}>
+            Alquilas asientos, así que aquí cada barbero paga su propia silla. Tú solo los
+            agrupas: les das el código, aparecen juntos para tus clientes y comparten la fila
+            del local.
+          </Text>
+          <Text style={s.susNota}>
+            Si además atiendes, tu silla es una más y la pagas como cualquier otra. La ves en
+            tu panel de barbero, en "Mi suscripción".
+          </Text>
+        </View>
+      )}
+
+      {seccion === 'suscripcion' && !esRentado && (
         <>
           <View style={s.susCard}>
             <View style={s.susTop}>

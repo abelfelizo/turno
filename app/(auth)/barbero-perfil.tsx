@@ -34,17 +34,28 @@ export default function BarberoPerfil() {
         nombre: nombre.trim(),
         telefono: telefono.trim(),
       })
-      // El dueño tenía que descubrir las solicitudes entrando al panel. Un
-      // barbero esperando aprobación es alguien que no puede trabajar.
-      avisarAlDueno((perfil as any)?.negocio_id)
-      router.replace('/(auth)/barbero-pendiente')
+      // DESDE LA MIGRACIÓN 94 NO SIEMPRE HAY QUE ESPERAR A NADIE.
+      //
+      // En un local de asientos alquilados el barbero entra ACTIVO: se agrega
+      // él, y quien no lo dirige tampoco lo autoriza. Mandarlo igualmente a la
+      // pantalla de "el dueño debe aprobarte" lo dejaba plantado esperando un
+      // permiso que ya no existe — y el dueño, recibiendo un aviso de una
+      // solicitud que no tiene que resolver.
+      if ((perfil as any)?.aprobado) {
+        router.replace('/')
+      } else {
+        // El dueño tenía que descubrir las solicitudes entrando al panel. Un
+        // barbero esperando aprobación es alguien que no puede trabajar.
+        avisarAlDueno((perfil as any)?.negocio_id)
+        router.replace('/(auth)/barbero-pendiente')
+      }
     } catch (e: any) {
       Alert.alert('No se pudo enviar', e.message ?? 'Verifica el código e intenta de nuevo.')
     } finally { setCargando(false) }
   }
 
   return (
-    <OnbScreen paso="Tu trabajo · 3 de 3" titulo="Tu perfil"
+    <OnbScreen paso="Tu trabajo · 4 de 4" titulo="Tu perfil"
       subtitulo="Así te verán el dueño y los clientes.">
       <Campo label="Tu nombre" placeholder="Tu nombre" value={nombre} onChangeText={setNombre} />
       <Campo label="Tu teléfono" placeholder="+1 809 000 0000" keyboardType="phone-pad" value={telefono} onChangeText={setTelefono} />

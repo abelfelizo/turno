@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, getConfiguracion, asignarCola, getEstadoLocal } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, getConfiguracion, asignarCola, getEstadoLocal, getLocalOperativo } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero, relojesDeSilla } from '../../../lib/format'
@@ -13,6 +13,11 @@ import PanelBadge from '../../../components/panel-badge'
 import ClientesLocal from '../../../components/clientes-local'
 
 const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
+
+/** El ámbar de COLORS es para fondo claro (#B45309): sobre el carbón de estas
+ *  tarjetas queda en 3:1 y un rótulo de 11px ahí no se lee. Este es el mismo
+ *  color subido de tono para el lado oscuro. */
+const AMBAR = '#F2B05E'
 
 /** Una línea que diga lo que está pasando en esa silla ahora mismo. */
 function estadoTexto(e: any, crudo?: string): string {
@@ -27,6 +32,9 @@ function estadoTexto(e: any, crudo?: string): string {
 export default function Dashboard() {
   const router = useRouter()
   const [negocio, setNegocio] = useState<any>(null)
+  // Alquilo asientos: agrupo barberos, no los dirijo. De esto cuelga media
+  // pantalla — ver migraciones 92 y 94.
+  const esRentado = negocio?.tipo === 'espacios_rentados'
   const [cola, setCola] = useState<any[]>([])
   const [solicitudes, setSolicitudes] = useState<any[]>([])
   const [equipo, setEquipo] = useState<any[]>([])
@@ -35,8 +43,15 @@ export default function Dashboard() {
   // persona acepta clientes; no dice si está ocupada, que es lo que el dueño
   // mira para repartir. turno_estado_local ya lo resolvía y no lo usaba nadie.
   const [estados, setEstados] = useState<Record<string, any>>({})
+  // Si la consulta de estados falló, `estados` está vacío por no saber, no por
+  // no haber. Sin esta distinción un fallo de red se lee como "nadie ha pagado".
+  const [estadosOk, setEstadosOk] = useState(false)
   const [perfilPropio, setPerfilPropio] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
+  // ¿Le queda al local alguna silla al día? (migraciones 95 y 96). No decide
+  // nada —eso ya lo hace el servidor silla a silla— pero sin esto el dueño se
+  // queda mirando un panel apagado sin que nadie le diga por qué.
+  const [operativo, setOperativo] = useState(true)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [verClientes, setVerClientes] = useState(false)
@@ -45,18 +60,24 @@ export default function Dashboard() {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setPerfilPropio(ss.perfil_id ?? null)
-    const [neg, q, sol, est, st, eq, cfg] = await Promise.all([
+    const [neg, q, sol, est, st, eq, cfg, op] = await Promise.all([
       getNegocioById(ss.negocio_id),
       getColaActiva(ss.negocio_id).catch(() => []),
       getSolicitudesPendientes(ss.negocio_id).catch(() => []),
-      getEstadoLocal(ss.negocio_id).catch(() => []),
+      // `null` NO es lo mismo que `[]`: vacío significa "ninguna silla al día" y
+      // con eso se apaga el panel. Si la llamada falla no sabemos nada, y
+      // apagarlo sería acusar a alguien de no pagar por un fallo de red.
+      getEstadoLocal(ss.negocio_id).catch(() => null),
       getEstadisticasNegocio(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
+      // Si esto falla se asume operativo: dejar el panel apagado por un error de
+      // red sería contarle al dueño que no ha pagado cuando sí ha pagado.
+      getLocalOperativo(ss.negocio_id).catch(() => true),
     ])
     const mapa: Record<string, any> = {}
-    for (const e of (est as any[])) mapa[e.perfil_id] = e
-    setEstados(mapa)
+    for (const e of ((est ?? []) as any[])) mapa[e.perfil_id] = e
+    setEstados(mapa); setEstadosOk(est != null); setOperativo(op as boolean)
     setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[]); setConfig(cfg)
     setLoading(false); setRefreshing(false)
   }, [])
@@ -161,6 +182,27 @@ export default function Dashboard() {
   const todasCerradas = sillas.length > 0 && sillasCerradas.length === sillas.length
   const motivosCierre = Array.from(new Set(sillasCerradas.map((x: any) => x.motivo).filter(Boolean))) as string[]
 
+  /**
+   * EL LOCAL SIN NINGUNA SILLA AL DÍA (migraciones 95 y 96).
+   *
+   * Dicho desde el teléfono: «una cuenta de dueño necesita al menos un barbero
+   * pago para habilitar las funciones de fila; sin eso no puede hacer nada, solo
+   * ve la cuenta». Y eso ya ocurre en el servidor: turno_estado_local y
+   * turno_filas_abiertas no devuelven esas sillas, y turno_perfil_operable las
+   * apaga. El panel se quedaba enseñando la cáscara —chips grises, cero
+   * esperando— sin una sola palabra de por qué.
+   *
+   * Así que aquí NO se decide nada, solo se cuenta lo que ya pasa. Es la
+   * diferencia entre un panel apagado y un panel que explica que está apagado.
+   *
+   * `sinPagar` sale de restar: `equipo` son las sillas vivas y aprobadas, y
+   * `estados` son las que ADEMÁS están al día. Lo que sobra es exactamente lo
+   * que no se está pagando, sin una consulta más.
+   */
+  const sinPagar = estadosOk ? equipo.filter((p: any) => !estados[p.id]) : []
+  const apagado = estadosOk && !operativo && equipo.length > 0
+  const conEmpleados = !esRentado
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
@@ -204,6 +246,31 @@ export default function Dashboard() {
           Lo que NO tiene el del barbero y aquí manda: de quién es cada cliente.
           Un dueño mirando la fila del local necesita ver qué silla lo va a
           coger, o que no lo va a coger nadie todavía. */}
+      {apagado ? (
+        /* EL PANEL APAGADO, CONTADO. Sin esto son los mismos chips grises y el
+           mismo "nadie en la fila" de un martes tranquilo, y el dueño puede
+           pasarse una semana pensando que no le entra gente. */
+        <View style={s.apagadoBox}>
+          <View style={s.apagadoHead}>
+            <Ionicons name="lock-closed-outline" size={16} color={AMBAR} />
+            <Text style={s.apagadoT}>LA FILA ESTÁ APAGADA</Text>
+          </View>
+          <Text style={s.apagadoTxt}>
+            {conEmpleados
+              ? 'Ninguna silla de tu local está al día, así que por la app no puede entrar nadie: tus barberos no aparecen y la fila digital no funciona. Los datos del negocio siguen siendo tuyos y puedes seguir cambiándolos.'
+              : 'Ningún barbero de tu local tiene la suscripción al día, así que ninguno aparece en la app ni recibe fila. Aquí cada uno paga su silla: la tuya la activas tú, la suya ellos.'}
+          </Text>
+          <Text style={s.apagadoTxt}>
+            Lo que ya estaba reservado no se toca: las citas siguen en pie y el
+            historial no se pierde. Y quien llegue al local se atiende igual —la
+            silla es del barbero—, solo que ese corte no pasa por la app.
+          </Text>
+          <TouchableOpacity style={s.apagadoBtn} onPress={() => router.push('/(app)/dueno/config')}>
+            <Text style={s.apagadoBtnT}>{conEmpleados ? 'Ver mi suscripción' : 'Ver la cuenta del local'}</Text>
+            <Ionicons name="chevron-forward" size={17} color={COLORS.ink} />
+          </TouchableOpacity>
+        </View>
+      ) : (
       <View style={s.colaBox}>
         <View style={s.colaHead}>
           <PuntoVivo color="rgba(255,255,255,0.95)" vivo={atendiendo > 0 || cola.length > 0} />
@@ -276,7 +343,27 @@ export default function Dashboard() {
         {cola.length === 0 && (
           <Text style={s.colaVacia}>Nadie en la fila ahora mismo. Cuando un cliente entre —desde la app o como walk-in— aparecerá aquí con su nombre y servicio.</Text>
         )}
+
+        {/* ALGUNAS SÍ Y ALGUNAS NO. El caso que la migración 96 vino a cerrar:
+            se paga por N sillas y hay más dadas de alta. Las que sobran no
+            aparecen en ninguna parte, y sin esta línea el dueño ve su equipo
+            incompleto sin motivo. Va sin nombres: quién es se ve en Equipo, y
+            aquí lo que importa es cuántas faltan y por qué. */}
+        {sinPagar.length > 0 && (
+          <View style={s.cerradoBox}>
+            <Ionicons name="alert-circle-outline" size={15} color={AMBAR} />
+            <Text style={s.cerradoT}>
+              {sinPagar.length === 1 ? 'Una silla no está' : `${sinPagar.length} sillas no están`} al día,
+              {sinPagar.length === 1 ? ' así que no aparece' : ' así que no aparecen'} en la app ni
+              {sinPagar.length === 1 ? ' recibe' : ' reciben'} fila.
+              {' '}{conEmpleados
+                ? 'La suscripción del local cubre un número de sillas: las de más antigüedad entran primero.'
+                : 'Aquí cada barbero paga la suya.'}
+            </Text>
+          </View>
+        )}
       </View>
+      )}
 
       {/* LOS CLIENTES DEL LOCAL. El dueño no tenía por dónde mirarlos: la
           cartera existía solo en la pestaña del barbero, y desde aquí lo único
@@ -303,7 +390,24 @@ export default function Dashboard() {
         </TouchableOpacity>
       )}
 
-      {/* Solicitudes pendientes */}
+      {/* SOLICITUDES · solo donde de verdad hay algo que aprobar.
+          Desde la migración 94 la aprobación va con la modalidad: en un local
+          de asientos alquilados el barbero entra con el código y queda ACTIVO
+          —se agrega él, y quien no lo dirige tampoco lo autoriza—, así que esta
+          sección no volvería a tener nada nunca. Dejarla con un "no hay
+          barberos pendientes" eterno es prometer un control que ya no existe.
+          En su lugar se dice lo que SÍ pasa. */}
+      {esRentado ? (
+        <>
+          <Text style={s.sec}>CÓMO ENTRAN</Text>
+          <Text style={s.empty}>
+            Alquilas asientos: los barberos entran con tu código y empiezan a trabajar solos.
+            Tú no los apruebas ni les manejas la silla. Si alguno no debería estar, lo sacas
+            desde su ficha.
+          </Text>
+        </>
+      ) : (
+        <>
       <Text style={s.sec}>SOLICITUDES{solicitudes.length ? ` · ${solicitudes.length}` : ''}</Text>
       {solicitudes.length === 0 && <Text style={s.empty}>No hay barberos pendientes de aprobación.</Text>}
       {solicitudes.map((p: any) => (
@@ -317,11 +421,13 @@ export default function Dashboard() {
           <TouchableOpacity style={s.aprobar} onPress={() => aprobar(p)}><Text style={s.aprobarT}>Aprobar</Text></TouchableOpacity>
         </View>
       ))}
+        </>
+      )}
 
       {/* Alta activa: invitar a un barbero con el código del local */}
       <Text style={s.sec}>EQUIPO{equipo.length ? ` · ${equipo.length}` : ''}</Text>
       <TouchableOpacity style={s.agregar} onPress={() => Share.share({
-        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Trabajo en una barbería" y entra con este código:\n\n${negocio?.codigo_acceso}\n\nCuando envíes la solicitud te apruebo desde mi panel.`,
+        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Soy barbero" y entra con este código:\n\n${negocio?.codigo_acceso}\n\n${esRentado ? 'Entras directo y empiezas a trabajar: mandas tú en tus precios y tus horarios.' : 'Cuando envíes la solicitud te apruebo desde mi panel.'}`,
       })}>
         <View style={s.agregarIcon}><Ionicons name="person-add-outline" size={20} color="#fff" /></View>
         <View style={{ flex: 1 }}>
@@ -388,6 +494,19 @@ const s = StyleSheet.create({
   mNum: { fontFamily: FONTS.display, fontSize: 30, color: COLORS.ink },
   mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
   colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 22 },
+  // LA TARJETA DEL LOCAL APAGADO (migraciones 95 y 96). Ocupa el sitio de la
+  // cola, no se añade encima: si la fila no funciona, enseñar el cuadro de la
+  // fila vacío al lado de la explicación es decir dos cosas a la vez. El borde
+  // ámbar la separa de una tarjeta normal sin gritar como el rojo de un error:
+  // esto no está roto, está sin contratar.
+  apagadoBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 22,
+    borderWidth: 1, borderColor: 'rgba(242,176,94,0.45)' },
+  apagadoHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  apagadoT: { fontFamily: FONTS.bold, fontSize: 11, color: AMBAR, letterSpacing: 1 },
+  apagadoTxt: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.85)', lineHeight: 19, marginBottom: 10 },
+  apagadoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    backgroundColor: '#fff', borderRadius: 12, paddingVertical: 12, marginTop: 2 },
+  apagadoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   colaHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   colaResumen: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginTop: 3 },
