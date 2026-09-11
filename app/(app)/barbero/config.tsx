@@ -779,17 +779,23 @@ export default function Config() {
           alquilados, cada silla; al empleado lo cubre su barbería y lo que ésta
           pague no es asunto suyo (migración 93).
 
-          No hay botón de pagar todavía, y decirlo es más honesto que enseñar
-          uno que no lleva a ningún sitio. Tampoco corta nada al vencerse: qué
-          pasa cuando alguien no paga sigue siendo una decisión sin tomar, y
-          está fijada a propósito en suscripcion.test.sql. */}
+          ESTA PANTALLA DECÍA QUE NO PASABA NADA AL VENCERSE, y desde la
+          migración 95 sí pasa: la silla deja de aparecer, deja de aceptar
+          trabajo y deja de operar la fila. O sea que la única pantalla que
+          puede explicarle al barbero por qué se quedó invisible le estaba
+          diciendo que todo iba bien. Un letrero que miente en esa dirección es
+          peor que no tener letrero: el barbero da por hecho que la app no
+          funciona y se va.
+
+          Sigue sin haber botón de pagar, y decirlo es más honesto que enseñar
+          uno que no lleva a ningún sitio. */}
       {seccion === 'suscripcion' && suscripcion && (
         <>
         <Text style={[s.sec, { marginTop: 18 }]}>MI SUSCRIPCIÓN</Text>
-        <View style={s.miSusCard}>
-          <Text style={s.miSusEstado}>
+        <View style={[s.miSusCard, suscripcion.estado === 'vencida' && s.miSusCardOff]}>
+          <Text style={[s.miSusEstado, suscripcion.estado === 'vencida' && { color: COLORS.danger }]}>
             {suscripcion.estado === 'cortesia' ? 'Cortesía'
-              : suscripcion.estado === 'vencida' ? 'Vencida'
+              : suscripcion.estado === 'vencida' ? 'Vencida · tu silla está apagada'
               : suscripcion.estado === 'prueba' ? 'Prueba gratis'
               : 'Al día'}
           </Text>
@@ -797,9 +803,16 @@ export default function Config() {
             {suscripcion.estado === 'cortesia'
               ? 'Tu espacio está cubierto sin fecha de vencimiento.'
               : suscripcion.estado === 'vencida'
-                ? 'Se te pasó la fecha. Tu fila, tu agenda y tus clientes siguen funcionando igual: todavía no cobramos.'
+                ? 'Se te pasó la fecha, así que por la app no te entra nadie: no apareces en la barbería y nadie puede pedirte turno ni reservarte cita.'
                 : `Te quedan ${suscripcion.dias_restantes} días${suscripcion.hasta ? `, hasta el ${suscripcion.hasta}` : ''}.`}
           </Text>
+          {suscripcion.estado === 'vencida' && (
+            <Text style={s.miSusD}>
+              Lo que YA tenías sigue en pie: tus citas reservadas, tu agenda, tus clientes y tu
+              historial no se tocan. Y quien llegue a la barbería lo atiendes igual — la silla es
+              tuya. Lo único que se apagó es la fila digital.
+            </Text>
+          )}
           <Text style={s.miSusNota}>
             Esta silla es tuya y la pagas tú, trabajes donde trabajes. Si el local donde estás
             no paga la app, a ti no te afecta.
@@ -1065,6 +1078,9 @@ const s = StyleSheet.create({
     lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
   miSusCard: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+  // Vencida se ve distinto porque ya no es un dato, es una consecuencia: la
+  // silla está apagada y el barbero tiene que poder verlo sin leer el párrafo.
+  miSusCardOff: { backgroundColor: COLORS.dangerLight, borderColor: COLORS.danger },
   miSusEstado: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink },
   miSusD: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
   miSusNota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },

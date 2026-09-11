@@ -2,7 +2,8 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero, getNegocioById } from '../../../lib/db'
+import { getSesion } from '../../../lib/storage'
 import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
@@ -50,6 +51,11 @@ export default function BarberoDelLocal() {
   const [perfilRow, setPerfilRow] = useState<any>(null)
   const [suspBusy, setSuspBusy] = useState(false)
   const [verResenas, setVerResenas] = useState(false)
+  // La modalidad del LOCAL, que desde la migración 98 decide si aquí se puede
+  // nombrar empleado a alguien. Donde alquilas asientos no hay suscripción del
+  // local de la que salga el aporte de un empleado, así que nombrarlo sería
+  // dirigirlo gratis — y el servidor lo rechaza.
+  const [tipoLocal, setTipoLocal] = useState<string | null>(null)
 
   async function aplicarModalidad(nuevo: 'empleado' | 'barbero_renta') {
     if (nuevo === modalidad) return
@@ -61,14 +67,17 @@ export default function BarberoDelLocal() {
 
   const cargar = useCallback(async () => {
     if (!perfil) { setLoading(false); return }
-    const [sv, hr, rl, pf] = await Promise.all([
+    const ss = await getSesion()
+    const [sv, hr, rl, pf, neg] = await Promise.all([
       getServiciosPerfil(perfil, false).catch(() => []),
       getHorariosPerfil(perfil).catch(() => []),
       getRolDePerfil(perfil).catch(() => null),
       getPerfilPorId(perfil).catch(() => null),
+      ss?.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
     ])
     if (rl) setModalidad(rl)
-    setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf); setLoading(false)
+    setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf)
+    setTipoLocal((neg as any)?.tipo ?? null); setLoading(false)
   }, [perfil])
   useEffect(() => { cargar() }, [cargar])
 
@@ -138,8 +147,21 @@ export default function BarberoDelLocal() {
       ])
       return
     }
+    // LO QUE SUSPENDER HACE DE VERDAD DEPENDE DE A QUIÉN (migración 92).
+    //
+    // Este texto decía «él no podrá llamar ni atender» para todo el mundo, y
+    // para un AUTÓNOMO es falso desde la 92: al que te paga renta le quitas la
+    // fila y la fachada del local, no su negocio. Sigue atendiendo a quien tenga
+    // delante, con su agenda y su dinero. Si pudieras apagarle la app no serías
+    // su casero, serías su jefe — y entonces no es un alquiler.
+    //
+    // Prometerle al dueño un poder que el servidor le va a negar es la forma más
+    // rápida de que deje de creerse los avisos que sí son ciertos.
+    const esAutonomo = modalidad === 'barbero_renta'
     Alert.alert('Suspender temporalmente',
-      `Deja de entrarle trabajo: nadie podrá pedirle turno ni reservarle cita, y él no podrá llamar ni atender. Sus citas ya reservadas y su fila NO se tocan — para eso está desvincular.`,
+      esAutonomo
+        ? `Sale de la fila y de la fachada del local: nadie podrá pedirle turno ni reservarle cita por la app. Paga su asiento, así que su agenda y sus clientes siguen siendo suyos y puede seguir atendiendo a quien tenga delante. Para sacarlo del local, desvincular.`
+        : `Deja de entrarle trabajo: nadie podrá pedirle turno ni reservarle cita, y él no podrá llamar ni atender. Sus citas ya reservadas y su fila NO se tocan — para eso está desvincular.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Suspender', style: 'destructive', onPress: async () => {
@@ -148,7 +170,9 @@ export default function BarberoDelLocal() {
             await suspenderBarbero(perfil, true, 'no está atendiendo por ahora')
             if (perfilRow?.usuario_id) {
               enviarPush(perfilRow.usuario_id, 'Te suspendieron temporalmente',
-                'No te entrarán turnos ni citas hasta que el local te reanude.', { tipo: 'agenda' })
+                esAutonomo
+                  ? 'Saliste de la fila del local. Tu agenda y tus clientes siguen siendo tuyos.'
+                  : 'No te entrarán turnos ni citas hasta que el local te reanude.', { tipo: 'agenda' })
             }
             await cargar()
           }
@@ -175,6 +199,7 @@ export default function BarberoDelLocal() {
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   const autonomo = modalidad === 'barbero_renta'
+  const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 40 }}>
@@ -184,22 +209,44 @@ export default function BarberoDelLocal() {
       <Display size={28} style={{ marginBottom: 6 }}>{nombre || 'Barbero'}</Display>
 
       {/* La modalidad la hereda del tipo del local, pero una barbería de
-          empleados puede alquilar un asiento suelto. Ese cambio es del dueño:
-          el barbero nunca se lo concede a sí mismo. */}
+          EMPLEADOS puede alquilar un asiento suelto. Ese cambio es del dueño: el
+          barbero nunca se lo concede a sí mismo.
+
+          AL REVÉS NO (migración 98): en un local de asientos alquilados no se
+          puede nombrar empleado a nadie, porque sería dirigirlo sin aportar
+          nada a su app — allí cada silla paga la suya. El servidor lo rechaza;
+          aquí ni se ofrece, que es distinto de ofrecerlo y dar error. Para tener
+          empleados de verdad, se cambia la modalidad DEL LOCAL, y entonces la
+          barbería pasa a pagar por ellos. */}
       <Text style={s.flabelTop}>CÓMO TRABAJA AQUÍ</Text>
-      <View style={s.modRow}>
-        <TouchableOpacity style={[s.modChip, !autonomo && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
-          <Text style={[s.modChipT, !autonomo && { color: '#fff' }]}>Empleado</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
-          <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={s.sub}>
-        {autonomo
-          ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
-          : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
-      </Text>
+      {localDeAlquiler ? (
+        <>
+          <View style={s.modRow}>
+            <View style={[s.modChip, s.modChipOn]}><Text style={[s.modChipT, { color: '#fff' }]}>Renta su asiento</Text></View>
+          </View>
+          <Text style={s.sub}>
+            Aquí alquilas asientos, así que cada barbero es su propio negocio: paga su silla y
+            decide sus servicios, precios y horario. Si quieres tener empleados, cámbialo en
+            Configuración → Cómo trabaja tu local; el local pasa a pagar por ellos.
+          </Text>
+        </>
+      ) : (
+        <>
+          <View style={s.modRow}>
+            <TouchableOpacity style={[s.modChip, !autonomo && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
+              <Text style={[s.modChipT, !autonomo && { color: '#fff' }]}>Empleado</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
+              <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={s.sub}>
+            {autonomo
+              ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
+              : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
+          </Text>
+        </>
+      )}
 
       <View style={s.secRow}>
         <Text style={s.sec}>SERVICIOS</Text>

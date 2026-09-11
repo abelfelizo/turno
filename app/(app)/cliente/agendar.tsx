@@ -39,7 +39,9 @@ export default function Agendar() {
       const ss = await getSesion()
       if (ss?.negocio_id) {
         const [ps, neg] = await Promise.all([
-          getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
+          // soloAlDia: el cliente no elige entre barberos que no puede usar
+          // (migración 96). La 95 ya hace que reservarle una cita rebote.
+          getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }) as Promise<any[]>,
           getNegocioById(ss.negocio_id).catch(() => null),
         ])
         // Quien trabaja SOLO POR ORDEN DE LLEGADA no da citas: su agenda no

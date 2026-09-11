@@ -371,12 +371,43 @@ begin
   if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||' sillas con una sola pagada'; end if;
 
+  -- LA OTRA PUERTA POR LA QUE MIRA LA APP. turno_estado_local alimenta la
+  -- tarjeta de estado, pero las listas donde el cliente ELIGE barbero —entrar a
+  -- la fila, reservar cita— se filtran con turno_filas_abiertas, que es la que
+  -- getPerfilesNegocio({ soloAlDia }) usa de criterio. Las dos tienen que decir
+  -- lo mismo: si una se queda atrás, el cliente ve en una pantalla un barbero
+  -- que la otra esconde, y elegirlo da error.
+  n:=n+1; c:='cupo · y las listas donde ELIGE barbero dicen lo mismo';
+  select count(*) into v_int from turno_filas_abiertas(v_neg);
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - ofreció '||v_int||' barberos con una sola silla pagada'; end if;
+
+  -- EL CUPO SE VE (migración 99). La 96 metió el número que decide quién
+  -- trabaja y no lo sacó por ninguna puerta: el dueño leía "Al día · 4 asientos"
+  -- mientras dos de sus cuatro barberos no aparecían para nadie. Una regla que
+  -- decide quién come y que el afectado no puede consultar no es una regla, es
+  -- una sorpresa.
+  n:=n+1; c:='cupo · el dueño VE por cuántas sillas paga';
+  select s.sillas_pagadas into v_int from turno_suscripcion(v_neg) s;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - devolvió '||coalesce(v_int::text,'NULL')
+       ||': el cupo decide quién trabaja y no salía por ninguna puerta'; end if;
+
   -- La prueba y la cortesía van SIN tope a propósito: la prueba existe para que
   -- el local se vea entero funcionando, y la cortesía es un regalo a sabiendas.
   n:=n+1; c:='cupo · la cortesía no lleva tope';
   update turno_suscripciones set cortesia = true where negocio_id = v_neg;
   if turno_silla_al_dia(p_due) and turno_silla_al_dia(p_emp) then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - el tope se aplicó sobre una cortesía'; end if;
+
+  -- Y lo que se enseña acompaña a lo que se hace: si la cortesía no tiene tope,
+  -- la pantalla tampoco puede decir que lo hay. `sillas_pagadas` sigue guardado
+  -- en la fila, así que devolverlo tal cual sería enseñar un tope que no se
+  -- aplica — la forma más fácil de que el dueño desvincule a alguien por nada.
+  n:=n+1; c:='cupo · y entonces tampoco se le enseña tope al dueño';
+  select s.sillas_pagadas into v_int from turno_suscripcion(v_neg) s;
+  if v_int is null then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - enseñó un tope de '||v_int||' sobre una cortesía sin tope'; end if;
 
   raise exception E'\n=== SUSCRIPCIÓN · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

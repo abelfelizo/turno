@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **97** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **99** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -30,7 +30,8 @@ nada avise, y ya pasó dos veces.
   (88), la red anti-anónimos que se cuenta sola (89), hasta cuándo manda el cliente en su
   cita (90), "hoy abro antes" (91), **el casero no es el jefe** (92), **cada silla paga la
   suya** (93), quién deja entrar a quién (94), **el día que empezamos a cobrar** (95), una
-  silla pagada es una silla (96) y quién pagó no es asunto tuyo (97).
+  silla pagada es una silla (96), quién pagó no es asunto tuyo (97), **el casero no se
+  nombra jefe** (98) y el cupo se ve (99).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -41,9 +42,17 @@ nada avise, y ya pasó dos veces.
   se acepta trabajo y no se opera la fila; con empleados hay **cupo de sillas por
   antigüedad**, para que pagar una no dé para cinco; y las citas ya reservadas y el historial
   no se tocan. El letrero que ve el cliente no delata a quien no pagó.
+- **La auditoría de menús, roles y permisos contra el esquema nuevo**, que es de donde
+  salieron la 98 y la 99. La regla estaba bien en el servidor y las pantallas seguían
+  contando la versión vieja: las dos de suscripción decían «no pasa nada» al vencerse —justo
+  las que tienen que explicar el apagón—, el cliente seguía eligiendo entre barberos que no
+  puede usar, y el menú del dueño de alquiler le enseñaba un precio que no paga. Cuando el
+  cobro cambia, cambia lo que las pantallas tienen que decir; si no se revisan, el producto
+  queda diciendo dos cosas a la vez.
 - **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras** después
   de 95, 96 y 97: cola 34, autonomía 27, fidelidad 6, viaje 17, obstáculos 32, puertas 38,
-  horarios 26, sin cita 22, modo 21, confianza 27, suscripción 33, jornada 32.
+  horarios 26, sin cita 22, modo 21, confianza 27, suscripción 33, jornada 32. Tras 98 y 99:
+  **autonomía 31**, **suscripción 36**, y el censo + la red verdes.
 
   (`puertas` no sube de 38 aunque la red haya crecido: la red entera es **un** caso, y las
   funciones nuevas se añaden a la llamada, no al conteo.)
@@ -131,7 +140,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–97), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–99), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

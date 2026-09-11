@@ -69,7 +69,7 @@ export default function MiTurno() {
     const [ts, neg, perf, cfg, cts, yo, rt, pref] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
-      getPerfilesNegocio(ss.negocio_id).catch(() => []),
+      getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
       // Las citas reservadas también son "mi turno": tenerlas solo en Inicio
       // obligaba a recordar en qué pantalla estaba cada cosa.

@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **97** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **99** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -100,10 +100,19 @@ Tres tipos de usuario, y todo lo demás se deriva de la **modalidad del local**:
 | ¿Y si no se paga? | Ve el local, no la fila | No aparece ni recibe cola | Su silla se apaga; el local no cuesta nada | Se apagan **todas** las sillas |
 
 La coherencia es la que importa: **quien no dirige, tampoco autoriza ni cobra.** Las
-migraciones 92 (mando), 93 (pago) y 94 (puerta de entrada) son la misma regla aplicada a
-tres cosas distintas.
+migraciones 92 (mando), 93 (pago), 94 (puerta de entrada) y 98 (la modalidad de una persona)
+son la misma regla aplicada a cuatro cosas distintas.
 
-### El cobro corta de verdad (migraciones 95, 96 y 97)
+> **Control y pago viajan juntos** (migración 98). En un local de asientos alquilados el
+> dueño NO puede nombrar empleado a nadie. Parecía un detalle de menú y era la puerta que
+> abría todas las demás: pasar a 'empleado' apaga `turno_perfil_autonomo`, enciende
+> `turno_manda_en_la_silla` y le devuelve de golpe todo lo que la 92 le había quitado — y
+> encima gratis, porque `turno_silla_al_dia` mira el TIPO DEL LOCAL y le sigue cobrando al
+> inquilino. Al revés sí: una barbería de empleados puede alquilar un asiento suelto. La
+> asimetría es la misma que ya tenía la puerta de entrada desde la 38. El dueño que de
+> verdad quiere empleados cambia la modalidad DEL LOCAL, y entonces paga por ellos.
+
+### El cobro corta de verdad (migraciones 95, 96, 97 y 99)
 
 Durante nueve migraciones la suscripción fue un dato que no apagaba nada, a propósito,
 porque **qué pasa cuando alguien no paga** era una decisión de producto sin tomar. Se tomó,
@@ -118,7 +127,10 @@ en quince sitios se corrige en catorce.
 - **El cupo por antigüedad** (96). `turno_suscripciones.sillas_pagadas` dice por cuántas se
   paga; `NULL` = sin tope (prueba y cortesía, a propósito). Cuando sobran, trabajan las más
   antiguas: es la única regla que no obliga a nadie a decidir el día que vence el pago. Sin
-  esto se pagaba una silla y trabajaban cinco.
+  esto se pagaba una silla y trabajaban cinco. Y **se ve** (99): `turno_suscripcion` lo
+  devuelve, porque la 96 metió el número que decide quién trabaja y no lo sacó por ninguna
+  puerta — el dueño leía "Al día · 4 asientos" con dos barberos invisibles. Una regla que
+  decide quién come y que el afectado no puede consultar no es una regla, es una sorpresa.
 - **Lo que NO se apaga**: las citas ya reservadas y el historial. Se corta el servicio que se
   cobra —aparecer y recibir por la app—, no el trabajo de nadie.
 - **Y no se delata a quien no pagó.** `turno_fila_abierta` devuelve la frase neutra «no está
@@ -171,7 +183,7 @@ en quince sitios se corrige en catorce.
 
 ## Backend
 
-**97 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**99 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 

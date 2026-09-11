@@ -28,7 +28,7 @@ declare
   a_due uuid := gen_random_uuid(); a_emp uuid := gen_random_uuid(); a_ren uuid := gen_random_uuid();
   u_due uuid; u_emp uuid; u_ren uuid;
   p_due uuid; p_emp uuid; p_ren uuid;
-  a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text;
+  a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text; p_new2 uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text; v_bool boolean;
 begin
   -- ── FIXTURES · un local con dueño-que-atiende, un empleado y un rentado ────
@@ -199,6 +199,65 @@ begin
     perform turno_cambiar_modalidad(p_emp, 'empleado');   -- se deja como estaba
   exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
   end;
+
+  -- LA VUELTA, que hasta ahora se hacía y no se miraba: en un local de EMPLEADOS
+  -- el dueño sí puede deshacerlo. Va escrito porque la migración 98 cierra esta
+  -- misma llamada en la otra modalidad, y cerrarla en las dos dejaría al local
+  -- mixto sin salida.
+  --
+  -- Se le pasa a renta PRIMERO a propósito: el caso de arriba ya lo dejó como
+  -- empleado, y un update que no cambia ninguna fila pondría esto en verde
+  -- aunque la función no hiciera nada.
+  n:=n+1; c:='mixto · y en un local de EMPLEADOS puede deshacerlo';
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+    perform turno_cambiar_modalidad(p_emp, 'barbero_renta');
+    perform turno_cambiar_modalidad(p_emp, 'empleado');
+    if not turno_perfil_autonomo(p_emp) then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS: se quedó autónomo'; end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm;
+  end;
+
+  -- ═══ EL CASERO NO SE NOMBRA JEFE (migración 98) ═══════════════════════════
+  --
+  -- Las migraciones 92, 93 y 94 le quitaron al dueño de un local de alquiler el
+  -- mando, el cobro y la aprobación sobre su inquilino. Quedaba abierta la
+  -- puerta que las abre todas de golpe: pasarlo a 'empleado'. Con eso
+  -- turno_perfil_autonomo pasa a false, turno_manda_en_la_silla pasa a true, y
+  -- el dueño recupera de una vez todo lo que la 92 le había quitado — sin
+  -- saltarse ningún portero y sin pagar nada, porque turno_silla_al_dia mira el
+  -- TIPO DEL LOCAL y le sigue cobrando al inquilino.
+  --
+  -- FIXTURE: v_neg2 es de asientos alquilados y u_new entró ahí como
+  -- barbero_renta, pero se creó con un insert pelado y NO TIENE DUEÑO. Sin
+  -- membresía de dueño la llamada rebotaría con 'no autorizado' y el caso
+  -- pasaría por la razón equivocada — un portero se prueba con la puerta que de
+  -- verdad existe.
+  insert into turno_membresias (usuario_id, negocio_id, rol, activo)
+    values (u_due, v_neg2, 'dueno', true);
+  select id into p_new2 from turno_perfiles
+   where usuario_id = u_new and negocio_id = v_neg2;
+
+  n:=n+1; c:='casero · montaje: es admin del local de alquiler (si no, no prueba nada)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  if p_new2 is not null and v_neg2 in (select turno_negocios_admin()) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c; end if;
+
+  n:=n+1; c:='casero · en un local de ALQUILER no puede nombrar EMPLEADO a nadie';
+  begin
+    perform turno_cambiar_modalidad(p_new2, 'empleado');
+    fallos := fallos || E'\n  x '||c
+      ||' - se nombró jefe de su inquilino, y gratis: le dirige la silla sin aportar nada';
+  exception when others then
+    if sqlerrm like '%alquilas asientos%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - rebotó con "'||sqlerrm||'", que no es la regla'; end if;
+  end;
+
+  n:=n+1; c:='casero · y el inquilino sigue siendo autónomo, con su silla fuera de su alcance';
+  if turno_perfil_autonomo(p_new2) and not turno_manda_en_la_silla(p_new2) then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - autónomo='
+       ||coalesce(turno_perfil_autonomo(p_new2)::text,'?')||' manda='
+       ||coalesce(turno_manda_en_la_silla(p_new2)::text,'?'); end if;
 
   -- ── CASO 11 · pero el barbero no se la concede a sí mismo ─────────────────
   n:=n+1; c:='mixto · el barbero NO puede cambiarse la modalidad';

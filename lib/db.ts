@@ -119,7 +119,15 @@ export type Suscripcion = {
   al_dia: boolean
   hasta: string | null
   dias_restantes: number | null
+  /** Sillas dadas de alta en el local. */
   asientos: number
+  /**
+   * Por cuántas se PAGA (migración 99). `null` = sin tope, que es lo que vale
+   * en prueba y con cortesía. Cuando hay número y sobran sillas, trabajan las
+   * más antiguas y el resto no aparece — así que este dato decide quién come y
+   * el dueño tiene que verlo. No es lo mismo que `asientos`.
+   */
+  sillas_pagadas: number | null
 }
 export async function getSuscripcion(negocio_id: string): Promise<Suscripcion | null> {
   const { data, error } = await supabase.rpc('turno_suscripcion', { p_negocio: negocio_id })
@@ -352,7 +360,24 @@ export async function getRolDePerfil(perfil_id: string): Promise<string | null> 
   return (m as any)?.rol ?? null
 }
 
-export async function getPerfilesNegocio(negocio_id: string) {
+/**
+ * El equipo del local. Dos lecturas MUY distintas según quién pregunte, y por
+ * eso lleva interruptor:
+ *
+ * · EL DUEÑO las quiere todas. Necesita ver también las sillas que no están al
+ *   día — son suyas, están dadas de alta, y saber que no aparecen es justo lo
+ *   que tiene que saber.
+ * · EL CLIENTE solo puede ver las que puede usar (migración 96): «solo ve los
+ *   barberos con suscripción activa». Enseñarle uno que no está al día es
+ *   ofrecerle una puerta que el servidor le va a cerrar, y de paso airear en el
+ *   escaparate que alguien no pagó.
+ *
+ * El filtro NO vuelve a derivar la regla aquí: se la pregunta al servidor.
+ * `turno_filas_abiertas` ya devuelve exactamente las sillas al día desde la 96,
+ * así que estar en esa respuesta ES la condición. Una regla escrita dos veces
+ * se corrige una.
+ */
+export async function getPerfilesNegocio(negocio_id: string, opts?: { soloAlDia?: boolean }) {
   const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
   if (error) throw error
   // El rol vive en la membresía, no en el perfil, y el dueño lo necesita para
@@ -370,16 +395,25 @@ export async function getPerfilesNegocio(negocio_id: string) {
   // abre o cierra la puerta— para que la pantalla no ofrezca lo que él va a
   // rechazar. Si esta llamada falla, la lista sale igual y sin motivo: perder
   // el letrero no puede dejar al cliente sin ver a sus barberos.
-  const { data: filas } = await supabase.rpc('turno_filas_abiertas', { p_negocio: negocio_id })
+  const { data: filas, error: eFilas } = await supabase.rpc('turno_filas_abiertas', { p_negocio: negocio_id })
   const abierta: Record<string, { abierta: boolean; motivo: string | null }> = {}
   for (const f of (filas ?? []) as any[]) abierta[f.perfil_id] = { abierta: f.abierta, motivo: f.motivo }
 
-  return (data || []).map((p: any) => ({
-    ...p,
-    rol: rol[p.usuario_id] ?? null,
-    fila_abierta: abierta[p.id]?.abierta ?? null,
-    fila_motivo: abierta[p.id]?.motivo ?? null,
-  }))
+  // Y AQUÍ ESTÁ LA DIFERENCIA ENTRE "NO HAY" Y "NO PUDE PREGUNTAR". Si la
+  // llamada falló no sabemos nada, y filtrar por una respuesta que no llegó
+  // dejaría al cliente con la barbería vacía por un fallo de red. En ese caso se
+  // devuelve la lista entera: el servidor sigue cerrando la puerta al entrar, y
+  // enseñar de más es mucho menos grave que esconder el local entero.
+  const sePudoPreguntar = !eFilas && filas != null
+
+  return (data || [])
+    .filter((p: any) => !(opts?.soloAlDia && sePudoPreguntar) || p.id in abierta)
+    .map((p: any) => ({
+      ...p,
+      rol: rol[p.usuario_id] ?? null,
+      fila_abierta: abierta[p.id]?.abierta ?? null,
+      fila_motivo: abierta[p.id]?.motivo ?? null,
+    }))
 }
 
 // ── IDENTIDAD DEL BARBERO (nivel persona; sigue al barbero entre locales) ──

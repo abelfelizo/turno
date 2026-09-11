@@ -192,8 +192,16 @@ export default function Config() {
   const MENU = [
     { k: 'marca', t: 'Marca y contacto', icono: 'storefront-outline',
       v: [negocio?.nombre, negocio?.direccion].filter(Boolean).join(' · ') || 'Sin datos todavía' },
+    // EN ALQUILER NO SE ENSEÑA PRECIO. Este menú es el resumen del local —cada
+    // fila lleva su valor debajo y se lee de un vistazo— así que poner aquí el
+    // plan por asiento le cobraba de palabra al dueño que no paga nada, y
+    // contradecía a su propia sección, que dice justo lo contrario.
     { k: 'suscripcion', t: 'Suscripción', icono: 'card-outline',
-      v: `${plan.montoTexto} · ${asientos} asiento${asientos === 1 ? '' : 's'}` },
+      v: esRentado
+        ? 'No pagas por el local · cada barbero paga su silla'
+        : suscripcion?.estado === 'vencida'
+          ? 'Vencida · la fila del local está apagada'
+          : `${plan.montoTexto} · ${asientos} asiento${asientos === 1 ? '' : 's'}` },
     { k: 'modalidad', t: 'Cómo trabaja tu local', icono: 'people-outline',
       v: esRentado ? 'Alquilo asientos' : 'Tengo empleados' },
     { k: 'funciones', t: 'Funciones del local', icono: 'options-outline',
@@ -372,18 +380,37 @@ export default function Config() {
               <Text style={s.susEstado}>Cortesía · sin cargo</Text>
             )}
             {suscripcion?.estado === 'vencida' && (
-              <Text style={s.susEstado}>Tu prueba terminó.</Text>
+              <Text style={[s.susEstado, { color: COLORS.danger }]}>
+                Vencida · la fila de tu local está apagada
+              </Text>
             )}
 
-            {/* Y se dice lo que pasa mientras tanto, en vez de dejarlo en el
-                aire: la barbería sigue funcionando igual. Que el dueño se quede
-                pensando si le van a cortar el local mañana es peor que la
-                propia espera. */}
+            {/* ESTO DECÍA «tu barbería sigue funcionando con normalidad», y
+                desde la migración 95 es falso: sin pagar, ninguna silla del
+                local aparece ni recibe fila —todas cuelgan de esta misma
+                suscripción, la del dueño incluida—. Dejar el texto viejo
+                convertía la única pantalla que puede explicar el apagón en la
+                que asegura que no lo hay. */}
             <Text style={s.susNota}>
               {suscripcion?.estado === 'vencida'
-                ? 'Tu barbería sigue funcionando con normalidad: todavía no estamos cobrando. Te avisaremos antes de que eso cambie.'
+                ? 'Sin la suscripción al día, tus barberos no aparecen en la app y nadie puede entrar a la fila ni reservar. Lo que ya estaba reservado no se toca —las citas siguen en pie— y quien llegue al local se atiende igual. Aquí puedes seguir cambiando los datos del negocio.'
                 : 'El pago dentro de la app se habilitará próximamente. Nada deja de funcionar mientras tanto.'}
             </Text>
+
+            {/* EL CUPO (migración 96). Decide QUIÉN trabaja, así que el dueño
+                tiene que verlo: si paga por dos sillas y tiene cuatro dadas de
+                alta, dos no aparecen. Se reparte por antigüedad y eso se dice,
+                porque es lo primero que va a preguntar. Solo se enseña cuando
+                hay tope: sin número no hay nada que explicar. */}
+            {suscripcion?.sillas_pagadas != null && (
+              <Text style={s.susNota}>
+                Pagas por {suscripcion.sillas_pagadas} silla{suscripcion.sillas_pagadas === 1 ? '' : 's'} de
+                las {asientos} que tienes dadas de alta
+                {asientos > suscripcion.sillas_pagadas
+                  ? `. Las ${asientos - suscripcion.sillas_pagadas} restantes no aparecen en la app: trabajan las más antiguas.`
+                  : '.'}
+              </Text>
+            )}
           </View>
         </>
       )}
