@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **99** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **101** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -31,7 +31,8 @@ nada avise, y ya pasó dos veces.
   cita (90), "hoy abro antes" (91), **el casero no es el jefe** (92), **cada silla paga la
   suya** (93), quién deja entrar a quién (94), **el día que empezamos a cobrar** (95), una
   silla pagada es una silla (96), quién pagó no es asunto tuyo (97), **el casero no se
-  nombra jefe** (98) y el cupo se ve (99).
+  nombra jefe** (98), el cupo se ve (99), las dos horas extra que el cron no veía (100) y
+  **pertenecer no es poder mirar** (101).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -49,10 +50,22 @@ nada avise, y ya pasó dos veces.
   puede usar, y el menú del dueño de alquiler le enseñaba un precio que no paga. Cuando el
   cobro cambia, cambia lo que las pantallas tienen que decir; si no se revisan, el producto
   queda diciendo dos cosas a la vez.
+- **Los dos fallos que trajo el piloto del 11-sep**, los dos con la misma forma. El cron
+  expiraba a los clientes de una fila que el barbero acababa de alargar dos horas, porque
+  `turno_cerrar_olvidados` leía el horario SEMANAL y la extensión vive en `turno_jornadas`
+  (100). Y el casero leía por la tabla lo que la 92 le había cerrado por la función (101).
+  Dos sitios leyendo la misma regla por puertas distintas, las dos veces.
 - **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras** después
   de 95, 96 y 97: cola 34, autonomía 27, fidelidad 6, viaje 17, obstáculos 32, puertas 38,
-  horarios 26, sin cita 22, modo 21, confianza 27, suscripción 33, jornada 32. Tras 98 y 99:
-  **autonomía 31**, **suscripción 36**, y el censo + la red verdes.
+  horarios 26, sin cita 22, modo 21, confianza 27, suscripción 33, jornada 32. Tras 98–101:
+  **autonomía 33**, **suscripción 36**, **jornada 36**, **puertas 43**, y el censo + la red
+  verdes.
+
+  Las que NO se han vuelto a correr enteras desde la 98 son cola, fidelidad, viaje,
+  obstáculos, horarios, sin cita, modo y confianza. Ninguna de ellas evalúa RLS —solo
+  `puertas`, `autonomia`, `suscripcion`, `jornada`, `motor_cola` y `confianza` usan `set
+  local role`, y los casos de `motor_cola` se verificaron aparte— pero eso es un argumento,
+  no una corrida. **Está pendiente y hay que hacerlo antes de dar nada por cerrado.**
 
   (`puertas` no sube de 38 aunque la red haya crecido: la red entera es **un** caso, y las
   funciones nuevas se añaden a la llamada, no al conteo.)
@@ -61,11 +74,24 @@ nada avise, y ya pasó dos veces.
 
 Van aquí porque el que retome esto los va a volver a encontrar si no los conoce.
 
-1. **La puerta cerrada en la pantalla y abierta en el API.** Apareció **cuatro** veces. Las
+1. **La puerta cerrada en la pantalla y abierta en el API.** Apareció **cinco** veces. Las
    políticas RLS estaban bien; el agujero estaba en las funciones `SECURITY DEFINER`, que se
    saltan RLS por definición. La red de `puertas.test.sql` **llama** a cada función
    alcanzable por un anónimo en vez de leer el código, porque leerlo ya falló. Toda función
    nueva entra en esa red el mismo día que se escribe.
+
+   **La quinta le dio la vuelta al patrón, y por eso es la más útil** (migración 101). Esta
+   vez las RLS eran el agujero y las funciones estaban bien: la 92 cerró con cuidado
+   `turno_stats_periodo_perfil` para que el casero no leyera la facturación de su inquilino,
+   y la TABLA `turno_historial_visitas` se quedó abierta un mes. Un `select
+   sum(precio_cobrado)` con `set local role authenticated` la devolvía entera. **Cerrar la
+   función y no mirar la tabla es cerrar media puerta.**
+
+   Y la grieta era más ancha que el reporte: las políticas decían `negocio_id in (select
+   turno_mis_negocios())`, y esa función **incluye los locales donde eres solo CLIENTE** — lo
+   mismo que ya tumbó el cron en la 73. O sea que cualquiera que se uniera con el código del
+   local se llevaba lo que factura el local entero y las citas de los demás, con nombre y
+   hora. Desde la 101 las tres tablas del núcleo van por `turno_manda_en_la_silla`.
 
    La cuarta es la que mejor lo enseña (migración 97). La 95 puso cuidado en que el letrero
    NO delatara al barbero que no había pagado —frase neutra, razonada en su cabecera— y en la
@@ -140,7 +166,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–99), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–101), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`
