@@ -35,7 +35,7 @@ declare
   v_cod text := 'JO-' || upper(substr(md5(random()::text),1,5));
   v_tz text := 'America/Santo_Domingo'; v_ahora timestamp; v_hoy date; v_dow int;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
-  v_txt text; v_int int; v_ini time; v_fin time; abiertas text := '';
+  v_txt text; v_int int; v_ini time; v_fin time; v_uuid uuid; abiertas text := '';
 begin
   v_ahora := (now() at time zone v_tz); v_hoy := v_ahora::date; v_dow := extract(dow from v_ahora);
 
@@ -390,6 +390,66 @@ begin
     if sqlerrm like '%no tienes jornada%' then ok:=ok+1;
     else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
   end;
+
+  -- ═══ LAS DOS HORAS EXTRA QUE EL CRON NO VEÍA (migración 100) ══════════════
+  --
+  -- Reportado desde el teléfono: «los clientes se están cancelando aún cuando
+  -- se marcó 2 horas extra de trabajo. No funcionó.»
+  --
+  -- Y no funcionaba por la forma de fallo de siempre: dos sitios leyendo la
+  -- misma regla por puertas distintas. La 87 escribe la extensión en
+  -- `turno_jornadas` y NO toca `turno_horarios` —hay un caso arriba que lo
+  -- fija—, pero turno_cerrar_olvidados hacía su propio join contra el horario
+  -- SEMANAL. Resultado: el letrero decía abierto, la puerta dejaba entrar, y el
+  -- cron iba expirando la fila por detrás cada minuto.
+  --
+  -- Los tres casos van juntos porque solos mienten: que no expire puede ser que
+  -- el cron no corra, y que expire puede ser que la jornada sí terminó. Hace
+  -- falta ver las dos direcciones Y que el cron no reviente sin sesión, que es
+  -- la trampa de la migración 73.
+  delete from turno_jornadas where perfil_id = p_due and fecha = v_hoy;
+  update turno_horarios
+     set activo = true, hora_inicio = time '00:01',
+         hora_fin = greatest(time '00:02', (v_ahora - interval '1 hour')::time)
+   where perfil_id = p_due and dia_semana = v_dow;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  perform turno_alargar_jornada(p_due, 120);
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_due);
+  v_uuid := r.id;
+
+  n:=n+1; c:='extra · montaje: con dos horas extra el cliente SÍ entra';
+  if v_uuid is not null then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' (sin esto, lo de abajo no prueba nada)'; end if;
+
+  -- SIN SESIÓN, que es como corre el cron de verdad.
+  perform set_config('request.jwt.claims', null, true);
+  v_txt := 'NINGUNO';
+  begin perform turno_cerrar_olvidados();
+  exception when others then v_txt := sqlerrm; end;
+
+  n:=n+1; c:='extra · el cron no revienta sin sesión (la trampa de la 73)';
+  if v_txt = 'NINGUNO' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_txt; end if;
+
+  n:=n+1; c:='extra · y NO cancela al que espera con la extensión puesta';
+  select estado into v_txt from turno_cola where id = v_uuid;
+  if v_txt = 'en_fila' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedó en "'||coalesce(v_txt,'?')
+       ||'": el cron volvió a leer el horario semanal'; end if;
+
+  -- LA OTRA MITAD. Un cron que no cierra nunca es tan roto como uno que cierra
+  -- de más: los turnos olvidados se quedarían vivos para siempre.
+  n:=n+1; c:='extra · pero cuando la jornada DE VERDAD termina, sí cierra';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_jornadas set hora_fin = (v_ahora - interval '10 min')::time
+   where perfil_id = p_due and fecha = v_hoy;
+  perform set_config('request.jwt.claims', null, true);
+  perform turno_cerrar_olvidados();
+  select estado into v_txt from turno_cola where id = v_uuid;
+  if v_txt = 'expirado' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedó en "'||coalesce(v_txt,'?')||'"'; end if;
 
   raise exception E'\n=== JORNADA DE HOY · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
