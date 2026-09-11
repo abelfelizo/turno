@@ -578,6 +578,21 @@ export default function Config() {
         <>
         <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
         {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
+        {/* LA JORNADA SEMBRADA (migración 85). Antes el perfil nacía sin horario
+            y con la fila cerrada, sin decírselo a nadie: se montaba la barbería,
+            se repartía el código y no entraba ni una persona. Ahora nace con una
+            jornada de 09:00 a 18:00 — pero esa jornada la puso el sistema, no
+            él, y podría no ser la suya. Se avisa hasta que toque un día; a
+            partir de ahí el aviso desaparece solo. */}
+        {perfil?.jornada_sembrada && (
+          <View style={s.sembrada}>
+            <Ionicons name="information-circle" size={18} color={COLORS.red} />
+            <Text style={s.sembradaT}>
+              Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día.
+              Toca cualquier día para dejarlo como de verdad trabajas.
+            </Text>
+          </View>
+        )}
         {DIAS.map(d => {
           const h = horarioDe(d.n); const abierto = h && h.activo
           return (
@@ -958,6 +973,9 @@ const s = StyleSheet.create({
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
   nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
   deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
+  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.dangerLight,
+    borderRadius: 12, padding: 12, marginTop: -4, marginBottom: 12 },
+  sembradaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },

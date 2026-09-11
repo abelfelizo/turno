@@ -491,6 +491,15 @@ export async function guardarHorario(h: { id?: string; perfil_id: string; dia_se
     tiempo_entre_clientes: h.tiempo_entre_clientes ?? 0,
   }, { onConflict: 'perfil_id,dia_semana' })
   if (error) throw error
+
+  // LA JORNADA YA ES SUYA (migración 85). Al aprobarlo se le sembró una de
+  // 09:00 a 18:00 para que no naciera con la fila cerrada, y la app lo avisa
+  // mientras siga siendo la del sistema. En cuanto toca un día deja de serlo:
+  // el aviso tiene que apagarse solo, porque un aviso que no se va se ignora.
+  // Si esto falla no se rompe nada — solo se avisaría de más.
+  await supabase.from(T('perfiles'))
+    .update({ jornada_sembrada: false })
+    .eq('id', h.perfil_id).eq('jornada_sembrada', true)
 }
 
 // BLOQUEOS (barbero bloquea una franja)

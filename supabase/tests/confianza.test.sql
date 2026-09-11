@@ -85,9 +85,16 @@ begin
   -- Quien sí prueba el horario es horarios.test.sql y modo_atencion.test.sql.
   -- El perfil del DUEÑO se queda sin horario a propósito: así "el local está
   -- abierto" depende solo de los dos empleados, que es lo que se manipula.
+  -- ON CONFLICT desde la migración 85: el perfil YA nace con una jornada
+  -- sembrada de lunes a sábado, así que un INSERT pelado choca con el índice
+  -- único (perfil_id, dia_semana). Lo que la suite quiere decir no es "inserta
+  -- estas filas" sino "este barbero trabaja a estas horas".
   insert into turno_horarios (perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
   select pf, d, time '00:01', time '23:59', true, 10
-    from (values (p_bar), (p_bar2)) x(pf), generate_series(0,6) d;
+    from (values (p_bar), (p_bar2)) x(pf), generate_series(0,6) d
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = true, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
   perform turno_unirse_cliente(v_cod, 'Juan Carlos Pérez', '8095551111');

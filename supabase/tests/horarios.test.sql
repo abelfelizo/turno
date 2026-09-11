@@ -43,6 +43,11 @@ declare
   u_due uuid; v_neg uuid; p uuid; s_corte uuid; s_barba uuid;
   v_dia date; v_hoy_real date; v_lista text; v_int int; v_int2 int;
   n int := 0; ok int := 0; fallos text := ''; c text;
+  -- El segundo local, el que se usa para ver cómo NACE una barbería (mig. 85).
+  a_due2 uuid := gen_random_uuid(); a_emp2 uuid := gen_random_uuid();
+  u_due2 uuid; v_neg2 uuid; p_due2 uuid; p_emp2 uuid;
+  v_cod2 text := 'HR-' || upper(substr(md5(random()::text),1,5));
+  v_txt2 text; v_bool boolean; r2 record;
 begin
   -- Mañana, para que la antelación mínima (2h) no recorte nada.
   v_dia := (now() at time zone 'America/Santo_Domingo')::date + 1;
@@ -62,8 +67,12 @@ begin
   values (p,'Corte',45,700,true) returning id into s_corte;
   insert into turno_servicios(perfil_id,nombre,duracion_min,precio,activo)
   values (p,'Barba',30,400,true) returning id into s_barba;
+  -- ON CONFLICT desde la migración 85: el perfil ya nace con jornada sembrada.
   insert into turno_horarios(perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
-    select p, d, time '08:00', time '12:00', true, 10 from generate_series(0,6) d;
+    select p, d, time '08:00', time '12:00', true, 10 from generate_series(0,6) d
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = true, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
 
   -- ── DÍA VACÍO: LA REJILLA SIGUE DANDO HORAS REDONDAS ──────────────────────
   n:=n+1; c:='vacío · el corte abre en la hora de apertura y avanza de 55 en 55';
@@ -237,6 +246,93 @@ begin
     fallos:=fallos||E'\n  x '||c||' - se creó igualmente';
   exception when unique_violation then ok:=ok+1;
             when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- ── UNA BARBERÍA NACE ABIERTA (migración 85) ──────────────────────────────
+  --
+  -- Desde la migración 72 la fila respeta el horario y desde la 74 hay un
+  -- letrero que dice por qué está cerrada. Las dos correctas; juntas dejaron
+  -- que NADA sembrara un horario. Reproducido creando un local desde cero:
+  --
+  --   horarios sembrados: 0
+  --   la silla del dueño: «todavía no ha puesto su horario…»
+  --   el local entero:    «ahora mismo no hay nadie abierto en el local»
+  --
+  -- Alguien monta su barbería, reparte el código, y no le entra ni una persona.
+  -- Sin error y sin aviso, que es la peor forma de estar roto.
+  --
+  -- Estos casos usan un local NUEVO a propósito: el de arriba lleva media suite
+  -- con horarios puestos a mano y no puede enseñar cómo se nace.
+  insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+  values (a_due2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','hd_'||v_cod2||'@t.test','',now(),now()),
+         (a_emp2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','he_'||v_cod2||'@t.test','',now(),now());
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  perform turno_crear_negocio('Nace Abierta','empleados','DOP',true,'barbero','Duenno','809',
+                              2, 10, 5, true, 1, 3, false, true);
+  select id into u_due2 from turno_usuarios where auth_id = a_due2;
+  select id, negocio_id into p_due2, v_neg2 from turno_perfiles where usuario_id = u_due2 limit 1;
+  select codigo_acceso into v_cod2 from turno_negocios where id = v_neg2;
+
+  n:=n+1; c:='nace · el dueño se da de alta con seis días abiertos';
+  select count(*) into v_int from turno_horarios where perfil_id = p_due2;
+  if v_int = 6 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' días'; end if;
+
+  n:=n+1; c:='nace · el domingo queda cerrado, que es lo normal aquí';
+  select count(*) into v_int from turno_horarios where perfil_id = p_due2 and dia_semana = 0;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
+
+  -- Las horas no son un invento: son las que el editor de la app propone al
+  -- abrir un día en blanco. Lo sembrado y lo que vería al configurarlo coinciden.
+  n:=n+1; c:='nace · con las mismas horas que propone el editor (09:00-18:00)';
+  select count(*) into v_int from turno_horarios
+   where perfil_id = p_due2 and hora_inicio = time '09:00' and hora_fin = time '18:00' and activo;
+  if v_int = 6 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' de 6'; end if;
+
+  -- LA MITAD QUE IMPORTA: que el letrero deje de decir que está cerrado.
+  n:=n+1; c:='nace · la fila del dueño ya no dice "todavía no ha puesto su horario"';
+  select turno_fila_abierta(p_due2, v_neg2) into v_txt2;
+  if v_txt2 is null or v_txt2 not like '%no ha puesto su horario%' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - "'||v_txt2||'"'; end if;
+
+  -- Un horario que el sistema puso puede no ser el suyo. No se esconde: queda
+  -- marcado para que la app lo avise.
+  n:=n+1; c:='nace · queda marcado como jornada sembrada, para poder avisarlo';
+  select jornada_sembrada into v_bool from turno_perfiles where id = p_due2;
+  if v_bool then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_emp2::text)::text, true);
+  select * into r2 from turno_unirse_profesional(v_cod2,'barbero','empleado','Empleado','809');
+  p_emp2 := r2.id;
+
+  -- Antes de aprobarlo no se le siembra: todavía no puede trabajar, y un
+  -- horario en la agenda de alguien que el dueño aún no aceptó confunde.
+  n:=n+1; c:='nace · al que espera aprobación todavía no se le siembra nada';
+  select count(*) into v_int from turno_horarios where perfil_id = p_emp2;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' días sin aprobar'; end if;
+
+  n:=n+1; c:='nace · al aprobarlo, el empleado entra al equipo con la fila abierta';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
+  update turno_perfiles set aprobado = true where id = p_emp2;
+  select count(*) into v_int from turno_horarios where perfil_id = p_emp2;
+  if v_int = 6 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' días'; end if;
+
+  -- El disparador corre en cada guardado del perfil. Si no mirara si ya hay
+  -- horario, cada vez que el dueño tocara cualquier campo duplicaría la semana.
+  n:=n+1; c:='nace · guardar el perfil otra vez no vuelve a sembrar';
+  update turno_perfiles set aprobado = true where id = p_emp2;
+  update turno_perfiles set limite_cola = 5 where id = p_emp2;
+  select count(*) into v_int from turno_horarios where perfil_id = p_emp2;
+  if v_int = 6 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - quedaron '||v_int; end if;
+
+  -- Y NUNCA PISA LO QUE EL BARBERO PUSO. Es lo único que convertiría una ayuda
+  -- en un destrozo: que al reactivarlo le borrara la jornada que se había hecho.
+  n:=n+1; c:='nace · el que ya tenía horario conserva el suyo';
+  update turno_horarios set hora_inicio = time '07:00' where perfil_id = p_emp2 and dia_semana = 1;
+  update turno_perfiles set aprobado = false where id = p_emp2;
+  update turno_perfiles set aprobado = true  where id = p_emp2;
+  select hora_inicio::text into v_txt2 from turno_horarios where perfil_id = p_emp2 and dia_semana = 1;
+  if v_txt2 = '07:00:00' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt2,'NULL'); end if;
 
   raise exception E'\n=== HORARIOS · % / % casos OK ===%',
     ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;

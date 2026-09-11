@@ -83,8 +83,12 @@ begin
   -- sola al correrla de madrugada o de noche: contaba la hora, no la regla.
   -- Aquí el horario no es lo que se mide, así que se abre entero para que no
   -- interfiera; quien sí lo mide es horarios.test.sql y modo_atencion.test.sql.
+  -- ON CONFLICT desde la migración 85: el perfil ya nace con jornada sembrada.
   insert into turno_horarios (perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
-    select p_bar, d, time '00:01', time '23:59', true, 10 from generate_series(0,6) d;
+    select p_bar, d, time '00:01', time '23:59', true, 10 from generate_series(0,6) d
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = true, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
   insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
   values (p_bar, current_date + 2, time '05:00', time '06:00', 'prueba') returning id into v_bloq;
 

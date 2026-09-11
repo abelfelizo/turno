@@ -90,15 +90,24 @@ begin
   end;
 
   -- ── CASO 5 · la jornada del empleado la fija el local ─────────────────────
+  --
+  -- EL DOMINGO A PROPÓSITO. Desde la migración 85 el perfil nace con una jornada
+  -- sembrada de lunes a sábado, y un INSERT sobre el lunes chocaría con el
+  -- índice único (perfil_id, dia_semana). El caso seguiría en verde —también
+  -- lanza— pero por una razón que no tiene nada que ver con los permisos: la
+  -- peor forma de pasar. El domingo está libre, así que lo único que puede
+  -- pararlo es RLS, que es lo que se mide.
   n:=n+1; c:='RLS · el empleado NO puede cambiarse el horario';
   begin
     perform set_config('request.jwt.claims', json_build_object('sub', a_emp::text)::text, true);
     set local role authenticated;
     insert into turno_horarios (perfil_id,dia_semana,hora_inicio,hora_fin,activo,tiempo_entre_clientes)
-      values (p_emp,1,time '06:00',time '09:00',true,10);
+      values (p_emp,0,time '06:00',time '09:00',true,10);
     reset role;
     fallos := fallos || E'\n  x '||c||' - lo consiguio';
-  exception when others then reset role; ok:=ok+1;
+  exception when unique_violation then reset role;
+              fallos := fallos || E'\n  x '||c||' - chocó con el índice único, NO con RLS: el caso no probaba nada';
+            when others then reset role; ok:=ok+1;
   end;
 
   -- ── CASO 6 · pero el almuerzo es suyo ─────────────────────────────────────

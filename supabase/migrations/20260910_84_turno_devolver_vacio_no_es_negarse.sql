@@ -185,11 +185,16 @@ begin
    order by hora_inicio limit 1;
 
   if v_ini is null then return 'hoy no trabaja: su fila abre los días que tiene marcados'; end if;
-  if v_ahora::time < v_ini then
-    return 'todavía no abre: empieza a las ' || to_char(v_ini, 'HH12:MI AM');
-  end if;
-  if v_ahora::time >= v_fin then
-    return 'ya cerró por hoy: su jornada termina a las ' || to_char(v_fin, 'HH12:MI AM');
+  -- Este mensaje es el de la migración 81, palabra por palabra. Al escribir esta
+  -- migración lo reescribí de memoria en dos frases distintas ("todavía no abre",
+  -- "ya cerró por hoy") y con la hora en formato de 12 horas. Nadie lo pidió, y
+  -- modo_atencion.test.sql se puso rojo al instante: la prueba comprueba que el
+  -- letrero DIGA el horario, y con el formato nuevo ya no lo decía igual. Copiar
+  -- un cuerpo entero por un CREATE OR REPLACE es exactamente donde se cuelan
+  -- estos cambios que nadie quería.
+  if v_ahora::time < v_ini or v_ahora::time >= v_fin then
+    return 'ahora está cerrado: su fila abre de ' || to_char(v_ini, 'HH24:MI')
+        || ' a ' || to_char(v_fin, 'HH24:MI');
   end if;
 
   return null;

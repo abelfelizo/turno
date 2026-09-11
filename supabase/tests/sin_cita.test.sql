@@ -41,7 +41,9 @@ declare
   n int := 0; ok int := 0; fallos text := ''; c text;
   v_int int; v_txt text; v_carga int; v_prim time;
   v_tz text := 'America/Santo_Domingo'; v_ahora timestamp; i int;
-  v_exp timestamptz; v_llego timestamptz;
+  v_exp timestamptz; v_llego timestamptz; v_obj timestamp;
+  -- Lo que no se pudo evaluar, y por qué. Ver el caso de la agenda de hoy.
+  omitidos int := 0; saltados text := '';
 begin
   v_ahora := (now() at time zone v_tz);
 
@@ -141,10 +143,26 @@ begin
   else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos ofrecidos encima de la fila'; end if;
 
   -- Cerrar de más también rompe: la fila retrasa el día, no lo cancela.
-  n:=n+1; c:='fila · pero la agenda de hoy NO se cierra entera';
-  select count(*) into v_int from turno_slots_disponibles(p_bar, v_ahora::date, s_corte) s;
-  if v_int > 0 then ok:=ok+1;
-  else fallos:=fallos||E'\n  x '||c||' - se cerró el día'; end if;
+  --
+  -- ESTE CASO SOLO SIGNIFICA ALGO SI QUEDA DÍA. A las nueve de la noche, con
+  -- tres horas de fila por delante y un corte de 36 minutos, la agenda de hoy
+  -- SÍ está cerrada y eso es correcto: no queda jornada. Corriéndolo a esa hora
+  -- se ponía rojo midiendo el reloj, no la regla — y un caso que falla por una
+  -- razón falsa se acaba ignorando, que es peor que no tenerlo.
+  --
+  -- Así que se dice en voz alta: si no cabe, NO SE EVALÚA y se cuenta aparte.
+  -- Darlo por bueno sin mirarlo sería mentir en la otra dirección.
+  if (v_ahora + interval '180 min' + interval '36 min')::time > time '23:00'
+     or (v_ahora + interval '216 min')::date > v_ahora::date then
+    omitidos := omitidos + 1;
+    saltados := saltados || E'\n  ~ fila · "la agenda de hoy NO se cierra entera" no se evaluó: son las '
+             || to_char(v_ahora, 'HH24:MI') || ' y con 3 h de fila ya no queda jornada hoy';
+  else
+    n:=n+1; c:='fila · pero la agenda de hoy NO se cierra entera';
+    select count(*) into v_int from turno_slots_disponibles(p_bar, v_ahora::date, s_corte) s;
+    if v_int > 0 then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - se cerró el día'; end if;
+  end if;
 
   n:=n+1; c:='fila · MAÑANA no se ve afectado por la fila de hoy';
   select count(*) into v_int from turno_slots_disponibles(p_bar, v_ahora::date + 1, s_corte) s
@@ -172,9 +190,16 @@ begin
   if v_int = 216 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - dio '||coalesce(v_int::text,'?')||' (esperaba 216)'; end if;
 
+  -- LA FECHA SALE DEL MISMO INSTANTE QUE LA HORA. Antes era `v_ahora::date` con
+  -- `(v_ahora + interval)::time`, y pasadas las ocho de la noche el `::time`
+  -- cruzaba la medianoche y volvía a la madrugada: se pedía cita a las 01:38 de
+  -- HOY, o sea veinte horas atrás, y el caso se ponía rojo por "falta
+  -- antelación" sin tener nada que ver con la fila. Con el timestamp entero la
+  -- fecha acompaña a la hora.
+  v_obj := v_ahora + interval '70 min';
   n:=n+1; c:='fila · reservar directo TAMBIÉN se niega, no solo la lista';
   begin
-    perform turno_agendar_cita(p_bar, s_corte, v_ahora::date, (v_ahora + interval '70 min')::time);
+    perform turno_agendar_cita(p_bar, s_corte, v_obj::date, v_obj::time);
     fallos:=fallos||E'\n  x '||c||' - la reserva pasó igualmente';
   exception when others then
     if sqlerrm like '%fila%' then ok:=ok+1;
@@ -184,9 +209,10 @@ begin
   -- 240, no 200: con el turno suelto del caso anterior la carga es 216 min.
   -- Este número tiene que ir detrás de la carga real, no de la que había cuando
   -- se escribió el caso — si no, la prueba se rompe sola al añadir una regla.
+  v_obj := v_ahora + interval '240 min';
   n:=n+1; c:='fila · pasada la fila, SÍ deja reservar';
   begin
-    perform turno_agendar_cita(p_bar, s_corte, v_ahora::date, (v_ahora + interval '240 min')::time);
+    perform turno_agendar_cita(p_bar, s_corte, v_obj::date, v_obj::time);
     ok:=ok+1;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
@@ -243,6 +269,8 @@ begin
     else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'?'); end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
-  raise exception E'\n=== SIN CITA · FILA · RELOJ · % / % casos OK ===%',
-    ok, n, case when fallos='' then E'\n  TODO VERDE' else fallos end;
+  raise exception E'\n=== SIN CITA · FILA · RELOJ · % / % casos OK% ===%',
+    ok, n,
+    case when omitidos = 0 then '' else ' · '||omitidos||' sin evaluar' end,
+    case when fallos='' then E'\n  TODO VERDE' else fallos end || saltados;
 end $$;

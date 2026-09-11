@@ -77,9 +77,13 @@ begin
   -- no la jornada, y un fixture de 08:00 a 21:00 haría fallar la suite sola al
   -- correrla de madrugada. Quien sí prueba el horario es horarios.test.sql y
   -- modo_atencion.test.sql.
+  -- ON CONFLICT desde la migración 85: el perfil ya nace con jornada sembrada.
   insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
   select pf, d, time '00:01', time '23:59', true, 10
-    from (values (p_barb), (p_mani)) x(pf), generate_series(0,6) d;
+    from (values (p_barb), (p_mani)) x(pf), generate_series(0,6) d
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = true, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
 
   -- ── CASO 1 · entrar a la fila asigna posición 1 y prioridad digital ───────
   perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
