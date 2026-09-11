@@ -215,6 +215,12 @@ entera: la base es compartida y no puede quedar ni un registro. Un `ERROR` de Po
 final no significa que falló, significa que terminó — lo que importa es el conteo y que no
 haya líneas con `x`.
 
+**Un caso no evaluado no es un caso verde.** `sin_cita` se salta solo el caso de «la agenda
+de hoy NO se cierra entera» cuando es tan tarde que, con 3 h de fila por delante, ya no
+queda jornada — y lo dice en su salida (`· 1 sin evaluar`) en vez de sumarlo. Por eso esa
+suite da 22 por la mañana y 21 de noche, y las dos cosas están bien. Si aparece esa línea,
+o se corre más temprano o se asume que ese caso no se probó hoy.
+
 **Trampas de plpgsql que ya nos costaron tiempo:**
 - Un bloque `begin … exception` **revierte sus propias sentencias** al capturar: los
   fixtures creados dentro desaparecen. Se crean fuera.

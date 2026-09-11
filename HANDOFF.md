@@ -55,20 +55,27 @@ nada avise, y ya pasó dos veces.
   `turno_cerrar_olvidados` leía el horario SEMANAL y la extensión vive en `turno_jornadas`
   (100). Y el casero leía por la tabla lo que la 92 le había cerrado por la función (101).
   Dos sitios leyendo la misma regla por puertas distintas, las dos veces.
-- **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras** después
-  de 95, 96 y 97: cola 34, autonomía 27, fidelidad 6, viaje 17, obstáculos 32, puertas 38,
-  horarios 26, sin cita 22, modo 21, confianza 27, suscripción 33, jornada 32. Tras 98–101:
-  **autonomía 33**, **suscripción 36**, **jornada 36**, **puertas 43**, y el censo + la red
-  verdes.
+- **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras después de
+  la 101**, que es el estado de hoy: cola 34, autonomía 33, fidelidad 6, viaje 17,
+  obstáculos 32, puertas 43, horarios 26, sin cita 21, modo 21, confianza 27, suscripción
+  36, jornada 36. Más el censo y la red anti-anónimos, verdes aparte.
 
-  Las que NO se han vuelto a correr enteras desde la 98 son cola, fidelidad, viaje,
-  obstáculos, horarios, sin cita, modo y confianza. Ninguna de ellas evalúa RLS —solo
-  `puertas`, `autonomia`, `suscripcion`, `jornada`, `motor_cola` y `confianza` usan `set
-  local role`, y los casos de `motor_cola` se verificaron aparte— pero eso es un argumento,
-  no una corrida. **Está pendiente y hay que hacerlo antes de dar nada por cerrado.**
+  Dos notas para que el conteo no engañe:
 
-  (`puertas` no sube de 38 aunque la red haya crecido: la red entera es **un** caso, y las
-  funciones nuevas se añaden a la llamada, no al conteo.)
+  · **`sin cita` marca 21 y no 22 porque la propia suite se salta un caso.** El de «la
+    agenda de hoy NO se cierra entera» solo tiene sentido si con 3 h de fila por delante
+    todavía queda jornada; se corrió a las 19:30 de RD y no quedaba. La suite lo dice en su
+    salida en vez de contarlo como aprobado, que es lo correcto: **un caso no evaluado no es
+    un caso verde.** Para verlo hay que correrla por la mañana.
+
+  · **`puertas` sube a 43 por los cinco casos «tabla» de la 101, no por la red.** La red
+    entera sigue siendo **un** caso: las funciones nuevas se añaden a la llamada, no al
+    conteo.
+
+  Y una corrección al propio HANDOFF: aquí se dijo que `confianza` usaba `set local role`.
+  No lo usa —solo lo nombra un comentario—; impersona con `set_config` y prueba funciones
+  `SECURITY DEFINER`. Las que de verdad evalúan RLS son `puertas`, `autonomia`,
+  `suscripcion`, `jornada` y `motor_cola`.
 
 ## Los cuatro fallos que más enseñaron
 
