@@ -46,7 +46,8 @@ declare
   v_cod text := 'PT-' || upper(substr(md5(random()::text),1,5));
   a_due uuid := gen_random_uuid(); a_bar uuid := gen_random_uuid();
   a_cli uuid := gen_random_uuid(); a_ext uuid := gen_random_uuid();
-  a_cli2 uuid := gen_random_uuid();
+  a_cli2 uuid := gen_random_uuid(); a_pen uuid := gen_random_uuid();
+  p_pen uuid; v_ale text;
   u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid; u_cli2 uuid;
   v_neg uuid; v_neg2 uuid; p_due uuid; p_bar uuid; p_ext uuid;
   s_corte uuid; q_cli uuid; q_libre uuid; v_bloq uuid;
@@ -59,7 +60,8 @@ begin
          (a_bar,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pb_'||v_cod||'@t.test','',now(),now()),
          (a_cli,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pc_'||v_cod||'@t.test','',now(),now()),
          (a_ext,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','px_'||v_cod||'@t.test','',now(),now()),
-         (a_cli2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p2_'||v_cod||'@t.test','',now(),now());
+         (a_cli2,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','p2_'||v_cod||'@t.test','',now(),now()),
+         (a_pen,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','pp_'||v_cod||'@t.test','',now(),now());
 
   -- ── EL LOCAL OBJETIVO ─────────────────────────────────────────────────────
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
@@ -503,6 +505,139 @@ begin
   select count(*) into v_int from turno_historial_visitas where perfil_id = p_bar;
   reset role;
   if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
+  -- ── LA FICHA DEL CLIENTE (migración 102) ──────────────────────────────────
+  -- La 101 arrancó el predicado roto de tres tablas y dejó la cuarta igual.
+  -- turno_preferencias_cliente seguía diciendo `negocio_id in (select
+  -- turno_mis_negocios())`, y esa función incluye los locales donde eres SOLO
+  -- CLIENTE. O sea que cualquiera que se una con el código —que se comparte por
+  -- WhatsApp— leía la ficha de los demás: tipo de corte, barba, **alergias**,
+  -- notas y la foto. Reproducido contra la base antes de tocar nada.
+  --
+  -- Las alergias no son una preferencia: son un dato de salud escrito para quien
+  -- va a pasar la máquina, no para la sala de espera.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_pen::text)::text, true);
+  select * into r from turno_unirse_profesional(v_cod,'barbero','empleado','Pendiente','809');
+  p_pen := r.id;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  insert into turno_preferencias_cliente (usuario_id, negocio_id, tipo_corte, alergias, notas)
+  values (u_cli, v_neg, 'Fade bajo', 'alérgico a la lidocaína', 'no me toques las patillas')
+  on conflict (usuario_id, negocio_id) do update
+    set alergias = excluded.alergias, notas = excluded.notas;
+
+  n:=n+1; c:='ficha · OTRO CLIENTE del mismo local no la lee';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*), string_agg(alergias,' | ') into v_int, v_ale
+    from turno_preferencias_cliente where usuario_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - FUGA: leyó '||v_int||' ficha(s) ajena(s), alergias: "'
+       ||coalesce(v_ale,'?')||'" — solo por unirse con el código'; end if;
+
+  n:=n+1; c:='ficha · el profesional SIN APROBAR todavía no la lee';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_pen::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_preferencias_cliente where usuario_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la leyó sin que el local le aceptara'; end if;
+
+  n:=n+1; c:='ficha · un barbero de OTRO local tampoco';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_ext::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_preferencias_cliente where usuario_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - FUGA entre locales'; end if;
+
+  n:=n+1; c:='ficha · el barbero NO puede reescribirla (es del cliente)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_preferencias_cliente set notas = 'yo mando' where usuario_id = u_cli;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; end;
+  reset role;
+  if v_int <= 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - pisó '||v_int||' ficha(s)'; end if;
+
+  -- LA OTRA MITAD. Cerrar de más aquí deja al barbero sin el aviso de alergia,
+  -- que es justo para lo que existe la ficha.
+  n:=n+1; c:='ficha · el EMPLEADO aprobado SÍ la lee';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_preferencias_cliente where usuario_id = u_cli;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='ficha · el DUEÑO del local también';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_preferencias_cliente where usuario_id = u_cli;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='ficha · y su dueño la escribe';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_preferencias_cliente set notas = 'ahora sin degradado' where usuario_id = u_cli;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; end;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: escribió '||v_int; end if;
+
+  -- ── LA NOTA PRIVADA DEL BARBERO ───────────────────────────────────────────
+  -- Reportado desde el teléfono: «las notas de un barbero son visualizadas por
+  -- el otro cuando deberían ser independientes». Se comprobó y NO era esta
+  -- tabla: turno_notas_barbero va por `usuario_barbero_id = turno_uid()` y está
+  -- cerrada. Lo que se veía compartido era la ficha de arriba, que es del
+  -- cliente y la ve el equipo a propósito. Estos casos se quedan para que la
+  -- respuesta no haya que volver a buscarla.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  insert into turno_notas_barbero (usuario_barbero_id, cliente_id, nota)
+  values (u_bar, u_cli, 'paga tarde, cobrar por adelantado')
+  on conflict (usuario_barbero_id, cliente_id) do update set nota = excluded.nota;
+
+  n:=n+1; c:='nota · el COMPAÑERO del mismo local no la lee';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_notas_barbero where cliente_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - FUGA: leyó '||v_int||' nota(s) de otro barbero'; end if;
+
+  n:=n+1; c:='nota · el CLIENTE no lee lo que escriben de él';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_notas_barbero where cliente_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el cliente se leyó la nota'; end if;
+
+  n:=n+1; c:='nota · el compañero tampoco la SOBRESCRIBE';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_notas_barbero set nota = 'mentira' where cliente_id = u_cli;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; end;
+  reset role;
+  if v_int <= 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - pisó '||v_int||' nota(s) ajena(s)'; end if;
+
+  n:=n+1; c:='nota · el que la escribió SÍ la lee';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_notas_barbero where cliente_id = u_cli;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
 
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
