@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **85** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **86** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -21,15 +21,15 @@ nada avise, y ya pasó dos veces.
 
 ## Lo último que se cerró
 
-- **Migraciones 66–85.** El sin cita es un cliente (cuenta como dinero), la fila se come la
+- **Migraciones 66–86.** El sin cita es un cliente (cuenta como dinero), la fila se come la
   agenda, "te toca y el reloj corre", cómo te llega el trabajo (`modo_atencion`), la puerta
   y el letrero, la silla es de quien atiende, el que está en la silla no hace fila, los
   cuatro relojes del servicio, dónde queda el local (país + moneda), suspender no es echar,
-  las reseñas se leen, mi barbero, devolver vacío no es negarse, y una barbería nace
-  abierta.
-- **Diez suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
+  las reseñas se leen, mi barbero, devolver vacío no es negarse, una barbería nace abierta,
+  y la prueba gratis existe de verdad.
+- **Once suites de base, todas verdes** contra la BD real: cola 31, autonomía 16, fidelidad
   6, viaje 17, obstáculos 28, puertas 30, horarios 26, sin cita 21 (+1 declarado sin
-  evaluar), modo 21, confianza 27.
+  evaluar), modo 21, confianza 27, suscripción 10.
 
 ## Los tres fallos que más enseñaron
 
@@ -63,8 +63,9 @@ Van aquí porque el que retome esto los va a volver a encontrar si no los conoce
    `turno_push_tokens`. El envío es peer-to-peer (la base no puede hacer HTTP), así que si
    el teléfono que recibe nunca registró el suyo, el push no llega **y no da error**. No se
    puede dar por bueno hasta ver dos tokens y un aviso recibido.
-4. **Cobro y suscripciones.** `lib/pricing.ts` ya calcula los planes; la pantalla dice que
-   el pago se habilitará próximamente. Falta la pasarela entera.
+4. **Cobro y suscripciones.** El estado ya existe (migración 86): el local nace con 30 días
+   de prueba y la pantalla dice cuántos quedan. Falta la pasarela entera, y antes que ella
+   **la decisión de qué pasa cuando alguien no paga** — hoy no pasa nada, a propósito.
 5. **Rediseño del panel del cliente**, rehecho contra esta rama.
 
 ## Constraint de infraestructura (CRÍTICO)
@@ -81,7 +82,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–85), `supabase/functions/turno-enviar-push/`
-- Pruebas: `supabase/tests/` (10 suites) y su `README.md`
+- Backend: `supabase/migrations/` (01–86), `supabase/functions/turno-enviar-push/`
+- Pruebas: `supabase/tests/` (11 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

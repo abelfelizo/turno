@@ -484,6 +484,12 @@ begin
     abiertas := abiertas || ' marcar_preferido'; exception when others then null; end;
   begin perform turno_mi_preferido(v_neg);
     abiertas := abiertas || ' mi_preferido'; exception when others then null; end;
+  -- Migración 86. Cuánto paga un local y desde cuándo debe es de lo más privado
+  -- que hay aquí dentro.
+  begin perform turno_suscripcion(v_neg);
+    abiertas := abiertas || ' suscripcion'; exception when others then null; end;
+  begin perform turno_asientos_negocio(v_neg);
+    abiertas := abiertas || ' asientos_negocio'; exception when others then null; end;
 
   reset role;
 

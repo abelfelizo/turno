@@ -53,17 +53,35 @@ eso "no me llegan las notificaciones" no tiene por qué ser un fallo del envío.
 Un trigger en `turno_cola` que llamara a la edge function necesitaría `pg_net`, es decir
 **HTTP desde dentro de una base compartida con otro proyecto en producción**. No se hace.
 
-## 2. Cobro y suscripciones — no existe
+## 2. Cobro y suscripciones — el cimiento está, el cobro no
 
-`lib/pricing.ts` calcula los planes (modelo *por asiento, con piso y tope*: cliente gratis,
-barbero independiente paga el mínimo, al empleado lo cubre el dueño, el dueño paga
-`clamp(mínimo×asientos, mínimo, máximo)`), y la pantalla dice que el pago "se habilitará
-próximamente".
+**Lo que ya hay** (migración 86): cada local tiene una fila en `turno_suscripciones` y
+**nace con 30 días de prueba** contados desde que se creó. `turno_suscripcion(negocio)`
+devuelve el estado ya resuelto —`prueba` / `activa` / `vencida` / `cortesia`—, hasta qué día
+y cuántos quedan, y la pantalla del dueño lo dice ("Prueba gratis · te quedan 18 días") en
+vez de enseñar un precio que nadie cobra. Cubierto por `supabase/tests/suscripcion.test.sql`.
 
-- [ ] Decidir la vía: compra dentro de la app (IAP + RevenueCat) o pasarela local.
+Eso hace real la promesa de `constants.SUSCRIPCION.dias_prueba`, que llevaba meses en el
+repo **sin que la leyera nadie**. `lib/pricing.ts` sigue calculando cuánto tocaría pagar
+(modelo *por asiento, con piso y tope*: cliente gratis, independiente paga el mínimo, al
+empleado lo cubre el dueño, el dueño paga `clamp(mínimo×asientos, mínimo, máximo)`).
+
+**Lo que NO hay, y es deliberado: nada corta el servicio.** Ninguna función mira `al_dia`.
+Un local con la suscripción vencida sigue funcionando igual, y hay un caso en la suite que
+se pone rojo si alguien mete una comprobación de pago sin querer.
+
+- [ ] **Decidir qué pasa cuando alguien no paga.** Es la decisión que bloquea todo lo demás,
+      y es de producto, no técnica: ¿se cierra la fila? ¿se deja leer pero no atender? ¿hay
+      días de gracia? ¿se avisa antes, y con cuánto? Cortarle el local a un barbero un
+      sábado por la mañana por una regla que se coló sin pensarla es mucho peor que tardar
+      en cobrar.
+- [ ] Decidir la vía de cobro: compra dentro de la app (IAP + RevenueCat) o pasarela local.
+      **Ojo:** un SDK de pagos es código nativo, así que **no entra por OTA** — hace falta un
+      build nuevo.
 - [ ] Cuentas de tienda y, si es IAP, productos dados de alta.
-- [ ] Estado de suscripción en BD y qué pasa exactamente cuando alguien **no** paga. Esa
-      decisión es de producto, no técnica, y hay que tomarla antes de escribir nada.
+- [ ] Conectar la pasarela a `turno_suscripciones.pagada_hasta`. Hoy **nadie** escribe esa
+      columna desde la app: la tabla no tiene política de escritura a propósito, para que ese
+      día se revise quién puede tocarla en vez de heredarlo por descuido.
 
 ## 3. Build de tienda
 

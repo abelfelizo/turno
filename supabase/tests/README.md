@@ -15,6 +15,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `sin_cita.test.sql` | El cliente de la calle: que se cuente como visita, que no se cuele por delante de la fila y que no deje bloqueos de más. |
 | `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
 | `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
+| `suscripcion.test.sql` | La prueba gratis, el pago y la cortesía — y sobre todo **que un local vencido siga funcionando**, porque cortar el servicio es una decisión de producto sin tomar. |
 
 Las suites de flujo y permisos existen porque esos fallos no se
 ven mirando funciones de una en una. Cada una encontró bugs de producción en su

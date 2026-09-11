@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **85** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **86** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -82,7 +82,7 @@ errores `rls_disabled` del linter son de `libro_*`: fuera de alcance.
 
 ## Backend
 
-**85 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**86 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -90,7 +90,7 @@ limpieza nocturna.
 entero en la migración 73 por no tenerlo en cuenta (arreglado en la 75), así que cualquier
 trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 
-### Pruebas de base — `supabase/tests/` (10 suites, `npm run test:db`)
+### Pruebas de base — `supabase/tests/` (11 suites, `npm run test:db`)
 
 | Suite | Qué mira |
 |---|---|
@@ -104,6 +104,7 @@ trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 | `sin_cita` | El cliente de la calle: que cuente como visita y no se cuele |
 | `modo_atencion` | Por dónde acepta trabajo cada barbero, y que el letrero diga lo mismo que la puerta |
 | `confianza` | Suspender, leer reseñas y el barbero de confianza — sobre todo donde se cruzan |
+| `suscripcion` | La prueba gratis, el pago y la cortesía — y que un local vencido **siga funcionando** |
 
 **Cómo se corren.** Con `DATABASE_URL` puesto, `npm run test:db`. Sin él (el caso normal en
 un entorno remoto), pegando cada archivo en el SQL editor de Supabase o por MCP
@@ -154,11 +155,13 @@ haya líneas con `x`.
 2. **Rotar la clave SMTP** que se pegó en un chat, y actualizarla en Supabase.
 
 ### 🟠 Funcional, sin terminar
-3. **Cobro y suscripciones.** `lib/pricing.ts` calcula los planes (modelo "por asiento, con
-   piso y tope": cliente gratis, barbero independiente paga el mínimo, al empleado lo cubre
-   el dueño, el dueño paga `clamp(mínimo×asientos, mínimo, máximo)`). La pantalla dice que
-   el pago "se habilitará próximamente". **No hay ni un cobro**: falta cuenta de tienda y
-   pasarela (IAP / RevenueCat, o local).
+3. **Cobro y suscripciones.** El cimiento está (migración 86): cada local nace con **30 días
+   de prueba** y `turno_suscripcion()` dice en qué situación está. `lib/pricing.ts` calcula
+   cuánto tocaría pagar (modelo "por asiento, con piso y tope"). **Lo que falta es el cobro
+   entero**, y antes que él una decisión de producto: **qué pasa cuando alguien no paga.**
+   Hoy no pasa nada a propósito — nada mira `al_dia`, y hay un caso en la suite que se pone
+   rojo si alguien mete una comprobación de pago sin decidirla. Un SDK de pagos es código
+   nativo: **no entra por OTA**.
 4. **Notificaciones sin probar de verdad.** Solo hay **un** token registrado en
    `turno_push_tokens`. Como el envío es peer-to-peer, si el teléfono que recibe nunca
    registró el suyo, el push no va a ninguna parte y **no da error**. Antes de dar por

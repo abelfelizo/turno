@@ -3,12 +3,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal, cambiarTipoNegocio } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, getSuscripcion, cerrarLocal, cambiarTipoNegocio, type Suscripcion } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { planDueno } from '../../../lib/pricing'
 import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
+import { fechaLarga, fechaDeISO } from '../../../lib/format'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
@@ -46,17 +47,20 @@ export default function Config() {
   const [moneda, setMoneda] = useState('DOP')
   const [guardandoMarca, setGuardandoMarca] = useState(false)
   const [subiendoLogo, setSubiendoLogo] = useState(false)
+  const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setNegocioId(ss.negocio_id)
-    const [cfg, neg, asi] = await Promise.all([
+    const [cfg, neg, asi, sus] = await Promise.all([
       getConfiguracion(ss.negocio_id).catch(() => null),
       getNegocioById(ss.negocio_id).catch(() => null),
       getAsientosNegocio(ss.negocio_id).catch(() => 0),
+      getSuscripcion(ss.negocio_id).catch(() => null),
     ])
-    setConfig(cfg); setNegocio(neg); setAsientos(asi); setPremio((cfg as any)?.premio ?? 'Corte gratis')
+    setConfig(cfg); setNegocio(neg); setAsientos(asi); setSuscripcion(sus)
+    setPremio((cfg as any)?.premio ?? 'Corte gratis')
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setPais(neg?.pais ?? 'DO'); setCiudad(neg?.ciudad ?? ''); setSector(neg?.sector ?? '')
@@ -330,7 +334,39 @@ export default function Config() {
             <View style={s.susFoot}>
               <Text style={s.susFootT}>Asientos: {asientos} · {SUSCRIPCION.moneda} {SUSCRIPCION.minimo} c/u, tope {SUSCRIPCION.moneda} {SUSCRIPCION.maximo}</Text>
             </View>
-            <Text style={s.susNota}>El pago dentro de la app se habilitará próximamente.</Text>
+
+            {/* LA PRUEBA GRATIS, DICHA DE VERDAD (migración 86).
+                `SUSCRIPCION.dias_prueba = 30` llevaba meses en constants sin que
+                lo leyera nadie: una promesa que no vivía en ningún sitio. Ahora
+                el local nace con esos 30 días contados y aquí se dice cuántos
+                quedan, que es información cierta — a diferencia de un precio que
+                nadie está cobrando todavía. */}
+            {suscripcion?.estado === 'prueba' && (
+              <Text style={s.susEstado}>
+                Prueba gratis · {suscripcion.dias_restantes === 0
+                  ? 'último día'
+                  : `te quedan ${suscripcion.dias_restantes} día${suscripcion.dias_restantes === 1 ? '' : 's'}`}
+              </Text>
+            )}
+            {suscripcion?.estado === 'activa' && (
+              <Text style={s.susEstado}>Al día · cubierto hasta el {fechaLarga(fechaDeISO(suscripcion.hasta!))}</Text>
+            )}
+            {suscripcion?.estado === 'cortesia' && (
+              <Text style={s.susEstado}>Cortesía · sin cargo</Text>
+            )}
+            {suscripcion?.estado === 'vencida' && (
+              <Text style={s.susEstado}>Tu prueba terminó.</Text>
+            )}
+
+            {/* Y se dice lo que pasa mientras tanto, en vez de dejarlo en el
+                aire: la barbería sigue funcionando igual. Que el dueño se quede
+                pensando si le van a cortar el local mañana es peor que la
+                propia espera. */}
+            <Text style={s.susNota}>
+              {suscripcion?.estado === 'vencida'
+                ? 'Tu barbería sigue funcionando con normalidad: todavía no estamos cobrando. Te avisaremos antes de que eso cambie.'
+                : 'El pago dentro de la app se habilitará próximamente. Nada deja de funcionar mientras tanto.'}
+            </Text>
           </View>
         </>
       )}
@@ -510,7 +546,8 @@ const s = StyleSheet.create({
   susTope: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.red, letterSpacing: 1 },
   susFoot: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 14, paddingTop: 12 },
   susFootT: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
-  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
+  susEstado: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 12 },
+  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 16 },
   toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   toggleL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   toggleD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

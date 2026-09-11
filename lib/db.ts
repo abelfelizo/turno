@@ -100,6 +100,31 @@ export async function getAsientosNegocio(negocio_id: string): Promise<number> {
   return Number(data ?? 0)
 }
 
+/**
+ * LA SITUACIÓN DE PAGO DEL LOCAL (migración 86).
+ *
+ * Antes de esto la pantalla enseñaba un precio y la nota de que el pago "se
+ * habilitará próximamente", y la constante `SUSCRIPCION.dias_prueba = 30`
+ * prometía una prueba que no existía en ningún sitio. Ahora existe: el local
+ * nace con 30 días contados y esto dice cuántos le quedan.
+ *
+ * `al_dia` NO CORTA NADA todavía, a propósito: qué pasa cuando alguien no paga
+ * es una decisión de producto sin tomar. Ver la migración 86 y
+ * supabase/tests/suscripcion.test.sql.
+ */
+export type Suscripcion = {
+  estado: 'prueba' | 'activa' | 'vencida' | 'cortesia'
+  al_dia: boolean
+  hasta: string | null
+  dias_restantes: number | null
+  asientos: number
+}
+export async function getSuscripcion(negocio_id: string): Promise<Suscripcion | null> {
+  const { data, error } = await supabase.rpc('turno_suscripcion', { p_negocio: negocio_id })
+  if (error) throw error
+  return (Array.isArray(data) ? data[0] : data) ?? null
+}
+
 /** Stats del negocio. Los ingresos son SOLO los propios (empleados + silla del
  * dueño). De los asientos alquilados se devuelve el número de visitas, nunca el
  * dinero: es un negocio independiente que paga por el espacio. */
