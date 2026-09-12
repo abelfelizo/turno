@@ -71,119 +71,32 @@ nada avise, y ya pasó dos veces.
   **una** función viva sin llamadores que escondía un bug ya conocido (`turno_mis_clientes`,
   sustituida en la 59 justo porque no veía a quien se unió y aún no ha venido) y **diez**
   exportaciones de `lib/db.ts` sin un solo importador.
-- **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras después de
-  la 101**, que es el estado de hoy: cola 34, autonomía 33, fidelidad 6, viaje 17,
-  obstáculos 32, puertas 43, horarios 26, sin cita 21, modo 21, confianza 27, suscripción
-  36, jornada 36. Más el censo y la red anti-anónimos, verdes aparte.
+- **Doce suites de base, TODAS re-corridas enteras contra el estado de hoy** (migración 107),
+  las doce verdes, **360 casos**: puertas 70, suscripción 36, jornada 36, motor_cola 34,
+  autonomía 33, obstáculos 32, confianza 27, horarios 26, sin cita 22, modo 21, viaje 17,
+  fidelidad 6.
 
-  Dos notas para que el conteo no engañe:
+  Ya no queda ningún «esto no lo he corrido pero creo que no le afecta». Tres cosas que
+  salieron precisamente de correrlas en vez de razonarlas:
 
-  · **`sin cita` marca 21 y no 22 porque la propia suite se salta un caso.** El de «la
-    agenda de hoy NO se cierra entera» solo tiene sentido si con 3 h de fila por delante
-    todavía queda jornada; se corrió a las 19:30 de RD y no quedaba. La suite lo dice en su
-    salida en vez de contarlo como aprobado, que es lo correcto: **un caso no evaluado no es
-    un caso verde.** Para verlo hay que correrla por la mañana.
+  · **`sin cita` da 22 y no 21.** Su caso de «la agenda de hoy NO se cierra entera» se
+    salta solo cuando es tan tarde que ya no queda jornada; a las 19:30 no se evaluó, a la
+    01:18 sí. La suite lo dice en su salida en vez de contarlo como aprobado. **Un caso no
+    evaluado no es un caso verde**, y por eso valía la pena volver.
 
-  · **`puertas` sube a 43 por los cinco casos «tabla» de la 101, no por la red.** La red
-    entera sigue siendo **un** caso: las funciones nuevas se añaden a la llamada, no al
-    conteo. Con la 102 fue a 54, con la 105 a 66 y con la 107 a **70**.
+  · **`motor_cola` parecía en riesgo por la 107 y no lo estaba** — su barbero tiene también
+    membresía de dueño, así que es autónomo. Argumento correcto; ahora, corrida.
 
-  **Tras la 107 se re-corrieron las cinco que el cambio podía tocar**, todas verdes:
-  `puertas` 70/70, `jornada` 36/36, `motor_cola` 34/34, `obstáculos` 32/32 y `viaje`
-  17/17. Las dos que importaban de verdad:
+  · **`modo_atencion` destapó un fallo de producto** que no tenía nada que ver con lo que
+    se estaba probando: la barbería que cierra de madrugada. Ver el apartado siguiente.
 
-  · `motor_cola` parecía en riesgo y no lo estaba —su barbero tiene también membresía
-    de dueño, así que es autónomo y el permiso no le aplica—. Era un argumento; ahora
-    es una corrida.
-  · `jornada` es la que confirma la marcha atrás de `cerrar_jornada`: su caso «el
-    EMPLEADO sí puede cerrar su fila hoy» pasa. Importaba porque la 107 se verificó
-    15/15 ANTES de deshacer esa parte, así que el estado final no estaba probado.
-
-  **Siguen sin re-correr enteras desde la 105:** `sin cita`, `modo`, `suscripción`,
-  `fidelidad`, `horarios`, `confianza` y `autonomía`. Ninguna llama a las funciones que
-  la 107 cerró con un empleado, y las escrituras que cerró la 105 solo las tocan las
-  suites a través de triggers que corren como dueño. Pero eso vuelve a ser un
-  argumento, no una corrida.
-
-  Y una corrección al propio HANDOFF: aquí se dijo que `confianza` usaba `set local role`.
-  No lo usa —solo lo nombra un comentario—; impersona con `set_config` y prueba funciones
-  `SECURITY DEFINER`. Las que de verdad evalúan RLS son `puertas`, `autonomia`,
-  `suscripcion`, `jornada` y `motor_cola`.
-
-## Los cuatro fallos que más enseñaron
-
-Van aquí porque el que retome esto los va a volver a encontrar si no los conoce.
-
-1. **La puerta cerrada en la pantalla y abierta en el API.** Apareció **cinco** veces. Las
-   políticas RLS estaban bien; el agujero estaba en las funciones `SECURITY DEFINER`, que se
-   saltan RLS por definición. La red de `puertas.test.sql` **llama** a cada función
-   alcanzable por un anónimo en vez de leer el código, porque leerlo ya falló. Toda función
-   nueva entra en esa red el mismo día que se escribe.
-
-   **La quinta le dio la vuelta al patrón, y por eso es la más útil** (migración 101). Esta
-   vez las RLS eran el agujero y las funciones estaban bien: la 92 cerró con cuidado
-   `turno_stats_periodo_perfil` para que el casero no leyera la facturación de su inquilino,
-   y la TABLA `turno_historial_visitas` se quedó abierta un mes. Un `select
-   sum(precio_cobrado)` con `set local role authenticated` la devolvía entera. **Cerrar la
-   función y no mirar la tabla es cerrar media puerta.**
-
-   Y la grieta era más ancha que el reporte: las políticas decían `negocio_id in (select
-   turno_mis_negocios())`, y esa función **incluye los locales donde eres solo CLIENTE** — lo
-   mismo que ya tumbó el cron en la 73. O sea que cualquiera que se uniera con el código del
-   local se llevaba lo que factura el local entero y las citas de los demás, con nombre y
-   hora. Desde la 101 las tres tablas del núcleo van por `turno_manda_en_la_silla`.
-
-   **Y la 101 arregló tres tablas de cuatro** (migración 102). El mismo predicado seguía
-   intacto en `turno_preferencias_cliente`, con lo que cualquier cliente del local leía las
-   ALERGIAS de los demás. No fue mala suerte: se arreglaron las tablas que el reporte
-   nombraba y nadie preguntó **dónde más está escrito esto mismo**. La consulta que lo
-   habría encontrado en un minuto cabe en una línea:
-
-   ```sql
-   select tablename, policyname from pg_policies
-    where schemaname='public' and coalesce(qual,'') ~ 'turno_mis_negocios';
-   ```
-
-   **Al arreglar una familia de fallos se enumera la familia, no los casos del reporte.**
-
-   La cuarta es la que mejor lo enseña (migración 97). La 95 puso cuidado en que el letrero
-   NO delatara al barbero que no había pagado —frase neutra, razonada en su cabecera— y en la
-   línea siguiente escribió `grant execute on turno_silla_al_dia to authenticated, anon`: la
-   misma pregunta, contestada de frente a cualquiera con la llave del APK. El grant no
-   sostenía nada (solo la llaman funciones `SECURITY DEFINER`, que corren con el rol del
-   dueño). **El cuidado de una migración no protege lo que la migración de al lado regala.**
-
-   Y de paso salió una exención podrida: `turno_perfil_acepta` y `turno_perfil_operable`
-   estaban fuera de la red con el motivo «viven dentro de una política RLS». Comprobado
-   contra `pg_policies` y `pg_constraint`: no viven en ninguna. Una exención con el motivo
-   caducado es peor que ninguna, porque parece decidida.
-
-2. **Devolver vacío no es negarse** (migración 84). Cuatro funciones no tenían portero
-   ninguno: contestaban `null` al desconocido. No se escapaba nada — hasta el día que
-   alguien toque ese `where` y la función siga contestando, ahora con datos, sin que nada se
-   ponga rojo.
-
-3. **El cron corre sin sesión.** La migración 73 metió un trigger que exigía ser del equipo,
-   y con eso tumbó el mantenimiento nocturno entero (vencer llamados, cerrar olvidados y
-   cerrar citas viejas iban en la misma transacción). Arreglado en la 75. Cualquier trigger
-   nuevo tiene que decidir explícitamente qué hace cuando `turno_uid()` es null.
-
-4. **Un portero escrito con `<>` no es un portero** (migración 89).
-   `turno_stats_periodo_perfil` decía
-
-   ```sql
-   if v_dueno <> public.turno_uid() and not (v_neg in (...)) then raise ...
-   ```
-
-   y parecía correcto — lo es, para un intruso registrado. Pero sin sesión `turno_uid()` es
-   null, `v_dueno <> null` es **NULL**, `NULL and true` es NULL, y un `if NULL` no entra: el
-   portero se queda callado y deja pasar. Comprobado contra la base real, un anónimo con la
-   llave del APK se llevó ingresos, visitas, clientes y ticket medio de una silla existente.
-   **Primero se pregunta si hay alguien; después se compara.**
-
-   Y la lección de método, que es la que más duele: ese mismo fallo se probó antes con un
-   uuid de ceros y salió "cerrada" — rebotaba en `perfil inexistente` mucho antes de llegar
-   al portero. **Un portero se prueba con la puerta que de verdad existe.**
+  Y una cosa que las suites NO pueden avisar sola: `autonomia` tiene un caso verde,
+  **«alta · en ASIENTOS ALQUILADOS entra activo, se agrega él»**, que guarda la regla de la
+  migración 94 — la misma que el dueño del producto ya ha corregido («barbero y barbería se
+  pueden agregar mutuamente, pero requiere aprobación del otro»). Está verde y está
+  obsoleto: **una prueba en verde solo garantiza que el código hace lo que la prueba dice,
+  no que la prueba siga diciendo lo que el producto quiere.** Hay que darle la vuelta
+  cuando se haga la aprobación mutua.
 
 ## Un fallo abierto: la barbería que cierra de madrugada
 
