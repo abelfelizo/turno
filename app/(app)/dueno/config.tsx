@@ -1,11 +1,16 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, cerrarLocal, cambiarTipoNegocio } from '../../../lib/db'
+import { getConfiguracion, updateConfiguracion, getNegocioById, actualizarNegocio, getAsientosNegocio, getSuscripcion, cerrarLocal, cambiarTipoNegocio, type Suscripcion } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { planDueno } from '../../../lib/pricing'
+import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
+import Selector from '../../../components/selector'
+import { fechaLarga, fechaDeISO } from '../../../lib/format'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
@@ -13,6 +18,12 @@ import PanelBadge from '../../../components/panel-badge'
 
 export default function Config() {
   const router = useRouter()
+  // La pantalla era una tira de secciones seguidas —marca, suscripción,
+  // modalidad, funciones, tiempos, cuenta— y había que bajarla entera para ver
+  // cómo estaba puesto el local. El panel del barbero ya tenía resuelto esto:
+  // un menú donde cada fila LLEVA SU VALOR debajo, y la sección se abre encima.
+  // El menú se lee de un vistazo y hace de resumen.
+  const [seccion, setSeccion] = useState<string | null>(null)
   const [negocioId, setNegocioId] = useState<string | null>(null)
   const [config, setConfig] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
@@ -31,21 +42,30 @@ export default function Config() {
   // marca / contacto del local
   const [nombre, setNombre] = useState(''); const [slogan, setSlogan] = useState('')
   const [direccion, setDireccion] = useState(''); const [telefono, setTelefono] = useState(''); const [ig, setIg] = useState('')
+  // Dónde queda y en qué cobra (migración 80).
+  const [pais, setPais] = useState('DO'); const [ciudad, setCiudad] = useState('')
+  const [sector, setSector] = useState(''); const [referencia, setReferencia] = useState('')
+  const [moneda, setMoneda] = useState('DOP')
   const [guardandoMarca, setGuardandoMarca] = useState(false)
   const [subiendoLogo, setSubiendoLogo] = useState(false)
+  const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null)
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setNegocioId(ss.negocio_id)
-    const [cfg, neg, asi] = await Promise.all([
+    const [cfg, neg, asi, sus] = await Promise.all([
       getConfiguracion(ss.negocio_id).catch(() => null),
       getNegocioById(ss.negocio_id).catch(() => null),
       getAsientosNegocio(ss.negocio_id).catch(() => 0),
+      getSuscripcion(ss.negocio_id).catch(() => null),
     ])
-    setConfig(cfg); setNegocio(neg); setAsientos(asi); setPremio((cfg as any)?.premio ?? 'Corte gratis')
+    setConfig(cfg); setNegocio(neg); setAsientos(asi); setSuscripcion(sus)
+    setPremio((cfg as any)?.premio ?? 'Corte gratis')
     setNombre(neg?.nombre ?? ''); setSlogan(neg?.slogan ?? '')
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
+    setPais(neg?.pais ?? 'DO'); setCiudad(neg?.ciudad ?? ''); setSector(neg?.sector ?? '')
+    setReferencia(neg?.referencia ?? ''); setMoneda(neg?.moneda ?? 'DOP')
     setLoading(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
@@ -89,6 +109,11 @@ export default function Config() {
       await actualizarNegocio(negocioId, {
         nombre: nombre.trim(), slogan: slogan.trim(), direccion: direccion.trim(),
         telefono: telefono.trim(), instagram: ig.trim().replace(/^@/, ''),
+        pais, ciudad: ciudad.trim(), sector: sector.trim(), referencia: referencia.trim(),
+        // La zona horaria viaja con el país: de ella depende que el servidor
+        // sepa si la fila está abierta, y nadie va a ir a buscarla a un ajuste
+        // aparte llamado "tz".
+        moneda, tz: paisDe(pais)?.tz ?? 'America/Santo_Domingo',
       })
       Alert.alert('Marca actualizada', 'Los cambios ya son visibles para tus clientes.')
     } catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
@@ -125,14 +150,105 @@ export default function Config() {
       } }])
   }
 
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
+  }
+
+  // El atrás de Android vuelve al menú, no fuera de Configuración.
+  //
+  // VA ANTES DEL `if (loading)`: en el panel del barbero este mismo hook estuvo
+  // debajo y tumbaba la pantalla ("algo salió mal"). Mientras cargaba se salía
+  // por el return y el hook no se registraba; al terminar, React encontraba un
+  // hook más que en el render anterior. Se cuentan por orden: ninguno puede
+  // quedar detrás de un return condicional.
+  useEffect(() => {
+    if (!seccion) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
+    return () => sub.remove()
+  }, [seccion])
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+
+  // La modalidad decide qué controles tiene sentido enseñar aquí: en un local
+  // de asientos alquilados el dueño no manda sobre los puntos ni sobre a quién
+  // le toca cada cliente.
+  const esRentado = negocio?.tipo === 'espacios_rentados'
+  const plan = planDueno(asientos)
+
+  const TITULO: Record<string, string> = {
+    marca: 'Marca y contacto', suscripcion: 'Suscripción', modalidad: 'Cómo trabaja tu local',
+    funciones: 'Funciones del local', tiempos: 'Tiempos', otros: 'Otros',
+  }
+
+  // El valor de cada fila: es lo que convierte el menú en un resumen del local.
+  const MENU = [
+    { k: 'marca', t: 'Marca y contacto', icono: 'storefront-outline',
+      v: [negocio?.nombre, negocio?.direccion].filter(Boolean).join(' · ') || 'Sin datos todavía' },
+    // EN ALQUILER NO SE ENSEÑA PRECIO. Este menú es el resumen del local —cada
+    // fila lleva su valor debajo y se lee de un vistazo— así que poner aquí el
+    // plan por asiento le cobraba de palabra al dueño que no paga nada, y
+    // contradecía a su propia sección, que dice justo lo contrario.
+    { k: 'suscripcion', t: 'Suscripción', icono: 'card-outline',
+      v: esRentado
+        ? 'No pagas por el local · cada barbero paga su silla'
+        : suscripcion?.estado === 'vencida'
+          ? 'Vencida · la fila del local está apagada'
+          : `${plan.montoTexto} · ${asientos} asiento${asientos === 1 ? '' : 's'}` },
+    { k: 'modalidad', t: 'Cómo trabaja tu local', icono: 'people-outline',
+      v: esRentado ? 'Alquilo asientos' : 'Tengo empleados' },
+    { k: 'funciones', t: 'Funciones del local', icono: 'options-outline',
+      v: esRentado
+        ? (config?.doble_servicio_activo ? 'Doble servicio activo' : 'Doble servicio apagado')
+        : [config?.puntos_activos ? `Puntos cada ${config?.visitas_para_gratis ?? 8}` : 'Sin puntos',
+           config?.asignacion_por_dueno ? 'Tú asignas' : 'Elige el cliente'].join(' · ') },
+    // TIEMPOS SOLO CON EMPLEADOS. Reportado: "no debería aparecer cuando la
+    // barbería trabaja bajo alquiler de asientos". Y es correcto: ahí cada
+    // barbero es un negocio aparte y pone los suyos desde su configuración, así
+    // que estos números no mandaban sobre nadie. Un ajuste que no decide nada
+    // enseña al dueño a desconfiar de los que sí deciden.
+    ...(esRentado ? [] : [{ k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
+      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` }]),
+    { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal',
+      v: 'Cerrar sesión, cerrar el local' },
+  ]
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
       <PanelBadge />
-      <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
 
-      <Text style={s.sec}>MARCA Y CONTACTO</Text>
+      {seccion === null ? (
+        <>
+          <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
+          {MENU.map(m => (
+            <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
+              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color="#fff" /></View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.menuT}>{m.t}</Text>
+                <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+            </TouchableOpacity>
+          ))}
+          {/* Cambiar de panel es navegación, no configuración: va en la raíz. */}
+          <CambiarRol />
+        </>
+      ) : (
+        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
+          <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
+          <Text style={s.volverT}>Configuración</Text>
+        </TouchableOpacity>
+      )}
+      {seccion && <Display size={28} style={{ marginBottom: 16 }}>{TITULO[seccion]}</Display>}
+
+      {seccion === 'marca' && (<>
       <View style={s.marcaCard}>
         <View style={s.marcaTop}>
           <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85}>
@@ -151,8 +267,44 @@ export default function Config() {
         <Text style={s.flabel}>Eslogan</Text>
         <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} value={slogan} onChangeText={setSlogan} />
 
-        <Text style={s.flabel}>Dirección</Text>
-        <TextInput style={s.input} placeholder="Calle, sector, ciudad" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+        {/* LA DIRECCIÓN, POR PARTES. Era un solo campo de texto libre —"calle,
+            sector, ciudad"— y cada dueño escribía lo que le parecía. Aquí una
+            dirección sin sector no ubica a nadie, y el punto de referencia es
+            literalmente cómo llega el cliente: por eso son campos y no una
+            frase. Ver migración 80. */}
+        <Text style={s.flabel}>Calle y número</Text>
+        <TextInput style={s.input} placeholder="Av. Duarte 45" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+
+        <View style={s.dosCol}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Sector</Text>
+            <TextInput style={s.input} placeholder="Los Jardines" placeholderTextColor={COLORS.textLight} value={sector} onChangeText={setSector} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.flabel}>Ciudad</Text>
+            <TextInput style={s.input} placeholder="Santiago" placeholderTextColor={COLORS.textLight} value={ciudad} onChangeText={setCiudad} />
+          </View>
+        </View>
+
+        <Text style={s.flabel}>Punto de referencia</Text>
+        <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} value={referencia} onChangeText={setReferencia} />
+
+        {/* DESPLEGABLES, NO CARRUSELES (pedido del piloto). Con veinticuatro
+            países, un carrusel horizontal esconde lo que no cabe: quien no veía
+            el suyo en los tres primeros no podía saber si estaba más allá o si
+            no estaba, porque las dos cosas se ven igual. */}
+        <Selector etiqueta="PAÍS" titulo="¿Dónde está tu barbería?"
+          valor={pais}
+          opciones={PAISES.map(p => ({ valor: p.codigo, etiqueta: p.nombre }))}
+          onElegir={(v) => { setPais(v); const p = paisDe(v); if (p) setMoneda(p.moneda) }} />
+
+        {/* La moneda se propone con el país y se puede cambiar: hay locales que
+            cobran en dólares en sitios donde la moneda es otra — en Venezuela y
+            Cuba es casi la norma. */}
+        <Selector etiqueta="MONEDA" titulo="¿En qué cobras?"
+          valor={moneda}
+          opciones={MONEDAS.map(m => ({ valor: m.codigo, etiqueta: m.etiqueta }))}
+          onElegir={setMoneda} />
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
@@ -169,11 +321,30 @@ export default function Config() {
           {guardandoMarca ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar marca</Text>}
         </TouchableOpacity>
       </View>
+      </>)}
 
-      <Text style={s.sec}>SUSCRIPCIÓN</Text>
-      {(() => {
-        const plan = planDueno(asientos)
-        return (
+      {/* ALQUILO ASIENTOS = NO PAGO NADA (migración 93).
+          Agrupar no cuesta: en este local paga cada silla, la del dueño incluida
+          si además atiende. Enseñarle aquí un plan con precio por asiento le
+          cobraría —de palabra— por barberos que ya pagan lo suyo, que es
+          justo lo contrario del esquema. */}
+      {seccion === 'suscripcion' && esRentado && (
+        <View style={s.susCard}>
+          <Text style={s.susTitulo}>No pagas nada por el local</Text>
+          <Text style={s.susNota}>
+            Alquilas asientos, así que aquí cada barbero paga su propia silla. Tú solo los
+            agrupas: les das el código, aparecen juntos para tus clientes y comparten la fila
+            del local.
+          </Text>
+          <Text style={s.susNota}>
+            Si además atiendes, tu silla es una más y la pagas como cualquier otra. La ves en
+            tu panel de barbero, en "Mi suscripción".
+          </Text>
+        </View>
+      )}
+
+      {seccion === 'suscripcion' && !esRentado && (
+        <>
           <View style={s.susCard}>
             <View style={s.susTop}>
               <View style={{ flex: 1 }}>
@@ -188,15 +359,66 @@ export default function Config() {
             <View style={s.susFoot}>
               <Text style={s.susFootT}>Asientos: {asientos} · {SUSCRIPCION.moneda} {SUSCRIPCION.minimo} c/u, tope {SUSCRIPCION.moneda} {SUSCRIPCION.maximo}</Text>
             </View>
-            <Text style={s.susNota}>El pago dentro de la app se habilitará próximamente.</Text>
+
+            {/* LA PRUEBA GRATIS, DICHA DE VERDAD (migración 86).
+                `SUSCRIPCION.dias_prueba = 30` llevaba meses en constants sin que
+                lo leyera nadie: una promesa que no vivía en ningún sitio. Ahora
+                el local nace con esos 30 días contados y aquí se dice cuántos
+                quedan, que es información cierta — a diferencia de un precio que
+                nadie está cobrando todavía. */}
+            {suscripcion?.estado === 'prueba' && (
+              <Text style={s.susEstado}>
+                Prueba gratis · {suscripcion.dias_restantes === 0
+                  ? 'último día'
+                  : `te quedan ${suscripcion.dias_restantes} día${suscripcion.dias_restantes === 1 ? '' : 's'}`}
+              </Text>
+            )}
+            {suscripcion?.estado === 'activa' && (
+              <Text style={s.susEstado}>Al día · cubierto hasta el {fechaLarga(fechaDeISO(suscripcion.hasta!))}</Text>
+            )}
+            {suscripcion?.estado === 'cortesia' && (
+              <Text style={s.susEstado}>Cortesía · sin cargo</Text>
+            )}
+            {suscripcion?.estado === 'vencida' && (
+              <Text style={[s.susEstado, { color: COLORS.danger }]}>
+                Vencida · la fila de tu local está apagada
+              </Text>
+            )}
+
+            {/* ESTO DECÍA «tu barbería sigue funcionando con normalidad», y
+                desde la migración 95 es falso: sin pagar, ninguna silla del
+                local aparece ni recibe fila —todas cuelgan de esta misma
+                suscripción, la del dueño incluida—. Dejar el texto viejo
+                convertía la única pantalla que puede explicar el apagón en la
+                que asegura que no lo hay. */}
+            <Text style={s.susNota}>
+              {suscripcion?.estado === 'vencida'
+                ? 'Sin la suscripción al día, tus barberos no aparecen en la app y nadie puede entrar a la fila ni reservar. Lo que ya estaba reservado no se toca —las citas siguen en pie— y quien llegue al local se atiende igual. Aquí puedes seguir cambiando los datos del negocio.'
+                : 'El pago dentro de la app se habilitará próximamente. Nada deja de funcionar mientras tanto.'}
+            </Text>
+
+            {/* EL CUPO (migración 96). Decide QUIÉN trabaja, así que el dueño
+                tiene que verlo: si paga por dos sillas y tiene cuatro dadas de
+                alta, dos no aparecen. Se reparte por antigüedad y eso se dice,
+                porque es lo primero que va a preguntar. Solo se enseña cuando
+                hay tope: sin número no hay nada que explicar. */}
+            {suscripcion?.sillas_pagadas != null && (
+              <Text style={s.susNota}>
+                Pagas por {suscripcion.sillas_pagadas} silla{suscripcion.sillas_pagadas === 1 ? '' : 's'} de
+                las {asientos} que tienes dadas de alta
+                {asientos > suscripcion.sillas_pagadas
+                  ? `. Las ${asientos - suscripcion.sillas_pagadas} restantes no aparecen en la app: trabajan las más antiguas.`
+                  : '.'}
+              </Text>
+            )}
           </View>
-        )
-      })()}
+        </>
+      )}
 
       {/* De esta elección cuelga quién decide precios y horarios de todo el
           equipo (R11). Se hacía una sola vez en el onboarding y no se podía
           deshacer: equivocarse dejaba el local atrapado. */}
-      <Text style={s.sec}>CÓMO TRABAJA TU LOCAL</Text>
+      {seccion === 'modalidad' && (<>
       <View style={s.modRow}>
         <TouchableOpacity style={[s.modChip, negocio?.tipo === 'espacios_rentados' && s.modChipOn]}
           onPress={() => pedirCambioTipo('espacios_rentados')} disabled={tipoBusy}>
@@ -212,16 +434,26 @@ export default function Config() {
           ? 'Tus barberos trabajan para ti: los servicios, los precios y el horario los pones tú, y cubres su suscripción.'
           : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
       </Text>
+      </>)}
 
-      <Text style={s.sec}>FUNCIONES DEL LOCAL</Text>
-      <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />
+      {/* En un local de asientos alquilados el dueño NO manda sobre los puntos
+          ni sobre a quién le toca cada cliente: cada barbero es un negocio
+          aparte, con su clientela y sus reglas. Enseñar esos interruptores ahí
+          no es solo ruido — hace creer que deciden algo que no deciden. */}
+      {seccion === 'funciones' && (<>
+      {esRentado && (
+        <Text style={s.modNota}>
+          Alquilas asientos, así que los puntos y la asignación de clientes los lleva cada barbero desde su propia configuración. Aquí solo quedan las que sí son del local.
+        </Text>
+      )}
+      {!esRentado && <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />}
       {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
           puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
           puntos y el cliente no veía sumar ni uno. */}
       {/* Se cuentan recortes, no puntos abstractos: "cada X recortes te ganas
           esto". Y el premio lo escribe el local — no tiene por qué ser un corte
           gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
-      {!!config?.puntos_activos && (
+      {!esRentado && !!config?.puntos_activos && (
         <>
           <Stepper label="Recortes para el premio"
             desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
@@ -234,12 +466,13 @@ export default function Config() {
             placeholderTextColor={COLORS.textLight} maxLength={60} />
         </>
       )}
-      <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />
+      {!esRentado && <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
+      </>)}
 
-      <Text style={s.sec}>TIEMPOS</Text>
+      {seccion === 'tiempos' && !esRentado && (<>
       <Text style={s.modNota}>
-        Valen para todo el local. Un barbero que alquila su asiento puede poner los suyos desde su propia configuración, y entonces mandan los de él.
+        Valen para todo tu equipo: son tus empleados y estas reglas son las del local.
       </Text>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
@@ -250,18 +483,51 @@ export default function Config() {
       <Stepper label="Tolerancia de retraso"
         desc={`Esperas ${config?.gracia_cita_min ?? 5} minutos a quien tiene cita antes de darla por perdida.`}
         suf="min" value={config?.gracia_cita_min ?? 5} onMinus={() => ajustar('gracia_cita_min', -5, 0, 30)} onPlus={() => ajustar('gracia_cita_min', 5, 0, 30)} />
+      </>)}
 
-      <CambiarRol />
+      {/* CUENTA, con la misma composición que en el panel del barbero: cada
+          acción con su icono, su nombre y UNA LÍNEA QUE DICE QUÉ PASA. Eran dos
+          botones sueltos —un texto rojo centrado y una caja roja— y ninguno
+          contaba las consecuencias antes de tocarlo. */}
+      {seccion === 'otros' && (<>
+      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
 
-      <Text style={s.sec}>CUENTA</Text>
-      
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-
-      <Text style={[s.sec, { color: COLORS.danger }]}>ZONA PELIGROSA</Text>
-      <TouchableOpacity style={s.cerrarLocal} onPress={cerrarEsteLocal}>
-        <Text style={s.cerrarLocalT}>Cerrar este local</Text>
-        <Text style={s.cerrarLocalD}>Baja definitiva del negocio. Los barberos rentados conservan su cuenta.</Text>
+      <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+        <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Cerrar sesión</Text>
+          <Text style={s.cuentaD}>Tu local, tu equipo y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
       </TouchableOpacity>
+
+      {/* Los avisos del dueño son las solicitudes para unirse al local: sin
+          esto no se entera hasta que abre el panel. Ver lib/notificaciones. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan las solicitudes de barberos y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
+      </TouchableOpacity>
+
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+      <TouchableOpacity style={s.cuentaBorrar} onPress={cerrarEsteLocal}>
+        <Ionicons name="trash-outline" size={18} color="#fff" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaBorrarT}>Cerrar este local</Text>
+          <Text style={s.cuentaBorrarD}>Deja de aparecer, se cancelan las citas futuras y se vacía la fila. Se avisa a clientes y equipo. Los barberos que alquilan conservan su cuenta.</Text>
+        </View>
+      </TouchableOpacity>
+      </>)}
     </ScrollView>
   )
 }
@@ -310,6 +576,10 @@ const s = StyleSheet.create({
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
   input: { backgroundColor: COLORS.bg, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
   dosCol: { flexDirection: 'row', gap: 10 },
+  pill: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 999, paddingVertical: 9,
+    paddingHorizontal: 14, backgroundColor: COLORS.surface },
+  pillOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  pillT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 16 },
   guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   susCard: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 4 },
@@ -320,7 +590,8 @@ const s = StyleSheet.create({
   susTope: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.red, letterSpacing: 1 },
   susFoot: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 14, paddingTop: 12 },
   susFootT: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
-  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8 },
+  susEstado: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 12 },
+  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 16 },
   toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   toggleL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   toggleD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
@@ -329,9 +600,23 @@ const s = StyleSheet.create({
   stepBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   stepBtnT: { fontFamily: FONTS.bold, fontSize: 20, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink, minWidth: 56, textAlign: 'center' },
-  salir: { padding: 16, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  cerrarLocal: { backgroundColor: COLORS.dangerLight, borderWidth: 1, borderColor: COLORS.danger, borderRadius: 14, padding: 16, marginBottom: 20 },
-  cerrarLocalT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  cerrarLocalD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 3 },
+  // Menú y cuenta: LOS MISMOS valores que en barbero/config.tsx. Es la misma
+  // pantalla para otra persona, y verse distinta solo confunde a quien lleva
+  // los dos paneles — que es justo el caso del dueño que también atiende.
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderRadius: 14, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
+  menuIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
+  menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
+  volverT: { color: COLORS.textMid, fontSize: 14.5, fontWeight: '600' },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
+    borderRadius: 14, padding: 14, marginBottom: 16 },
+  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
 })

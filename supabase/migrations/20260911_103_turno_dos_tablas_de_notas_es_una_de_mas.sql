@@ -1,0 +1,33 @@
+-- DOS TABLAS DE NOTAS ES UNA DE MÁS
+--
+-- Había DOS sitios donde guardar «lo que el barbero apunta de un cliente»:
+--
+--   turno_notas_privadas (perfil_id, cliente_id)      → 0 filas, 0 llamadores
+--   turno_notas_barbero  (usuario_barbero_id, cliente_id) → la que se usa
+--
+-- La segunda ganó por una razón de producto: la nota es de la PERSONA, no de la
+-- silla. Un barbero que se mueve de local se lleva lo que sabe de su gente; con
+-- `perfil_id` la nota se habría quedado en la barbería que dejó. Lo que no pasó
+-- es que alguien borrara la primera: se quedó ahí, con su política RLS, sus
+-- envoltorios en lib/db.ts y ni un solo sitio que los llamara.
+--
+-- Y ese es justo el tipo de resto que hace daño en este repo. La semana pasada
+-- se reportó «las notas de un barbero son visualizadas por el otro». Buscar la
+-- respuesta costó de más porque la app tocaba TRES tablas de notas distintas
+-- —esta, turno_notas_barbero y turno_preferencias_cliente.notas— y había que
+-- descartar las tres. Dos de ellas estaban bien y una era la ficha del cliente,
+-- que el equipo ve a propósito (y que la 102 acaba de cerrar para los demás
+-- CLIENTES). La tercera no hacía nada.
+--
+-- Comprobado antes de borrar:
+--   · select count(*) from turno_notas_privadas  →  0
+--   · ninguna pantalla, componente ni función la referencia (los dos
+--     envoltorios de lib/db.ts se borran en el mismo commit)
+--   · no aparece en ninguna política, constraint, trigger ni job de cron
+--
+-- Se va con su política. Si algún día hace falta una nota atada a la silla y no
+-- a la persona, se crea entonces y con su motivo escrito, que es distinto de
+-- heredar una tabla vacía que nadie sabe por qué está.
+
+drop policy if exists turno_notas_all on turno_notas_privadas;
+drop table if exists turno_notas_privadas;

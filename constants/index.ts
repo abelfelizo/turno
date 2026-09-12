@@ -115,5 +115,12 @@ export const SUSCRIPCION = {
   maximo: 2000,       // tope mensual del dueño
   moneda: 'RD$',
   periodo: 'mes',
+  // Estos 30 días SÍ existen desde la migración 86: el local nace con una
+  // suscripción en prueba que caduca a los 30 de crearse, y turno_suscripcion()
+  // dice cuántos quedan. Antes este número no lo leía nadie — ni la app ni la
+  // base— y era solo una promesa escrita aquí.
+  //
+  // Quien lo cambie: cambiarlo aquí NO mueve nada. El 30 de verdad está en el
+  // disparador turno_abrir_prueba (migración 86); los dos tienen que ir juntos.
   dias_prueba: 30,
 } as const

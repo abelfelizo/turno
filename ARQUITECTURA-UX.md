@@ -8,6 +8,44 @@
 
 ---
 
+## ⚠️ CÓMO LEER ESTE DOCUMENTO HOY (nota de 2026-09-11, migración 85)
+
+Esto se escribió el **3 de julio** como brief de rediseño, cuando casi nada de lo de abajo
+existía. **Ya está construido casi entero.** Las columnas "Hoy" de la sección 1 y los
+🔴/🟠 de la sección 2 describen el pasado, no el presente: si se leen como estado actual,
+se rehace trabajo ya hecho o se propone algo que contradice una regla que hoy vive en el
+servidor.
+
+Sigue valiendo como **la intención**: por qué cada pantalla es como es. Para saber qué hay
+hoy, `CONTEXT.md`.
+
+Lo que cambió desde entonces, y que este documento no recoge:
+
+| Después del brief | Dónde |
+|---|---|
+| Modo de atención por barbero (solo citas / solo fila / ambos) | mig. 70 |
+| La fila abre y cierra con el horario, y un **letrero** dice por qué está cerrada | mig. 72, 74 |
+| `turno_puesto`: el puesto real, que no cuenta a quien ya está sentado | mig. 78 |
+| Los cuatro relojes del servicio (inicio, transcurrido, restante, fin estimado) | mig. 79 |
+| El sin cita cuenta como visita y como dinero; la fila se come la agenda | mig. 66, 67 |
+| Suspender a un empleado sin desvincularlo | mig. 81 |
+| Las reseñas se leen (barbero, dueño y cliente) | mig. 82 |
+| Barbero de confianza, con asignación automática al pedir "cualquiera" | mig. 83 |
+| País, ciudad, sector y moneda del local | mig. 80 |
+| Una barbería **nace abierta**, con jornada sembrada y avisada | mig. 85 |
+
+Y tres reglas del servidor que **cualquier rediseño tiene que respetar**, porque
+contradecirlas en la pantalla vuelve a abrir agujeros que ya se cerraron:
+
+1. **La cita la cierra el barbero.** El cliente puede confirmar, decir que va en camino o
+   cancelar; no puede marcar "atendida" ni firmar el cobro (mig. 73).
+2. **Cuándo se habilita "voy en camino" lo decide `turno_puede_confirmar`**, no un número
+   escrito en la pantalla.
+3. **No existe ninguna columna de "confiabilidad"**: hay `no_shows`, `llegadas_tarde` y
+   `abandonos`. Inventar un 4.9 es inventarse un dato.
+
+---
+
 ## 1. Decisiones de producto (reglas que cambian)
 
 Estas reglas gobiernan el rediseño. Las pantallas de la sección 4 las asumen.
@@ -248,6 +286,13 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
   - **El estado se deduce, no se mantiene.** `estado_actual` mezclaba dos ideas: "¿acepto clientes?" (decisión) y "¿estoy ocupado?" (hecho). Y sí hacía algo, al revés de lo esperado — las pantallas del cliente solo muestran barberos en `disponible`, así que marcar "en descanso" te borraba de la lista en silencio y nada te devolvía nunca. Encontrado en la base: el perfil del dueño del piloto llevaba en `inactivo` sin saberlo. Ahora `turno_estado_barbero` deduce **libre / atendiendo** de la silla y los bloqueos, y `estado_actual` queda solo para la decisión. Panel de estado en la agenda con a quién atiendes, hasta cuándo, cuántos esperan y un aviso claro cuando no apareces.
   - **Ocupado no es cerrado**: quien está cortando sigue aceptando gente en su fila, que es justo para lo que existe la fila.
   - **Suscripción del dueño-barbero**: se decidía con `rol === 'barbero_renta' ? independiente : cubierto`, y ese "si no, cubierto" metía al dueño, al que se le decía "Incluida: la cubre el dueño del local" — tautología, y falsa en un local de asientos alquilados donde nadie cubre a nadie. `planDeMiSilla` distingue los tres casos y tiene en cuenta el tipo de local.
+- **F3j · Recorrer la app como usuario ✅ HECHO** _(migraciones 49–51)_: en vez de revisar funciones de una en una, se recorrieron las **historias** llamando a las mismas RPC que llama la app y en el mismo orden. Dos suites nuevas: `viaje.test.sql` (el camino feliz de punta a punta, 17 pasos) y `obstaculos.test.sql` (el mismo día pero con fila, agenda y bloqueos ocurriendo **a la vez**, 15 casos). Lo que encontraron:
+  - **El interruptor "doble servicio" no hacía nada** _(49)_: `doble_servicio_activo` solo aparecía en el INSERT que crea la configuración; ninguna función lo leía. Cuarto caso del mismo patrón en este piloto — **un control que se guarda y que nadie consulta se ve bien en pantalla y miente**. Ahora es una restricción real: apagado, una persona no ocupa dos sillas a la vez. Ojo con el alcance: la comprobación va sin filtrar por negocio, porque el índice único que la respalda es global; acotarla al local dejaría pasar casos que el índice rechaza después con un error ilegible.
+  - **Un barbero sin aprobar podía operar la fila** _(50)_: el código del local se comparte por WhatsApp, cualquiera se une con él y queda `aprobado = false`. La app lo mandaba a "pendiente de aprobación"… y ahí acababa el control: el motor comprobaba `turno_es_mi_perfil` —cierto desde que se crea el perfil— pero nunca `aprobado`. La puerta estaba cerrada en la pantalla y abierta en el API. `turno_perfil_operable` exige ahora las tres cosas (vivo, aceptado, tuyo o de tu local) y la usan llamar, sentar, ocupar silla y registrar.
+  - **Se podía bloquear encima de una cita confirmada** _(51)_: el barbero pone "me voy 14:30–16:00" y la cita de las 15:00 sigue viva; los dos lados de la app decían la verdad por separado y juntos mentían. La comprobación va en un **trigger** y no en una RPC nueva, para cubrir todos los caminos —bloqueo manual, cliente sin cita, y lo que se añada después—, que es justo lo que falló en las versiones anteriores de este mismo error. Se **rechaza** en vez de avisar: si el barbero quiere irse igual, cancela la cita primero y así el cliente se entera.
+  - **El "no llegó" metía turnos sin `tipo_servicio`** _(51)_: ese trigger nunca recibió los arreglos de la migración 33. Dejaba `tipo_servicio` en NULL —y en Postgres los NULL no chocan en un índice único, así que R1 dejaba de cubrir justo a quien peor lo había pasado— y calculaba la posición mirando solo `en_fila`, reciclando posiciones ya entregadas. Tercer sitio con el mismo bug; los tres estaban a la vista, lo que faltaba era buscarlos.
+- **F3k · Qué controla cada rol, y qué alcanza quien no tiene ninguno ✅ HECHO** _(migración 52)_: revisando el mapa de controles apareció que las políticas RLS estaban bien pero cuatro funciones `SECURITY DEFINER` no comprobaban nada — y esas **se saltan RLS por definición**, así que el portero tienen que ponerlo ellas. Ejecutado contra la base, no leído: `turno_clientes_por_recuperar(perfil ajeno)` devolvía la cartera de clientes de cualquier barbero **con nombre y teléfono**, también desde `anon`, la llave publicable que viaja dentro del APK; y `turno_cerrar_olvidados()` / `turno_cerrar_citas_viejas()` —que cierran turnos y citas de **todos** los locales— las ejecutaba un anónimo. Es el mismo patrón de siempre (puerta cerrada en la pantalla, abierta en el API) pero al revés: la app siempre llamó con los ids correctos, así que desde dentro nada se veía mal; el agujero solo existía para quien no usara la app. Añadido también que **el nombre de quien está sentado en la silla** solo lo vean el barbero o el dueño: el cliente ve el estado, que es lo que necesita para elegir, no a quién atiende. Suite propia `puertas.test.sql`, 13/13, con dos intrusos (el anónimo y **un usuario registrado de otro local**, que es el que importa: uno sin fila en `turno_usuarios` rebota en el "no autenticado" genérico y te hace creer que la comprobación de propiedad funciona cuando nunca llegó a evaluarse) y una red que **llama** a cada función alcanzable por un anónimo para que la próxima sin portero se encuentre sola.
+  - **Pendiente de decisión:** cualquier usuario registrado puede leer `turno_negocios` entero, **códigos de acceso incluidos** (política `SELECT` con `using (true)`). Desde la migración 50 quien se cuele como barbero queda `aprobado = false` y no puede operar nada, pero el código deja de ser un secreto. El arreglo depende de si los locales deben ser **descubribles** (buscar barberías en la app) o **privados** (solo entras con el código): hoy `turno_unirse_cliente` exige el código —diseño privado— pero la política dice lo contrario.
 - **F4 · Propuesta visual (Claude Design)** sobre esta arquitectura, pantalla por pantalla. _(pendiente — único bloque restante)_
 
 ## 7. Riesgos de producción (revisión de julio)
@@ -255,7 +300,8 @@ Infra: requiere push server-side (trigger/cron → edge function `turno-enviar-p
 | # | Riesgo | Estado |
 |---|--------|--------|
 | P1 | **Backdoor de desarrollo**: `entrarModoPrueba()` daba acceso de **dueño** a cualquiera con el APK, con la credencial en texto plano y commiteada. F2b había ampliado el daño posible (cerrar local, desvincular, eliminar cuenta). | ✅ Cerrado: función eliminada, `DEV_LOGIN` fuera, contraseña rotada |
-| P2 | **Cero pruebas automatizadas** sobre un motor de cola concurrente con invariantes reales. Todo se validaba con `tsc` (tipos) + prueba manual. | ✅ `supabase/tests/motor_cola.test.sql`, 22 casos, 22/22 verde |
+| P2 | **Cero pruebas automatizadas** sobre un motor de cola concurrente con invariantes reales. Todo se validaba con `tsc` (tipos) + prueba manual. | ✅ Seis suites en `supabase/tests/` (`npm run test:db`): motor de cola 23, autonomía 16, fidelidad 6, viaje completo 17, obstáculos 15, puertas del API 13. Todas terminan en `RAISE`, así que la transacción **siempre** revierte y no dejan una fila en la base compartida |
+| P6 | **Funciones `SECURITY DEFINER` sin portero.** Se saltan RLS por definición; cuatro no comprobaban quién llamaba. La cartera de clientes de un barbero —nombre y teléfono— la leía cualquiera, incluido un anónimo con la llave del APK. | ✅ Cerrado en la migración 52 y vigilado por `puertas.test.sql`, que llama a cada función alcanzable por un anónimo en vez de leer el código |
 | P3 | **Envío del OTP.** El SMTP interno de Supabase estaba limitado a **2 correos/hora** (confirmado en los logs). | ✅ Resuelto: SMTP propio con Brevo (`smtp-relay.brevo.com:587`), límite subido a 30. `/magiclink` responde 200. La clave SMTP caduca el **7-sep-2027** |
 | P3b | **Entregabilidad: los correos caen en SPAM.** El remitente es una dirección `@gmail.com` enviada desde Brevo → SPF/DKIM no alinean con `gmail.com`. Un cliente real no rebusca en spam: pide turno, no recibe el código y abandona. **El piloto no es viable así.** | 🔴 **Bloqueante** — requiere dominio propio + subdominio verificado en Brevo (SPF/DKIM/DMARC) y `Sender email` en ese dominio |
 | P4 | **Fricción del correo en RD.** Los clientes de barbería usan más WhatsApp que correo. El OTP por email puede frenar la adopción aunque funcione técnicamente. | 📌 Anotado: decidir OTP por teléfono/WhatsApp (requiere proveedor SMS, coste) antes de abrir a clientes |

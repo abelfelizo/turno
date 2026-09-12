@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getColaActiva, sacarDeCola, moverEnCola } from '../../../lib/db'
+import { getColaActiva, marcarNoEsta } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { fechaLarga } from '../../../lib/format'
@@ -80,7 +80,7 @@ export default function ColaLocal() {
       )}
 
       {cola.length === 0 && <Text style={s.empty}>No hay nadie en la cola ahora mismo.</Text>}
-      {cola.length > 0 && <Text style={s.hint}>Toca a alguien para moverlo o sacarlo de la fila.</Text>}
+      {cola.length > 0 && <Text style={s.hint}>Toca a alguien para ver su turno. El orden lo lleva la fila.</Text>}
       {cola.map((q: any, i: number) => {
         const e = ESTADO[q.estado] ?? ESTADO.en_fila
         return (
@@ -101,14 +101,42 @@ export default function ColaLocal() {
           <View style={s.modal}>
             <Display size={22}>{sel?.turno_usuarios?.nombre ?? 'Turno'}</Display>
             <Text style={s.modalSub}>{sel?.turno_servicios?.nombre} · {(ESTADO[sel?.estado] ?? ESTADO.en_fila).l}</Text>
+            {/* SUBIR Y BAJAR SE FUERON. El orden de la fila lo decide la regla
+                —primero quien tenía cita, después quien esperaba, y el que
+                llega sin avisar cuando no queda nadie— y moverlo a mano es
+                quitarle el turno a alguien que ya lo tenía. De hecho el
+                servidor lleva negándose desde la migración 58: los botones
+                estaban ahí dando error.
+
+                Y SACAR DE LA FILA tampoco: si el cliente no aparece cuando le
+                toca, la puerta correcta es llamarlo y marcar que no está, que
+                deja constancia y le da el turno al siguiente en vez de
+                borrarlo a mano. */}
             {sel?.estado === 'en_fila' && (
-              <>
-                <Opcion icon="arrow-up" t="Subir un puesto" onPress={() => op(() => moverEnCola(sel.id, -1), 'No se pudo mover')} />
-                <Opcion icon="arrow-down" t="Bajar un puesto" onPress={() => op(() => moverEnCola(sel.id, 1), 'No se pudo mover')} />
-              </>
+              <Text style={s.enSilla}>
+                Está esperando su turno. El orden lo lleva la fila: cuando le toque, el barbero lo llama.
+              </Text>
             )}
-            <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
-              onPress={() => op(() => sacarDeCola(sel.id), 'No se pudo sacar')} />
+            {/* EN LA SILLA NO SE TOCA. El dueño podía sacar de la fila a un
+                cliente que un barbero estaba atendiendo: se lo levantaba a
+                mitad de corte y, de paso, el turno quedaba 'abandonado', que no
+                registra visita — o sea que el corte que se estaba dando
+                desaparecía de las cuentas del barbero. Desde la migración 76 el
+                servidor lo niega; aquí ni se ofrece, y se dice por qué, que es
+                distinto de esconder el botón sin explicación. */}
+            {sel?.estado === 'atendiendo' && (
+              <Text style={s.enSilla}>
+                Lo está atendiendo {sel?.turno_perfiles?.turno_usuarios?.nombre ?? 'un barbero'}. Lo que pase en esa
+                silla lo cierra quien está cortando.
+              </Text>
+            )}
+            {/* La única salida del dueño sobre un cliente, y solo cuando YA LE
+                TOCÓ: se le llamó y no está. turno_no_esta exige exactamente eso
+                —haberlo llamado antes— y deja el turno expirado, no borrado. */}
+            {(sel?.estado === 'llamado' || sel?.estado === 'en_camino') && (
+              <Opcion icon="person-remove-outline" t="No se presentó" d="Se le llamó y no apareció · pasa el turno al siguiente" rojo
+                onPress={() => op(() => marcarNoEsta(sel.id), 'No se pudo marcar')} />
+            )}
             <TouchableOpacity onPress={() => setSel(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
           </View>
         </View>
@@ -153,5 +181,7 @@ const s = StyleSheet.create({
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
+  enSilla: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 12, padding: 13, lineHeight: 19 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

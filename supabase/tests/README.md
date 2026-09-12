@@ -1,21 +1,128 @@
-# Pruebas del motor de cola
+# Pruebas de la base
 
-`motor_cola.test.sql` cubre las invariantes que TypeScript **no puede** atrapar:
-orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2),
-límite de fila, orden de llamado, autorización de stats, bajas y citas grupales.
+Cubren lo que TypeScript **no puede** atrapar: reglas que viven en Postgres y se
+rompen por cómo se combinan, no por cómo se escriben.
+
+| Suite | Qué mira |
+|---|---|
+| `motor_cola.test.sql` | Las invariantes sueltas: orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2), límite de fila, orden de llamado, autorización de stats, bajas, citas grupales. |
+| `autonomia.test.sql` | Quién decide qué (R11) y **quién manda en la silla de quién** (migración 92): el dueño dirige a su empleado, pero no al que le paga renta — ni le opera la silla, ni le lee la cartera, ni le lee la facturación. Y suspender a un autónomo le quita la fila y la fachada del local, no su trabajo. Desde la 111, tampoco le toca la AGENDA: no le lee el motivo de un bloqueo ni le puede cerrar el día con uno de 9 a 6. Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
+| `fidelidad.test.sql` | Visitas, meta, premio y canje, con la tarjeta del local y la del barbero rentado. |
+| `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
+| `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
+| `puertas.test.sql` | Recorre el API **como un desconocido** y comprueba que se le cierra. Las demás prueban que las cosas funcionan; esta, que no funcionan para quien no debe. |
+| `horarios.test.sql` | La jornada: un día, una jornada; los huecos de la agenda; el tiempo entre clientes. |
+| `sin_cita.test.sql` | El cliente de la calle: que se cuente como visita, que no se cuele por delante de la fila y que no deje bloqueos de más. |
+| `modo_atencion.test.sql` | Por dónde acepta trabajo cada barbero (solo citas, solo fila, ambos) y qué pasa con la puerta cuando se cambia. |
+| `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
+| `suscripcion.test.sql` | La prueba, el pago y la cortesía; **quién paga** (asientos alquilados → cada silla, migración 93; empleados → el local); y desde la 95, **qué se apaga cuando no se paga**: no aparece, no acepta trabajo, no opera la fila — pero las citas ya reservadas y el historial no se tocan, y el letrero del cliente **no delata a quien no pagó**. Con el cupo por antigüedad de la 96, para que pagar una silla no dé para cinco. |
+| `jornada.test.sql` | "Hoy cierro más tarde" y "hoy me voy antes": alargar la jornada, cerrarla, volver a la norma — y **de quién es cada una de esas decisiones**. Alargar INVENTA disponibilidad y la decide quien manda en el horario (R11); cerrar solo QUITA, como un bloqueo, y la decide quien opera la silla. |
+| `invitacion.test.sql` | **Entrar a un local lo firman los dos** (migración 110). Las dos direcciones —el barbero pide entrar con el código del local, el local le invita con el código del barbero— y que ninguna de las dos firmas vale sola. Incluye la vuelta a la regla de la 94: en asientos alquilados el barbero ya **no** entra activo. |
+
+Las suites de flujo y permisos existen porque esos fallos no se
+ven mirando funciones de una en una. Cada una encontró bugs de producción en su
+primera corrida: un barbero sin aprobar podía llamar clientes; se podía bloquear
+tiempo encima de una cita ya reservada; y la cartera de clientes de un barbero
+—con teléfonos— la leía cualquiera, incluido un anónimo con la llave que viaja
+dentro del APK.
+
+## La regla de los permisos
+
+RLS protege las **tablas**. Una función `SECURITY DEFINER` **se la salta por
+definición**, así que tiene que comprobar por su cuenta quién llama. Toda
+función nueva que toque datos de un local necesita su portero:
+
+```
+turno_uid()                → ¿hay alguien?
+turno_es_mi_perfil(p)      → ¿es mi silla?
+turno_perfil_admin(p)      → ¿soy el dueño de su local?
+turno_perfil_operable(p)   → viva, aprobada, y mía o de mi local
+turno_cola_operable(c)     → lo anterior, para un turno concreto
+turno_mis_negocios()       → ¿pertenezco a este local?
+turno_negocios_admin()     → ¿soy dueño de este local?
+```
+
+`puertas.test.sql` tiene una red que **llama** a cada función alcanzable por un
+anónimo y falla si alguna muta. No lee el código: eso ya falló cuatro veces.
+
+**Toda función nueva se añade a esa red el mismo día que se escribe** — y desde la
+migración 89 **eso ya no depende de que nadie se acuerde**: `puertas.test.sql`
+enumera `pg_proc` y se pone roja cuando existe una función `turno_*` que un
+anónimo puede ejecutar y que la red no nombra. Hizo falta: al ir a añadir UNA
+función olvidada (`turno_manda_en_el_horario`), el censo encontró **dieciocho**
+que la red nunca había llamado. De aquellas, tres estaban abiertas de verdad y
+una estaba muerta —`turno_siguiente_adelantado` leía una columna inexistente, así
+que se negaba **por estar rota**, que es la peor forma de pasar una prueba.
+
+Dos avisos que salieron de ahí y valen para cualquier portero futuro:
+
+> **Comparar contra `turno_uid()` no es comprobar que hay sesión.** `algo <>
+> turno_uid()` con uid nulo da `NULL`, no `true`, y un `if NULL` no entra: el
+> portero se calla y deja pasar. Primero se pregunta si hay alguien.
+
+> **Un portero se prueba con la puerta que de verdad existe.** Con un uuid de
+> ceros, `turno_stats_periodo_perfil` rebotaba en "perfil inexistente" y parecía
+> cerrada; con el id de una silla real soltaba la facturación entera.
+
+No es una formalidad: las migraciones 74–83 dejaron diez funciones fuera, y
+cuatro de ellas —`turno_puesto`, `turno_eta`, `turno_fila_abierta`,
+`turno_mi_preferido`— no tenían portero ninguno. No se escapaba nada, porque
+devolvían vacío. Pero
+
+> devolver vacío y negarse **se parecen mientras la consulta funcione**.
+
+El día que el filtro se cae, una sigue en silencio y la otra se pone roja. Es el
+camino exacto por el que `turno_clientes_del_local` llegó a producción sin
+portero. Cerrado en la migración 84.
+
+Y ojo al revocar permisos: los ayudantes que aparecen **dentro de las políticas
+RLS** se evalúan con el rol de quien consulta. Quitarle el permiso a `anon`
+sobre uno de ellos no lo deja fuera — hace que la política reviente con
+"permission denied" en vez de devolver `false`. Por eso el censo los exime
+uno a uno, por nombre y con su razón escrita, en vez de por categoría.
+
+> **Una exención se comprueba, no se hereda.** `turno_perfil_acepta` y
+> `turno_perfil_operable` llevaban meses exentas con ese motivo —«viven dentro
+> de una política»— y en la migración 97 se miró: no viven en ninguna
+> (`pg_policies` y `pg_constraint`, cero). Entretanto la 95 les había metido el
+> cobro dentro, así que enumerando perfiles se sacaba la lista de morosos de un
+> local. Antes de escribir un nombre en `v_exentas`, se pregunta a la base; y al
+> tocar una función exenta, se vuelve a preguntar. Una exención con el motivo
+> caducado es peor que ninguna: parece decidida.
+
+Y ojo también al **conceder**: en Postgres `PUBLIC` tiene `EXECUTE` por defecto
+sobre toda función nueva, y `anon` hereda de `PUBLIC`. Un
+
+```sql
+grant execute on function f(...) to authenticated;
+```
+
+sin su `revoke ... from public, anon` al lado **no cierra nada**: solo repite en
+voz alta un permiso que ya estaba puesto. Ese descuido es el origen de casi todas
+las dieciocho del censo. La defensa de verdad sigue siendo el portero dentro de
+la función — por eso la red **llama**, no lee — pero el `revoke` es el segundo
+cerrojo y va escrito al lado del `grant`.
+
+## Al escribir una suite nueva
+
+Un bloque `begin ... exception` en plpgsql **revierte sus propias sentencias** al
+capturar. Crear un fixture dentro de un bloque que espera un error hace que el
+fixture desaparezca y los pasos siguientes fallen por una razón falsa. Los datos
+se crean fuera.
 
 ## Cómo correrlo
 
 ```bash
 export DATABASE_URL='postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres'
-npm run test:db
+npm run test:db          # todas
+npm run test:db:obstaculos   # una sola
 ```
 
 O pegando el archivo en el **SQL editor** de Supabase.
 
 ## Cómo leer el resultado
 
-La suite **siempre termina con un `RAISE`**. Eso es intencional: obliga a
+Cada suite **siempre termina con un `RAISE`**. Eso es intencional: obliga a
 Postgres a revertir la transacción entera, de modo que los fixtures (negocio,
 usuarios, perfiles, citas) **no dejan ni un registro** — importante, porque la
 base es compartida con otros proyectos.
@@ -45,5 +152,8 @@ migración 32.
 ## Al tocar el motor de cola
 
 Cualquier cambio a `turno_entrar_a_cola`, `turno_llamar_siguiente`,
-`turno_confirmar_camino`, `turno_expirar_llamados` o `turno_agendar_grupo`
-debería correr esta suite antes de darse por bueno.
+`turno_confirmar_camino`, `turno_expirar_llamados`, `turno_agendar_grupo` o
+`turno_cita_a_cola_prioritaria` debería correr `npm run test:db` entero antes de
+darse por bueno. Ese último es un aviso ganado: el mismo bug —turnos sin
+`tipo_servicio` y posiciones recicladas— apareció en **tres** funciones
+distintas, y la tercera solo salió al probar los cruces.

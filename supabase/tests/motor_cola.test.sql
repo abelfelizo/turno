@@ -29,7 +29,7 @@ declare
   n int := 0; ok int := 0; fallos text := ''; c text;
   -- scratch
   r record; v_bool boolean; v_int int; v_int2 int; v_uuid uuid; v_uuid2 uuid;
-  v_id1 uuid; v_id2 uuid; v_bloq uuid; c2_estado text;
+  v_id1 uuid; v_id2 uuid; v_bloq uuid; c2_estado text; v_txt_motivo text;
 begin
   -- ── FIXTURES ───────────────────────────────────────────────────────────────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -44,8 +44,13 @@ begin
   insert into turno_negocios (nombre, tipo, codigo_acceso, moneda, activo)
   values ('Test Barbería','empleados', v_cod, 'DOP', true) returning id into v_neg;
 
-  insert into turno_configuracion_negocio (negocio_id, anticipacion_minima_horas, ventana_llegada_min, gracia_cita_min, umbral_confirmacion)
-  values (v_neg, 2, 10, 5, 2);
+  -- doble_servicio_activo EXPLÍCITO. El fixture no lo ponía y la columna nace
+  -- en false, así que desde la migración 49 —que hizo que el interruptor de
+  -- verdad restringiera— los casos 3, 4 y 9 fallaban por una razón que no
+  -- tenían nada que ver con lo que probaban. Es el defecto del producto (un
+  -- local nuevo permite corte + uñas a la vez) puesto donde debe estar.
+  insert into turno_configuracion_negocio (negocio_id, anticipacion_minima_horas, ventana_llegada_min, gracia_cita_min, umbral_confirmacion, doble_servicio_activo)
+  values (v_neg, 2, 10, 5, 2, true);
 
   insert into turno_membresias (usuario_id, negocio_id, rol, activo) values
     (u_cli1, v_neg, 'cliente', true), (u_cli2, v_neg, 'cliente', true),
@@ -61,10 +66,29 @@ begin
   insert into turno_servicios (perfil_id, nombre, duracion_min, precio, activo)
   values (p_mani,'Uñas',30,700,true) returning id into s_unas;
 
+  -- EL HORARIO VA AQUÍ ARRIBA, Y PARA LAS DOS SILLAS.
+  --
+  -- Estaba en mitad de la suite (antes del caso 15) y p_mani no tenía ninguno.
+  -- Daba igual mientras entrar_a_cola no miraba el horario; desde la migración
+  -- 72 lo mira, así que los catorce primeros casos entraban a una fila cerrada
+  -- y p_mani no habría podido tener fila en toda la suite.
+  --
+  -- De 00:01 a 23:59 a propósito: lo que aquí se prueba es el motor de la cola,
+  -- no la jornada, y un fixture de 08:00 a 21:00 haría fallar la suite sola al
+  -- correrla de madrugada. Quien sí prueba el horario es horarios.test.sql y
+  -- modo_atencion.test.sql.
+  -- ON CONFLICT desde la migración 85: el perfil ya nace con jornada sembrada.
+  insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
+  select pf, d, time '00:01', time '23:59', true, 10
+    from (values (p_barb), (p_mani)) x(pf), generate_series(0,6) d
+  on conflict (perfil_id, dia_semana) do update
+    set hora_inicio = excluded.hora_inicio, hora_fin = excluded.hora_fin,
+        activo = true, tiempo_entre_clientes = excluded.tiempo_entre_clientes;
+
   -- ── CASO 1 · entrar a la fila asigna posición 1 y prioridad digital ───────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='entrar a la fila · posición 1, prioridad digital';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
     if r.posicion = 1 and r.prioridad = 2 and r.tipo_servicio = 'barbero' and r.estado = 'en_fila'
       then ok:=ok+1;
@@ -74,9 +98,9 @@ begin
   end;
 
   -- ── CASO 2 · R1: NO se permite un 2º turno del MISMO tipo ─────────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='R1 · bloquea segundo turno del mismo tipo';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     perform turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
     fallos := fallos || E'\n  ✗ '||c||' — permitió un segundo turno de barbero';
   exception when others then
@@ -85,9 +109,9 @@ begin
   end;
 
   -- ── CASO 3 · R1: SÍ se permite un turno de OTRO tipo (barbero + uñas) ─────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='R1 · permite turno simultáneo de otro tipo (uñas)';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     select * into r from turno_entrar_a_cola(v_neg, s_unas, 'digital', p_mani);
     if r.tipo_servicio = 'manicuri_pedicuri' then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — tipo='||coalesce(r.tipo_servicio,'null'); end if;
@@ -95,9 +119,9 @@ begin
   end;
 
   -- ── CASO 4 · segundo cliente toma la siguiente posición ──────────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
   n:=n+1; c:='fila · el segundo cliente toma posición 3 (tras 2 activos)';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
     select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
     if r.posicion = 3 then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — posición='||r.posicion||' (esperada 3)'; end if;
@@ -105,9 +129,9 @@ begin
   end;
 
   -- ── CASO 5 · R2: con 0 delante y umbral 2, SÍ puede confirmar ────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='R2 · puede confirmar cuando está cerca (0 delante, umbral 2)';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     select id into v_uuid from turno_cola where cliente_id=u_cli1 and tipo_servicio='barbero' and estado='en_fila';
     v_bool := turno_puede_confirmar(v_uuid);
     if v_bool then ok:=ok+1; else fallos := fallos || E'\n  ✗ '||c||' — devolvió false'; end if;
@@ -126,9 +150,9 @@ begin
   end;
 
   -- ── CASO 7 · R2: confirmar_camino RECHAZA en servidor (no solo la UI) ────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
   n:=n+1; c:='R2 · turno_confirmar_camino rechaza en el servidor';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
     select id into v_uuid from turno_cola where cliente_id=u_cli2 and estado='en_fila';
     perform turno_confirmar_camino(v_uuid);
     fallos := fallos || E'\n  ✗ '||c||' — dejó confirmar estando lejos';
@@ -139,9 +163,9 @@ begin
   update turno_configuracion_negocio set umbral_confirmacion = 2 where negocio_id = v_neg;
 
   -- ── CASO 8 · orden de llamado: respeta posición ──────────────────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='llamar siguiente · respeta el orden de la fila';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     select * into r from turno_llamar_siguiente(v_neg, p_barb);
     if r.cliente_id = u_cli1 and r.estado = 'llamado' and r.expira_at is not null then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — llamó a otro o no fijó expiración'; end if;
@@ -162,9 +186,9 @@ begin
   update turno_perfiles set limite_cola = null where id = p_mani;
 
   -- ── CASO 10 · autorización: un cliente NO puede leer stats del negocio ───
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='autorización · stats del negocio negadas a un no-dueño';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     perform * from turno_stats_periodo_negocio(v_neg, current_date - 30, current_date);
     fallos := fallos || E'\n  ✗ '||c||' — un cliente pudo leer los ingresos del local';
   exception when others then
@@ -173,9 +197,9 @@ begin
   end;
 
   -- ── CASO 11 · citas grupales (R5): N espacios consecutivos ───────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
   n:=n+1; c:='R5 · cita grupal crea N espacios consecutivos con un grupo_id';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
     perform turno_agendar_grupo(p_barb, s_corte, (current_date + 2), '10:00'::time, 3);
     select count(*), count(distinct grupo_id) into v_int, v_int2
       from turno_citas where perfil_id=p_barb and fecha=(current_date+2) and cliente_id=u_cli2;
@@ -188,9 +212,9 @@ begin
   end;
 
   -- ── CASO 12 · baja: dejar el local cancela las citas futuras ─────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='ciclo de vida · dejar el local cancela citas futuras';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     perform turno_dejar_local(p_barb);
     select count(*) into v_int from turno_citas
      where perfil_id=p_barb and fecha=(current_date+2) and estado <> 'cancelada';
@@ -199,12 +223,19 @@ begin
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
+  -- El caso 12 acaba de llamar a dejar_local, que DESAPRUEBA el perfil. Desde la
+  -- migración 50 el motor comprueba `aprobado` además de la propiedad, así que
+  -- sin restaurarlo aquí los dos casos siguientes mueren con "tu perfil todavía
+  -- no está aprobado" — un mensaje que no tiene nada que ver con lo que prueban.
+  -- Va JUSTO aquí, no más abajo: los casos 13 y 14 lo necesitan ya.
+  update turno_perfiles set activo = true, aprobado = true where id = p_barb;
+
   -- ── CASO 13 · el walk-in debe rellenar tipo_servicio ─────────────────────
   -- Sin esto R1 no cubre a los clientes sin cita: en Postgres los NULL no
   -- colisionan en un índice único, así que se podrían duplicar sin límite.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='walk-in · rellena tipo_servicio';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     select * into r from turno_registrar_fisico(v_neg, p_barb, s_corte, 'Sin cita', '');
     if r.tipo_servicio = 'barbero' then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — tipo_servicio = '||coalesce(r.tipo_servicio,'NULL'); end if;
@@ -214,9 +245,9 @@ begin
   -- ── CASO 14 · la posición no se recicla al llamar a alguien ──────────────
   -- Antes se calculaba max(posicion)+1 mirando solo 'en_fila': al pasar alguien
   -- a llamado/en_camino el máximo caía y el siguiente reusaba su posición.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='fila · la posición no se recicla tras llamar';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     perform turno_registrar_fisico(v_neg, p_barb, s_corte, 'Otro sin cita', '');
     select count(*) into v_int from turno_cola
      where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino')
@@ -226,46 +257,58 @@ begin
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
-  -- ── PREPARACIÓN · fila limpia y horario, para la gestión de turnos ───────
+  -- ── PREPARACIÓN · fila limpia, para la gestión de turnos ────────────────
   update turno_cola set estado = 'atendido'
    where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
-  update turno_perfiles set activo = true where id = p_barb;
-  insert into turno_horarios (perfil_id, dia_semana, hora_inicio, hora_fin, activo, tiempo_entre_clientes)
-  select p_barb, d, time '08:00', time '20:00', true, 10 from generate_series(0,6) d;
+  update turno_perfiles set activo = true, aprobado = true where id = p_barb;
+  -- (el horario se crea arriba, en los fixtures, para las dos sillas)
 
-  -- ── CASO 15 · mover a alguien un puesto arriba lo pone delante ───────────
-  -- El orden es la pareja (prioridad, posicion), no la posición sola: mover
-  -- tiene que intercambiar LAS DOS o el cambio no se ve en la fila.
-  n:=n+1; c:='fila · subir un puesto cambia el orden';
+  -- Los dos turnos se crean AQUÍ, fuera de cualquier begin/exception. Estaban
+  -- dentro del bloque del caso 15, y cuando ese bloque capturaba el error,
+  -- plpgsql revertía sus propias sentencias: v_id1 y v_id2 quedaban apuntando a
+  -- filas que ya no existían y los tres casos siguientes morían con "turno
+  -- inexistente". Es la trampa que la cabecera de las otras suites avisa.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id1 := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id2 := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+
+  -- ── CASO 15 · el orden de la fila NO se cambia a mano (migración 58) ─────
+  -- Este caso decía lo contrario: comprobaba que "subir un puesto" funcionaba.
+  -- Y funcionaba, hasta que el piloto lo señaló: "el barbero no puede adelantar
+  -- a nadie, eso rompe las reglas". La 58 lo quitó del API, y esta prueba se
+  -- quedó defendiendo la regla vieja — que es peor que no tener prueba, porque
+  -- da confianza en la dirección equivocada. Ahora prueba la regla de verdad.
+  n:=n+1; c:='fila · el orden NO se cambia a mano';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
-    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id1 := r.id;
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
-    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb); v_id2 := r.id;
-
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     perform turno_mover_en_cola(v_id2, -1);
-    select id into v_uuid from turno_cola
-     where negocio_id = v_neg and estado = 'en_fila' order by prioridad, posicion limit 1;
-    if v_uuid = v_id2 then ok:=ok+1;
-    else fallos := fallos || E'\n  ✗ '||c||' — el primero de la fila no es el que se subió'; end if;
-  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
-  end;
+    fallos := fallos || E'\n  x '||c||' - dejó reordenar la fila a dedo';
+  exception when others then ok:=ok+1; end;
 
-  -- ── CASO 16 · llamar a alguien concreto, saltando el orden ───────────────
-  n:=n+1; c:='fila · llamar a uno concreto';
+  -- ── CASO 16 · llamar a uno concreto: solo si es el que toca ──────────────
+  n:=n+1; c:='fila · llamar al que SÍ toca funciona';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     select * into r from turno_llamar_a(v_id1);
     if r.estado = 'llamado' and r.llamado_at is not null then ok:=ok+1;
-    else fallos := fallos || E'\n  ✗ '||c||' — estado = '||coalesce(r.estado,'NULL'); end if;
-  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+    else fallos := fallos || E'\n  x '||c||' - estado = '||coalesce(r.estado,'NULL'); end if;
+  exception when others then fallos := fallos || E'\n  x '||c||' - excepción: '||sqlerrm;
   end;
 
+  -- La otra mitad de la 58, y la que de verdad importa: llamar al segundo es
+  -- adelantar con otro nombre.
+  n:=n+1; c:='fila · llamar a uno que NO toca se niega';
+  begin
+    perform turno_devolver_a_fila(v_id1);
+    perform turno_llamar_a(v_id2);
+    fallos := fallos || E'\n  x '||c||' - se saltó el orden';
+  exception when others then ok:=ok+1; end;
+  begin perform turno_llamar_a(v_id1); exception when others then null; end;
+
   -- ── CASO 17 · devolver a la fila deshace el llamado ──────────────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='fila · devolver a la fila';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     select * into r from turno_devolver_a_fila(v_id1);
     if r.estado = 'en_fila' and r.llamado_at is null then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — quedó en '||coalesce(r.estado,'NULL'); end if;
@@ -273,9 +316,9 @@ begin
   end;
 
   -- ── CASO 18 · sacar de la fila al que se fue del local ───────────────────
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   n:=n+1; c:='fila · sacar a alguien que se fue';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
     perform turno_sacar_de_cola(v_id1);
     select estado into c2_estado from turno_cola where id = v_id1;
     if c2_estado = 'abandonado' then ok:=ok+1;
@@ -286,9 +329,9 @@ begin
   -- ── CASO 19 · un cliente NO puede tocar la fila de otro ──────────────────
   -- Las RPC son SECURITY DEFINER: sin este chequeo cualquiera con sesión podría
   -- sacar de la fila a los clientes de una barbería a la que solo pertenece.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='fila · un cliente no puede sacar a otro';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
     begin
       perform turno_sacar_de_cola(v_id2);
       fallos := fallos || E'\n  ✗ '||c||' — un cliente sacó de la fila a otro';
@@ -296,40 +339,246 @@ begin
     end;
   end;
 
-  -- ── CASO 20 · "sin cita" ocupa la silla por el tiempo del servicio ───────
-  n:=n+1; c:='sin cita · ocupa la silla 30+10 min';
+  -- ── CASOS 20-23 · "SIN CITA", REESCRITOS PARA LA MIGRACIÓN 66 ───────────
+  --
+  -- Estos tres casos probaban turno_ocupar_ahora, que metía un BLOQUEO en la
+  -- agenda en vez de un turno en la cola. Esa función se cerró en la 66 porque
+  -- el corte que atendía NUNCA se contaba como dinero: las visitas las registra
+  -- un trigger sobre turno_cola, y por la vía del bloqueo no se pasaba por ahí.
+  --
+  -- Y esta suite se quedó rota desde entonces sin que nadie lo notara, porque
+  -- no volví a correrla al cambiar la función. Anotado aquí porque es la misma
+  -- lección que en las otras suites: un cambio que cierra una puerta obliga a
+  -- correr TODO lo que la usaba, no solo lo que se acaba de escribir.
+
+  -- ── CASO 20 · el sin cita respeta el orden de la fila ────────────────────
+  -- Con v_id2 todavía en la fila. Si este caso se ejecutara con la fila vacía
+  -- pasaría por la razón equivocada, así que se comprueba primero que hay a
+  -- quien saltarse.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  n:=n+1; c:='sin cita · con gente esperando, se niega';
   begin
+    select count(*) into v_int from turno_cola
+     where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino');
+    if v_int = 0 then
+      fallos := fallos || E'\n  x '||c||' - la fila estaba vacía: el caso no probaba nada';
+    else
+      perform turno_atender_sin_cita(v_neg, p_barb, s_corte, 'Colado', '');
+      fallos := fallos || E'\n  x '||c||' - se coló por delante de la fila';
+    end if;
+  exception when others then
+    if sqlerrm like '%esperando%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
+  end;
+
+  -- ── CASO 21 · con la fila vacía se sienta, y NO ensucia la agenda ────────
+  -- OJO, y esto costó un rato entender: `set_config(..., true)` es LOCAL a la
+  -- transacción, así que cuando un bloque `begin ... exception` captura, se
+  -- revierte también la impersonación que se hizo DENTRO de él. El caso de
+  -- arriba fija el barbero dentro del bloque y termina capturando, así que al
+  -- llegar aquí volvíamos a ser el cliente y atender_sin_cita respondía "tu
+  -- perfil todavía no está aprobado" — un mensaje que no tenía nada que ver.
+  -- Por eso la impersonación va FUERA del bloque.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+
+  n:=n+1; c:='sin cita · se sienta sin crear bloqueo en la agenda';
+  begin
+    select count(*) into v_int2 from turno_bloqueos where perfil_id = p_barb;
+    update turno_cola set estado = 'atendido', atendido_at = now()
+     where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
     perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
-    select * into r from turno_ocupar_ahora(p_barb, s_corte); v_bloq := r.id;
-    v_int := round(extract(epoch from (r.hora_fin - r.hora_inicio)) / 60);
-    if v_int between 39 and 41 then ok:=ok+1;
-    else fallos := fallos || E'\n  ✗ '||c||' — el bloqueo duró '||v_int||' min'; end if;
+    select * into r from turno_atender_sin_cita(v_neg, p_barb, s_corte, 'Sin cita', '');
+    v_uuid := r.id;
+    select count(*) into v_int from turno_bloqueos where perfil_id = p_barb;
+    if r.estado = 'atendiendo' and r.tipo_cola = 'fisica' and v_int = v_int2 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — estado '||coalesce(r.estado,'NULL')
+         ||', bloqueos '||v_int2||' -> '||v_int; end if;
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
-  -- ── CASO 21 · el ETA cuenta la silla ocupada ─────────────────────────────
+  -- ── CASO 22 · el ETA cuenta la silla ocupada ─────────────────────────────
   -- Sin esto el cliente de la cola digital ve "0 min" mientras el barbero está
   -- a mitad de un corte, llega, y se queda de pie.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
   n:=n+1; c:='eta · suma el tiempo de la silla ocupada';
   begin
-    select turno_eta(v_id2) into v_int;
+    select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+    select turno_eta(r.id) into v_int;
     if coalesce(v_int, 0) >= 30 then ok:=ok+1;
     else fallos := fallos || E'\n  ✗ '||c||' — eta = '||coalesce(v_int::text,'NULL')||' min con la silla ocupada'; end if;
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
 
-  -- ── CASO 22 · liberar la silla al terminar antes ─────────────────────────
-  n:=n+1; c:='sin cita · liberar la silla al terminar';
+  -- ── CASO 23 · y al terminar SÍ cuenta como dinero ────────────────────────
+  -- El motivo entero de la migración 66. Por la vía vieja este corte no
+  -- aparecía en ningún sitio: ni cuentas del día, ni estadísticas, ni punto.
+  n:=n+1; c:='sin cita · al terminar se registra la visita';
   begin
-    perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
-    perform turno_liberar_ahora(v_bloq);
-    select turno_min_ocupada(p_barb) into v_int;
-    -- <= 1: liberar deja un piso de un minuto a propósito, para no dejar nunca
-    -- un bloqueo con hora_fin por debajo de hora_inicio.
-    if coalesce(v_int, 0) <= 1 then ok:=ok+1;
-    else fallos := fallos || E'\n  ✗ '||c||' — la silla sigue ocupada '||v_int||' min'; end if;
+    update turno_cola set estado = 'atendido', atendido_at = now() where id = v_uuid;
+    select count(*) into v_int from turno_historial_visitas
+     where perfil_id = p_barb and origen = 'cola_fisica';
+    if v_int >= 1 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — el corte no se contó'; end if;
   exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
   end;
+
+  -- ── CASO 24 · el interruptor "doble servicio" restringe de verdad ───────
+  -- Encontrado en la auditoría: doble_servicio_activo solo aparecía en el
+  -- INSERT que crea la configuración; ninguna función lo leía. Un control que
+  -- se guarda y nadie consulta se ve bien en pantalla y miente.
+  n:=n+1; c:='doble servicio · apagado bloquea el segundo turno de otro tipo';
+  begin
+    update turno_cola set estado = 'atendido'
+     where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+    update turno_configuracion_negocio set doble_servicio_activo = false where negocio_id = v_neg;
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+    perform turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+    perform turno_entrar_a_cola(v_neg, s_unas, 'digital', p_mani);
+    fallos := fallos || E'\n  x '||c||' - el interruptor sigue sin hacer nada';
+  exception when others then
+    if sqlerrm like '%ya tienes un turno activo%' then ok:=ok+1;
+    else fallos := fallos || E'\n  x '||c||' - error inesperado: '||sqlerrm; end if;
+  end;
+  update turno_configuracion_negocio set doble_servicio_activo = true where negocio_id = v_neg;
+
+  -- ── CASOS 25–29 · EL PUESTO NO ES LA POSICIÓN ────────────────────────────
+  --
+  -- Reportado desde el teléfono: «el estado del turno indica que soy el número
+  -- 2, pero realmente soy el siguiente». Las dos mitades del error:
+  --
+  --   · turno_cola.posicion es un CONTADOR DE ENTRADA (max+1 sobre todas las
+  --     filas activas), no un puesto. El segundo en llegar es posicion 2 aunque
+  --     el primero ya esté sentado.
+  --   · y el que está EN LA SILLA seguía contándose como gente delante.
+  --
+  -- turno_puesto (migración 78) es la respuesta a "¿cuántos hay delante de mí
+  -- esperando?". Estos casos existen porque la cuenta buena y la mala dan lo
+  -- mismo mientras nadie esté sentado: hay que sentar a alguien para verlo.
+  update turno_cola set estado = 'atendido'
+   where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  v_id1 := r.id;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  v_id2 := r.id;
+
+  n:=n+1; c:='puesto · el primero de la fila es el 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select turno_puesto(v_id1) into v_int;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — turno_puesto devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  n:=n+1; c:='puesto · el segundo es el 2 mientras nadie esté sentado';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select turno_puesto(v_id2) into v_int;
+  if v_int = 2 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — turno_puesto devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  -- EL CASO. Se sienta el primero: el segundo pasa a ser el siguiente, aunque
+  -- su columna posicion sigue diciendo 2. Con la cuenta vieja veía "eres el 2".
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  perform turno_llamar_a(v_id1);
+  perform turno_iniciar_atencion(v_id1);
+
+  n:=n+1; c:='puesto · el que está EN LA SILLA no hace fila: el siguiente es el 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select turno_puesto(v_id2) into v_int;
+  select posicion into v_int2 from turno_cola where id = v_id2;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — puesto '||coalesce(v_int::text,'NULL')
+       ||' con posicion '||coalesce(v_int2::text,'NULL')||' (es el bug de "soy el número 2")'; end if;
+
+  n:=n+1; c:='puesto · el que está en la silla tiene puesto 0, no 1';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select turno_puesto(v_id1) into v_int;
+  if v_int = 0 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — devolvió '||coalesce(v_int::text,'NULL'); end if;
+
+  -- Y la otra mitad del mismo reporte: «55 minutos en una pantalla y 22 en la
+  -- otra». turno_resumen_fila (lo que ve quien AÚN NO ha entrado) y turno_eta
+  -- (lo que ve quien YA está) eran dos cuentas distintas. Desde la migración 78
+  -- resumen_fila delega en turno_carga_de_fila, que es de donde sale el ETA.
+  n:=n+1; c:='espera · el resumen de la fila no cuenta al que está sentado';
+  begin
+    select f.delante into v_int from turno_resumen_fila(v_neg, p_barb) f;
+    if v_int = 1 then ok:=ok+1;
+    else fallos := fallos || E'\n  ✗ '||c||' — dice '||coalesce(v_int::text,'NULL')
+         ||' delante con uno en la silla y uno esperando'; end if;
+  exception when others then fallos := fallos || E'\n  ✗ '||c||' — excepción: '||sqlerrm;
+  end;
+
+  -- ── CASO 30 · LA PUERTA Y EL LETRERO DICEN LO MISMO ──────────────────────
+  -- turno_fila_abierta (migración 74) es el letrero; turno_entrar_a_cola es la
+  -- puerta. Antes cada uno tenía sus propias condiciones, así que la pantalla
+  -- invitaba a entrar y el servidor se negaba, o al revés. Ahora la puerta
+  -- PREGUNTA al letrero, y esto comprueba que siguen siendo el mismo.
+  n:=n+1; c:='puerta · el motivo con el que rebota es el mismo que enseña el letrero';
+  begin
+    update turno_perfiles set estado_actual = 'descanso' where id = p_barb;
+    select turno_fila_abierta(p_barb, v_neg) into v_txt_motivo;
+    perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+    begin
+      perform turno_entrar_a_cola(v_neg, s_unas, 'digital', p_barb);
+      fallos := fallos || E'\n  ✗ '||c||' — entró a una fila cerrada (letrero: '||coalesce(v_txt_motivo,'abierta')||')';
+    exception when others then
+      if v_txt_motivo is not null and sqlerrm = v_txt_motivo then ok:=ok+1;
+      else fallos := fallos || E'\n  ✗ '||c||' — letrero "'||coalesce(v_txt_motivo,'NULL')
+           ||'" / puerta "'||sqlerrm||'"'; end if;
+    end;
+    update turno_perfiles set estado_actual = 'disponible' where id = p_barb;
+  end;
+
+  -- ── CASOS 31-33 · LA COLA QUE VE EL BARBERO ES LA QUE LE VAN A DAR ───────
+  --
+  -- Reportado desde el teléfono: «el barbero no puede ver la cola mientras
+  -- atiende a alguien, hay que exponerla». El panel filtraba por `perfil_id` a
+  -- secas, así que enseñaba SOLO a quien lo había elegido a él por nombre y
+  -- escondía a todos los de "cualquiera disponible" — que en una barbería son
+  -- la mayoría.
+  --
+  -- Y no era solo información que faltaba: era la pantalla contradiciendo al
+  -- servidor. turno_llamar_siguiente sirve
+  --
+  --     (p_perfil is null or perfil_id is null or perfil_id = p_perfil)
+  --
+  -- o sea que la siguiente persona que le toca puede ser una que su panel no
+  -- lista. Mientras atiende mira la pantalla para saber cuánta gente le queda y
+  -- le salía menos de la que hay.
+  --
+  -- El caso mira las DOS mitades, porque arreglarlo en la consulta de la app no
+  -- serviría de nada si RLS no le dejara leer esas filas.
+  update turno_cola set estado = 'atendido'
+   where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino','atendiendo');
+  update turno_perfiles set estado_actual = 'disponible' where id = p_barb;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli1::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', p_barb);
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select * into r from turno_entrar_a_cola(v_neg, s_corte, 'digital', null);
+
+  n:=n+1; c:='montaje · el segundo entró SIN barbero (si no, lo de abajo no prueba nada)';
+  if r.perfil_id is null then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — se le asignó '||r.perfil_id::text; end if;
+
+  -- Con RLS de verdad: sin `set local role` las políticas ni se evalúan.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int  from turno_cola
+   where negocio_id = v_neg and estado = 'en_fila' and perfil_id = p_barb;
+  select count(*) into v_int2 from turno_cola
+   where negocio_id = v_neg and estado = 'en_fila' and perfil_id is null;
+  reset role;
+
+  n:=n+1; c:='cola · el barbero ve al que lo eligió a él';
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — vio '||v_int; end if;
+
+  n:=n+1; c:='cola · y RLS le deja ver también al de "cualquiera disponible"';
+  if v_int2 = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  ✗ '||c||' — vio '||v_int2
+       ||': el panel seguiría escondiendo a quien el servidor le va a entregar'; end if;
 
   -- ── RESULTADO (el RAISE revierte todos los fixtures) ─────────────────────
   raise exception E'\n═══ MOTOR DE COLA · % / % casos OK ═══%',

@@ -1,17 +1,9 @@
 import { Tabs } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
-import { COLORS } from '../../../constants'
-
-const ic = (name: keyof typeof Ionicons.glyphMap) =>
-  ({ color, size }: { color: string; size: number }) => <Ionicons name={name} color={color} size={size} />
+import { iconoTab as ic, useOpcionesTabs } from '../../../components/tabs'
 
 export default function BarberoLayout() {
   return (
-    <Tabs screenOptions={{
-      headerShown: false, tabBarActiveTintColor: COLORS.red, tabBarInactiveTintColor: COLORS.textLight,
-      tabBarStyle: { height: 84, paddingBottom: 26, paddingTop: 8, borderTopColor: COLORS.border },
-      tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
-    }}>
+    <Tabs screenOptions={useOpcionesTabs()}>
       <Tabs.Screen name="agenda" options={{ tabBarLabel: 'Agenda', tabBarIcon: ic('calendar-outline') }} />
       <Tabs.Screen name="stats" options={{ tabBarLabel: 'Stats', tabBarIcon: ic('stats-chart-outline') }} />
       <Tabs.Screen name="clientes" options={{ tabBarLabel: 'Clientes', tabBarIcon: ic('people-outline') }} />

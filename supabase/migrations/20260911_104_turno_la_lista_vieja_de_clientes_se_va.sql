@@ -1,0 +1,31 @@
+-- LA LISTA VIEJA DE CLIENTES SE VA
+--
+-- `turno_mis_clientes()` la sustituyó `turno_clientes_del_local(negocio)` en la
+-- migración 59, y por un motivo que conviene no perder: la vieja construía la
+-- lista ENTERA desde el historial de visitas, así que **quien se unió con el
+-- código y todavía no ha aparecido era invisible** — justo los que más falta
+-- hace ver, porque se apuntaron y nadie les ha dicho nada. En la base del
+-- piloto la diferencia era 2 frente a 3.
+--
+-- Lo que no se hizo en la 59 fue borrarla. Se quedó viva, SECURITY DEFINER, con
+-- EXECUTE para `authenticated`, leyendo historial de visitas, y sin un solo
+-- llamador: ni la app, ni otra función, ni una política, ni un constraint, ni el
+-- cron. Comprobado contra la base antes de tocarla.
+--
+-- No es una fuga —su `where` se ata a `turno_uid()`, así que solo devuelve lo
+-- tuyo— y por eso mismo se fue de rositas en todas las auditorías anteriores: la
+-- red de `puertas` censa lo que puede ejecutar un ANÓNIMO, y esta no puede. Pero
+-- una función viva que nadie llama es una que alguien acabará llamando, y la que
+-- hay aquí tiene un fallo de producto YA CONOCIDO metido dentro. Ese es el
+-- riesgo que se cierra: no que se escape algo hoy, sino que mañana alguien la
+-- encuentre, le parezca razonable, y reintroduzca el bug de la 59.
+--
+-- Mismo criterio que se aplicó esta semana a `lib/reglas.ts` (122 líneas, cero
+-- importadores, copia envejecida de reglas que viven en Postgres) y a
+-- `turno_notas_privadas` (103).
+--
+-- Se deja en pie, en cambio, `turno_ocupar_ahora`: esa TAMBIÉN está muerta, pero
+-- a propósito — su cuerpo es un único `raise` que le dice a una app vieja que se
+-- actualice. Una lápida que habla no es código muerto.
+
+drop function if exists public.turno_mis_clientes();

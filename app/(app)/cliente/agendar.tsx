@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita } from '../../../lib/db'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas, getMiPreferido } from '../../../lib/db'
+import { aceptaCitas } from '../../../lib/atencion'
+import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
-import { hora12, dinero, fechaISOLocal } from '../../../lib/format'
+import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Chip, Avatar } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
@@ -37,10 +39,32 @@ export default function Agendar() {
       const ss = await getSesion()
       if (ss?.negocio_id) {
         const [ps, neg] = await Promise.all([
-          getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
+          // soloAlDia: el cliente no elige entre barberos que no puede usar
+          // (migración 96). La 95 ya hace que reservarle una cita rebote.
+          getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }) as Promise<any[]>,
           getNegocioById(ss.negocio_id).catch(() => null),
         ])
-        setPerfiles(ps); setNegocio(neg)
+        // Quien trabaja SOLO POR ORDEN DE LLEGADA no da citas: su agenda no
+        // tiene huecos y turno_agendar_cita lo rechaza. Listarlo aquí sería
+        // llevar al cliente a una pantalla vacía sin explicarle por qué.
+        const conCitas = (ps as any[]).filter(aceptaCitas)
+        setPerfiles(conCitas); setNegocio(neg)
+
+        // TU BARBERO, YA ELEGIDO (migración 83). Quien tiene barbero de
+        // confianza no debería tener que buscarlo en la tira cada vez que
+        // reserva: si da citas, entra preseleccionado con su primer servicio.
+        // Se salta cuando la pantalla viene con un barbero por parámetro, que
+        // es reprogramar una cita concreta y ahí manda la cita.
+        if (!params.perfil) {
+          const pref = await getMiPreferido(ss.negocio_id).catch(() => null)
+          const suyo = pref ? conCitas.find((x: any) => x.id === pref) : null
+          if (suyo) {
+            setPerfil(suyo)
+            const sv = (suyo.turno_servicios ?? []).filter((x: any) => x.activo)[0]
+            if (sv) setServicio(sv)
+          }
+        }
+
         // Preselección al reprogramar
         if (params.perfil) {
           const p = ps.find((x: any) => x.id === params.perfil)
@@ -81,6 +105,23 @@ export default function Agendar() {
       } else {
         await agendarCita(perfil.id, servicio.id, fecha, hora)
       }
+      // El barbero se enteraba de sus propias citas solo al abrir la agenda.
+      const yo = await getMiUsuario().catch(() => null)
+      if (perfil.usuario_id) {
+        avisos.barberoNuevaCita(perfil.usuario_id, yo?.nombre ?? 'Un cliente',
+          `${fechaLarga(fechaDeISO(fecha))} a las ${hora12(hora)}`)
+      }
+      // Los recordatorios (T-24h y T-2h) los agenda el propio teléfono, porque
+      // este proyecto no tiene pg_net y la base no puede despertar a nadie. Se
+      // reprograman aquí y no solo en Inicio: quien reservaba y se salía sin
+      // volver a esa pantalla se quedaba sin recordatorio.
+      const sesion = await getSesion()
+      if (sesion?.usuario_id && sesion?.negocio_id) {
+        const mias = await getMisCitas(sesion.usuario_id, sesion.negocio_id).catch(() => [])
+        programarRecordatoriosCitas((mias as any[]).map(c => ({
+          fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre,
+        })))
+      }
       const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
       const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`
       Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
@@ -112,6 +153,16 @@ export default function Agendar() {
         )}
 
         <Text style={s.sec}>1 · BARBERO</Text>
+        {/* Un local entero en modo "solo fila" deja esta tira VACÍA, y una tira
+            vacía no explica nada: parecía que la pantalla no había cargado.
+            Inicio ya lo avisa antes de entrar; si aun así se llega aquí —por un
+            enlace de reprogramar, por ejemplo— hay que decirlo. */}
+        {perfiles.length === 0 && (
+          <Text style={s.vacio}>
+            Aquí nadie está tomando citas ahora mismo. En esta barbería se atiende por orden de llegada:
+            entra a la fila digital desde “Mi turno”.
+          </Text>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
           {perfiles.map((p: any) => {
             const on = perfil?.id === p.id
@@ -213,6 +264,7 @@ const s = StyleSheet.create({
   miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
+  vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
   bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion, limpiarSesion } from '../../../lib/storage'
 import { getMiUsuario, getPreferenciasCliente, getMisTarjetas, getConfiguracion, getHistorialCliente, getNegocioById, getMisNegociosCliente, salirLocal, eliminarCuenta, emitirCanje, getMisCanjesActivos } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Avatar, KV } from '../../../components/ui'
@@ -89,6 +90,21 @@ export default function Perfil() {
         try { await eliminarCuenta(); await cerrarSesion(); await limpiarSesion(); router.replace('/(auth)/login') }
         catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
       } }])
+  }
+
+
+  // Ver arriba: los avisos viajan de teléfono a teléfono y hasta ahora no había
+  // forma de saber si este los tenía puestos.
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
@@ -177,8 +193,51 @@ export default function Perfil() {
 
       <CambiarRol />
 
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+      {/* CUENTA, con la misma composición que en los paneles de barbero y
+          dueño: icono, nombre y UNA LÍNEA QUE DICE QUÉ PASA. Eran dos textos
+          sueltos, uno gris y otro rojo, sin decir consecuencias — y una de las
+          dos borra la cuenta. */}
+      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
+
+      <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+        <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Cerrar sesión</Text>
+          <Text style={s.cuentaD}>Tus turnos, tus citas y tus recortes acumulados siguen ahí cuando vuelvas a entrar.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+
+      {/* AVISOS. Reportado: "aún no he recibido la primera notificación". En la
+          base había UN solo push token en todo el sistema: los avisos van de
+          teléfono a teléfono, así que si el que tiene que recibirlos no
+          registró el suyo, se mandan a nadie y no falla nada visible. Aquí se
+          ve y se arregla. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan los turnos, las citas y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
+      </TouchableOpacity>
+
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+      <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
+        <Ionicons name="trash-outline" size={18} color="#fff" />
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
+          <Text style={s.cuentaBorrarD}>Borra tus datos, cancela tus turnos y citas, y pierdes los recortes acumulados en cada local. No se puede deshacer.</Text>
+        </View>
+      </TouchableOpacity>
     </ScrollView>
   )
 }
@@ -200,6 +259,15 @@ const s = StyleSheet.create({
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
   canjearBtn: { backgroundColor: '#fff', borderRadius: 12, padding: 13, alignItems: 'center', marginTop: 14 },
   canjearT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.carbon },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
+    borderRadius: 14, padding: 14, marginBottom: 24 },
+  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
   vales: { backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 22 },
   valesT: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1, marginBottom: 10 },
   vale: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },

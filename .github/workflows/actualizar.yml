@@ -7,8 +7,15 @@
 # NO sirve para cambios nativos (una librería nueva con código nativo, un
 # plugin de app.json, subir de SDK). Para eso hace falta un APK nuevo: se sube
 # "version" en app.json y se dispara el workflow "APK de prueba". La política
-# runtimeVersion=appVersion lo garantiza — si las versiones no coinciden, el
-# teléfono ignora la actualización en vez de romperse.
+# runtimeVersion=appVersion cubre ESE caso: si las versiones no coinciden, el
+# teléfono ignora la actualización.
+#
+# OJO, y esto costó un teléfono roto: runtimeVersion NO protege de un bundle de
+# JS malo. Ahí las versiones coinciden, la actualización se aplica, y si el
+# bundle revienta al arrancar la app se cierra sola y no hay forma de entrar a
+# arreglarla desde dentro. Por eso existe la entrada "desde": publicar desde el
+# commit del último APK bueno es la marcha atrás. Sin ella la única salida era
+# desinstalar y volver a iniciar sesión con un código por correo.
 #
 # Requiere el mismo secreto EXPO_TOKEN que el APK.
 
@@ -26,12 +33,34 @@ on:
         description: Qué cambia (aparece en el historial de Expo)
         type: string
         default: Cambios desde GitHub
+      desde:
+        description: >-
+          Commit o rama desde el que publicar. Vacío = el que elegiste arriba en
+          "Use workflow from". Para VOLVER ATRÁS, pon aquí el commit del APK que
+          funcionaba (224acb9) y publica: el teléfono se lo baja y vuelve a
+          arrancar, sin desinstalar ni perder la sesión.
+        type: string
+        default: ''
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Historia completa: sin esto no se puede hacer checkout de un commit
+          # viejo, que es justo lo que hace falta para revertir.
+          fetch-depth: 0
+
+      # La marcha atrás. Una actualización OTA mala deja el teléfono sin salida:
+      # runtimeVersion protege de los cambios NATIVOS, pero no de un bundle de
+      # JS roto, y sin esto la única cura era desinstalar y volver a entrar con
+      # un código por correo. Publicar desde un commit bueno es la marcha atrás.
+      - name: Volver a un commit concreto
+        if: inputs.desde != ''
+        run: |
+          git checkout --force "${{ inputs.desde }}"
+          echo "Publicando desde $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -41,6 +70,39 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci --legacy-peer-deps
+
+      # ESTE PASO ES EL QUE FALTABA, Y COSTÓ UN TELÉFONO BRICKEADO.
+      #
+      # lib/supabase.ts hace createClient(process.env.EXPO_PUBLIC_SUPABASE_URL,
+      # ...) A NIVEL DE MÓDULO, y supabase-js lanza "supabaseUrl is required" si
+      # viene vacía. Un throw a nivel de módulo mata la app al arrancar: antes
+      # del ErrorBoundary y antes de la primera petición, así que se cierra sola
+      # y no deja ni rastro en los logs del servidor.
+      #
+      # Esas variables viven en el `env` de eas.json, que SOLO lo aplica
+      # `eas build`. `eas update` no lo lee. Como este workflow no las ponía,
+      # cada bundle publicado salía con la URL vacía — la primera publicación
+      # tumbó la app, y republicar un commit bueno la volvía a tumbar, porque el
+      # fallo estaba aquí y no en el código.
+      #
+      # Se leen de eas.json en vez de repetirlas para que no puedan divergir de
+      # las que usa el APK: si divergen, el teléfono habla con otro servidor.
+      - name: Variables de la app (las mismas que compila el APK)
+        run: |
+          node -e '
+            const perfil = "${{ inputs.canal }}";
+            const env = (require("./eas.json").build[perfil] || {}).env || {};
+            const req = ["EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_ANON_KEY"];
+            const falta = req.filter(k => !env[k]);
+            if (falta.length) {
+              console.error("Faltan en eas.json (perfil " + perfil + "): " + falta.join(", "));
+              console.error("Publicar sin ellas deja la app cerrandose sola al abrir. Se aborta.");
+              process.exit(1);
+            }
+            require("fs").appendFileSync(process.env.GITHUB_ENV,
+              Object.entries(env).map(([k, v]) => k + "=" + v).join("\n") + "\n");
+            console.log("Inyectadas: " + Object.keys(env).join(", "));
+          '
 
       # Si el bundle no compila, mejor fallar aquí que dejar a los teléfonos
       # descargando una actualización rota.

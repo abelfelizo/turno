@@ -24,8 +24,12 @@ export default function Welcome() {
       <TouchableOpacity style={s.btn} onPress={() => router.push('/(auth)/negocio-tipo')}>
         <Text style={s.btnT}>Tengo una barbería</Text>
       </TouchableOpacity>
+      {/* TRES PUERTAS, NI UNA MÁS: cliente, barbero y dueño. El barbero que
+          alquila un sillón en un local que NO usa Turno no es un cuarto tipo de
+          usuario — es un barbero, y dónde trabaja se le pregunta dentro de su
+          propio camino. Ver app/(auth)/barbero-donde.tsx. */}
       <TouchableOpacity style={s.btn2} onPress={() => router.push('/(auth)/barbero-tipo')}>
-        <Text style={s.btn2T}>Trabajo en una barbería</Text>
+        <Text style={s.btn2T}>Soy barbero</Text>
       </TouchableOpacity>
       <TouchableOpacity style={s.btn2} onPress={() => router.push('/(auth)/cliente-codigo')}>
         <Text style={s.btn2T}>Soy cliente</Text>

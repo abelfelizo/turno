@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router'
 import { Alert } from 'react-native'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador } from '../../lib/onboarding'
-import { unirseProfesional } from '../../lib/db'
+import { unirseProfesional, getDuenosNegocio, getNegocioById } from '../../lib/db'
+import { avisos } from '../../lib/notificaciones'
 
 export default function BarberoPerfil() {
   const router = useRouter()
@@ -11,25 +12,53 @@ export default function BarberoPerfil() {
   const [telefono, setTelefono] = useState('')
   const [cargando, setCargando] = useState(false)
 
+  /** Nunca bloquea el alta: si el aviso falla, el barbero ya está dentro. */
+  async function avisarAlDueno(negocioId?: string) {
+    if (!negocioId) return
+    try {
+      const neg = await getNegocioById(negocioId).catch(() => null)
+      for (const dueno of await getDuenosNegocio(negocioId)) {
+        avisos.duenoSolicitud(dueno, nombre.trim(), (neg as any)?.nombre ?? 'tu local')
+      }
+    } catch { /* silencioso a propósito */ }
+  }
+
   async function enviar() {
     if (!nombre.trim() || !telefono.trim()) { Alert.alert('Faltan datos', 'Completa nombre y teléfono.'); return }
     setCargando(true)
     try {
-      await unirseProfesional({
+      const perfil = await unirseProfesional({
         codigo: borrador.codigo ?? '',
         tipo_servicio: borrador.tipoServicio ?? 'barbero',
         rol: borrador.rol ?? 'empleado',
         nombre: nombre.trim(),
         telefono: telefono.trim(),
       })
-      router.replace('/(auth)/barbero-pendiente')
+      // CASI SIEMPRE HAY QUE ESPERAR, PERO NO SIEMPRE.
+      //
+      // Esto lo puso la migración 94, que dejaba entrar ACTIVO al que se unía a
+      // un local de asientos alquilados. La 110 le dio la vuelta —entrar lo
+      // firman los dos, alquile o no— así que ese caso ya no existe.
+      //
+      // El `if` se queda, y no por costumbre: si el local ya te había INVITADO,
+      // tu solicitud es el segundo sí y entras de una. Mandar a la sala de
+      // espera a quien acaba de entrar es el fallo que esta bifurcación evita,
+      // solo que ahora por el otro motivo.
+      if ((perfil as any)?.aprobado) {
+        router.replace('/')
+      } else {
+        // El dueño tenía que descubrir las solicitudes entrando al panel. Un
+        // barbero esperando aprobación es alguien que no puede trabajar.
+        avisarAlDueno((perfil as any)?.negocio_id)
+        router.replace('/(auth)/barbero-pendiente')
+      }
     } catch (e: any) {
       Alert.alert('No se pudo enviar', e.message ?? 'Verifica el código e intenta de nuevo.')
     } finally { setCargando(false) }
   }
 
   return (
-    <OnbScreen paso="Tu trabajo · 3 de 3" titulo="Tu perfil"
+    <OnbScreen paso="Tu trabajo · 4 de 4" titulo="Tu perfil"
       subtitulo="Así te verán el dueño y los clientes.">
       <Campo label="Tu nombre" placeholder="Tu nombre" value={nombre} onChangeText={setNombre} />
       <Campo label="Tu teléfono" placeholder="+1 809 000 0000" keyboardType="phone-pad" value={telefono} onChangeText={setTelefono} />
