@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **104** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **107** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -33,7 +33,9 @@ nada avise, y ya pasó dos veces.
   silla pagada es una silla (96), quién pagó no es asunto tuyo (97), **el casero no se
   nombra jefe** (98), el cupo se ve (99), las dos horas extra que el cron no veía (100) y
   **pertenecer no es poder mirar** (101), **la ficha del cliente no es del vecino** (102),
-  dos tablas de notas es una de más (103) y la lista vieja de clientes se va (104).
+  dos tablas de notas es una de más (103), la lista vieja de clientes se va (104),
+  **estar apuntado no es trabajar aquí** (105), no solo se corta el pelo (106) y
+  **al empleado el trabajo se lo dan** (107).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -84,8 +86,13 @@ nada avise, y ya pasó dos veces.
 
   · **`puertas` sube a 43 por los cinco casos «tabla» de la 101, no por la red.** La red
     entera sigue siendo **un** caso: las funciones nuevas se añaden a la llamada, no al
-    conteo. Con la 102 va por **54**: siete de la ficha del cliente y cuatro de la nota
-    privada del barbero.
+    conteo. Con la 102 fue a 54, con la 105 a 66 y con la 107 a **70**.
+
+  **Lo que falta correr tras la 107:** se re-corrieron `puertas` (70/70), `viaje` (17/17)
+  y `obstáculos` (32/32), que son las tres que tocaba el cambio. `motor_cola` no se
+  rompe porque su barbero tiene también membresía de dueño (y por tanto es autónomo);
+  `jornada`, `sin cita`, `modo` y `suscripción` llaman con el dueño o con el rentado.
+  Eso es un argumento, no una corrida: **quedan pendientes de re-correr enteras.**
 
   Y una corrección al propio HANDOFF: aquí se dijo que `confianza` usaba `set local role`.
   No lo usa —solo lo nombra un comentario—; impersona con `set_config` y prueba funciones
@@ -201,7 +208,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–104), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–107), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`
