@@ -84,6 +84,11 @@ begin
   -- ── EL DUEÑO LO APRUEBA ───────────────────────────────────────────────────
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
   update turno_perfiles set aprobado = true where id = p_bar;
+  -- Migración 107: el empleado es PASIVO por defecto — no se sirve de la fila ni
+  -- sienta walk-ins hasta que el local se lo permite. Aquí se le da el permiso
+  -- porque lo que esta suite prueba es el trabajo, no el permiso; que el portero
+  -- muerde se comprueba en su propio caso, más abajo / en `puertas`.
+  update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar;
   -- Jornada de 00:01 a 23:59 A PROPÓSITO. Desde la migración 72 la fila
   -- respeta el horario, y con un fixture de 08:00 a 21:00 esta suite fallaba
   -- sola al correrla de madrugada o de noche: contaba la hora, no la regla.

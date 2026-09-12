@@ -71,6 +71,11 @@ begin
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
   update turno_perfiles set aprobado = true where id = p_bar;
+  -- Migración 107: el empleado es PASIVO por defecto — no se sirve de la fila ni
+  -- sienta walk-ins hasta que el local se lo permite. Aquí se le da el permiso
+  -- porque lo que esta suite prueba es el trabajo, no el permiso; que el portero
+  -- muerde se comprueba en su propio caso, más abajo / en `puertas`.
+  update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar;
 
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)
   values (p_bar,'Corte',30,500,true) returning id into s_corte;

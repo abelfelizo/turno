@@ -381,6 +381,53 @@ begin
   q_libre := r.id;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  -- ── EL EMPLEADO PASIVO (migración 107) ────────────────────────────────────
+  -- `p_bar` es un empleado APROBADO y SIN el permiso, que es el caso que
+  -- importa: aprobado ya está, y aun así el trabajo se lo da la barbería.
+  -- Las tres puertas se prueban aquí porque cerrar dos de tres no es cerrar.
+  n:=n+1; c:='empleado · sin permiso NO se sirve de la fila';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  begin
+    perform turno_llamar_siguiente(v_neg, p_bar);
+    fallos:=fallos||E'\n  x '||c||' - se llamó al siguiente él solo';
+  exception when others then
+    if sqlerrm like '%te lo asigna la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='empleado · ni por el atajo de llamar a uno concreto';
+  begin
+    perform turno_llamar_a(q_cli);
+    fallos:=fallos||E'\n  x '||c||' - EL PERMISO NO VALE NADA: se sirvió llamando por id';
+  exception when others then
+    if sqlerrm like '%te lo asigna la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='empleado · ni mandando p_perfil = null';
+  begin
+    perform turno_llamar_siguiente(v_neg, null);
+    fallos:=fallos||E'\n  x '||c||' - se sirvió por el camino sin silla';
+  exception when others then
+    if sqlerrm like '%quien dirige la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='empleado · ni sienta un walk-in';
+  begin
+    perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'De Paso', '');
+    fallos:=fallos||E'\n  x '||c||' - se metió un walk-in él solo';
+  exception when others then
+    if sqlerrm like '%te los asigna la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  -- A partir de aquí la suite necesita que el barbero trabaje, así que el local
+  -- le da el permiso. Que el portero muerde ya está probado arriba.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+
   perform turno_llamar_a(q_cli);
   perform turno_iniciar_atencion(q_cli);
 
@@ -936,6 +983,8 @@ begin
     abiertas := abiertas || ' local_operativo'; exception when others then null; end;
   begin perform turno_trabajo_aqui(v_neg);
     abiertas := abiertas || ' trabajo_aqui'; exception when others then null; end;
+  begin perform turno_capta_por_su_cuenta(p_bar);
+    abiertas := abiertas || ' capta_por_su_cuenta'; exception when others then null; end;
   begin perform turno_perfil_acepta(p_bar, null);
     abiertas := abiertas || ' perfil_acepta'; exception when others then null; end;
   begin perform turno_perfil_operable(p_bar);
@@ -1041,7 +1090,7 @@ begin
       'turno_resumen_resenas','turno_sacar_de_cola','turno_salir_local',
       'turno_stats_periodo_negocio',
       'turno_local_operativo','turno_perfil_acepta','turno_perfil_operable',
-      'turno_silla_al_dia','turno_trabajo_aqui',
+      'turno_silla_al_dia','turno_trabajo_aqui','turno_capta_por_su_cuenta',
       'turno_stats_periodo_perfil','turno_suscripcion','turno_suscripcion_de',
       'turno_suscripcion_silla','turno_suspender_barbero',
       'turno_sustituir_ausente','turno_ya_llegue'
