@@ -422,6 +422,38 @@ begin
     else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
   end;
 
+  -- ── Y GESTIONAR LA FILA TAMPOCO ES SUYO (migración 109) ───────────────────
+  -- «No gestiona fila, solo puede gestionar al turno del momento.» Los cuatro
+  -- de arriba son las formas de DARSE trabajo; estos dos son las de repartirlo:
+  -- quitárselo a alguien que espera, y elegir quién ocupa el hueco del que no
+  -- apareció. Ninguno consume los turnos, porque los dos tienen que rebotar.
+  n:=n+1; c:='empleado · ni saca de la fila al que espera en su silla';
+  begin
+    perform turno_sacar_de_cola(q_cli);
+    fallos:=fallos||E'\n  x '||c||' - le costó un cliente al local y el local no se entera';
+  exception when others then
+    if sqlerrm like '%la reparte la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='empleado · ni al que espera sin barbero asignado';
+  begin
+    perform turno_sacar_de_cola(q_libre);
+    fallos:=fallos||E'\n  x '||c||' - echó de la fila a alguien que ni siquiera es suyo';
+  exception when others then
+    if sqlerrm like '%la reparte la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='empleado · ni elige quién entra en lugar del ausente';
+  begin
+    perform turno_sustituir_ausente(q_cli, q_libre);
+    fallos:=fallos||E'\n  x '||c||' - repartió el hueco él solo';
+  exception when others then
+    if sqlerrm like '%lo decide la barbería%' then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - rebotó por otra cosa: '||sqlerrm; end if;
+  end;
+
   -- A partir de aquí la suite necesita que el barbero trabaje, así que el local
   -- le da el permiso. Que el portero muerde ya está probado arriba.
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
@@ -464,6 +496,23 @@ begin
     perform turno_sacar_de_cola(q_libre);
     ok:=ok+1;
   exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+
+  -- La otra mitad de la 109, que es la que evita cerrar de más: al TURNO DEL
+  -- MOMENTO sí llega sin permiso ninguno. Si el que estaba llamado se cansó y
+  -- se fue, el barbero tiene que poder cerrarlo; si no, se le queda la silla
+  -- ocupada por alguien que no está y no puede seguir trabajando.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set acepta_por_su_cuenta = false where id = p_bar;
+  perform turno_llamar_a(q_cli);
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  n:=n+1; c:='empleado · pero SÍ cierra el turno del momento (se levantó y se fue)';
+  begin
+    perform turno_sacar_de_cola(q_cli);
+    ok:=ok+1;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||sqlerrm; end;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
 
   -- ── LO QUE TRAJERON LAS MIGRACIONES 81–83 ─────────────────────────────────
   -- El intruso registrado, que es el que importa: un desconocido sin fila en
@@ -1071,6 +1120,8 @@ begin
     abiertas := abiertas || ' trabajo_aqui'; exception when others then null; end;
   begin perform turno_capta_por_su_cuenta(p_bar);
     abiertas := abiertas || ' capta_por_su_cuenta'; exception when others then null; end;
+  begin perform turno_manda_en_la_fila(v_neg);
+    abiertas := abiertas || ' manda_en_la_fila'; exception when others then null; end;
   begin perform turno_perfil_acepta(p_bar, null);
     abiertas := abiertas || ' perfil_acepta'; exception when others then null; end;
   begin perform turno_perfil_operable(p_bar);
@@ -1169,7 +1220,7 @@ begin
       'turno_iniciar_atencion','turno_jornada_de','turno_jornada_normal',
       'turno_liberar_ahora','turno_limpiar_pasado','turno_llamar_a',
       'turno_llamar_siguiente','turno_manda_en_el_horario','turno_marcar_preferido',
-      'turno_manda_en_la_silla',
+      'turno_manda_en_la_silla','turno_manda_en_la_fila',
       'turno_mi_preferido','turno_mis_tarjetas','turno_mover_en_cola',
       'turno_negocio_por_codigo','turno_no_esta','turno_ocupar_ahora','turno_puesto',
       'turno_regla_tiempo','turno_resenas_de','turno_resumen_fila',
