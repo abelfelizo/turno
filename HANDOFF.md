@@ -185,6 +185,37 @@ Van aquí porque el que retome esto los va a volver a encontrar si no los conoce
    uuid de ceros y salió "cerrada" — rebotaba en `perfil inexistente` mucho antes de llegar
    al portero. **Un portero se prueba con la puerta que de verdad existe.**
 
+## Un fallo abierto: la barbería que cierra de madrugada
+
+Salió corriendo `modo_atencion` a la 01:18 de RD, y **no es cosa de las pruebas**.
+Reproducido aparte, con un horario que cualquiera pondría un viernes:
+
+```
+horario 21:00 → 03:00 · hora de RD: 01:18
+turno_fila_abierta  →  "ahora está cerrado: su fila abre de 21:00 a 03:00"
+turno_entrar_a_cola →  rebota con ese mismo mensaje
+```
+
+El mensaje **se contradice a sí mismo**: le enseña al cliente un horario que incluye
+la hora que es. La causa es una línea: se pregunta `ahora between apertura y cierre`,
+y eso es falso en cuanto la ventana cruza la medianoche (apertura 21:00 > cierre 03:00).
+
+Arreglarlo de verdad es más que un `case`, y por eso no se hizo de paso:
+
+- la comparación aparece en varios sitios (`turno_fila_abierta`, `turno_entrar_a_cola`,
+  `turno_cerrar_olvidados`…) y **la regla que solo se arregla en un sitio no es una
+  regla**: hay que enumerarlos, como enseñó la 102;
+- `turno_slots_disponibles` tendría además que generar huecos que cruzan de día, y ahí
+  "la agenda de hoy" deja de ser obvio: un hueco de las 01:00 ¿es de hoy o de ayer?;
+- y antes de todo eso hay una decisión de producto: **¿este producto soporta turnos de
+  madrugada?** Si la respuesta es que no, lo correcto no es el `case`, es **impedir que
+  se guarde un horario con cierre anterior a la apertura** y decirlo al guardarlo, en
+  vez de aceptarlo y luego comportarse como si el local estuviera cerrado.
+
+Mientras tanto, lo único que se tocó es el montaje de `modo_atencion`, que se construía
+solo una ventana envuelta («ahora ± 2 h») y por eso daba siete rojos falsos de noche.
+Ahora se clava dentro del día. **El fallo de arriba sigue ahí.**
+
 ## Qué sigue, en orden
 
 ### 🔴 Sin esto no hay piloto de verdad

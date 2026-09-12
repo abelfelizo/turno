@@ -51,8 +51,22 @@ begin
   -- corriendo esta suite a las siete de la mañana habría fallado sola. Es el
   -- mismo error que ya salió en horarios — una prueba que enseña la hora en vez
   -- de la regla — y se arregla igual: anclando el fixture a `now`.
-  v_ini := greatest(time '00:00', (v_ahora - interval '2 hour')::time);
-  v_fin := least(time '23:59',   (v_ahora + interval '2 hour')::time);
+  -- LA VENTANA NO PUEDE CRUZAR LA MEDIANOCHE.
+  --
+  -- Antes esto era «ahora ± 2 h» a secas, y corriendo a la 01:18 de RD daba
+  -- 23:18 → 03:18: una ventana envuelta, con apertura MAYOR que cierre. Siete
+  -- casos se pusieron rojos de golpe y ninguno era un fallo del producto: el
+  -- montaje se había construido un horario que el motor no sabe leer.
+  --
+  -- Se clava dentro del mismo día. Lo que la corrida destapó de verdad —que una
+  -- barbería abierta de 21:00 a 03:00 tiene la fila CERRADA a la 01:00, y el
+  -- mensaje le enseña al cliente un horario que incluye la hora actual— es un
+  -- fallo aparte, y no se tapa aquí: se arregla en el motor cuando se decida si
+  -- este producto soporta turnos de madrugada.
+  v_ini := case when v_ahora::time < time '02:00' then time '00:00'
+                else (v_ahora - interval '2 hour')::time end;
+  v_fin := case when v_ahora::time > time '21:59' then time '23:59'
+                else (v_ahora + interval '2 hour')::time end;
 
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
   values (a_bar,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','mb_'||v_cod||'@t.test','',now(),now()),
