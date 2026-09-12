@@ -2,7 +2,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero, getNegocioById } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero, getNegocioById, permitirCaptarSolo } from '../../../lib/db'
 import { getSesion } from '../../../lib/storage'
 import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
@@ -50,6 +50,7 @@ export default function BarberoDelLocal() {
   // lista del panel, donde el botón rojo estaba a un toque de distancia.
   const [perfilRow, setPerfilRow] = useState<any>(null)
   const [suspBusy, setSuspBusy] = useState(false)
+  const [captaBusy, setCaptaBusy] = useState(false)
   const [verResenas, setVerResenas] = useState(false)
   // La modalidad del LOCAL, que desde la migración 98 decide si aquí se puede
   // nombrar empleado a alguien. Donde alquilas asientos no hay suscripción del
@@ -182,6 +183,50 @@ export default function BarberoDelLocal() {
       ])
   }
 
+  /**
+   * CEDERLE —O QUITARLE— EL PODER DE DARSE TRABAJO (migración 107).
+   *
+   * «Solo acepta clientes por su cuenta si le dan permiso.» Por defecto el
+   * empleado recibe lo que el local le manda: no llama al siguiente de la fila
+   * ni sienta a quien entra por la puerta. Hay locales donde eso es justo al
+   * revés —el dueño no está en el salón— y por eso el permiso existe.
+   *
+   * No se ofrece al AUTÓNOMO: quien paga su asiento manda en su silla sin que
+   * nadie se lo conceda, y enseñarle un interruptor al dueño le haría creer que
+   * puede apagarle el negocio a su inquilino. El servidor ya lo tiene decidido
+   * en `turno_capta_por_su_cuenta`, que para él contesta que sí siempre.
+   *
+   * El push no es un adorno: el barbero ve el permiso al recargar la pantalla,
+   * y sin aviso se pasa la mañana sin saber que ya puede llamar.
+   */
+  function cambiarCaptacion() {
+    const dar = !perfilRow?.acepta_por_su_cuenta
+    Alert.alert(
+      dar ? 'Dejar que se sirva de la fila' : 'Quitarle ese permiso',
+      dar
+        ? `${nombre || 'Este barbero'} podrá llamar al siguiente de la fila y sentar a quien llegue sin cita, sin esperar a que se lo asignes. El orden de la fila no cambia: sigue siendo el que ve el cliente.`
+        : `${nombre || 'Este barbero'} vuelve a recibir solo lo que le asignen: atiende al cliente que tenga delante, pero no llama al siguiente ni sienta a nadie por su cuenta.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: dar ? 'Darle el permiso' : 'Quitárselo', onPress: async () => {
+          setCaptaBusy(true)
+          try {
+            await permitirCaptarSolo(perfil, dar)
+            if (perfilRow?.usuario_id) {
+              enviarPush(perfilRow.usuario_id,
+                dar ? 'Ya puedes llamar tú' : 'El local reparte el trabajo',
+                dar
+                  ? 'Puedes llamar al siguiente de la fila y atender a quien llegue sin cita.'
+                  : 'A partir de ahora te llega el trabajo asignado: atiende al que tengas delante.',
+                { tipo: 'agenda' })
+            }
+            await cargar()
+          } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setCaptaBusy(false) }
+        } },
+      ])
+  }
+
   function desvincular() {
     Alert.alert('Desvincular del local',
       `¿Sacar a ${nombre || 'este barbero'} del local? Se cancelan sus citas futuras y sale de la fila. Su historial y su clientela lo acompañan a donde vaya.`,
@@ -299,6 +344,29 @@ export default function BarberoDelLocal() {
           siempre se quiere —dos días, una semana— y desvincular es la que no
           tiene vuelta. Cada una dice lo que hace ANTES de tocarla. */}
       <Text style={[s.sec, { marginTop: 26 }]}>SU SITIO EN EL LOCAL</Text>
+
+      {/* QUIÉN LE DA EL TRABAJO (migración 107).
+          Solo para el empleado: el autónomo manda en su silla y aquí no hay
+          nada que conceder. Va antes que suspender porque es la decisión del
+          día a día; las otras dos son las de "esta persona se va". */}
+      {!autonomo && (
+        <TouchableOpacity style={[s.accionFila, perfilRow?.acepta_por_su_cuenta && s.accionFilaOn]}
+          onPress={cambiarCaptacion} disabled={captaBusy}>
+          <Ionicons name={perfilRow?.acepta_por_su_cuenta ? 'megaphone' : 'megaphone-outline'} size={20}
+            color={perfilRow?.acepta_por_su_cuenta ? COLORS.success : COLORS.ink} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.accionFilaT}>
+              {perfilRow?.acepta_por_su_cuenta ? 'Se sirve de la fila él mismo' : 'Le asignas tú el trabajo'}
+            </Text>
+            <Text style={s.accionFilaD}>
+              {perfilRow?.acepta_por_su_cuenta
+                ? 'Puede llamar al siguiente y atender a quien llegue sin cita. Toca para quitárselo.'
+                : 'Atiende al cliente que tenga delante, pero no llama ni sienta a nadie por su cuenta. Toca para dejarle.'}
+            </Text>
+          </View>
+          {captaBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={[s.accionFila, perfilRow?.suspendido && s.accionFilaOn]} onPress={cambiarSuspension} disabled={suspBusy}>
         <Ionicons name={perfilRow?.suspendido ? 'play-circle-outline' : 'pause-circle-outline'} size={20}

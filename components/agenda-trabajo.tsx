@@ -7,7 +7,7 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
-  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios,
+  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios, captaPorSuCuenta,
   alargarJornada, adelantarJornada, jornadaNormal, cerrarJornada, getJornadaDe, actualizarBloqueo,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
@@ -115,6 +115,14 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const router = useRouter()
   const [verTodos, setVerTodos] = useState(false)
   const [estado, setEstado] = useState<any>(null)
+  /**
+   * ¿PUEDE SERVIRSE SOLO DE LA FILA? (migraciones 107 y 108)
+   *
+   * Lo contesta el servidor. Arranca en `true` para que el barbero autónomo
+   * —que es la mayoría de quien abre esta pantalla— no vea parpadear sus
+   * botones mientras carga; la respuesta llega en el mismo `cargar()`.
+   */
+  const [captaSolo, setCaptaSolo] = useState(true)
   const [jornada, setJornada] = useState<{ hora_inicio: string; hora_fin: string } | null>(null)
   const esHoy = fecha === hoy
 
@@ -139,7 +147,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl, est, sc, jo] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -152,10 +160,14 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       // A qué hora abre y cierra hoy. Sin esto la pantalla no sabe por QUÉ
       // punta está cerrada la fila y llamaba "seguir abierto" a las 6 am.
       getJornadaDe(ss.perfil_id, fecha).catch(() => null),
+      // Solo aquí y no en cargarVivo: esto no cambia porque entre alguien a la
+      // fila, lo cambia el dueño desde su panel. Cuando lo hace le llega un
+      // push, y abrir la app recarga entera.
+      captaPorSuCuenta(ss.perfil_id),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
-    setSinCerrar(sc as any[]); setJornada(jo as any)
+    setSinCerrar(sc as any[]); setJornada(jo as any); setCaptaSolo(capta as boolean)
     setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
@@ -643,7 +655,15 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     if (llamado) {
       return { texto: `Sentar a ${llamado.turno_usuarios?.nombre ?? 'el cliente'}`, icono: 'cut-outline', onPress: () => empezarCorte(llamado) }
     }
-    if (enFila.length > 0) {
+    // EL EMPLEADO SIN PERMISO NO GESTIONA LA FILA, SOLO EL TURNO DEL MOMENTO.
+    //
+    // Las dos de arriba —sentar al que ya fue llamado, terminar con el que
+    // tiene delante— siguen siendo suyas: eso ES el turno del momento, y el
+    // servidor se las deja. Lo que no es suyo es DE DÓNDE sale el siguiente:
+    // llamar a alguien de la fila y sentar a un walk-in son las dos formas de
+    // darse trabajo a uno mismo, y las dos las rechaza el servidor desde la
+    // 107. Ofrecerlas igual convierte una regla de producto en un error.
+    if (enFila.length > 0 && captaSolo) {
       return { texto: `Llamar a ${enFila[0].turno_usuarios?.nombre ?? 'el siguiente'}`, icono: 'megaphone-outline', onPress: llamar }
     }
     // LA CITA DE AHORA. Va después de la fila —quien está esperando de pie
@@ -662,6 +682,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     // Ofrecer "atender sin cita" encima invita a empezar un segundo corte
     // encima del que estás haciendo.
     if (ocupado) return null
+    if (!captaSolo) return null
     return { texto: 'Atender cliente sin cita', icono: 'cut-outline', onPress: () => setHoja({ tipo: 'servicios', modo: 'ocupar' }) }
   })()
 
@@ -807,6 +828,23 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               <Ionicons name={accion.icono as any} size={18} color={COLORS.ink} />
               <Text style={s.accionPralT}>{accion.texto}</Text>
             </TouchableOpacity>
+          )}
+
+          {/* Y SI NO HAY BOTÓN, POR QUÉ NO LO HAY.
+              Quitar los botones que el servidor rechaza no basta: una pantalla
+              que se queda callada parece rota, y el empleado con tres personas
+              esperando delante va a pensar que la app no cargó. Dice la regla
+              con las mismas palabras que usa el servidor al rebotar, para que
+              lo que lee aquí y lo que oiría allí sean la misma frase. */}
+          {esHoy && !captaSolo && !accion && sillaLibre && (
+            <View style={s.pasivo}>
+              <Ionicons name="hand-left-outline" size={15} color="rgba(0,0,0,0.7)" />
+              <Text style={s.pasivoT}>
+                {enFila.length > 0
+                  ? `${enFila.length === 1 ? 'Hay alguien esperando' : `Hay ${enFila.length} esperando`}, pero el trabajo te lo asigna la barbería. Te avisamos en cuanto te toque un cliente.`
+                  : 'El trabajo te lo asigna la barbería: te avisamos en cuanto te toque un cliente.'}
+              </Text>
+            </View>
           )}
 
           {/* LA CITA DE AHORA, con sus dos salidas a un toque.
@@ -1125,7 +1163,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {/* Solo si el cuadro de arriba NO está ya ofreciendo esto: con gente en la
           fila la acción principal es "Llamar a…", y entonces sigue haciendo
           falta poder atender a alguien que llega caminando. */}
-      {esHoy && sillaLibre && accion?.texto !== 'Atender cliente sin cita' && (
+      {esHoy && sillaLibre && captaSolo && accion?.texto !== 'Atender cliente sin cita' && (
         <TouchableOpacity style={s.walkin} onPress={() => setHoja({ tipo: 'servicios', modo: 'ocupar' })}>
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
@@ -1582,6 +1620,12 @@ const s = StyleSheet.create({
   accionPral: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingVertical: 14, marginTop: 12 },
   accionPralT: { color: COLORS.ink, fontSize: 15.5, fontWeight: '800' },
+  // Va DENTRO del panel, que tiene fondo de color según el estado: los mismos
+  // blancos y negros translúcidos de `cerrado`, no los tokens de la app, que
+  // sobre verde o azul no se leen.
+  pasivo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
+  pasivoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(0,0,0,0.75)', lineHeight: 17 },
   // LA LISTA DE LOS QUE SIGUEN, LEGIBLE.
   //
   // Reportado desde el teléfono tres veces seguidas: «el barbero no puede ver

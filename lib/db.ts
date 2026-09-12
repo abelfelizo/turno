@@ -86,6 +86,24 @@ export async function suspenderBarbero(perfil_id: string, suspender: boolean, mo
   if (error) throw error
 }
 
+/**
+ * EL PERMISO DE CAPTAR POR SU CUENTA (migración 107).
+ *
+ * «Solo acepta clientes por su cuenta si le dan permiso.» El empleado recibe lo
+ * que la barbería le manda; llamar al siguiente de la fila y sentar a un walk-in
+ * son decisiones del local, no suyas, salvo que el local se las ceda.
+ *
+ * Lo decide la barbería y SOLO la barbería: el trigger de la 108 rebota este
+ * mismo update si lo intenta la silla. Aquí se escribe por la tabla a propósito
+ * —no hay RPC— porque la RLS ya dice quién puede tocar esta fila y el trigger
+ * ya dice qué columnas; una función encima no añadiría ninguna regla.
+ */
+export async function permitirCaptarSolo(perfil_id: string, permitir: boolean) {
+  const { error } = await supabase.from(T('perfiles'))
+    .update({ acepta_por_su_cuenta: permitir }).eq('id', perfil_id)
+  if (error) throw error
+}
+
 export async function rechazarPerfil(perfil_id: string) {
   const { error } = await supabase.from(T('perfiles')).update({ activo: false }).eq('id', perfil_id)
   if (error) throw error
@@ -686,6 +704,29 @@ export async function borrarBloqueo(id: string) {
 export async function actualizarBloqueo(id: string, patch: { hora_inicio?: string; hora_fin?: string; motivo?: string }) {
   const { error } = await supabase.from(T('bloqueos')).update(patch).eq('id', id)
   if (error) throw error
+}
+
+/**
+ * ¿PUEDE ESTA SILLA SERVIRSE SOLA DE LA FILA?
+ *
+ * La respuesta la da el SERVIDOR, con la misma función que luego abre o cierra
+ * la puerta (`turno_capta_por_su_cuenta`, migración 107). No se deduce del rol
+ * en la pantalla: quien manda en el horario capta siempre, y el empleado solo
+ * si el local le dio el permiso — dos reglas que la pantalla tendría que
+ * reconstruir y que ya estaban escritas una vez.
+ *
+ * Es el mismo criterio que `turno_filas_abiertas` en getPerfilesNegocio: que la
+ * pantalla no ofrezca lo que el servidor va a rechazar. Sin esto el empleado
+ * veía "Llamar a…" y "Atender cliente sin cita", los tocaba, y le salía un
+ * error — que es peor que no ofrecerlos, porque parece una avería.
+ *
+ * Si la llamada falla se devuelve `false`: ante la duda, no ofrecer. Enseñar un
+ * botón que rebota es el fallo que esto viene a cerrar.
+ */
+export async function captaPorSuCuenta(perfil_id: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('turno_capta_por_su_cuenta', { p_perfil: perfil_id })
+  if (error) return false
+  return data === true
 }
 
 /**
