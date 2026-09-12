@@ -825,6 +825,92 @@ begin
   if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS ('||v_int||')'; end if;
 
+  -- ── LA FILA DEL PERFIL: LO QUE SE ESCRIBE UNO MISMO (migración 108) ───────
+  -- La 107 puso porteros en tres funciones y no miró la tabla. Por ahí el
+  -- empleado se encendía el permiso —y, mucho peor y desde mucho antes, se
+  -- APROBABA SOLO, que es la puerta entera de la 94, y se LEVANTABA LA
+  -- SUSPENSIÓN, que es la 92—. Todo con un `update` de una línea.
+  --
+  -- El intruso vuelve a ser el de dentro: un empleado aprobado de este local.
+  n:=n+1; c:='fila · el empleado NO se aprueba solo (la puerta entera de la 94)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set aprobado = false where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set aprobado = true where id = p_bar; v_int := 1;
+  exception when others then v_int := 0; v_txt := sqlerrm; end;
+  reset role;
+  if v_int = 0 and v_txt like '%lo decide la barbería%' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - se metió en el equipo él solo, con el código del local'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set aprobado = true where id = p_bar;
+
+  n:=n+1; c:='fila · ni se da el permiso de captar clientes (la 107 por la tabla)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set acepta_por_su_cuenta = false where id = p_bar;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar; v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - el permiso de la 107 no vale nada'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set acepta_por_su_cuenta = true where id = p_bar;
+
+  n:=n+1; c:='fila · ni se levanta una suspensión que le puso el local';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  perform turno_suspender_barbero(p_bar, true, 'suspendido de verdad');
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set suspendido = false, suspendido_motivo = null where id = p_bar;
+    v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 and (select suspendido from turno_perfiles where id = p_bar) then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - deshizo la suspensión con un update'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  perform turno_suspender_barbero(p_bar, false, null);
+
+  n:=n+1; c:='fila · ni se pone sus reglas de tiempo (la función ya se lo negaba)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set anticipacion_minima_horas = 1, limite_cola = 99 where id = p_bar;
+    v_int := 1;
+  exception when others then v_int := 0; v_txt := sqlerrm; end;
+  reset role;
+  if v_int = 0 and v_txt like '%las pone la barbería%' then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - entró por la tabla lo que la función le negaba'; end if;
+
+  -- LA OTRA MITAD: cerrar de más aquí le quita al barbero su propio perfil.
+  n:=n+1; c:='fila · pero SÍ sigue editando su bio, su foto y su Instagram';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set bio = 'Corto desde 2010', instagram = '@yo' where id = p_bar;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; v_txt := sqlerrm; end;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: '||coalesce(v_txt,'0 filas'); end if;
+
+  n:=n+1; c:='fila · y SÍ puede irse a descanso, que es cosa suya';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_perfiles set estado_actual = 'descanso' where id = p_bar;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; v_txt := sqlerrm; end;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS: el barbero no puede ni descansar'; end if;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  update turno_perfiles set estado_actual = 'disponible' where id = p_bar;
+
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
   perform set_config('request.jwt.claims', null, true);
