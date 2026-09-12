@@ -73,7 +73,10 @@ begin
   select id into u_bar2 from turno_usuarios where auth_id = a_bar2;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
-  update turno_perfiles set aprobado = true where id in (p_bar, p_bar2);
+  -- Los dos síes de la 110: aprobar es una FUNCIÓN, no un update. El CHECK de
+  -- turno_perfiles rechaza dejar `aprobado` a true con una firma pendiente.
+  perform turno_responder_solicitud(p_bar,  true);
+  perform turno_responder_solicitud(p_bar2, true);
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)
   values (p_bar ,'Corte',30,500,true) returning id into s_corte;
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)

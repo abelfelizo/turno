@@ -287,17 +287,21 @@ export default function Config() {
     if (!usuario || !perfil) return
     setLcBusy(true)
     try {
-      // La RPC devuelve el perfil ya creado, y desde la migración 94 `aprobado`
-      // dice si hace falta esperar a alguien: en un local de asientos alquilados
-      // entras activo —te agregas tú— y en uno de empleados entras pendiente.
-      // Decirlo siempre igual mandaba a esperar a quien ya podía trabajar.
+      // La RPC devuelve el perfil ya creado, y `aprobado` dice si todavía falta
+      // la firma de alguien. Desde la migración 110 entrar a un local lo firman
+      // los DOS, en los dos tipos de local: ya no hay ninguno en el que baste
+      // con tener el código.
+      //
+      // Que siga siendo un `if` y no un texto fijo no es de adorno: si ese local
+      // ya te había INVITADO, tu solicitud es el segundo sí y entras de una.
+      // Mandar a esperar a quien ya está dentro es el fallo que este if evita.
       const nuevo: any = await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
       setLocalModal(false); setLcCodigo('')
       Alert.alert(
         nuevo?.aprobado ? 'Ya estás dentro' : 'Solicitud enviada',
         nuevo?.aprobado
-          ? 'Ese local alquila asientos, así que entras directo. Lo tienes en "Mis locales" y mandas tú en tus precios y tus horarios.'
-          : 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
+          ? 'Ese local ya te había invitado, así que con tu solicitud quedas dentro. Lo tienes en "Mis locales".'
+          : 'El dueño del local debe aceptarte. Aparecerá en "Mis locales" cuando lo haga.')
       cargar()
     } catch (e: any) { Alert.alert('No se pudo enviar', e.message ?? 'Revisa el código.') }
     finally { setLcBusy(false) }

@@ -57,11 +57,13 @@ export default function BarberoCodigo() {
           <View style={s.modalidad}>
             <Ionicons name={renta ? 'person' : 'business'} size={16} color={COLORS.textMid} />
             <Text style={s.modalidadT}>
-              {/* Y CUÁNDO EMPIEZAS, que desde la migración 94 va con la
-                  modalidad: si alquila asientos no hay nada que aprobar —el
-                  dueño agrupa, no dirige— y si tiene empleados, él te mete. */}
+              {/* QUÉ CAMBIA SEGÚN LA MODALIDAD: quién pone las reglas y quién
+                  paga. Lo que YA NO cambia es si hay que esperar a alguien —la
+                  migración 110 lo igualó— porque entrar a un local lo firman
+                  los dos, alquile asientos o tenga empleados. Este texto decía
+                  «entras directo, sin esperar aprobación» y era la 94. */}
               {renta
-                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. Entras directo, sin esperar aprobación.'
+                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. El dueño tiene que aceptarte, pero no te dirige.'
                 : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
             </Text>
           </View>

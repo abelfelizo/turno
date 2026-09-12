@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-12** · migración **109** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **110** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -95,13 +95,23 @@ Tres tipos de usuario, y todo lo demás se deriva de la **modalidad del local**:
 |---|---|---|---|---|
 | ¿Paga? | **Nunca** | Se paga por él **siempre** | **No**: solo agrupa | **Sí**, cubre a los suyos |
 | ¿Controla la silla de otro? | — | No | **No** | **Sí** |
-| ¿Cómo entra un barbero? | — | — | **Se agrega él** con el código, activo al momento | **Solo el dueño**: entra pendiente y él lo aprueba |
+| ¿Cómo entra un barbero? | — | — | **Lo firman los dos** (110) | **Lo firman los dos** (110) |
 | ¿Qué le queda al dueño? | — | — | Suspender (quitar de la fila y la fachada) y desvincular | Todo lo de un patrón |
 | ¿Y si no se paga? | Ve el local, no la fila | No aparece ni recibe cola | Su silla se apaga; el local no cuesta nada | Se apagan **todas** las sillas |
 
-La coherencia es la que importa: **quien no dirige, tampoco autoriza ni cobra.** Las
-migraciones 92 (mando), 93 (pago), 94 (puerta de entrada) y 98 (la modalidad de una persona)
-son la misma regla aplicada a cuatro cosas distintas.
+La coherencia es la que importa: **quien no dirige, tampoco cobra.** Las migraciones 92
+(mando), 93 (pago) y 98 (la modalidad de una persona) son la misma regla aplicada a tres
+cosas distintas.
+
+> **Pero autorizar la entrada NO va con el mando** (migración 110, que corrige la 94). La 94
+> estiró la frase una casilla de más —«quien no dirige, tampoco autoriza»— y por eso en
+> asientos alquilados el barbero entraba activo, agregándose él solo. **Decidir quién entra
+> en tu casa no es dirigir a nadie.** Ahora, en los DOS tipos de local, entrar lo firman los
+> dos: el barbero pide con el código del local o el local invita con el código del barbero,
+> y falta siempre el sí del otro. Lo dice la columna `turno_perfiles.pendiente_de`
+> (`'local'` / `'barbero'` / NULL), y `aprobado` conserva intacto su significado de siempre
+> —«esta silla está viva aquí»— justamente para no tener que reeducar a las veintitrés
+> funciones que lo leen.
 
 > **Control y pago viajan juntos** (migración 98). En un local de asientos alquilados el
 > dueño NO puede nombrar empleado a nadie. Parecía un detalle de menú y era la puerta que
@@ -148,17 +158,10 @@ en quince sitios se corrige en catorce.
 - **La modalidad del LOCAL manda, no la persona** (`turno_negocios.tipo`): `empleados` → la
   barbería pone servicios, precios y horarios; `espacios_rentados` → cada barbero paga su
   asiento y pone sus reglas. El rol se **deriva** del tipo del local al entrar con el
-  código, y desde la migración 94 la **aprobación también**: en asientos alquilados el
-  barbero entra ACTIVO —se agrega él— y con empleados entra pendiente.
-
-  > ⚠️ **Esa mitad ya está corregida por el dueño del producto y todavía no construida:**
-  > «barbero y barbería se pueden agregar mutuamente, pero requiere aprobación del otro».
-  > O sea que en asientos alquilados el barbero NO debería entrar activo, y además falta
-  > la dirección que hoy no existe: que el local invite al barbero. Cuando se haga, hay
-  > que **darle la vuelta** al caso verde de `autonomia` que dice *«alta · en ASIENTOS
-  > ALQUILADOS entra activo, se agrega él»*: está verde y está obsoleto. Una prueba en
-  > verde solo garantiza que el código hace lo que la prueba dice, no que la prueba siga
-  > diciendo lo que el producto quiere.
+  código. **La aprobación ya no**: desde la migración 110 entrar lo firman los dos en los
+  dos tipos de local (ver el recuadro en «El esquema, en una tabla»). La 94 —que dejaba
+  entrar activo al de asientos alquilados— quedó revertida, y con ella el caso de
+  `autonomia` que la guardaba, que estuvo **verde y obsoleto** veinte migraciones.
 
   Los **bloqueos**
   (almuerzo, un rato fuera) son del barbero siempre: solo quitan disponibilidad, nunca la
@@ -216,7 +219,7 @@ en quince sitios se corrige en catorce.
 
 ## Backend
 
-**109 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**110 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -224,7 +227,7 @@ limpieza nocturna.
 entero en la migración 73 por no tenerlo en cuenta (arreglado en la 75), así que cualquier
 trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 
-### Pruebas de base — `supabase/tests/` (12 suites, `npm run test:db`)
+### Pruebas de base — `supabase/tests/` (13 suites, `npm run test:db`)
 
 | Suite | Qué mira |
 |---|---|
@@ -311,18 +314,14 @@ o se corre más temprano o se asume que ese caso no se probó hoy.
 
 ### 🟡 De las reglas que mandó el dueño del producto, lo que queda por construir
 El resumen suyo: **«un tipo de cliente, 3 tipos de cola, dos tipos de barbero o servicio,
-dos tipos de administración.»** Lo del empleado está hecho (107–109 + pantallas). Falta:
+dos tipos de administración.»** Hecho: lo del empleado (107–109 + pantallas) y la
+**aprobación mutua** (110 + pantallas). Falta:
 
-6. **Aprobación mutua barbero ↔ barbería.** Hoy solo existe una dirección —el barbero entra
-   con el código— y en asientos alquilados entra sin que nadie lo apruebe. Hace falta la
-   dirección contraria (que el local invite) y que las dos pidan el sí del otro. Da la
-   vuelta a la 94 y obliga a invertir un caso verde de `autonomia`.
-7. **El perfil público del barbero**, para que el cliente elija por algo más que el nombre.
-8. **La barbería que renta no puede ver dinero, solo visitas** — comprobado 6/6 contra la
+6. **El perfil público del barbero**, para que el cliente elija por algo más que el nombre.
+7. **La barbería que renta no puede ver dinero, solo visitas** — comprobado 6/6 contra la
    base: ya está bien. Se deja escrito para que nadie lo "arregle" otra vez.
-9. **Horario base del local**, del que el barbero puede salirse (él manda en el suyo).
-10. **Unirse por código desde dentro de la app**, reparto por disponibilidad y
-    proporcionalidad, y que la moneda pase a ser de la silla.
+8. **Horario base del local**, del que el barbero puede salirse (él manda en el suyo).
+9. **Reparto por disponibilidad y proporcionalidad**, y que la moneda pase a ser de la silla.
 
 ### ❓ Dos preguntas suyas sin responder, que bloquean lo de arriba
 - **«Administrador de barbería»** en el onboarding: ¿es el dueño con otro nombre, o alguien

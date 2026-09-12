@@ -34,13 +34,16 @@ export default function BarberoPerfil() {
         nombre: nombre.trim(),
         telefono: telefono.trim(),
       })
-      // DESDE LA MIGRACIÓN 94 NO SIEMPRE HAY QUE ESPERAR A NADIE.
+      // CASI SIEMPRE HAY QUE ESPERAR, PERO NO SIEMPRE.
       //
-      // En un local de asientos alquilados el barbero entra ACTIVO: se agrega
-      // él, y quien no lo dirige tampoco lo autoriza. Mandarlo igualmente a la
-      // pantalla de "el dueño debe aprobarte" lo dejaba plantado esperando un
-      // permiso que ya no existe — y el dueño, recibiendo un aviso de una
-      // solicitud que no tiene que resolver.
+      // Esto lo puso la migración 94, que dejaba entrar ACTIVO al que se unía a
+      // un local de asientos alquilados. La 110 le dio la vuelta —entrar lo
+      // firman los dos, alquile o no— así que ese caso ya no existe.
+      //
+      // El `if` se queda, y no por costumbre: si el local ya te había INVITADO,
+      // tu solicitud es el segundo sí y entras de una. Mandar a la sala de
+      // espera a quien acaba de entrar es el fallo que esta bifurcación evita,
+      // solo que ahora por el otro motivo.
       if ((perfil as any)?.aprobado) {
         router.replace('/')
       } else {

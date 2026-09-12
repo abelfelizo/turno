@@ -30,6 +30,7 @@ declare
   p_due uuid; p_emp uuid; p_ren uuid;
   a_new uuid := gen_random_uuid(); u_new uuid; v_neg2 uuid; v_cod2 text; p_new2 uuid; s_ren uuid;
   n int := 0; ok int := 0; fallos text := ''; c text; v_int int; v_rol text; v_bool boolean;
+  v_txt text;
 begin
   -- ── FIXTURES · un local con dueño-que-atiende, un empleado y un rentado ────
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -171,17 +172,29 @@ begin
   exception when others then fallos := fallos || E'\n  x '||c||' - excepcion: '||sqlerrm;
   end;
 
-  -- ── QUIÉN DEJA ENTRAR A QUIÉN (migración 94) ──────────────────────────────
-  -- La aprobación va con el mismo interruptor que el rol y que el mando: quien
-  -- no dirige, tampoco autoriza. Tener al que paga renta esperando el permiso
-  -- del casero era la última pieza de «te dirijo» que quedaba en pie después de
-  -- la 92.
-  n:=n+1; c:='alta · en ASIENTOS ALQUILADOS entra activo, se agrega él';
-  select aprobado into v_bool from turno_perfiles
+  -- ── QUIÉN DEJA ENTRAR A QUIÉN (migración 94, CORREGIDA POR LA 110) ────────
+  -- Este caso estuvo VERDE y OBSOLETO. La 94 razonaba que la aprobación va con
+  -- el mismo interruptor que el mando —«quien no dirige, tampoco autoriza»— y
+  -- por eso en asientos alquilados el barbero entraba activo, agregándose él
+  -- solo. El dueño del producto lo corrigió: «barbero y barbería se pueden
+  -- agregar mutuamente, pero requiere aprobación del otro».
+  --
+  -- Y tenía razón, porque el razonamiento de la 94 confundía dos cosas:
+  -- **decidir quién entra en tu casa no es dirigir a nadie**. El casero sigue
+  -- sin poner precios, horarios ni reglas (92) y sin ver un peso de lo que
+  -- factura su inquilino (97). Pero el código del local se comparte por
+  -- WhatsApp, y con la 94 eso bastaba para aparecer en su escaparate.
+  --
+  -- Se deja escrito porque es la lección que no se ve en un CI verde: **una
+  -- prueba en verde solo garantiza que el código hace lo que la prueba dice, no
+  -- que la prueba siga diciendo lo que el producto quiere.**
+  n:=n+1; c:='alta · en ASIENTOS ALQUILADOS tampoco entra solo: falta el sí del local';
+  select aprobado, pendiente_de into v_bool, v_txt from turno_perfiles
    where usuario_id = u_new and negocio_id = v_neg2;
-  if v_bool then ok:=ok+1;
-  else fallos := fallos || E'\n  x '||c
-       ||' - se quedó esperando permiso de quien no lo dirige'; end if;
+  if v_bool = false and v_txt = 'local' then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - aprobado='||coalesce(v_bool::text,'NULL')
+       ||', pendiente_de='||coalesce(v_txt,'NULL')
+       ||': con el código del local, que va por WhatsApp, cualquiera entra al escaparate'; end if;
 
   n:=n+1; c:='alta · en EMPLEADOS entra pendiente: solo el dueño lo mete';
   select aprobado into v_bool from turno_perfiles

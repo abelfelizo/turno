@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-12** · migración **109** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **110** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -36,7 +36,8 @@ nada avise, y ya pasó dos veces.
   dos tablas de notas es una de más (103), la lista vieja de clientes se va (104),
   **estar apuntado no es trabajar aquí** (105), no solo se corta el pelo (106),
   **al empleado el trabajo se lo dan** (107), **el barbero no se firma el ascenso**
-  (108) y **la fila no la reparte el empleado** (109).
+  (108), **la fila no la reparte el empleado** (109) y **entrar a un local lo firman
+  los dos** (110).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -108,11 +109,43 @@ nada avise, y ya pasó dos veces.
   autonomía 33, obstáculos 32, confianza 27, horarios 26, sin cita 22, modo 21, viaje 17,
   fidelidad 6.
 
-  Desde entonces, y por las 108 y 109, se han vuelto a correr **enteras y verbatim** las
-  tres que tocan lo que cambió: **puertas 80/80** (subió de 70 a 80 con los casos nuevos),
-  **motor_cola 34/34** y **obstáculos 32/32**. Las otras nueve siguen con la corrida del
-  día 11 y ninguna llama a las funciones tocadas, comprobado con `grep` sobre el directorio
-  de pruebas, no de memoria.
+- **La aprobación mutua** (110), que era la corrección de producto más grande que quedaba
+  pendiente: *«puede agregar y puede ser agregado por barberos con aprobación mutua.»*
+
+  Le da la vuelta a la 94 y añade la dirección que nunca existió. Antes, en un local de
+  asientos alquilados el barbero entraba ACTIVO —se agregaba él— y el local no podía llamar
+  a nadie, solo esperar. La 94 razonaba que «quien no dirige, tampoco autoriza», y ahí
+  confundía dos cosas: **decidir quién entra en tu casa no es dirigir a nadie.** El casero
+  sigue sin poner precios ni horarios (92) y sin ver un peso de lo que su inquilino factura
+  (97) — pero el código del local se comparte por WhatsApp, y con la 94 eso bastaba para
+  aparecer en su escaparate.
+
+  Lo que NO se hizo, y es la mitad interesante: **no hay una segunda columna de aprobación.**
+  Veintitrés funciones y una política leen `aprobado` —contadas desde `pg_proc`, no de
+  memoria— y todas habrían tenido que aprender la segunda. Olvidar una es exactamente la
+  familia de la 101 y la 102. Así que `aprobado` no cambia de significado y solo se añade
+  **de quién falta el sí** (`pendiente_de`), con un CHECK que deja la contradicción fuera
+  del alcance. Las veintitrés siguen valiendo sin tocar ni una.
+
+  Ese CHECK cazó el primer fallo él solo: **las suites aprobaban con un `update` directo**,
+  que ahora deja la fila incoherente. Se pasaron las siete a la función. Aprobar dejó de ser
+  un `update` también en `lib/db.ts`, por el mismo motivo.
+
+- **Las corridas, que es lo único que cuenta.** Por las 108, 109 y 110 se han vuelto a
+  correr **enteras y verbatim** las **diez** suites que tocan algo de lo que cambió:
+
+  | puertas 80 | jornada 36 | suscripción 36 | motor_cola 34 | autonomía 33 |
+  |---|---|---|---|---|
+  | **obstáculos 32** | **confianza 27** | **horarios 26** | **invitación 20** | **viaje 17** |
+
+  **341 casos, todos verdes.** Las tres restantes —modo 21, sin cita 22, fidelidad 6— no se
+  re-corrieron: sus ficheros están sin tocar y ninguna llama a nada de lo que cambió,
+  comprobado con `grep` sobre el directorio, no de memoria. **Trece suites, 390 casos.**
+
+  Y en `autonomia` se le dio la vuelta al caso que llevaba veinte migraciones **verde y
+  obsoleto** —«en ASIENTOS ALQUILADOS entra activo, se agrega él»—, que es la lección que un
+  CI verde no puede dar: *una prueba en verde solo garantiza que el código hace lo que la
+  prueba dice, no que la prueba siga diciendo lo que el producto quiere.*
 
   Ya no queda ningún «esto no lo he corrido pero creo que no le afecta». Tres cosas que
   salieron precisamente de correrlas en vez de razonarlas:
@@ -201,7 +234,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–109), `supabase/functions/turno-enviar-push/`
-- Pruebas: `supabase/tests/` (12 suites) y su `README.md`
+- Backend: `supabase/migrations/` (01–110), `supabase/functions/turno-enviar-push/`
+- Pruebas: `supabase/tests/` (13 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

@@ -17,6 +17,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | `confianza.test.sql` | Quién te atiende y qué se sabe de él: suspender sin echar, leer las reseñas y el barbero de confianza del cliente. Sobre todo el cruce de los tres. |
 | `suscripcion.test.sql` | La prueba, el pago y la cortesía; **quién paga** (asientos alquilados → cada silla, migración 93; empleados → el local); y desde la 95, **qué se apaga cuando no se paga**: no aparece, no acepta trabajo, no opera la fila — pero las citas ya reservadas y el historial no se tocan, y el letrero del cliente **no delata a quien no pagó**. Con el cupo por antigüedad de la 96, para que pagar una silla no dé para cinco. |
 | `jornada.test.sql` | "Hoy cierro más tarde" y "hoy me voy antes": alargar la jornada, cerrarla, volver a la norma — y **de quién es cada una de esas decisiones**. Alargar INVENTA disponibilidad y la decide quien manda en el horario (R11); cerrar solo QUITA, como un bloqueo, y la decide quien opera la silla. |
+| `invitacion.test.sql` | **Entrar a un local lo firman los dos** (migración 110). Las dos direcciones —el barbero pide entrar con el código del local, el local le invita con el código del barbero— y que ninguna de las dos firmas vale sola. Incluye la vuelta a la regla de la 94: en asientos alquilados el barbero ya **no** entra activo. |
 
 Las suites de flujo y permisos existen porque esos fallos no se
 ven mirando funciones de una en una. Cada una encontró bugs de producción en su

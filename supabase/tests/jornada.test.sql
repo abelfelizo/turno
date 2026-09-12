@@ -216,7 +216,7 @@ begin
   select * into r from turno_unirse_profesional(v_cod,'barbero','empleado','Empleado','809');
   p_emp := r.id;
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_emp;
+  perform turno_responder_solicitud(p_emp, true);
 
   -- Y uno de ASIENTOS ALQUILADOS aparte.
   perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
@@ -229,7 +229,7 @@ begin
   select * into r from turno_unirse_profesional(v_cod2,'barbero','barbero_renta','Rentado','809');
   p_ren := r.id;
   perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_ren;
+  perform turno_responder_solicitud(p_ren, true);
 
   n:=n+1; c:='montaje · el empleado NO es autónomo y el rentado SÍ';
   if not turno_perfil_autonomo(p_emp) and turno_perfil_autonomo(p_ren) then ok:=ok+1;

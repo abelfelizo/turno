@@ -49,7 +49,7 @@ export default function BarberoDonde() {
     <OnbScreen paso="Tu trabajo · 2 de 4" titulo="¿Dónde trabajas?"
       subtitulo="Mandas tú en tus precios y tus horarios en los dos casos. Esto solo decide si te unes a un local que ya está en Turno o si montas el tuyo.">
       <Opcion label="En una barbería que usa Turno"
-        desc="Te piden el código del local. Si el dueño alquila asientos, entras directo; si tiene empleados, él te aprueba."
+        desc="Te piden el código del local. El dueño tiene que aceptarte: entrar a un local lo firman los dos."
         seleccionado={donde === 'local'} onPress={() => setDonde('local')} />
       <Opcion label="Por mi cuenta"
         desc="Alquilas un sillón, trabajas a domicilio o tienes tu propio espacio. Te montamos tu código, tu fila y tu agenda."

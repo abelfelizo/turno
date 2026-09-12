@@ -212,7 +212,7 @@ begin
   select * into r from turno_unirse_profesional(v_cod,'barbero','empleado','Empleado','809');
   p_emp := r.id;
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_emp;
+  perform turno_responder_solicitud(p_emp, true);
 
   -- Y un local de ASIENTOS ALQUILADOS con su inquilino.
   perform set_config('request.jwt.claims', json_build_object('sub', a_d2::text)::text, true);
@@ -225,7 +225,7 @@ begin
   select * into r from turno_unirse_profesional(v_cod3,'barbero','barbero_renta','Rentado','809');
   p_ren := r.id;
   perform set_config('request.jwt.claims', json_build_object('sub', a_d2::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_ren;
+  perform turno_responder_solicitud(p_ren, true);
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)
   values (p_ren,'Corte',30,700,true) returning id into s_ren;
 

@@ -70,7 +70,7 @@ begin
   select id into u_bar from turno_usuarios where auth_id = a_bar;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_bar;
+  perform turno_responder_solicitud(p_bar, true);
   -- Migración 107: el empleado es PASIVO por defecto — no se sirve de la fila ni
   -- sienta walk-ins hasta que el local se lo permite. Aquí se le da el permiso
   -- porque lo que esta suite prueba es el trabajo, no el permiso; que el portero

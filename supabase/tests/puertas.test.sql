@@ -77,7 +77,9 @@ begin
   select id into u_bar from turno_usuarios where auth_id = a_bar;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_bar;
+  -- Aprobar es una FUNCIÓN desde la 110: el barbero entra pendiente y el CHECK
+  -- de turno_perfiles no deja poner `aprobado` sin resolver la firma.
+  perform turno_responder_solicitud(p_bar, true);
   insert into turno_servicios (perfil_id,nombre,duracion_min,precio,activo)
   values (p_bar,'Corte',30,500,true) returning id into s_corte;
   -- Jornada de 00:01 a 23:59 A PROPÓSITO. Desde la migración 72 la fila
@@ -1122,6 +1124,14 @@ begin
     abiertas := abiertas || ' capta_por_su_cuenta'; exception when others then null; end;
   begin perform turno_manda_en_la_fila(v_neg);
     abiertas := abiertas || ' manda_en_la_fila'; exception when others then null; end;
+  begin perform turno_invitar_barbero(v_neg, 'XX-9999');
+    abiertas := abiertas || ' invitar_barbero'; exception when others then null; end;
+  begin perform turno_responder_invitacion(p_bar, true);
+    abiertas := abiertas || ' responder_invitacion'; exception when others then null; end;
+  begin perform turno_responder_solicitud(p_bar, true);
+    abiertas := abiertas || ' responder_solicitud'; exception when others then null; end;
+  begin perform turno_mis_invitaciones();
+    abiertas := abiertas || ' mis_invitaciones'; exception when others then null; end;
   begin perform turno_perfil_acepta(p_bar, null);
     abiertas := abiertas || ' perfil_acepta'; exception when others then null; end;
   begin perform turno_perfil_operable(p_bar);
@@ -1221,6 +1231,8 @@ begin
       'turno_liberar_ahora','turno_limpiar_pasado','turno_llamar_a',
       'turno_llamar_siguiente','turno_manda_en_el_horario','turno_marcar_preferido',
       'turno_manda_en_la_silla','turno_manda_en_la_fila',
+      'turno_invitar_barbero','turno_responder_invitacion',
+      'turno_responder_solicitud','turno_mis_invitaciones',
       'turno_mi_preferido','turno_mis_tarjetas','turno_mover_en_cola',
       'turno_negocio_por_codigo','turno_no_esta','turno_ocupar_ahora','turno_puesto',
       'turno_regla_tiempo','turno_resenas_de','turno_resumen_fila',

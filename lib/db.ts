@@ -50,16 +50,74 @@ export async function actualizarNegocio(negocio_id: string, patch: {
 }
 
 // ── DUEÑO ─────────────────────────────────────────────────────────
-/** Barberos pendientes de aprobación en el negocio. */
+/**
+ * Barberos esperando que ESTE local les diga que sí.
+ *
+ * `pendiente_de = 'local'` y no `aprobado = false` a secas (migración 110):
+ * desde que el local también puede INVITAR, un perfil sin aprobar puede estar
+ * esperando al barbero, no al dueño. Sin este filtro la bandeja del dueño se
+ * llenaría de gente a la que él mismo invitó, pidiéndole que se apruebe a sí
+ * mismo una decisión que ya tomó.
+ */
 export async function getSolicitudesPendientes(negocio_id: string) {
   const { data, error } = await supabase.from(T('perfiles'))
     .select('*, turno_usuarios(nombre, telefono)')
-    .eq('negocio_id', negocio_id).eq('aprobado', false).eq('activo', true)
+    .eq('negocio_id', negocio_id).eq('pendiente_de', 'local').eq('activo', true)
   if (error) throw error
   return data || []
 }
+
+/**
+ * LOS DOS SÍES (migración 110).
+ *
+ * Aprobar dejó de ser un `update`. `aprobado` y `pendiente_de` tienen que
+ * moverse a la vez —hay un CHECK que no admite estar aprobado con una firma
+ * pendiente— y además el trigger de la 108 prohíbe tocar `aprobado` desde el
+ * API. Esa prohibición es lo que impide que un barbero se meta solo en un local
+ * con un código que corre por WhatsApp, así que no se abre: se pasa por aquí.
+ */
+export async function responderSolicitud(perfil_id: string, acepta: boolean) {
+  const { error } = await supabase.rpc('turno_responder_solicitud', {
+    p_perfil: perfil_id, p_acepta: acepta,
+  })
+  if (error) throw error
+}
 export async function aprobarPerfil(perfil_id: string) {
-  const { error } = await supabase.from(T('perfiles')).update({ aprobado: true }).eq('id', perfil_id)
+  return responderSolicitud(perfil_id, true)
+}
+
+/**
+ * LA DIRECCIÓN QUE NO EXISTÍA: el local llama al barbero.
+ *
+ * Se identifica por su `codigo_barbero`, que es único, se genera solo al
+ * hacerse profesional y ya sale en su pantalla. No por teléfono ni por correo:
+ * eso dejaría barrer la tabla de usuarios probando números.
+ *
+ * Queda pendiente de que ÉL acepte — invitar no es meter a nadie.
+ */
+export async function invitarBarbero(negocio_id: string, codigo: string) {
+  const { data, error } = await supabase.rpc('turno_invitar_barbero', {
+    p_negocio: negocio_id, p_codigo: codigo.trim().toUpperCase(),
+  })
+  if (error) throw error
+  return data
+}
+
+/** Invitaciones que este profesional tiene sin contestar. */
+export async function getMisInvitaciones() {
+  const { data, error } = await supabase.rpc('turno_mis_invitaciones')
+  if (error) throw error
+  return (data ?? []) as {
+    perfil_id: string; negocio_id: string; negocio: string
+    tipo_negocio: string; rol: string
+  }[]
+}
+
+/** El sí —o el no— del barbero a un local que le llamó. */
+export async function responderInvitacion(perfil_id: string, acepta: boolean) {
+  const { error } = await supabase.rpc('turno_responder_invitacion', {
+    p_perfil: perfil_id, p_acepta: acepta,
+  })
   if (error) throw error
 }
 /**
@@ -104,9 +162,10 @@ export async function permitirCaptarSolo(perfil_id: string, permitir: boolean) {
   if (error) throw error
 }
 
+/** Decir que no a quien pidió entrar. Por la misma puerta que decir que sí
+ *  (migración 110): si no, la fila queda «inactiva pero todavía pendiente». */
 export async function rechazarPerfil(perfil_id: string) {
-  const { error } = await supabase.from(T('perfiles')).update({ activo: false }).eq('id', perfil_id)
-  if (error) throw error
+  return responderSolicitud(perfil_id, false)
 }
 export async function updateConfiguracion(negocio_id: string, patch: Record<string, any>) {
   const { error } = await supabase.from(T('configuracion_negocio')).update(patch).eq('negocio_id', negocio_id)

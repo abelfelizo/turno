@@ -312,7 +312,7 @@ begin
 
   n:=n+1; c:='nace · al aprobarlo, el empleado entra al equipo con la fila abierta';
   perform set_config('request.jwt.claims', json_build_object('sub', a_due2::text)::text, true);
-  update turno_perfiles set aprobado = true where id = p_emp2;
+  perform turno_responder_solicitud(p_emp2, true);
   select count(*) into v_int from turno_horarios where perfil_id = p_emp2;
   if v_int = 6 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||v_int||' días'; end if;
 

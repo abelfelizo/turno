@@ -1,9 +1,9 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Share } from 'react-native'
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Share, TextInput } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, getConfiguracion, asignarCola, getEstadoLocal, getLocalOperativo } from '../../../lib/db'
+import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, getConfiguracion, asignarCola, getEstadoLocal, getLocalOperativo, invitarBarbero } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero, relojesDeSilla } from '../../../lib/format'
@@ -11,6 +11,7 @@ import { COLORS, FONTS } from '../../../constants'
 import { nombreOficio } from '../../../types'
 import { Display, Avatar, PuntoVivo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import Hoja from '../../../components/hoja'
 import ClientesLocal from '../../../components/clientes-local'
 
 // Los nombres de los oficios viven en types/index.ts (OFICIOS). Aquí había una
@@ -40,6 +41,10 @@ export default function Dashboard() {
   const esRentado = negocio?.tipo === 'espacios_rentados'
   const [cola, setCola] = useState<any[]>([])
   const [solicitudes, setSolicitudes] = useState<any[]>([])
+  // Invitar por código de barbero (migración 110).
+  const [invitando, setInvitando] = useState(false)
+  const [codigoInv, setCodigoInv] = useState('')
+  const [invEnviando, setInvEnviando] = useState(false)
   const [equipo, setEquipo] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
   // Estado deducido de cada silla. `estado_actual` del perfil solo dice si la
@@ -99,6 +104,42 @@ export default function Dashboard() {
       cargar()
     } catch (e: any) { Alert.alert('Error', e.message) }
   }
+  /**
+   * INVITAR ES LLAMAR, NO METER (migración 110).
+   *
+   * El servidor puede contestar tres cosas distintas y las tres importan: que
+   * el código no es de nadie, que ya le invitaste, o que ya trabaja aquí. Se
+   * enseñan tal cual —el mensaje del servidor es el bueno— en vez de un "no se
+   * pudo" que obliga a adivinar.
+   *
+   * El caso feliz tiene DOS finales: si él ya había pedido entrar, tu
+   * invitación es el segundo sí y queda dentro de una. Decirlo evita que el
+   * dueño se quede esperando una respuesta que ya llegó.
+   */
+  async function invitar() {
+    const cod = codigoInv.trim()
+    if (!cod) return
+    setInvEnviando(true)
+    try {
+      const ss = await getSesion()
+      if (!ss?.negocio_id) return
+      const p: any = await invitarBarbero(ss.negocio_id, cod)
+      setInvitando(false); setCodigoInv('')
+      if (p?.usuario_id) {
+        enviarPush(p.usuario_id, `${negocio?.nombre ?? 'Una barbería'} te invitó`,
+          p?.aprobado ? 'Ya estás dentro: abre Turno y empieza.' : 'Abre Turno para aceptar o rechazar.',
+          { tipo: 'agenda' })
+      }
+      Alert.alert(p?.aprobado ? 'Ya está dentro' : 'Invitación enviada',
+        p?.aprobado
+          ? 'Él ya había pedido entrar, así que con tu sí queda dentro. Aparece en tu equipo.'
+          : 'Le llegó el aviso. Entra al local cuando la acepte; hasta entonces no aparece en tu equipo.')
+      cargar()
+    } catch (e: any) {
+      Alert.alert('No se pudo invitar', e.message ?? 'Intenta de nuevo.')
+    } finally { setInvEnviando(false) }
+  }
+
   function rechazar(p: any) {
     Alert.alert('Rechazar', `¿Rechazar a ${p.turno_usuarios?.nombre ?? 'este profesional'}?`, [
       { text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { try { await rechazarPerfil(p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
@@ -393,24 +434,18 @@ export default function Dashboard() {
         </TouchableOpacity>
       )}
 
-      {/* SOLICITUDES · solo donde de verdad hay algo que aprobar.
-          Desde la migración 94 la aprobación va con la modalidad: en un local
-          de asientos alquilados el barbero entra con el código y queda ACTIVO
-          —se agrega él, y quien no lo dirige tampoco lo autoriza—, así que esta
-          sección no volvería a tener nada nunca. Dejarla con un "no hay
-          barberos pendientes" eterno es prometer un control que ya no existe.
-          En su lugar se dice lo que SÍ pasa. */}
-      {esRentado ? (
-        <>
-          <Text style={s.sec}>CÓMO ENTRAN</Text>
-          <Text style={s.empty}>
-            Alquilas asientos: los barberos entran con tu código y empiezan a trabajar solos.
-            Tú no los apruebas ni les manejas la silla. Si alguno no debería estar, lo sacas
-            desde su ficha.
-          </Text>
-        </>
-      ) : (
-        <>
+      {/* SOLICITUDES · en los DOS tipos de local desde la migración 110.
+          Aquí había una bifurcación: en asientos alquilados esta sección no
+          existía, y en su lugar se leía «los barberos entran con tu código y
+          empiezan a trabajar solos». Eso era la migración 94, y el dueño del
+          producto la corrigió: «barbero y barbería se pueden agregar
+          mutuamente, pero requiere aprobación del otro».
+
+          La 94 razonaba que quien no dirige tampoco autoriza. Confundía dos
+          cosas: DECIDIR QUIÉN ENTRA EN TU CASA NO ES DIRIGIR A NADIE. El casero
+          sigue sin poner precios ni horarios y sin ver lo que su inquilino
+          factura — pero el código del local se comparte por WhatsApp, y con la
+          94 eso bastaba para aparecer en su escaparate. */}
       <Text style={s.sec}>SOLICITUDES{solicitudes.length ? ` · ${solicitudes.length}` : ''}</Text>
       {solicitudes.length === 0 && <Text style={s.empty}>No hay barberos pendientes de aprobación.</Text>}
       {solicitudes.map((p: any) => (
@@ -424,13 +459,11 @@ export default function Dashboard() {
           <TouchableOpacity style={s.aprobar} onPress={() => aprobar(p)}><Text style={s.aprobarT}>Aprobar</Text></TouchableOpacity>
         </View>
       ))}
-        </>
-      )}
 
       {/* Alta activa: invitar a un barbero con el código del local */}
       <Text style={s.sec}>EQUIPO{equipo.length ? ` · ${equipo.length}` : ''}</Text>
       <TouchableOpacity style={s.agregar} onPress={() => Share.share({
-        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Soy barbero" y entra con este código:\n\n${negocio?.codigo_acceso}\n\n${esRentado ? 'Entras directo y empiezas a trabajar: mandas tú en tus precios y tus horarios.' : 'Cuando envíes la solicitud te apruebo desde mi panel.'}`,
+        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Soy barbero" y entra con este código:\n\n${negocio?.codigo_acceso}\n\n${esRentado ? 'Rentarías tu asiento: mandas tú en tus precios y tus horarios. Cuando envíes la solicitud te acepto desde mi panel.' : 'Cuando envíes la solicitud te apruebo desde mi panel.'}`,
       })}>
         <View style={s.agregarIcon}><Ionicons name="person-add-outline" size={20} color="#fff" /></View>
         <View style={{ flex: 1 }}>
@@ -438,6 +471,22 @@ export default function Dashboard() {
           <Text style={s.agregarD}>Comparte el código por WhatsApp. Al solicitar, lo apruebas aquí.</Text>
         </View>
         <Ionicons name="share-outline" size={20} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      {/* LA DIRECCIÓN QUE NO EXISTÍA (migración 110). Compartir el código es
+          esperar a que el otro dé el paso; esto es darlo tú. Se invita por su
+          CÓDIGO DE BARBERO —único, se lo genera la app al hacerse profesional y
+          lo tiene a la vista en su pantalla— y no por teléfono, que permitiría
+          ir probando números hasta dar con alguien.
+
+          Invitar no mete a nadie: queda esperando a que él acepte. */}
+      <TouchableOpacity style={s.agregar} onPress={() => { setCodigoInv(''); setInvitando(true) }}>
+        <View style={[s.agregarIcon, { backgroundColor: COLORS.blue }]}><Ionicons name="search-outline" size={20} color="#fff" /></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.agregarT}>Invitar con su código</Text>
+          <Text style={s.agregarD}>Si ya usa Turno, le llega la invitación y decide él.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
       </TouchableOpacity>
 
       {equipo.map((p: any) => (
@@ -478,6 +527,22 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
       ))}
+
+      <Hoja visible={invitando} onClose={() => setInvitando(false)}>
+        <Display size={22}>Invitar con su código</Display>
+        <Text style={s.invSub}>
+          Cada profesional de Turno tiene un código propio que le sale en su pantalla. Pídeselo y
+          escríbelo aquí. Le llega la invitación y decide él: invitar no le mete en el local.
+        </Text>
+        <TextInput style={s.invInput} value={codigoInv} onChangeText={t => setCodigoInv(t.toUpperCase())}
+          placeholder="JUAN-4821" placeholderTextColor={COLORS.textLight}
+          autoCapitalize="characters" autoCorrect={false} />
+        <TouchableOpacity style={[s.invBtn, (!codigoInv.trim() || invEnviando) && { opacity: 0.45 }]}
+          disabled={!codigoInv.trim() || invEnviando} onPress={invitar}>
+          {invEnviando ? <ActivityIndicator color="#fff" /> : <Text style={s.invBtnT}>Invitar</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => setInvitando(false)}><Text style={s.invCancel}>Cancelar</Text></TouchableOpacity>
+      </Hoja>
     </ScrollView>
   )
 }
@@ -553,4 +618,10 @@ const s = StyleSheet.create({
   agregarD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   aprobar: { backgroundColor: COLORS.success, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
   aprobarT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  invSub: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 8 },
+  invInput: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
+    padding: 14, fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.5, marginTop: 16 },
+  invBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 18 },
+  invBtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  invCancel: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })
