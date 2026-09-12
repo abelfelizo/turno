@@ -374,6 +374,68 @@ begin
     fallos := fallos || E'\n  x '||c||' - se llevó las cuentas de su inquilino';
   exception when others then ok:=ok+1; end;
 
+  -- ── NI LE TOCA LA AGENDA (migración 111) ──────────────────────────────────
+  -- La tercera vez que esta misma regla aparecía a medio arreglar. La 92 la
+  -- puso en las funciones, la 101 en las políticas de cola, citas e historial,
+  -- y `turno_bloqueos_write` se quedó con la versión de antes:
+  -- «es mía O soy el dueño del local», sin mirar la modalidad. Con eso el
+  -- casero le metía un bloqueo de 9 a 6 al inquilino y le apagaba el día — que
+  -- es justo lo que la 92 dice que no es un alquiler.
+  --
+  -- El bloqueo se crea AQUÍ FUERA de cualquier bloque con `exception`: uno que
+  -- captura revierte sus propias sentencias, y el fixture desaparecería.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_new::text)::text, true);
+  insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
+  values (p_new2, current_date + 1, time '12:00', time '13:00', 'asunto personal mio');
+
+  n:=n+1; c:='casero · no le lee el MOTIVO del bloqueo a su inquilino';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_bloqueos where perfil_id = p_new2;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - leyó '||v_int
+       ||': el motivo lo escribe el barbero a mano y es suyo'; end if;
+
+  n:=n+1; c:='casero · ni le CIERRA EL DÍA con un bloqueo de 9 a 6';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
+    values (p_new2, current_date + 2, time '09:00', time '18:00', 'te cierro el dia');
+    v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c
+       ||' - le apagó el negocio a quien solo le renta una silla'; end if;
+
+  n:=n+1; c:='casero · pero el inquilino SÍ ve y escribe los suyos (no cerrar de más)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_new::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_bloqueos where perfil_id = p_new2;
+  begin
+    insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
+    values (p_new2, current_date + 3, time '15:00', time '16:00', 'mio');
+    v_int := v_int + 10;
+  exception when others then null; end;
+  reset role;
+  if v_int = 11 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS ('||v_int||')'; end if;
+
+  n:=n+1; c:='bloqueo · y al EMPLEADO su jefe SÍ le maneja la agenda';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_bloqueos (perfil_id, fecha, hora_inicio, hora_fin, motivo)
+    values (p_emp, current_date + 2, time '09:00', time '10:00', 'reunion del local');
+    v_int := 1;
+  exception when others then v_int := 0; v_txt := sqlerrm; end;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos := fallos || E'\n  x '||c||' - SE CERRÓ DE MÁS: '||coalesce(v_txt,'?')
+       ||' (dirigir a su empleado es justo lo que sí puede)'; end if;
+
   -- NI POR LA TABLA (migración 101). El caso de arriba cerró la FUNCIÓN y la
   -- tabla se quedó abierta un mes entero: con `set local role authenticated`, un
   -- simple `select sum(precio_cobrado)` le daba al casero la facturación de su

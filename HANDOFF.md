@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-12** · migración **110** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **111** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -36,8 +36,8 @@ nada avise, y ya pasó dos veces.
   dos tablas de notas es una de más (103), la lista vieja de clientes se va (104),
   **estar apuntado no es trabajar aquí** (105), no solo se corta el pelo (106),
   **al empleado el trabajo se lo dan** (107), **el barbero no se firma el ascenso**
-  (108), **la fila no la reparte el empleado** (109) y **entrar a un local lo firman
-  los dos** (110).
+  (108), **la fila no la reparte el empleado** (109), **entrar a un local lo firman
+  los dos** (110) y **el casero no le cierra el día al inquilino** (111).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -140,7 +140,8 @@ nada avise, y ya pasó dos veces.
 
   **341 casos, todos verdes.** Las tres restantes —modo 21, sin cita 22, fidelidad 6— no se
   re-corrieron: sus ficheros están sin tocar y ninguna llama a nada de lo que cambió,
-  comprobado con `grep` sobre el directorio, no de memoria. **Trece suites, 390 casos.**
+  comprobado con `grep` sobre el directorio, no de memoria. Con los cuatro casos que añadió
+  la 111, **trece suites y 394 casos**.
 
   Y en `autonomia` se le dio la vuelta al caso que llevaba veinte migraciones **verde y
   obsoleto** —«en ASIENTOS ALQUILADOS entra activo, se agrega él»—, que es la lección que un
@@ -168,6 +169,32 @@ nada avise, y ya pasó dos veces.
   obsoleto: **una prueba en verde solo garantiza que el código hace lo que la prueba dice,
   no que la prueba siga diciendo lo que el producto quiere.** Hay que darle la vuelta
   cuando se haga la aprobación mutua.
+
+- **La auditoría de salud de la base**, que buscaba índices y encontró la 111. El linter de
+  rendimiento avisaba de «múltiples políticas permisivas» en siete tablas `turno_`: una
+  `_select` y una `_write` marcada `for all`. Como `for all` **también concede SELECT**, la
+  pregunta dejaba de ser de rendimiento: ¿alguna `_write` deja leer más que su `_select`?
+  Comprobadas las siete, ninguna. Pero al leerlas en fila apareció `turno_bloqueos_write`
+  con la versión ANTERIOR de la regla del casero —`turno_perfil_admin` a secas, sin mirar la
+  modalidad—, y con eso:
+
+  > el casero LEE el bloqueo de su inquilino → *"asunto personal mio"*
+  > el casero le ESCRIBE un bloqueo de 9 a 6 → **PASÓ**
+
+  Eso no es una fuga, es sabotaje: le apaga el día a alguien que solo le renta una silla, que
+  es exactamente lo que la 92 dejó escrito que no puede pasar. **Tercera vez que esta misma
+  regla aparece a medio arreglar** — la 92 la puso en las funciones, la 101 en las políticas
+  de cola, citas e historial, y ésta se quedó por el camino. Familia enumerada contra
+  `pg_policies`, no supuesta: en todo el esquema hay **exactamente una** política con esa
+  forma. De paso se cerró el `motivo`, que un cliente del local leía —*"terapia con el
+  psicologo"*— y que es la 102 otra vez: el cliente necesita saber que el hueco no está, y
+  eso ya se lo da `turno_slots_disponibles`, que es DEFINER y no pasa por la política.
+
+  Lo demás que dio la auditoría, y que **no** son fallos: ninguna tabla `turno_` se queda con
+  RLS y sin política; ninguna función `turno_` `SECURITY DEFINER` sin `search_path`; y de las
+  diez funciones sin portero visible que puede llamar cualquiera con sesión, nueve son
+  lecturas agregadas que el cliente necesita y la décima —`turno_ocupar_ahora`— es una lápida
+  cuyo cuerpo entero es un `raise`.
 
 ## Un fallo abierto: la barbería que cierra de madrugada
 
@@ -234,7 +261,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–110), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–111), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (13 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

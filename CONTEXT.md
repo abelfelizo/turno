@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-12** · migración **110** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **111** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -94,7 +94,7 @@ Tres tipos de usuario, y todo lo demás se deriva de la **modalidad del local**:
 | | Cliente | Barbero | Dueño de asientos alquilados | Dueño de empleados |
 |---|---|---|---|---|
 | ¿Paga? | **Nunca** | Se paga por él **siempre** | **No**: solo agrupa | **Sí**, cubre a los suyos |
-| ¿Controla la silla de otro? | — | No | **No** | **Sí** |
+| ¿Controla la silla de otro? | — | No | **No** — ni la agenda (111) | **Sí** |
 | ¿Cómo entra un barbero? | — | — | **Lo firman los dos** (110) | **Lo firman los dos** (110) |
 | ¿Qué le queda al dueño? | — | — | Suspender (quitar de la fila y la fachada) y desvincular | Todo lo de un patrón |
 | ¿Y si no se paga? | Ve el local, no la fila | No aparece ni recibe cola | Su silla se apaga; el local no cuesta nada | Se apagan **todas** las sillas |
@@ -219,7 +219,7 @@ en quince sitios se corrige en catorce.
 
 ## Backend
 
-**110 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**111 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 

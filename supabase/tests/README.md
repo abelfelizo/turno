@@ -6,7 +6,7 @@ rompen por cómo se combinan, no por cómo se escriben.
 | Suite | Qué mira |
 |---|---|
 | `motor_cola.test.sql` | Las invariantes sueltas: orden de la fila, un-turno-activo-por-tipo (R1), gating de "voy en camino" (R2), límite de fila, orden de llamado, autorización de stats, bajas, citas grupales. |
-| `autonomia.test.sql` | Quién decide qué (R11) y **quién manda en la silla de quién** (migración 92): el dueño dirige a su empleado, pero no al que le paga renta — ni le opera la silla, ni le lee la cartera, ni le lee la facturación. Y suspender a un autónomo le quita la fila y la fachada del local, no su trabajo. Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
+| `autonomia.test.sql` | Quién decide qué (R11) y **quién manda en la silla de quién** (migración 92): el dueño dirige a su empleado, pero no al que le paga renta — ni le opera la silla, ni le lee la cartera, ni le lee la facturación. Y suspender a un autónomo le quita la fila y la fachada del local, no su trabajo. Desde la 111, tampoco le toca la AGENDA: no le lee el motivo de un bloqueo ni le puede cerrar el día con uno de 9 a 6. Corre con `set local role authenticated`: si no, RLS ni se evalúa y la prueba no probaría nada. |
 | `fidelidad.test.sql` | Visitas, meta, premio y canje, con la tarjeta del local y la del barbero rentado. |
 | `viaje.test.sql` | El camino feliz de punta a punta, llamando a las mismas RPC que la app y en el mismo orden. |
 | `obstaculos.test.sql` | El mismo día pero con fila, agenda y bloqueos **a la vez**. Los fallos que quedaban no estaban en ninguna de las tres piezas: estaban en los cruces. |
