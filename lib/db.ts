@@ -315,6 +315,8 @@ export type OpcionPanel = {
   negocio: string
   perfil_id?: string
   aprobado: boolean
+  /** De quién falta el sí mientras no está aprobado (migración 110). */
+  pendiente_de?: string | null
 }
 
 /** Paneles a los que el usuario puede entrar, para el conmutador.
@@ -323,7 +325,7 @@ export type OpcionPanel = {
 export async function getMisRoles(usuario_id: string): Promise<OpcionPanel[]> {
   const [mems, perfs] = await Promise.all([
     supabase.from(T('membresias')).select('rol, negocio_id, turno_negocios(nombre)').eq('usuario_id', usuario_id).eq('activo', true),
-    supabase.from(T('perfiles')).select('id, negocio_id, aprobado').eq('usuario_id', usuario_id).eq('activo', true),
+    supabase.from(T('perfiles')).select('id, negocio_id, aprobado, pendiente_de').eq('usuario_id', usuario_id).eq('activo', true),
   ])
   if (mems.error) throw mems.error
   const perfilDe = new Map<string, any>()
@@ -338,6 +340,7 @@ export async function getMisRoles(usuario_id: string): Promise<OpcionPanel[]> {
       negocio: (m as any).turno_negocios?.nombre ?? 'Local',
       perfil_id: perfil?.id as string | undefined,
       aprobado: perfil ? !!perfil.aprobado : true,
+      pendiente_de: perfil?.pendiente_de ?? null,
     }
     if (m.rol === 'cliente') { out.push({ ...base, panel: 'cliente' }); continue }
     if (m.rol === 'dueno') {
@@ -784,6 +787,24 @@ export async function actualizarBloqueo(id: string, patch: { hora_inicio?: strin
  */
 export async function captaPorSuCuenta(perfil_id: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('turno_capta_por_su_cuenta', { p_perfil: perfil_id })
+  if (error) return false
+  return data === true
+}
+
+/**
+ * ¿MANDO YO EN EL HORARIO DE ESTA SILLA? (R11)
+ *
+ * La otra mitad de lo mismo, y por la misma puerta: la contesta el servidor con
+ * la función que luego rechaza. `turno_alargar_jornada` y
+ * `turno_adelantar_jornada` INVENTAN disponibilidad, así que son de quien pone
+ * el horario — al empleado se lo pone su barbería. Cerrar la jornada y volver
+ * a la norma solo QUITAN, y ésas sí son suyas.
+ *
+ * Ante un fallo, `false`: ofrecer un botón que va a rebotar es peor que no
+ * ofrecerlo.
+ */
+export async function mandoEnMiHorario(perfil_id: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('turno_manda_en_el_horario', { p_perfil: perfil_id })
   if (error) return false
   return data === true
 }

@@ -7,7 +7,7 @@ import {
   actualizarEstadoCola, actualizarEstadoCita, getServiciosPerfil, crearBloqueo, getNegocioById,
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
-  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios, captaPorSuCuenta,
+  getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios, captaPorSuCuenta, mandoEnMiHorario,
   alargarJornada, adelantarJornada, jornadaNormal, cerrarJornada, getJornadaDe, actualizarBloqueo,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
@@ -123,6 +123,9 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
    * botones mientras carga; la respuesta llega en el mismo `cargar()`.
    */
   const [captaSolo, setCaptaSolo] = useState(true)
+  /** ¿Mando yo en el horario de esta silla? (R11). Alargar y adelantar la
+   *  jornada INVENTAN disponibilidad: al empleado se las pone su barbería. */
+  const [mandoHorario, setMandoHorario] = useState(true)
   const [jornada, setJornada] = useState<{ hora_inicio: string; hora_fin: string } | null>(null)
   const esHoy = fecha === hoy
 
@@ -147,7 +150,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta, mando] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -164,10 +167,11 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       // fila, lo cambia el dueño desde su panel. Cuando lo hace le llega un
       // push, y abrir la app recarga entera.
       captaPorSuCuenta(ss.perfil_id),
+      mandoEnMiHorario(ss.perfil_id),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
-    setSinCerrar(sc as any[]); setJornada(jo as any); setCaptaSolo(capta as boolean)
+    setSinCerrar(sc as any[]); setJornada(jo as any); setCaptaSolo(capta as boolean); setMandoHorario(mando as boolean)
     setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
@@ -373,14 +377,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     const presentes = enFila.filter((q: any) => q.tipo_cola === 'fisica')
     const opciones: any[] = []
 
-    for (const w of presentes.slice(0, 3)) {
-      opciones.push({
-        text: `Que pase ${w.turno_usuarios?.nombre ?? 'el que está aquí'}`,
-        onPress: () => op(async () => {
-          await sustituirAusente(item.id, w.id)
-          if (w.cliente_id) avisos.clientePrepararse(w.cliente_id, negocio?.nombre ?? 'el local', 0)
-        }, 'No se pudo'),
-      })
+    // QUIÉN ENTRA EN EL HUECO LO DECIDE LA BARBERÍA (migración 109). Marcar
+    // ausente sí es suyo —es el turno que tiene delante—, pero ELEGIR AL
+    // SUSTITUTO es repartir la fila. Sin el permiso el servidor lo rechaza, así
+    // que aquí queda solo la mitad que sí puede hacer.
+    if (captaSolo) {
+      for (const w of presentes.slice(0, 3)) {
+        opciones.push({
+          text: `Que pase ${w.turno_usuarios?.nombre ?? 'el que está aquí'}`,
+          onPress: () => op(async () => {
+            await sustituirAusente(item.id, w.id)
+            if (w.cliente_id) avisos.clientePrepararse(w.cliente_id, negocio?.nombre ?? 'el local', 0)
+          }, 'No se pudo'),
+        })
+      }
     }
     opciones.push({
       text: presentes.length ? 'Nadie, solo quitarlo' : 'Pierde el turno',
@@ -390,7 +400,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     opciones.push({ text: 'Sigo esperándolo' })
 
     Alert.alert(`¿${nombre} no está?`,
-      presentes.length
+      presentes.length && captaSolo
         ? 'Pierde su turno. Puedes meter en su hueco a alguien que esté aquí: quien viene detrás conserva su puesto y su hora.'
         : 'Pierde su turno y pasa el siguiente de la fila. Si aparece después, tendrá que volver a pedir turno.',
       opciones)
@@ -814,9 +824,20 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
               </Text>
               {/* El botón decía "Seguir abierto" también a las seis de la
                   mañana, que es cuando menos sentido tiene: no has cerrado
-                  nada, todavía no has abierto. */}
+                  nada, todavía no has abierto.
+
+                  Al EMPLEADO el botón cambia de nombre, y NO se le quita: abrir
+                  antes y alargar son de quien pone el horario (R11), pero
+                  dentro de la hoja siguen estando las dos que sí son suyas
+                  —apagar su fila y volver a la norma—, y **éste es el único
+                  sitio de la app desde donde se llega a ellas**. Quitarlo le
+                  dejaría sin poder cerrar su día. Prometer "Seguir abierto" a
+                  quien no puede es el otro error; por eso se renombra en vez de
+                  esconderse. */}
               <TouchableOpacity style={s.cerradoBtn} onPress={() => setHoja({ tipo: 'jornada' })}>
-                <Text style={s.cerradoBtnT}>{antesDeAbrir ? 'Abrir antes' : 'Seguir abierto'}</Text>
+                <Text style={s.cerradoBtnT}>
+                  {!mandoHorario ? 'Mi jornada' : antesDeAbrir ? 'Abrir antes' : 'Seguir abierto'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1279,15 +1300,29 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                   <Display size={22}>
                     {antesDeAbrir ? 'Hoy abro antes' : yaCerre ? 'Seguir abierto un rato' : 'Tu jornada de hoy'}
                   </Display>
+                  {/* ALARGAR Y ADELANTAR SON DE QUIEN PONE EL HORARIO (R11).
+                      Las dos INVENTAN disponibilidad, y al empleado el horario
+                      se lo pone su barbería: el servidor le contesta «el horario
+                      de esa silla no lo decides tú». Cerrar por hoy y volver a
+                      la norma solo QUITAN —como un bloqueo— y ésas sí son suyas,
+                      así que se quedan: si se va, se va.
+
+                      Es la misma distinción que ya guardaba la suite `jornada`
+                      desde la 88; lo que faltaba era que la pantalla la contara
+                      igual en vez de ofrecer las cuatro a todo el mundo. */}
                   <Text style={s.modalSub}>
-                    {antesDeAbrir
+                    {!mandoHorario
+                      ? `Tu horario lo pone ${negocio?.nombre ?? 'tu barbería'}. Lo que sí es tuyo: si terminas antes, apaga la fila y deja de entrarte gente.`
+                      : antesDeAbrir
                       ? `Hoy abres a las ${hora12(jornada!.hora_inicio)} y todavía no es la hora, así que por la app no te entra nadie. Puedes adelantar la apertura solo por hoy: mañana vuelves a tu horario de siempre.`
                       : yaCerre
                         ? 'Tu fila digital ya cerró por horario. Puedes dejarla abierta un rato más solo por hoy: mañana vuelves a tu horario de siempre.'
                         : 'Puedes alargar el cierre de hoy o apagar la fila ya. En los dos casos es solo para hoy — tu horario de siempre no se toca.'}
                   </Text>
 
-                  {antesDeAbrir
+                  {!mandoHorario
+                    ? null
+                    : antesDeAbrir
                     ? [30, 60, 120].map(min => (
                         <Opcion key={min} icon="sunny-outline"
                           t={min < 60 ? `Abrir ${min} minutos antes` : min === 60 ? 'Abrir una hora antes' : 'Abrir dos horas antes'}
@@ -1436,9 +1471,21 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                       onPress={() => op(() => devolverAFila(it.id), 'No se pudo devolver')} />
                   )}
 
-                  {!sentado && (
+                  {/* SACAR DE LA FILA ES REPARTIRLA (migración 109).
+                      Al que ya está llamado o en camino se le saca siempre —ese
+                      es el turno del momento, y si se cansó y se fue hay que
+                      poder cerrarlo o la silla se queda ocupada por un ausente—.
+                      Pero al que ESPERA no: eso le cuesta un cliente al local, y
+                      sin el permiso el servidor lo rechaza. */}
+                  {!sentado && !(enEspera && !captaSolo) && (
                     <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
                       onPress={() => setHoja({ tipo: 'sacar', item: it })} />
+                  )}
+                  {!sentado && enEspera && !captaSolo && (
+                    <Text style={s.ordenNota}>
+                      Quién entra y quién sale de la fila lo decide la barbería. Si este cliente se fue,
+                      díselo a quien la maneja.
+                    </Text>
                   )}
                   {sentado && (
                     <Opcion icon="exit-outline" t="Se fue sin terminar" d="Cierra el turno sin contar la visita" rojo

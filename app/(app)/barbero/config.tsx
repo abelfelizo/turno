@@ -49,7 +49,10 @@ const MODOS = [
   { k: 'ambos', l: 'Citas y fila', icono: 'git-merge-outline',
     d: 'Pueden reservarte hora y también meterse en tu fila para hoy. Es lo normal.' },
   { k: 'solo_citas', l: 'Solo con cita', icono: 'calendar-outline',
-    d: 'Trabajas con hora. Nadie puede meterse en tu fila desde el teléfono; si alguien llega sin cita, lo sientas tú.' },
+    // «lo sientas tú» era cierto para todos hasta la 107: al empleado sin
+    // permiso el walk-in se lo asigna la barbería. Esto lo dice sin mentirle a
+    // ninguno de los dos, porque describe la PUERTA, no quién la abre.
+    d: 'Trabajas con hora. Nadie puede meterse en tu fila desde el teléfono; quien llegue sin cita entra por la puerta, no por la app.' },
   { k: 'solo_fila', l: 'Solo fila', icono: 'people-outline',
     d: 'Por orden de llegada. Desaparece la opción de reservarte hora, para hoy y para cualquier día.' },
 ]
@@ -561,13 +564,24 @@ export default function Config() {
             dice POR DÓNDE. Separarlas en dos secciones obligaría a recordar en
             cuál está cada mitad. */}
         <Text style={[s.sec, { marginTop: 22 }]}>¿POR DÓNDE TE LLEGAN?</Text>
-        <Text style={s.nota}>Lo que apagues aquí desaparece de la app de tus clientes. Tú puedes seguir sentando a quien llegue por la puerta en cualquiera de los tres.</Text>
+        {/* AL EMPLEADO ESTO SE LO PONE SU BARBERÍA (migración 108).
+            `modo_atencion` entró en el trigger que vigila lo que no es tuyo, y
+            la silla ya no puede escribírselo. La pantalla seguía ofreciendo los
+            tres: el empleado tocaba uno, la tarjeta se pintaba —el cambio es
+            optimista— y al volver el servidor se deshacía sin decir nada. Es
+            justo lo que advierte el comentario de MIS REGLAS, dos secciones más
+            abajo, aplicado a esta. */}
+        <Text style={s.nota}>
+          {empleado
+            ? `Por dónde te llega el trabajo lo decide ${negocioNombre ?? 'tu barbería'}. Sigues pudiendo pausarte arriba cuando lo necesites.`
+            : 'Lo que apagues aquí desaparece de la app de tus clientes. Tú puedes seguir sentando a quien llegue por la puerta en cualquiera de los tres.'}
+        </Text>
         <View style={{ gap: 8, marginBottom: 14 }}>
-          {MODOS.map(m => {
+          {MODOS.filter(m => !empleado || (perfil?.modo_atencion ?? 'ambos') === m.k).map(m => {
             const on = (perfil?.modo_atencion ?? 'ambos') === m.k
             return (
               <TouchableOpacity key={m.k} style={[s.estado, on && { borderColor: COLORS.red }]}
-                onPress={() => setModo(m.k)}>
+                onPress={() => setModo(m.k)} disabled={empleado}>
                 <Ionicons name={m.icono as any} size={19} color={on ? COLORS.red : COLORS.textLight} />
                 <View style={{ flex: 1 }}>
                   <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{m.l}</Text>
@@ -644,17 +658,27 @@ export default function Config() {
 
             El límite de fila lo comprueba turno_entrar_a_cola, que en "solo
             citas" está cerrada — así que ahí no cabe nadie a quien limitar. */}
+        {/* Y el límite de fila, por lo mismo: también está en el trigger de la
+            108. Al empleado se le enseña el número —le sirve para saber cuánta
+            gente le puede entrar— pero sin los botones, que no hacían nada. */}
         {daFila && (
           <View style={s.regla}>
             <View style={{ flex: 1, paddingRight: 12 }}>
               <Text style={s.reglaL}>Límite de fila</Text>
-              <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
+              <Text style={s.reglaD}>
+                {(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}
+                {empleado ? ` · lo pone ${negocioNombre ?? 'tu barbería'}` : ''}
+              </Text>
             </View>
-            <View style={s.stepCtrl}>
-              <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+            {empleado ? (
               <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
-              <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-            </View>
+            ) : (
+              <View style={s.stepCtrl}>
+                <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+                <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
         {!daFila && (

@@ -73,7 +73,15 @@ export default function CambiarRol() {
             <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.success : COLORS.textMid} />
             <View style={{ flex: 1 }}>
               <Text style={s.txt}>{etiqueta(o)}</Text>
-              <Text style={s.det}>{!o.aprobado && o.panel === 'silla' ? 'Pendiente de aprobación' : detalle(o)}</Text>
+              {/* «Pendiente de aprobación» era la única espera posible hasta la
+                  110. Ahora la espera puede ser AL REVÉS —te invitaron y el que
+                  no ha contestado eres tú— y decirle que espera al dueño le
+                  esconde que tiene algo que hacer. */}
+              <Text style={s.det}>
+                {!o.aprobado && o.panel === 'silla'
+                  ? (o.pendiente_de === 'barbero' ? 'Te invitaron · falta que aceptes' : 'Pendiente de aprobación')
+                  : detalle(o)}
+              </Text>
             </View>
             {esActual
               ? <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
