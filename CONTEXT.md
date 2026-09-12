@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-11** · migración **104** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **109** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -149,7 +149,18 @@ en quince sitios se corrige en catorce.
   barbería pone servicios, precios y horarios; `espacios_rentados` → cada barbero paga su
   asiento y pone sus reglas. El rol se **deriva** del tipo del local al entrar con el
   código, y desde la migración 94 la **aprobación también**: en asientos alquilados el
-  barbero entra ACTIVO —se agrega él— y con empleados entra pendiente. Los **bloqueos**
+  barbero entra ACTIVO —se agrega él— y con empleados entra pendiente.
+
+  > ⚠️ **Esa mitad ya está corregida por el dueño del producto y todavía no construida:**
+  > «barbero y barbería se pueden agregar mutuamente, pero requiere aprobación del otro».
+  > O sea que en asientos alquilados el barbero NO debería entrar activo, y además falta
+  > la dirección que hoy no existe: que el local invite al barbero. Cuando se haga, hay
+  > que **darle la vuelta** al caso verde de `autonomia` que dice *«alta · en ASIENTOS
+  > ALQUILADOS entra activo, se agrega él»*: está verde y está obsoleto. Una prueba en
+  > verde solo garantiza que el código hace lo que la prueba dice, no que la prueba siga
+  > diciendo lo que el producto quiere.
+
+  Los **bloqueos**
   (almuerzo, un rato fuera) son del barbero siempre: solo quitan disponibilidad, nunca la
   inventan.
 - **Modo de atención** por barbero (`modo_atencion`): `solo_citas`, `solo_fila`, `ambos`.
@@ -178,12 +189,34 @@ en quince sitios se corrige en catorce.
   palabras. Un local que no paga ya no arrastra al barbero que sí paga.
 - **El barbero de confianza** (migración 83) decide QUIÉN te atiende, nunca CUÁNDO. Vive en
   la membresía porque el mismo cliente puede ir a dos sitios.
+- **Al empleado el trabajo se lo dan** (migraciones 107, 108 y 109). El empleado no es un
+  autónomo con menos botones: es alguien que RECIBE lo que la barbería le manda. Tres
+  preguntas distintas, cada una en su función y ninguna repetida:
+
+  | Pregunta | Función | Qué contesta |
+  |---|---|---|
+  | ¿mando en las reglas de esta silla? | `turno_manda_en_el_horario` | R11: mía-y-autónoma, o soy su jefe |
+  | ¿puede esta silla servirse sola? | `turno_capta_por_su_cuenta` | lo de arriba, **o** es mía y el local me dio el permiso |
+  | ¿reparto yo esta fila? | `turno_manda_en_la_fila` | soy el admin del local, **o** tengo una silla aquí que capta sola |
+
+  La tercera se apoya en la segunda, y la segunda en la primera: es **una regla dentro de
+  otra**, no tres parecidas. El permiso es la columna `turno_perfiles.acepta_por_su_cuenta`,
+  y lo da el dueño desde el panel del barbero.
+
+  **Y todo eso hay que cerrarlo también por la TABLA.** La 107 puso los porteros en las
+  funciones y no valía nada, porque el empleado se daba el permiso con un `update` directo.
+  El trigger `trg_turno_perfil_solo_lo_suyo` (108) vigila las columnas que no son suyas
+  —`aprobado`, `suspendido`, `acepta_por_su_cuenta` y las seis reglas de tiempo— y deja en
+  paz lo que sí lo es: foto, bio, Instagram, `estado_actual` (irse a descanso es cosa suya).
+  **Ese trigger NO puede ser `SECURITY DEFINER`**: distingue la llamada directa del API
+  (`current_user = 'authenticated'`) de las funciones legítimas (`'postgres'`), y hacerlo
+  DEFINER rompe esa misma señal.
 
 ---
 
 ## Backend
 
-**101 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**109 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -275,6 +308,39 @@ o se corre más temprano o se asume que ese caso no se probó hoy.
    bueno el sistema hay que ver dos teléfonos con token.
 5. **Rediseño del panel del cliente** — pendiente de rehacer contra esta rama (la primera
    versión se hizo contra `main`, que va muy por detrás).
+
+### 🟡 De las reglas que mandó el dueño del producto, lo que queda por construir
+El resumen suyo: **«un tipo de cliente, 3 tipos de cola, dos tipos de barbero o servicio,
+dos tipos de administración.»** Lo del empleado está hecho (107–109 + pantallas). Falta:
+
+6. **Aprobación mutua barbero ↔ barbería.** Hoy solo existe una dirección —el barbero entra
+   con el código— y en asientos alquilados entra sin que nadie lo apruebe. Hace falta la
+   dirección contraria (que el local invite) y que las dos pidan el sí del otro. Da la
+   vuelta a la 94 y obliga a invertir un caso verde de `autonomia`.
+7. **El perfil público del barbero**, para que el cliente elija por algo más que el nombre.
+8. **La barbería que renta no puede ver dinero, solo visitas** — comprobado 6/6 contra la
+   base: ya está bien. Se deja escrito para que nadie lo "arregle" otra vez.
+9. **Horario base del local**, del que el barbero puede salirse (él manda en el suyo).
+10. **Unirse por código desde dentro de la app**, reparto por disponibilidad y
+    proporcionalidad, y que la moneda pase a ser de la silla.
+
+### ❓ Dos preguntas suyas sin responder, que bloquean lo de arriba
+- **«Administrador de barbería»** en el onboarding: ¿es el dueño con otro nombre, o alguien
+  que administra sin ser dueño ni pagar? Si es lo segundo es un rol nuevo, con su propia
+  fila en `turno_membresias` y su propia respuesta en `turno_negocios_admin`.
+- **«Doble servicio»**: ¿en paralelo (dos personas a la vez) o encadenado (corte y luego
+  uñas)? El interruptor `turno_configuracion_negocio.doble_servicio_activo` ya existe y
+  funciona —`motor_cola` tiene un caso verde que lo prueba—, pero hoy significa «puedes
+  tener dos turnos activos de tipos distintos», que es solo una de las dos lecturas.
+
+### 🐛 Un fallo abierto con decisión de producto detrás
+**La barbería que cierra de madrugada.** Con horario 21:00 → 03:00, a la 01:18 la app dice
+«ahora está cerrado: su fila abre de 21:00 a 03:00» — un mensaje que se contradice a sí
+mismo. La causa es `ahora between apertura y cierre`, falso en cuanto la ventana cruza la
+medianoche. Arreglarlo toca varias funciones y además `turno_slots_disponibles` tendría que
+generar huecos que cruzan de día. **Antes hay que decidir si el producto soporta turnos de
+madrugada**; si no, lo correcto no es un `case`, es impedir que se guarde ese horario y
+decirlo al guardarlo.
 
 ---
 

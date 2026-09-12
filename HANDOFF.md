@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **107** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-12** · migración **109** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -34,8 +34,9 @@ nada avise, y ya pasó dos veces.
   nombra jefe** (98), el cupo se ve (99), las dos horas extra que el cron no veía (100) y
   **pertenecer no es poder mirar** (101), **la ficha del cliente no es del vecino** (102),
   dos tablas de notas es una de más (103), la lista vieja de clientes se va (104),
-  **estar apuntado no es trabajar aquí** (105), no solo se corta el pelo (106) y
-  **al empleado el trabajo se lo dan** (107).
+  **estar apuntado no es trabajar aquí** (105), no solo se corta el pelo (106),
+  **al empleado el trabajo se lo dan** (107), **el barbero no se firma el ascenso**
+  (108) y **la fila no la reparte el empleado** (109).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -71,10 +72,47 @@ nada avise, y ya pasó dos veces.
   **una** función viva sin llamadores que escondía un bug ya conocido (`turno_mis_clientes`,
   sustituida en la 59 justo porque no veía a quien se unió y aún no ha venido) y **diez**
   exportaciones de `lib/db.ts` sin un solo importador.
+- **El perfil del empleado, que era el más grande de los agujeros abiertos.** Lo pidió el
+  dueño del producto con todas las letras —«no puede configurar negocio, ni horario, ni
+  reglas… solo acepta clientes por su cuenta si le dan permiso… no gestiona fila, solo el
+  turno del momento»— y de ahí salieron tres migraciones seguidas, cada una tapando lo que
+  la anterior dejaba a la vista:
+
+  · **107** puso el permiso (`acepta_por_su_cuenta`) y el portero en las tres funciones que
+    DAN trabajo: llamar al siguiente, llamar a uno concreto y sentar un walk-in.
+
+  · **108** descubrió que la 107 no valía nada, porque el empleado se daba el permiso a sí
+    mismo con un `update`. Y al mirar el resto de la fila salió algo mucho peor y mucho más
+    viejo: **`aprobado` también**. Ésa es la puerta ENTERA de la 94 — cualquiera con el
+    código del local, que se comparte por WhatsApp, se unía, se aprobaba solo y aparecía en
+    el escaparate cogiendo clientes de verdad. Y `suspendido`, que deshacía de un `update`
+    lo que la 92 construyó. RLS no puede con esto: la política está bien, el problema es de
+    COLUMNAS, y eso es un trigger. Que además **no puede ser `SECURITY DEFINER`**: la
+    primera versión lo era y no cerró nada (8 de 15), porque eso hace que `current_user` sea
+    siempre el dueño y destruye la única señal que el portero necesitaba. *Un portero que se
+    disfraza no puede reconocer a nadie.*
+
+  · **109** cerró la otra mitad de la regla. Gestionar la fila no es solo darse trabajo:
+    también es quitárselo a otro (`sacar_de_cola` sobre alguien que espera) y elegir quién
+    ocupa el hueco del ausente (`sustituir_ausente`). Reproducido por los dos caminos antes
+    de tocar nada. La familia se enumeró entera leyendo la base, no del reporte.
+
+  Y la tercera pata, que no es de base: **la pantalla del empleado seguía ofreciendo los
+  botones que el servidor ya rechazaba**. Un botón que rebota es peor que no tenerlo — no
+  parece una regla, parece una avería. Ahora quien contesta si se enseñan es el servidor,
+  con la misma función que abre o cierra la puerta, y donde estaba el botón va una frase,
+  no un hueco.
+
 - **Doce suites de base, TODAS re-corridas enteras contra el estado de hoy** (migración 107),
   las doce verdes, **360 casos**: puertas 70, suscripción 36, jornada 36, motor_cola 34,
   autonomía 33, obstáculos 32, confianza 27, horarios 26, sin cita 22, modo 21, viaje 17,
   fidelidad 6.
+
+  Desde entonces, y por las 108 y 109, se han vuelto a correr **enteras y verbatim** las
+  tres que tocan lo que cambió: **puertas 80/80** (subió de 70 a 80 con los casos nuevos),
+  **motor_cola 34/34** y **obstáculos 32/32**. Las otras nueve siguen con la corrida del
+  día 11 y ninguna llama a las funciones tocadas, comprobado con `grep` sobre el directorio
+  de pruebas, no de memoria.
 
   Ya no queda ningún «esto no lo he corrido pero creo que no le afecta». Tres cosas que
   salieron precisamente de correrlas en vez de razonarlas:
@@ -163,7 +201,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–107), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–109), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`
