@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-11** · migración **101** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-11** · migración **104** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -32,7 +32,8 @@ nada avise, y ya pasó dos veces.
   suya** (93), quién deja entrar a quién (94), **el día que empezamos a cobrar** (95), una
   silla pagada es una silla (96), quién pagó no es asunto tuyo (97), **el casero no se
   nombra jefe** (98), el cupo se ve (99), las dos horas extra que el cron no veía (100) y
-  **pertenecer no es poder mirar** (101).
+  **pertenecer no es poder mirar** (101), **la ficha del cliente no es del vecino** (102),
+  dos tablas de notas es una de más (103) y la lista vieja de clientes se va (104).
 - **El reparto de poder en los locales de asientos alquilados**, que era la pregunta de
   producto más grande abierta. El dueño agrupa y cobra el alquiler; no dirige, no lee la
   cartera ni la facturación de su inquilino, y suspenderlo le quita la fila y la fachada del
@@ -55,6 +56,19 @@ nada avise, y ya pasó dos veces.
   `turno_cerrar_olvidados` leía el horario SEMANAL y la extensión vive en `turno_jornadas`
   (100). Y el casero leía por la tabla lo que la 92 le había cerrado por la función (101).
   Dos sitios leyendo la misma regla por puertas distintas, las dos veces.
+- **La cuarta tabla que la 101 no miró** (102). La 101 arrancó el predicado roto de `cola`,
+  `citas` e `historial_visitas` y dejó `turno_preferencias_cliente` diciendo exactamente lo
+  mismo. O sea que **cualquier cliente del local leía la ficha de los demás**: tipo de corte,
+  barba, **alergias**, notas y foto — y el código del local se comparte por WhatsApp.
+  Reproducido antes de tocar nada. Al arreglar una familia de fallos hay que enumerar la
+  familia entera, no los casos que traía el reporte.
+- **La auditoría de la capa de datos contra la base real**, de donde salieron la 102, la 103
+  y la 104. Cruzar `pg_proc` y `pg_policies` con lo que la app llama de verdad dio: ninguna
+  RPC que la app invoque falta en la base (cero 404 en caliente), **tres** tablas de notas
+  distintas cuando la regla es una, **una** tabla huérfana con 0 filas (`turno_notas_privadas`),
+  **una** función viva sin llamadores que escondía un bug ya conocido (`turno_mis_clientes`,
+  sustituida en la 59 justo porque no veía a quien se unió y aún no ha venido) y **diez**
+  exportaciones de `lib/db.ts` sin un solo importador.
 - **Doce suites de base, todas verdes** contra la BD real y **re-corridas enteras después de
   la 101**, que es el estado de hoy: cola 34, autonomía 33, fidelidad 6, viaje 17,
   obstáculos 32, puertas 43, horarios 26, sin cita 21, modo 21, confianza 27, suscripción
@@ -70,7 +84,8 @@ nada avise, y ya pasó dos veces.
 
   · **`puertas` sube a 43 por los cinco casos «tabla» de la 101, no por la red.** La red
     entera sigue siendo **un** caso: las funciones nuevas se añaden a la llamada, no al
-    conteo.
+    conteo. Con la 102 va por **54**: siete de la ficha del cliente y cuatro de la nota
+    privada del barbero.
 
   Y una corrección al propio HANDOFF: aquí se dijo que `confianza` usaba `set local role`.
   No lo usa —solo lo nombra un comentario—; impersona con `set_config` y prueba funciones
@@ -99,6 +114,19 @@ Van aquí porque el que retome esto los va a volver a encontrar si no los conoce
    mismo que ya tumbó el cron en la 73. O sea que cualquiera que se uniera con el código del
    local se llevaba lo que factura el local entero y las citas de los demás, con nombre y
    hora. Desde la 101 las tres tablas del núcleo van por `turno_manda_en_la_silla`.
+
+   **Y la 101 arregló tres tablas de cuatro** (migración 102). El mismo predicado seguía
+   intacto en `turno_preferencias_cliente`, con lo que cualquier cliente del local leía las
+   ALERGIAS de los demás. No fue mala suerte: se arreglaron las tablas que el reporte
+   nombraba y nadie preguntó **dónde más está escrito esto mismo**. La consulta que lo
+   habría encontrado en un minuto cabe en una línea:
+
+   ```sql
+   select tablename, policyname from pg_policies
+    where schemaname='public' and coalesce(qual,'') ~ 'turno_mis_negocios';
+   ```
+
+   **Al arreglar una familia de fallos se enumera la familia, no los casos del reporte.**
 
    La cuarta es la que mejor lo enseña (migración 97). La 95 puso cuidado en que el letrero
    NO delatara al barbero que no había pagado —frase neutra, razonada en su cabecera— y en la
@@ -173,7 +201,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–101), `supabase/functions/turno-enviar-push/`
+- Backend: `supabase/migrations/` (01–104), `supabase/functions/turno-enviar-push/`
 - Pruebas: `supabase/tests/` (12 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

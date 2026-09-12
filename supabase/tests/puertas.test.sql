@@ -47,7 +47,7 @@ declare
   a_due uuid := gen_random_uuid(); a_bar uuid := gen_random_uuid();
   a_cli uuid := gen_random_uuid(); a_ext uuid := gen_random_uuid();
   a_cli2 uuid := gen_random_uuid(); a_pen uuid := gen_random_uuid();
-  p_pen uuid; v_ale text;
+  p_pen uuid; v_ale text; g_grupo uuid;
   u_due uuid; u_bar uuid; u_cli uuid; u_ext uuid; u_cli2 uuid;
   v_neg uuid; v_neg2 uuid; p_due uuid; p_bar uuid; p_ext uuid;
   s_corte uuid; q_cli uuid; q_libre uuid; v_bloq uuid;
@@ -640,6 +640,144 @@ begin
   if v_int = 1 then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
 
+  -- ── LO QUE UN CLIENTE DEL LOCAL PUEDE ESCRIBIR (migración 105) ────────────
+  -- El intruso de aquí no es el anónimo ni el de otro local: es el cliente
+  -- REGISTRADO de ESTE local. Por eso la red de abajo nunca lo vio — censa lo
+  -- que puede hacer `anon`— y por eso seis políticas llevaban meses diciendo
+  -- `negocio_id in (select turno_mis_negocios())` como si eso significara
+  -- «trabajo aquí». No lo significa: incluye a quien solo es cliente.
+  --
+  -- Las tres primeras no son una fuga de datos, son una VÍA DE FRAUDE: la
+  -- tarjeta de fidelidad la escribe un trigger sobre las visitas, y aquí el
+  -- cliente podía escribírsela a mano —o inventarse la visita que la alimenta—
+  -- y canjear el corte gratis sin pisar el local.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+  insert into turno_canjes (usuario_id, negocio_id, perfil_id, premio, visitas_costo)
+  values (u_cli, v_neg, p_bar, 'Corte gratis', 3);
+  insert into turno_eventos_log (negocio_id, usuario_id, evento, metadata)
+  values (v_neg, u_cli, 'cobro_manual', 'caja: 4500');
+  insert into turno_grupos (negocio_id, lider_id, mismo_barbero, perfil_id, total_personas, estado)
+  values (v_neg, u_cli, true, p_bar, 4, 'en_espera') returning id into g_grupo;
+
+  n:=n+1; c:='fraude · un CLIENTE no se escribe una tarjeta de fidelidad';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_puntos (usuario_id, negocio_id, visitas_totales, visitas_canjeadas)
+    values (u_cli2, v_neg, 99, 0);
+    v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - 99 visitas a mano y el premio sale gratis'; end if;
+
+  n:=n+1; c:='fraude · ni le sube las visitas a otro';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    update turno_puntos set visitas_totales = 99 where usuario_id = u_cli;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; end;
+  reset role;
+  if v_int <= 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - tocó '||v_int||' tarjeta(s) ajena(s)'; end if;
+
+  n:=n+1; c:='fraude · ni se inventa una visita (que además es la que da el punto)';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_historial_visitas (cliente_id, negocio_id, perfil_id, servicio_id, fecha, precio_cobrado, origen)
+    values (u_cli2, v_neg, p_bar, s_corte, current_date, 0, 'cola_digital');
+    v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - visita falsa: punto gratis y la caja del barbero descuadrada'; end if;
+
+  n:=n+1; c:='tabla · un CLIENTE no lee la tarjeta de fidelidad de otro';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_puntos where usuario_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - vio '||v_int; end if;
+
+  n:=n+1; c:='tabla · ni los vales de otro';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_canjes where usuario_id = u_cli;
+  reset role;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||' vale(s)'; end if;
+
+  n:=n+1; c:='tabla · ni el registro de eventos del local';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*), string_agg(metadata,' | ') into v_int, v_txt
+    from turno_eventos_log where negocio_id = v_neg;
+  reset role;
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - leyó '||v_int||' → "'||coalesce(v_txt,'?')||'"'; end if;
+
+  n:=n+1; c:='tabla · ni escribe un evento falso en ese registro';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    insert into turno_eventos_log (negocio_id, usuario_id, evento) values (v_neg, u_cli2, 'falso');
+    v_int := 1;
+  exception when others then v_int := 0; end;
+  reset role;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
+
+  n:=n+1; c:='grupo · un CLIENTE no ve el grupo de otro';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_grupos where id = g_grupo;
+  reset role;
+  if v_int = 0 then ok:=ok+1; else fallos:=fallos||E'\n  x '||c; end if;
+
+  n:=n+1; c:='grupo · ni se lo borra';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  set local role authenticated;
+  begin
+    delete from turno_grupos where id = g_grupo;
+    get diagnostics v_int = row_count;
+  exception when others then v_int := -1; end;
+  reset role;
+  if v_int <= 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - le borró el grupo de cuatro a otro cliente'; end if;
+
+  -- LA OTRA MITAD. Cerrar la escritura de `turno_puntos` sin mirar quién la
+  -- escribía de verdad habría APAGADO LA FIDELIDAD ENTERA, que se acumula desde
+  -- un trigger. Este caso es el que lo vigila.
+  n:=n+1; c:='fidelidad · cerrar la escritura NO apagó el trigger que suma sola';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli2::text)::text, true);
+  select coalesce(max(visitas_totales),0) into v_int
+    from turno_puntos where usuario_id = u_cli2 and negocio_id = v_neg;
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' visitas en la tarjeta: la cita cerrada'
+       ||' por el barbero tenía que haber sumado una'; end if;
+
+  n:=n+1; c:='fidelidad · y el BARBERO del local sigue leyendo la del cliente';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_puntos where usuario_id = u_cli and negocio_id = v_neg;
+  reset role;
+  if v_int >= 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - vio '||v_int||': SE CERRÓ DE MÁS'; end if;
+
+  n:=n+1; c:='grupo · el LÍDER sigue viendo y ajustando el suyo';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_cli::text)::text, true);
+  set local role authenticated;
+  select count(*) into v_int from turno_grupos where id = g_grupo;
+  if v_int = 1 then
+    begin
+      update turno_grupos set total_personas = 3 where id = g_grupo;
+      get diagnostics v_int = row_count;
+    exception when others then v_int := -1; end;
+  else v_int := -2; end if;
+  reset role;
+  if v_int = 1 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - SE CERRÓ DE MÁS ('||v_int||')'; end if;
+
   -- ── LA RED: TODO LO QUE UN ANÓNIMO PUEDE EJECUTAR ─────────────────────────
   -- No se comprueba leyendo el código —eso ya falló tres veces— sino llamando.
   perform set_config('request.jwt.claims', null, true);
@@ -796,6 +934,8 @@ begin
     abiertas := abiertas || ' silla_al_dia'; exception when others then null; end;
   begin perform turno_local_operativo(v_neg);
     abiertas := abiertas || ' local_operativo'; exception when others then null; end;
+  begin perform turno_trabajo_aqui(v_neg);
+    abiertas := abiertas || ' trabajo_aqui'; exception when others then null; end;
   begin perform turno_perfil_acepta(p_bar, null);
     abiertas := abiertas || ' perfil_acepta'; exception when others then null; end;
   begin perform turno_perfil_operable(p_bar);
@@ -901,7 +1041,7 @@ begin
       'turno_resumen_resenas','turno_sacar_de_cola','turno_salir_local',
       'turno_stats_periodo_negocio',
       'turno_local_operativo','turno_perfil_acepta','turno_perfil_operable',
-      'turno_silla_al_dia',
+      'turno_silla_al_dia','turno_trabajo_aqui',
       'turno_stats_periodo_perfil','turno_suscripcion','turno_suscripcion_de',
       'turno_suscripcion_silla','turno_suspender_barbero',
       'turno_sustituir_ausente','turno_ya_llegue'

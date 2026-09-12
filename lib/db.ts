@@ -291,12 +291,6 @@ export async function getMisNegociosCliente(usuario_id: string) {
   return (data || []).map((m: any) => ({ negocio_id: m.negocio_id, nombre: m.turno_negocios?.nombre ?? 'Barbería' }))
 }
 
-export async function getUsuario(id: string) {
-  const { data, error } = await supabase.from(T('usuarios')).select('*').eq('id', id).maybeSingle()
-  if (error) throw error
-  return data
-}
-
 // ONBOARDING (RPC atómicos)
 export async function crearNegocio(p: {
   nombre_negocio: string; tipo: 'espacios_rentados' | 'empleados'; moneda: string
@@ -760,10 +754,6 @@ export async function getCitasFecha(perfil_id: string, fecha: string) {
   return data || []
 }
 
-export async function getCitasHoy(perfil_id: string) {
-  return getCitasFecha(perfil_id, fechaISOLocal())
-}
-
 /**
  * LAS QUE SE QUEDARON SIN CERRAR.
  *
@@ -902,15 +892,6 @@ export async function getResenasDe(perfil_id: string, limite = 20) {
   return data || []
 }
 
-export async function crearCita(cita: {
-  perfil_id: string; cliente_id: string; negocio_id: string
-  servicio_id: string; fecha: string; hora_inicio: string; hora_fin: string
-}) {
-  const { data, error } = await supabase.from(T('citas')).insert({ ...cita, estado: 'creada' }).select().single()
-  if (error) throw error
-  return data
-}
-
 // COLA
 /**
  * LA COLA QUE DE VERDAD LE TOCA A ESTE BARBERO.
@@ -1020,7 +1001,18 @@ export async function iniciarAtencion(cola_id: string) {
 }
 
 // ── GESTIÓN DE LA FILA (el barbero corrige la realidad) ──────────
-/** Sube (-1) o baja (+1) un puesto en la fila. */
+//
+// OJO: las dos de aquí abajo NO LAS LLAMA NINGUNA PANTALLA. Se quedan a
+// propósito, y la diferencia importa: no son código sobrante, son un HUECO DE
+// PRODUCTO. `turno_mover_en_cola` y `turno_llamar_a` existen en la base, tienen
+// portero y están cubiertas por la red de `puertas`; lo que falta es el botón.
+//
+// La migración 16 quitó del DUEÑO los controles de la fila porque no le tocaban
+// a él. Al barbero sí: es el único que ve lo que de verdad pasa en el local —el
+// que lleva media hora fuera, el que llegó antes que el de delante— y hoy no
+// tiene con qué corregirlo. Borrar estos dos envoltorios haría desaparecer la
+// pregunta; dejarlos escritos la mantiene a la vista.
+/** Sube (-1) o baja (+1) un puesto en la fila. Sin pantalla todavía. */
 export async function moverEnCola(cola_id: string, delta: -1 | 1) {
   const { error } = await supabase.rpc('turno_mover_en_cola', { p_cola: cola_id, p_delta: delta })
   if (error) throw error
@@ -1225,19 +1217,6 @@ export async function getHistorialCliente(cliente_id: string, negocio_id: string
   return data || []
 }
 
-/** Clientes únicos que ha atendido el barbero, con conteo y total. */
-export async function getClientesBarbero(perfil_id: string) {
-  const { data, error } = await supabase.from(T('historial_visitas'))
-    .select('cliente_id, fecha, precio_cobrado, turno_usuarios(nombre, telefono)')
-    .eq('perfil_id', perfil_id).order('fecha', { ascending: false })
-  if (error) throw error
-  const map = new Map<string, any>()
-  for (const v of (data || []) as any[]) {
-    if (!map.has(v.cliente_id)) map.set(v.cliente_id, { cliente_id: v.cliente_id, nombre: v.turno_usuarios?.nombre ?? 'Cliente', telefono: v.turno_usuarios?.telefono, visitas: 0, total: 0, ultima: v.fecha })
-    const c = map.get(v.cliente_id); c.visitas++; c.total += Number(v.precio_cobrado || 0)
-  }
-  return Array.from(map.values())
-}
 
 // ── DATOS QUE SIGUEN AL BARBERO (agregados por persona, todos sus locales) ──
 export async function getMisEstadisticas() {
@@ -1299,26 +1278,6 @@ export async function getNotasBarbero(usuario_barbero_id: string) {
   const map: Record<string, string> = {}
   for (const n of (data ?? []) as any[]) if (n.nota) map[n.cliente_id] = n.nota
   return map
-}
-
-export async function getEstadisticasBarbero(perfil_id: string) {
-  const { data, error } = await supabase.from(T('historial_visitas')).select('precio_cobrado, origen, fecha, cliente_id, turno_servicios(nombre)').eq('perfil_id', perfil_id)
-  if (error) throw error
-  const visitas = data || []
-  const totalIngresos = visitas.reduce((s, v) => s + (v.precio_cobrado || 0), 0)
-  const clientesUnicos = new Set(visitas.map(v => v.cliente_id)).size
-  return { totalIngresos, clientesUnicos, totalVisitas: visitas.length, visitas }
-}
-
-// NOTAS PRIVADAS
-export async function getNotaPrivada(perfil_id: string, cliente_id: string) {
-  const { data } = await supabase.from(T('notas_privadas')).select('nota').eq('perfil_id', perfil_id).eq('cliente_id', cliente_id).maybeSingle()
-  return data?.nota || ''
-}
-
-export async function guardarNotaPrivada(perfil_id: string, cliente_id: string, nota: string) {
-  const { error } = await supabase.from(T('notas_privadas')).upsert({ perfil_id, cliente_id, nota }, { onConflict: 'perfil_id,cliente_id' })
-  if (error) throw error
 }
 
 // PUNTOS
