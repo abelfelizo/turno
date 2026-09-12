@@ -8,11 +8,14 @@ import { enviarPush } from '../../../lib/notificaciones'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero, relojesDeSilla } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
+import { nombreOficio } from '../../../types'
 import { Display, Avatar, PuntoVivo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 import ClientesLocal from '../../../components/clientes-local'
 
-const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
+// Los nombres de los oficios viven en types/index.ts (OFICIOS). Aquí había una
+// copia con dos entradas, y al añadir masajista y facial se habría quedado
+// llamándolas "Barbería" sin dar error.
 
 /** El ámbar de COLORS es para fondo claro (#B45309): sobre el carbón de estas
  *  tarjetas queda en 3:1 y un rótulo de 11px ahí no se lee. Este es el mismo
@@ -415,7 +418,7 @@ export default function Dashboard() {
           <Avatar name={p.turno_usuarios?.nombre} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
           <View style={{ flex: 1 }}>
             <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-            <Text style={s.solMeta}>{TIPO[p.tipo_servicio] ?? 'Barbería'} · quiere unirse</Text>
+            <Text style={s.solMeta}>{nombreOficio(p.tipo_servicio)} · quiere unirse</Text>
           </View>
           <TouchableOpacity style={s.rechazar} onPress={() => rechazar(p)}><Ionicons name="close" size={20} color={COLORS.danger} /></TouchableOpacity>
           <TouchableOpacity style={s.aprobar} onPress={() => aprobar(p)}><Text style={s.aprobarT}>Aprobar</Text></TouchableOpacity>

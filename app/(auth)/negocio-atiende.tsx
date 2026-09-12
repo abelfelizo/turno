@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { OnbScreen, Opcion, BotonPrimario } from '../../components/onb'
 import { borrador } from '../../lib/onboarding'
-import type { TipoServicio } from '../../types'
+import { OFICIOS, type TipoServicio } from '../../types'
 
 export default function NegocioAtiende() {
   const router = useRouter()
@@ -27,8 +27,10 @@ export default function NegocioAtiende() {
 
       {atiende === true && (
         <>
-          <Opcion label="Barbería" seleccionado={tipoServicio === 'barbero'} onPress={() => setTipoServicio('barbero')} />
-          <Opcion label="Manicure / Pedicure" seleccionado={tipoServicio === 'manicuri_pedicuri'} onPress={() => setTipoServicio('manicuri_pedicuri')} />
+          {OFICIOS.map(o => (
+            <Opcion key={o.id} label={o.nombre}
+              seleccionado={tipoServicio === o.id} onPress={() => setTipoServicio(o.id)} />
+          ))}
         </>
       )}
       <BotonPrimario texto="Continuar" onPress={continuar} disabled={!listo} />

@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { fechaISOLocal } from './format'
+import type { TipoServicio } from '../types'
 
 const T = (tabla: string) => `turno_${tabla}`
 
@@ -294,7 +295,7 @@ export async function getMisNegociosCliente(usuario_id: string) {
 // ONBOARDING (RPC atómicos)
 export async function crearNegocio(p: {
   nombre_negocio: string; tipo: 'espacios_rentados' | 'empleados'; moneda: string
-  atiende: boolean; tipo_servicio: 'barbero' | 'manicuri_pedicuri'
+  atiende: boolean; tipo_servicio: TipoServicio
   nombre_dueno: string; telefono: string
   anticipacion?: number; ventana?: number; gracia?: number
   puntos_activos?: boolean; puntos_por_visita?: number; visitas_gratis?: number
@@ -314,7 +315,7 @@ export async function crearNegocio(p: {
 }
 
 export async function unirseProfesional(p: {
-  codigo: string; tipo_servicio: 'barbero' | 'manicuri_pedicuri'
+  codigo: string; tipo_servicio: TipoServicio
   rol: 'empleado' | 'barbero_renta'; nombre: string; telefono: string
 }) {
   const { data, error } = await supabase.rpc('turno_unirse_profesional', {

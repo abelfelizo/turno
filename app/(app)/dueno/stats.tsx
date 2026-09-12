@@ -4,6 +4,7 @@ import { getSesion } from '../../../lib/storage'
 import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById, getStatsPeriodoNegocio, type StatsPeriodo } from '../../../lib/db'
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
+import { nombreOficio } from '../../../types'
 import { Display, Avatar } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 
@@ -88,7 +89,7 @@ export default function Stats() {
           <Avatar name={p.turno_usuarios?.nombre} size={42} />
           <View style={{ flex: 1 }}>
             <Text style={s.rowName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-            <Text style={s.rowMeta}>{p.tipo_servicio === 'manicuri_pedicuri' ? 'Uñas & Spa' : 'Barbería'} · {p.estado_actual}</Text>
+            <Text style={s.rowMeta}>{nombreOficio(p.tipo_servicio)} · {p.estado_actual}</Text>
           </View>
         </View>
       ))}
