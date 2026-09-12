@@ -88,11 +88,22 @@ nada avise, y ya pasó dos veces.
     entera sigue siendo **un** caso: las funciones nuevas se añaden a la llamada, no al
     conteo. Con la 102 fue a 54, con la 105 a 66 y con la 107 a **70**.
 
-  **Lo que falta correr tras la 107:** se re-corrieron `puertas` (70/70), `viaje` (17/17)
-  y `obstáculos` (32/32), que son las tres que tocaba el cambio. `motor_cola` no se
-  rompe porque su barbero tiene también membresía de dueño (y por tanto es autónomo);
-  `jornada`, `sin cita`, `modo` y `suscripción` llaman con el dueño o con el rentado.
-  Eso es un argumento, no una corrida: **quedan pendientes de re-correr enteras.**
+  **Tras la 107 se re-corrieron las cinco que el cambio podía tocar**, todas verdes:
+  `puertas` 70/70, `jornada` 36/36, `motor_cola` 34/34, `obstáculos` 32/32 y `viaje`
+  17/17. Las dos que importaban de verdad:
+
+  · `motor_cola` parecía en riesgo y no lo estaba —su barbero tiene también membresía
+    de dueño, así que es autónomo y el permiso no le aplica—. Era un argumento; ahora
+    es una corrida.
+  · `jornada` es la que confirma la marcha atrás de `cerrar_jornada`: su caso «el
+    EMPLEADO sí puede cerrar su fila hoy» pasa. Importaba porque la 107 se verificó
+    15/15 ANTES de deshacer esa parte, así que el estado final no estaba probado.
+
+  **Siguen sin re-correr enteras desde la 105:** `sin cita`, `modo`, `suscripción`,
+  `fidelidad`, `horarios`, `confianza` y `autonomía`. Ninguna llama a las funciones que
+  la 107 cerró con un empleado, y las escrituras que cerró la 105 solo las tocan las
+  suites a través de triggers que corren como dueño. Pero eso vuelve a ser un
+  argumento, no una corrida.
 
   Y una corrección al propio HANDOFF: aquí se dijo que `confianza` usaba `set local role`.
   No lo usa —solo lo nombra un comentario—; impersona con `set_config` y prueba funciones
