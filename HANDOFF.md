@@ -2,7 +2,7 @@
 
 > Dónde se quedó el proyecto y qué sigue. Estado completo en `CONTEXT.md`;
 > checklist de release en `PRODUCCION.md`.
-> Última actualización: **2026-09-12** · migración **111** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-16** · migración **113** · rama `claude/app-status-2o0mdy`.
 
 ## TL;DR
 
@@ -141,7 +141,7 @@ nada avise, y ya pasó dos veces.
   **341 casos, todos verdes.** Las tres restantes —modo 21, sin cita 22, fidelidad 6— no se
   re-corrieron: sus ficheros están sin tocar y ninguna llama a nada de lo que cambió,
   comprobado con `grep` sobre el directorio, no de memoria. Con los cuatro casos que añadió
-  la 111, **trece suites y 394 casos**.
+  la 113, **catorce suites y 414 casos**.
 
   Y en `autonomia` se le dio la vuelta al caso que llevaba veinte migraciones **verde y
   obsoleto** —«en ASIENTOS ALQUILADOS entra activo, se agrega él»—, que es la lección que un
@@ -261,7 +261,7 @@ Los errores `rls_disabled` del linter son de `libro_*`, otra app, fuera de alcan
 - Lógica: `lib/db.ts`, `lib/atencion.ts`, `lib/format.ts`, `lib/notificaciones.ts`,
   `lib/paises.ts`, `lib/pricing.ts`, `lib/whatsapp.ts`
 - Pantallas: `app/(app)/{cliente,barbero,dueno}/`, `app/(auth)/`
-- Backend: `supabase/migrations/` (01–111), `supabase/functions/turno-enviar-push/`
-- Pruebas: `supabase/tests/` (13 suites) y su `README.md`
+- Backend: `supabase/migrations/` (01–113), `supabase/functions/turno-enviar-push/`
+- Pruebas: `supabase/tests/` (14 suites) y su `README.md`
 - Docs: `CONTEXT.md` (estado), `PRODUCCION.md` (release), `ARQUITECTURA-UX.md` (el brief de
   julio), este `HANDOFF.md`

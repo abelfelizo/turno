@@ -1097,6 +1097,16 @@ begin
   -- cualquiera no es una fuga grave, pero tampoco es negarse.
   begin perform turno_jornada_de(p_bar, current_date);
     abiertas := abiertas || ' jornada_de'; exception when others then null; end;
+  -- Migración 113. Las tres de la madrugada: dicen en qué jornada está una
+  -- silla y a qué día se le apuntan los cambios. `turno_ventana_cruda` no está
+  -- aquí porque no se le concede a NINGÚN rol —ni siquiera a `authenticated`—
+  -- y su cerrojo lo comprueba `madrugada.test.sql`.
+  begin perform turno_jornada_ahora(p_bar);
+    abiertas := abiertas || ' jornada_ahora'; exception when others then null; end;
+  begin perform turno_dia_laboral(p_bar);
+    abiertas := abiertas || ' dia_laboral'; exception when others then null; end;
+  begin perform turno_fin_real(current_date, time '21:00', time '03:00');
+    abiertas := abiertas || ' fin_real'; exception when others then null; end;
   begin perform turno_limpiar_pasado();
     abiertas := abiertas || ' limpiar_pasado'; exception when others then null; end;
   -- Migración 88. Esta se me quedó fuera el día que se escribió, y al ir a
@@ -1228,6 +1238,7 @@ begin
       'turno_estado_barbero','turno_estado_local','turno_eta','turno_fidelidad',
       'turno_fila_abierta','turno_filas_abiertas','turno_guardar_reglas_barbero',
       'turno_iniciar_atencion','turno_jornada_de','turno_jornada_normal',
+      'turno_jornada_ahora','turno_dia_laboral','turno_fin_real',
       'turno_liberar_ahora','turno_limpiar_pasado','turno_llamar_a',
       'turno_llamar_siguiente','turno_manda_en_el_horario','turno_marcar_preferido',
       'turno_manda_en_la_silla','turno_manda_en_la_fila',
