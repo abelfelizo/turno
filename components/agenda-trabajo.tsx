@@ -8,7 +8,7 @@ import {
   getPreferenciasCliente, getNotaBarbero, getMiUsuario, getCanjeActivoCliente, aplicarCanje, iniciarAtencion,
   sacarDeCola, devolverAFila, cambiarServicioCola, atenderSinCita, liberarAhora, marcarNoEsta, sustituirAusente, avisosDeEspera, darMasTiempo,
   getEstadoBarbero, actualizarEstadoPerfil, getFidelidad, getTarjetaCliente, getBarberoNegocios, captaPorSuCuenta, mandoEnMiHorario,
-  alargarJornada, adelantarJornada, jornadaNormal, cerrarJornada, getJornadaDe, actualizarBloqueo,
+  alargarJornada, adelantarJornada, jornadaNormal, cerrarJornada, getJornadaDe, getJornadaAhora, actualizarBloqueo,
 } from '../lib/db'
 import { hora12, fechaLarga, fechaISOLocal, fechaDeISO, sumarDias, relojesDeSilla } from '../lib/format'
 import { avisarTurno, recordarCita } from '../lib/whatsapp'
@@ -127,6 +127,8 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
    *  jornada INVENTAN disponibilidad: al empleado se las pone su barbería. */
   const [mandoHorario, setMandoHorario] = useState(true)
   const [jornada, setJornada] = useState<{ hora_inicio: string; hora_fin: string } | null>(null)
+  /** La jornada VIVA, que puede haber empezado ayer (migración 113). */
+  const [enJornada, setEnJornada] = useState(false)
   const esHoy = fecha === hoy
 
   /**
@@ -137,9 +139,17 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
    * podía distinguirlas y las trataba igual. A las seis de la mañana ofrecía
    * "seguir abierto un rato", que no es lo que pasa: todavía no has abierto, y
    * alargar el cierre de la tarde no deja entrar a nadie ahora.
+   *
+   * LA PREGUNTA SE LE HACE AL SERVIDOR, NO AL RELOJ (migración 113). Comparar
+   * cadenas de hora deja de valer en cuanto la jornada cruza la medianoche:
+   * con un horario de 21:00 a 03:00, `"01:18" < "21:00"` da verdadero y esta
+   * pantalla anunciaba «tu fila abre a las 9 PM» a un barbero que estaba
+   * trabajando en ese momento. Primero se pregunta si hay jornada viva —la de
+   * hoy o la de ayer que sigue corriendo— y solo si NO la hay se mira por qué
+   * punta está cerrada.
    */
-  const antesDeAbrir = esHoy && !!jornada && horaAhora() < jornada.hora_inicio
-  const yaCerre = esHoy && !!jornada && horaAhora() >= jornada.hora_fin
+  const antesDeAbrir = esHoy && !enJornada && !!jornada && horaAhora() < jornada.hora_inicio
+  const yaCerre = esHoy && !enJornada && !!jornada && !antesDeAbrir
   // Los locales donde trabaja. Con uno solo es una línea informativa; con
   // varios, el selector — antes había que salir a Configuración > Mis locales
   // para cambiar de sitio, que es un viaje raro para algo que se hace al llegar
@@ -150,7 +160,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargar = useCallback(async () => {
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
-    const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta, mando] = await Promise.all([
+    const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta, mando, viva] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getServiciosPerfil(ss.perfil_id).catch(() => []),
@@ -168,10 +178,15 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       // push, y abrir la app recarga entera.
       captaPorSuCuenta(ss.perfil_id),
       mandoEnMiHorario(ss.perfil_id),
+      // Y si hay jornada VIVA. Con una que cruza la medianoche, la de arriba
+      // devuelve la de hoy —que a la una de la mañana todavía no ha empezado—
+      // y por sí sola haría decir que la fila está cerrada mientras trabaja.
+      getJornadaAhora(ss.perfil_id).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setServicios(sv as any[]); setNegocio(neg)
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
     setSinCerrar(sc as any[]); setJornada(jo as any); setCaptaSolo(capta as boolean); setMandoHorario(mando as boolean)
+    setEnJornada(!!viva)
     setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
@@ -199,7 +214,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const cargarVivo = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.perfil_id) return
-    const [c, q, bl, est, sc, jo] = await Promise.all([
+    const [c, q, bl, est, sc, jo, viva] = await Promise.all([
       getCitasFecha(ss.perfil_id, fecha),
       getColaActiva(ss.negocio_id!, ss.perfil_id, { incluirSinAsignar: true }),
       getBloqueosFecha(ss.perfil_id, fecha).catch(() => []),
@@ -210,9 +225,12 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       // Y la jornada, porque adelantar o alargar la cambia: si no se recarga,
       // el cuadro sigue proponiendo abrir antes después de haber abierto.
       getJornadaDe(ss.perfil_id, fecha).catch(() => null),
+      // Y si sigue viva: "ya cierro" a la una de la madrugada la mata, y sin
+      // esto la pantalla se quedaría creyendo que aún está trabajando.
+      getJornadaAhora(ss.perfil_id).catch(() => null),
     ])
     setCitas(c as any[]); setCola(q as any[]); setBloqueos(bl as any[]); setEstado(est)
-    setSinCerrar(sc as any[]); setJornada(jo as any)
+    setSinCerrar(sc as any[]); setJornada(jo as any); setEnJornada(!!viva)
   }, [fecha])
 
   /**

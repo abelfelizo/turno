@@ -23,6 +23,7 @@ export default function Stats() {
   const [periodo, setPeriodo] = useState<PeriodoK>('7d')
   const [pstats, setPstats] = useState<StatsPeriodo | null>(null)
   const [negocioId, setNegocioId] = useState<string | null>(null)
+  const [esRentado, setEsRentado] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -35,7 +36,9 @@ export default function Stats() {
       getPerfilesNegocio(ss.negocio_id).catch(() => []),
       getNegocioById(ss.negocio_id).catch(() => null),
     ])
-    setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? ''); setLoading(false); setRefreshing(false)
+    setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? '')
+    setEsRentado(neg?.tipo === 'espacios_rentados')
+    setLoading(false); setRefreshing(false)
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -52,19 +55,53 @@ export default function Stats() {
       <PanelBadge />
       <Display size={30} style={{ marginBottom: 18 }}>Estadísticas</Display>
 
-      <View style={s.bigCard}>
-        <Text style={s.bigLbl}>INGRESOS DEL LOCAL</Text>
-        <Text style={s.bigNum}>{dinero(stats?.ingresosPropios ?? 0, moneda)}</Text>
-        <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy · empleados y tu silla</Text>
-      </View>
+      {/* EN UN LOCAL DE ALQUILER LA CIFRA GRANDE NO PUEDE SER DINERO.
+          Quien alquila asientos no ve la facturación de sus inquilinos: es
+          otro negocio que le paga por el espacio. La pantalla, sin embargo,
+          abría con "INGRESOS DEL LOCAL · empleados y tu silla" — nombrando
+          empleados que en esa modalidad no existen, y enseñando un número que
+          para un casero sin silla propia es RD$0 para siempre. Se veía como un
+          local que no factura nada, cuando lo que pasa es que su negocio se
+          mide en visitas. */}
+      {esRentado ? (
+        <View style={s.bigCard}>
+          <Text style={s.bigLbl}>VISITAS EN TU LOCAL</Text>
+          <Text style={s.bigNum}>{stats?.totalVisitas ?? 0}</Text>
+          <Text style={s.bigSub}>
+            {stats?.atendidosHoy ?? 0} hoy · lo que cobra cada quien es suyo
+          </Text>
+        </View>
+      ) : (
+        <View style={s.bigCard}>
+          <Text style={s.bigLbl}>INGRESOS DEL LOCAL</Text>
+          <Text style={s.bigNum}>{dinero(stats?.ingresosPropios ?? 0, moneda)}</Text>
+          <Text style={s.bigSub}>{dinero(stats?.ingresosHoy ?? 0, moneda)} hoy · empleados y tu silla</Text>
+        </View>
+      )}
 
-      {(stats?.visitasRenta ?? 0) > 0 && (
+      {/* En un local de alquiler esta tarjeta sale SIEMPRE, también en cero:
+          es la única cifra del negocio del casero, y esconderla el día flojo
+          deja la pantalla hablando de todo menos de lo suyo. En un local de
+          empleados sigue apareciendo solo si hay algún asiento alquilado. */}
+      {(esRentado || (stats?.visitasRenta ?? 0) > 0) && (
         <View style={s.rentaCard}>
           <View style={{ flex: 1 }}>
             <Text style={s.rentaLbl}>ASIENTOS ALQUILADOS</Text>
-            <Text style={s.rentaSub}>Servicios hechos por quienes te rentan. Su facturación es suya y no se muestra.</Text>
+            <Text style={s.rentaSub}>Servicios hechos por quienes te rentan, desde que abriste. Su facturación es suya y no se muestra.</Text>
           </View>
           <Text style={s.rentaNum}>{stats?.visitasRenta ?? 0}</Text>
+        </View>
+      )}
+
+      {/* Si además atiende en su propia silla, ese dinero SÍ es suyo y se le
+          enseña — pero aparte y con su nombre, no disfrazado de "del local". */}
+      {esRentado && (stats?.ingresosPropios ?? 0) > 0 && (
+        <View style={s.rentaCard}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.rentaLbl}>TU SILLA</Text>
+            <Text style={s.rentaSub}>Lo que has cobrado tú atendiendo. No incluye a quienes te rentan.</Text>
+          </View>
+          <Text style={s.rentaNum}>{dinero(stats?.ingresosPropios ?? 0, moneda)}</Text>
         </View>
       )}
 
@@ -75,15 +112,38 @@ export default function Stats() {
           </TouchableOpacity>
         ))}
       </View>
-      <Text style={s.periodoLbl}>Movimiento del local · {PERIODOS.find(p => p.k === periodo)?.l.toLowerCase()}</Text>
+      {/* El periodo tenía el mismo problema que la cifra grande, y peor: la
+          base devuelve las visitas de los asientos alquilados en una columna
+          aparte y la app ni la leía. El casero elegía "30 días" y veía un
+          resumen del que estaban fuera TODOS sus inquilinos, sin un solo
+          letrero que lo dijera. */}
+      <Text style={s.periodoLbl}>
+        {esRentado ? 'Tu local' : 'Movimiento del local'} · {PERIODOS.find(p => p.k === periodo)?.l.toLowerCase()}
+      </Text>
       <View style={s.grid}>
-        <Metric n={dinero(pstats?.ingresos ?? 0, moneda)} l="Movimiento" />
-        <Metric n={pstats?.visitas ?? 0} l="Visitas" />
-        <Metric n={pstats?.clientes ?? 0} l="Clientes" />
+        {esRentado ? (
+          <>
+            <Metric n={(pstats?.visitas ?? 0) + (pstats?.visitasRenta ?? 0)} l="Visitas" />
+            <Metric n={pstats?.visitasRenta ?? 0} l="De alquiler" />
+            <Metric n={pstats?.clientes ?? 0} l="Clientes tuyos" />
+          </>
+        ) : (
+          <>
+            <Metric n={dinero(pstats?.ingresos ?? 0, moneda)} l="Movimiento" />
+            <Metric n={pstats?.visitas ?? 0} l="Visitas" />
+            <Metric n={pstats?.clientes ?? 0} l="Clientes" />
+          </>
+        )}
       </View>
 
-      <Text style={s.sec}>EQUIPO · {perfiles.length}</Text>
-      {perfiles.length === 0 && <Text style={s.empty}>Aún no tienes barberos aprobados.</Text>}
+      {/* «Equipo» es de quien tiene empleados. Quien alquila asientos no tiene
+          equipo: tiene inquilinos, cada uno con su negocio. */}
+      <Text style={s.sec}>{esRentado ? 'QUIENES RENTAN' : 'EQUIPO'} · {perfiles.length}</Text>
+      {perfiles.length === 0 && (
+        <Text style={s.empty}>
+          {esRentado ? 'Todavía no hay nadie rentando un asiento.' : 'Aún no tienes barberos aprobados.'}
+        </Text>
+      )}
       {perfiles.map((p: any) => (
         <View key={p.id} style={s.row}>
           <Avatar name={p.turno_usuarios?.nombre} size={42} />

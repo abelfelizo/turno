@@ -259,17 +259,37 @@ export default function Dashboard() {
         <View style={{ flex: 1 }}>
           <Text style={s.codeLbl}>CÓDIGO DE ACCESO</Text>
           <Text style={s.codeVal}>{negocio?.codigo_acceso ?? '—'}</Text>
-          <Text style={s.codeSub}>Compártelo con tu equipo y clientes</Text>
+          <Text style={s.codeSub}>
+            {conEmpleados ? 'Compártelo con tu equipo y clientes' : 'Compártelo con tus barberos y clientes'}
+          </Text>
         </View>
         <TouchableOpacity style={s.share} onPress={() => Share.share({ message: `Únete a ${negocio?.nombre} en Turno con el código ${negocio?.codigo_acceso}` })}>
           <Ionicons name="share-outline" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Stats rápidas */}
+      {/* Stats rápidas.
+          La segunda cifra NO puede ser "Ingresos hoy" en un local de alquiler:
+          ahí el dinero de cada silla es de su inquilino, así que `ingresosHoy`
+          solo cuenta la silla del propio dueño. Un casero que no atiende veía
+          la mitad de su pantalla de inicio en RD$0 para siempre. Si tiene
+          silla, se le enseña lo suyo con ese nombre; si no la tiene, se le
+          enseña lo que sí es su negocio: cuántos servicios se han hecho en los
+          asientos que alquila. Ese número es ACUMULADO, no de hoy, y por eso
+          lleva "en total" escrito. */}
       <View style={s.metrics}>
         <View style={s.metric}><Text style={s.mNum}>{stats?.atendidosHoy ?? 0}</Text><Text style={s.mLbl}>Atendidos hoy</Text></View>
-        <View style={s.metric}><Text style={s.mNum}>{dinero(stats?.ingresosHoy ?? 0, negocio?.moneda)}</Text><Text style={s.mLbl}>Ingresos hoy</Text></View>
+        {conEmpleados || (stats?.ingresosPropios ?? 0) > 0 ? (
+          <View style={s.metric}>
+            <Text style={s.mNum}>{dinero(stats?.ingresosHoy ?? 0, negocio?.moneda)}</Text>
+            <Text style={s.mLbl}>{conEmpleados ? 'Ingresos hoy' : 'Tu silla hoy'}</Text>
+          </View>
+        ) : (
+          <View style={s.metric}>
+            <Text style={s.mNum}>{stats?.visitasRenta ?? 0}</Text>
+            <Text style={s.mLbl}>De alquiler · en total</Text>
+          </View>
+        )}
       </View>
 
       {/* ── LA COLA DEL LOCAL ────────────────────────────────────────────────
@@ -461,7 +481,9 @@ export default function Dashboard() {
       ))}
 
       {/* Alta activa: invitar a un barbero con el código del local */}
-      <Text style={s.sec}>EQUIPO{equipo.length ? ` · ${equipo.length}` : ''}</Text>
+      {/* Quien alquila asientos no tiene equipo: tiene inquilinos, cada uno con
+          su propio negocio dentro del local. */}
+      <Text style={s.sec}>{conEmpleados ? 'EQUIPO' : 'QUIENES RENTAN'}{equipo.length ? ` · ${equipo.length}` : ''}</Text>
       <TouchableOpacity style={s.agregar} onPress={() => Share.share({
         message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Soy barbero" y entra con este código:\n\n${negocio?.codigo_acceso}\n\n${esRentado ? 'Rentarías tu asiento: mandas tú en tus precios y tus horarios. Cuando envíes la solicitud te acepto desde mi panel.' : 'Cuando envíes la solicitud te apruebo desde mi panel.'}`,
       })}>

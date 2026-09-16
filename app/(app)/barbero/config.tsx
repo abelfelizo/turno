@@ -628,12 +628,16 @@ export default function Config() {
             jornada de 09:00 a 18:00 — pero esa jornada la puso el sistema, no
             él, y podría no ser la suya. Se avisa hasta que toque un día; a
             partir de ahí el aviso desaparece solo. */}
+        {/* Al empleado este aviso le mandaba a tocar un día que tiene
+            deshabilitado: los días de arriba llevan `disabled={empleado}`. Un
+            cartel que pide algo imposible es peor que ningún cartel. */}
         {perfil?.jornada_sembrada && (
           <View style={s.sembrada}>
             <Ionicons name="information-circle" size={18} color={COLORS.red} />
             <Text style={s.sembradaT}>
-              Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día.
-              Toca cualquier día para dejarlo como de verdad trabajas.
+              {empleado
+                ? `Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día. Si no es el tuyo, díselo a ${negocioNombre ?? 'tu barbería'}: el horario lo cambia el local.`
+                : 'Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día. Toca cualquier día para dejarlo como de verdad trabajas.'}
             </Text>
           </View>
         )}
@@ -642,7 +646,14 @@ export default function Config() {
           return (
             <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
               <Text style={s.diaL}>{d.l}</Text>
-              <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>{abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}</Text>
+              {/* Si el cierre va por detrás de la apertura, la jornada acaba al
+                  día siguiente: sin el "+1" la lista decía "9 PM – 3 AM" como
+                  si fuera un día de seis horas al revés. */}
+              <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>
+                {abierto
+                  ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}${h.hora_fin < h.hora_inicio ? ' +1' : ''}`
+                  : 'Cerrado'}
+              </Text>
             </TouchableOpacity>
           )
         })}
@@ -651,7 +662,15 @@ export default function Config() {
 
       {seccion === 'reglas' && (
         <>
-        <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
+        {/* «MIS reglas» no, si el empleado no pone ninguna: el menú ya le dice
+            "Las pone la barbería" y al entrar se encontraba el título
+            contrario. */}
+        <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'REGLAS DEL LOCAL' : 'MIS REGLAS'}</Text>
+        {empleado && (
+          <Text style={s.deLocal}>
+            Las pone {negocioNombre ?? 'tu barbería'}. Aquí las ves para saber con qué cuentas.
+          </Text>
+        )}
         {/* Cada regla vive solo si su modo la puede disparar. Enseñar ajustes
             que no hacen nada no es inofensivo: el barbero los mueve, no pasa
             nada, y deja de fiarse del resto de la pantalla.
@@ -990,12 +1009,31 @@ export default function Config() {
             <Text style={s.stepVal}>{hora12(`${String(hrIni).padStart(2, '0')}:00`)}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrIni(Math.min(23, hrIni + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
+          {/* TURNOS DE MADRUGADA (migración 113). El botón − topaba en
+              `hrIni + 1`: con esa cuenta, un local abierto de 9 de la noche a 3
+              de la mañana —normal en Navidad y Nochevieja— no se podía ni
+              escribir. Ahora el cierre da la vuelta al reloj y, cuando queda
+              por detrás de la apertura, se dice con todas las letras de qué día
+              es. Cierre igual a apertura sigue significando día cerrado, así
+              que ése es el único valor que se salta. */}
           <Text style={s.flabel}>Cierre</Text>
           <View style={s.stepRow}>
-            <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.max(hrIni + 1, hrFin - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-            <Text style={s.stepVal}>{hora12(`${String(hrFin).padStart(2, '0')}:00`)}</Text>
-            <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.min(24, hrFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
+            <TouchableOpacity style={s.stepBtn}
+              onPress={() => setHrFin(f => { const x = f - 1 < 0 ? 24 : f - 1; return x === hrIni ? (x - 1 < 0 ? 24 : x - 1) : x })}>
+              <Text style={s.stepT}>−</Text>
+            </TouchableOpacity>
+            <Text style={s.stepVal}>{hora12(`${String(hrFin % 24).padStart(2, '0')}:00`)}</Text>
+            <TouchableOpacity style={s.stepBtn}
+              onPress={() => setHrFin(f => { const x = f + 1 > 24 ? 0 : f + 1; return x === hrIni ? (x + 1 > 24 ? 0 : x + 1) : x })}>
+              <Text style={s.stepT}>+</Text>
+            </TouchableOpacity>
           </View>
+          {(hrFin % 24) <= hrIni && (
+            <Text style={s.cruza}>
+              Cierras a las {hora12(`${String(hrFin % 24).padStart(2, '0')}:00`)} del día siguiente.
+              Tu fila sigue abierta toda la madrugada.
+            </Text>
+          )}
           {/* El respiro es POR DÍA: el sábado no se trabaja como el martes. Pero
               nada lo decía, así que parecía global — y ponerlo en los siete días
               obligaba a abrir este cuadro siete veces. De ahí el atajo. */}
@@ -1093,6 +1131,7 @@ const s = StyleSheet.create({
   sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.dangerLight,
     borderRadius: 12, padding: 12, marginTop: -4, marginBottom: 12 },
   sembradaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
+  cruza: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.red, marginTop: 6, marginBottom: 2, lineHeight: 17 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
   diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },

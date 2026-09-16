@@ -646,8 +646,25 @@ export async function adelantarJornada(perfil_id: string, minutos: number): Prom
  * abierto" a las seis de la mañana, cuando todavía no había abierto nada.
  */
 export async function getJornadaDe(perfil_id: string, fecha: string):
-  Promise<{ hora_inicio: string; hora_fin: string; gap: number } | null> {
+  Promise<{ hora_inicio: string; hora_fin: string; gap: number; cruza: boolean } | null> {
   const { data, error } = await supabase.rpc('turno_jornada_de', { p_perfil: perfil_id, p_fecha: fecha })
+  if (error) throw error
+  return (data && data[0]) || null
+}
+/**
+ * La jornada que está VIVA ahora mismo, o null si no hay ninguna (migración 113).
+ *
+ * Hace falta porque comparar horas sueltas deja de funcionar en cuanto una
+ * jornada cruza la medianoche. Con un horario de 21:00 a 03:00, a la 01:18 la
+ * cuenta `"01:18" < "21:00"` da verdadero y la pantalla anunciaba «tu fila
+ * abre a las 9 PM» mientras el barbero estaba trabajando — el mismo letrero al
+ * revés que veía el cliente.
+ *
+ * `fecha` es el día en que EMPEZÓ la jornada, que a la 01:18 es ayer.
+ */
+export async function getJornadaAhora(perfil_id: string):
+  Promise<{ fecha: string; inicio: string; fin: string; gap: number } | null> {
+  const { data, error } = await supabase.rpc('turno_jornada_ahora', { p_perfil: perfil_id })
   if (error) throw error
   return (data && data[0]) || null
 }
@@ -1483,10 +1500,26 @@ export async function getClientesPorRecuperar(perfil_id: string) {
 }
 
 // ── F3 · STATS POR PERÍODO ───────────────────────────────────────────────────
-export type StatsPeriodo = { ingresos: number; visitas: number; clientes: number; ticket: number }
+/**
+ * `visitasRenta` va aquí porque la base LA DEVUELVE y este mapeo la tiraba.
+ *
+ * `turno_stats_periodo_negocio` separa el dinero de los asientos alquilados
+ * desde la migración 93 —los filtra con `rol <> 'barbero_renta'`— y devuelve
+ * sus visitas en una columna aparte. Al no leerla, la pantalla de un local de
+ * alquiler enseñaba un periodo compuesto solo de lo que NO es su negocio: el
+ * dueño elegía "30 días" y veía ingresos y visitas que excluían a todos sus
+ * inquilinos, sin nada que se lo dijera.
+ *
+ * En el periodo de UNA silla siempre es 0: ahí no hay inquilinos que separar.
+ */
+export type StatsPeriodo = { ingresos: number; visitas: number; clientes: number; ticket: number; visitasRenta: number }
 function mapPeriodo(data: any): StatsPeriodo {
   const r = (data && data[0]) || {}
-  return { ingresos: Number(r.ingresos ?? 0), visitas: Number(r.visitas ?? 0), clientes: Number(r.clientes ?? 0), ticket: Number(r.ticket ?? 0) }
+  return {
+    ingresos: Number(r.ingresos ?? 0), visitas: Number(r.visitas ?? 0),
+    clientes: Number(r.clientes ?? 0), ticket: Number(r.ticket ?? 0),
+    visitasRenta: Number(r.visitas_renta ?? 0),
+  }
 }
 export async function getStatsPeriodoNegocio(negocio_id: string, desde: string, hasta: string): Promise<StatsPeriodo> {
   const { data, error } = await supabase.rpc('turno_stats_periodo_negocio', { p_negocio: negocio_id, p_desde: desde, p_hasta: hasta })
