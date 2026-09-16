@@ -304,7 +304,7 @@ export default function Config() {
         nuevo?.aprobado ? 'Ya estás dentro' : 'Solicitud enviada',
         nuevo?.aprobado
           ? 'Ese local ya te había invitado, así que con tu solicitud quedas dentro. Lo tienes en "Mis locales".'
-          : 'El dueño del local debe aceptarte. Aparecerá en "Mis locales" cuando lo haga.')
+          : 'El administrador del local debe aceptarte. Aparecerá en "Mis locales" cuando lo haga.')
       cargar()
     } catch (e: any) { Alert.alert('No se pudo enviar', e.message ?? 'Revisa el código.') }
     finally { setLcBusy(false) }
@@ -603,7 +603,7 @@ export default function Config() {
           <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
           {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
         </View>
-        {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el dueño.</Text>}
+        {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el administrador.</Text>}
         {servicios.map((sv: any) => (
           <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>

@@ -43,7 +43,7 @@ export default function BarberoCodigo() {
 
   return (
     <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Código del local"
-      subtitulo="Pídeselo al dueño de la barbería donde vas a trabajar.">
+      subtitulo="Pídeselo al administrador de la barbería donde vas a trabajar.">
       <Campo label="Código de acceso" placeholder="ABC-1234" autoCapitalize="characters"
         maxLength={9} value={codigo}
         onChangeText={(t: string) => { setCodigo(t); setNegocio(null); setError('') }} />
@@ -63,8 +63,8 @@ export default function BarberoCodigo() {
                   los dos, alquile asientos o tenga empleados. Este texto decía
                   «entras directo, sin esperar aprobación» y era la 94. */}
               {renta
-                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. El dueño tiene que aceptarte, pero no te dirige.'
-                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
+                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. El administrador tiene que aceptarte, pero no te dirige.'
+                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el local cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
             </Text>
           </View>
         </View>

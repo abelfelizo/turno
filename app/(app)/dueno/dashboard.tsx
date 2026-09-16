@@ -524,7 +524,12 @@ export default function Dashboard() {
                 marcó a mano. Antes esta línea decía "Disponible" de alguien que
                 llevaba media hora con un cliente sentado. */}
             <Text style={s.solMeta}>
-              {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Dueño' : 'Empleado'}
+              {/* El rol se llama ADMINISTRADOR, no dueño: puede ser quien montó
+                  el local o alguien designado para llevarlo, y a la app le da
+                  igual cuál de los dos sea. El valor `dueno` de la base se
+                  queda como está — renombrar columnas no cambia nada de lo que
+                  se ve y rompe todo lo que ya las lee. */}
+              {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Administrador' : 'Empleado'}
               {' · '}
               {/* Suspendido lo dice PRIMERO y con esas palabras: es una decisión
                   del dueño, y verla escrita es lo que le recuerda reanudarlo. */}

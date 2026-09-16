@@ -466,7 +466,7 @@ export default function Config() {
             placeholderTextColor={COLORS.textLight} maxLength={60} />
         </>
       )}
-      {!esRentado && <Toggle label="Asignación por dueño" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
+      {!esRentado && <Toggle label="Asignación por el administrador" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
       </>)}
 

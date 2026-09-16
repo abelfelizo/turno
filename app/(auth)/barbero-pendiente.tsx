@@ -99,7 +99,7 @@ export default function BarberoPendiente() {
       if (perfil?.aprobado) { router.replace('/'); return }
       // Puede haber llegado una invitación mientras esperabas.
       await mirar()
-      setAviso('Todavía no. El dueño aún no ha aprobado tu solicitud. En cuanto lo haga entras solo, sin tener que tocar nada.')
+      setAviso('Todavía no. El administrador aún no ha aprobado tu solicitud. En cuanto lo haga entras solo, sin tener que tocar nada.')
     } catch {
       setAviso('No se pudo comprobar ahora mismo. Revisa tu conexión e inténtalo otra vez.')
     } finally {
@@ -136,7 +136,7 @@ export default function BarberoPendiente() {
   // ── PEDISTE ENTRAR TÚ: falta el sí del local ───────────────────────────────
   return (
     <OnbScreen titulo="Solicitud enviada ⏳"
-      subtitulo="El dueño del local debe aprobarte. En cuanto lo haga, esta pantalla avanza sola y te llega una notificación. También puedes verificar a mano.">
+      subtitulo="El administrador del local debe aprobarte. En cuanto lo haga, esta pantalla avanza sola y te llega una notificación. También puedes verificar a mano.">
       <BotonPrimario texto="Verificar estado" cargando={verificando} onPress={verificar} />
       {aviso && <Text style={s.aviso}>{aviso}</Text>}
       <TouchableOpacity style={s.link} onPress={salir}>
