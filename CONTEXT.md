@@ -1,7 +1,7 @@
 # CONTEXT · Turno (NAVAJA)
 
 > Archivo de retoma rápida. Léelo al iniciar un chat nuevo para no reconstruir contexto.
-> Última actualización: **2026-09-16** · migración **113** · rama `claude/app-status-2o0mdy`.
+> Última actualización: **2026-09-16** · migración **114** · rama `claude/app-status-2o0mdy`.
 
 ## Qué es
 **Turno** = app Expo/React Native de **citas + fila digital para barberías** (LatAm, foco
@@ -219,7 +219,7 @@ en quince sitios se corrige en catorce.
 
 ## Backend
 
-**113 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
+**114 migraciones** en `supabase/migrations/`, con nombre en español que dice qué resuelven.
 El motor de cola vive en Postgres: RPCs y triggers `SECURITY DEFINER` + `pg_cron` para la
 limpieza nocturna.
 
@@ -227,7 +227,7 @@ limpieza nocturna.
 entero en la migración 73 por no tenerlo en cuenta (arreglado en la 75), así que cualquier
 trigger nuevo tiene que decidir explícitamente qué hace sin sesión.
 
-### Pruebas de base — `supabase/tests/` (14 suites, `npm run test:db`)
+### Pruebas de base — `supabase/tests/` (15 suites, `npm run test:db`)
 
 | Suite | Qué mira |
 |---|---|

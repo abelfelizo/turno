@@ -652,6 +652,29 @@ export async function getJornadaDe(perfil_id: string, fecha: string):
   return (data && data[0]) || null
 }
 /**
+ * Doble servicio: dos cosas en la misma visita, UNA DETRÁS DE OTRA y con dos
+ * personas distintas — el barbero y luego la manicurista (migración 114).
+ *
+ * Devuelve los dos turnos. El segundo nace enganchado al primero y no se le
+ * llama hasta que aquél termine; si el primero se abandona o expira, el
+ * segundo se suelta solo y pasa a ser un turno normal.
+ *
+ * Los dos servicios tienen que ser de OFICIOS distintos: encadenar dos cortes
+ * con el mismo barbero no es un doble servicio, es pedir turno dos veces.
+ */
+export async function entrarAColaDoble(
+  negocio_id: string, servicio_1: string, servicio_2: string,
+  opts?: { tipo_cola?: 'digital' | 'fisica'; perfil_1?: string | null; perfil_2?: string | null },
+) {
+  const { data, error } = await supabase.rpc('turno_entrar_a_cola_doble', {
+    p_negocio: negocio_id, p_servicio_1: servicio_1, p_servicio_2: servicio_2,
+    p_tipo_cola: opts?.tipo_cola ?? 'digital',
+    p_perfil_1: opts?.perfil_1 ?? null, p_perfil_2: opts?.perfil_2 ?? null,
+  })
+  if (error) throw error
+  return (data ?? []) as any[]
+}
+/**
  * La jornada que está VIVA ahora mismo, o null si no hay ninguna (migración 113).
  *
  * Hace falta porque comparar horas sueltas deja de funcionar en cuanto una
