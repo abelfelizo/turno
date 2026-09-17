@@ -40,15 +40,28 @@ declare
   u_due uuid; u_bar uuid; u_c1 uuid; u_c2 uuid;
   v_neg uuid; p_due uuid; p_bar uuid; s_corte uuid;
   q_c1 uuid; cita_tarde uuid; cita_ahora uuid; cita_c2 uuid; cita_vieja uuid;
-  v_tz text := 'America/Santo_Domingo';
+  -- EL HUSO SE FIJA, NO SE HEREDA. Esta suite monta «una cita en curso» de
+  -- hace cinco minutos a dentro de veinticinco. Corriéndola a las 23:51 esa
+  -- cita salía de 23:46 a 00:16 y, desde la migración 116, la base ya no la
+  -- acepta: una cita empieza y termina el mismo día. Sin fijar el huso, la
+  -- suite fallaba media hora al día y pasaba las otras veintitrés y media —
+  -- que es justo el tipo de prueba que no sirve para nada.
+  --
+  -- Se le da al local un huso en el que ahora mismo sea mediodía, sea la hora
+  -- que sea en el mundo real. Ojo al signo: en la familia `Etc/`, GMT-4
+  -- significa UTC+4, al revés de lo que parece.
+  v_tz text; v_off int;
   v_hoy date; v_manana date; v_t time;
   n int := 0; ok int := 0; fallos text := ''; c text; r record;
   v_int int; v_txt text; v_bool boolean;
   q_ausente uuid; q_detras uuid; q_presente uuid; v_pos_antes int; v_bloq_edit uuid;
 begin
-  v_hoy    := (now() at time zone v_tz)::date;
-  v_manana := v_hoy + 1;
-  v_t      := (now() at time zone v_tz)::time;
+  v_off := 12 - extract(hour from (now() at time zone 'UTC'))::int;
+  while v_off >  12 loop v_off := v_off - 24; end loop;
+  while v_off < -11 loop v_off := v_off + 24; end loop;
+  v_tz := case when v_off = 0 then 'UTC'
+               when v_off > 0 then 'Etc/GMT-' || v_off
+               else 'Etc/GMT+' || (-v_off) end;
 
   insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
   values (a_due,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','od_'||v_cod||'@t.test','',now(),now()),
@@ -63,6 +76,13 @@ begin
   select id into u_due from turno_usuarios where auth_id = a_due;
   select id, negocio_id into p_due, v_neg from turno_perfiles where usuario_id = u_due limit 1;
   select codigo_acceso into v_cod from turno_negocios where id = v_neg;
+  -- Ya con el local creado se le pone el huso y se sacan de ahí las fechas:
+  -- todo lo que compare horas en esta suite tiene que mirar el mismo reloj que
+  -- mira el servidor, que es el del negocio.
+  update turno_negocios set tz = v_tz where id = v_neg;
+  v_hoy    := (now() at time zone v_tz)::date;
+  v_manana := v_hoy + 1;
+  v_t      := (now() at time zone v_tz)::time;
 
   perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
   select * into r from turno_unirse_profesional(v_cod,'barbero','empleado','Barbero','809');

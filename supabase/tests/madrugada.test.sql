@@ -217,7 +217,42 @@ begin
   if v_ini is null then ok:=ok+1;
   else fallos:=fallos||E'\n  x '||c||' - devolvió '||v_ini::text; end if;
 
-  -- ══ 8. EL CÁLCULO CRUDO NO ESTÁ ABIERTO A NADIE ═══════════════════════════
+  -- ══ 8. LA AGENDA (migración 115) ══════════════════════════════════════════
+  -- Se pregunta por MAÑANA a propósito: hoy la antelación mínima se come toda
+  -- la madrugada —son las 01:xx y hay que reservar con dos horas— así que el
+  -- caso no probaría nada. Mañana el día entero está por delante.
+  n:=n+1; c:='la agenda de una madrugada ofrece huecos, no cero';
+  select count(*) into v_int from turno_slots_disponibles(p_due, v_hoy + 1, s_corte) s;
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - 0 huecos con jornada de 21:00 a 03:00'; end if;
+
+  n:=n+1; c:='y entre ellos los de la COLA de la jornada de la noche anterior';
+  select count(*) into v_int from turno_slots_disponibles(p_due, v_hoy + 1, s_corte) s
+   where s < time '03:00';
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - la madrugada del día pedido no se ofrece'; end if;
+
+  n:=n+1; c:='y también los de su propia noche';
+  select count(*) into v_int from turno_slots_disponibles(p_due, v_hoy + 1, s_corte) s
+   where s >= time '21:00';
+  if v_int > 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c; end if;
+
+  -- Una cita no puede montarse encima de la medianoche: `turno_citas` guarda
+  -- horas sueltas de un día y quedaría con el fin por delante del inicio.
+  n:=n+1; c:='ningún hueco deja el servicio a caballo de la medianoche';
+  select count(*) into v_int from turno_slots_disponibles(p_due, v_hoy + 1, s_corte) s
+   where s + interval '30 min' >= time '24:00';
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos acabarían al día siguiente'; end if;
+
+  n:=n+1; c:='un horario normal sigue abriendo a su hora y ni un minuto antes';
+  select count(*) into v_int from turno_slots_disponibles(p_due2, (now() at time zone v_tz2)::date + 1, s_corte2) s
+   where s < time '09:00';
+  if v_int = 0 then ok:=ok+1;
+  else fallos:=fallos||E'\n  x '||c||' - '||v_int||' huecos antes de las 9'; end if;
+
+  -- ══ 9. EL CÁLCULO CRUDO NO ESTÁ ABIERTO A NADIE ═══════════════════════════
   -- `turno_ventana_cruda` no tiene portero a propósito: la defensa es que no se
   -- le concede a ningún rol. Si alguien le pusiera un grant, esto se pone rojo.
   n:=n+1; c:='turno_ventana_cruda no la puede llamar un autenticado';

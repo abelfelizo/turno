@@ -1,0 +1,51 @@
+-- UNA CITA NO SE MONTA ENCIMA DE LA MEDIANOCHE
+--
+-- Lo encontró la suite `obstaculos` al correrla a las 23:51. Su fixture monta
+-- «una cita en curso» de hace cinco minutos a dentro de veinticinco, y a esa
+-- hora eso son las 23:46 → 00:16. Tres casos en rojo.
+--
+-- No era un fallo de la suite. Era el fallo que la suite existe para encontrar:
+--
+--   `turno_llamar_siguiente` frena la fila cuando hay una cita confirmada en
+--   curso, y lo comprueba así:
+--
+--       v_ahora between (fecha + hora_inicio) - ventana
+--                   and (fecha + hora_fin)    + gracia
+--
+--   Con `hora_fin` por delante de `hora_inicio` ese rango queda VACÍO: el
+--   BETWEEN da falso, la comprobación no salta y el barbero recibe a otro
+--   cliente mientras tiene a alguien con cita confirmada delante. Y no avisa:
+--   se limita a no hacer nada, que es la peor forma de fallar.
+--
+-- ── SE ARREGLA LA FAMILIA, NO EL CASO ───────────────────────────────────────
+-- La misma cuenta —reconstruir el final de una cita como `fecha + hora_fin`—
+-- está en `turno_agendar_cita`, `turno_agendar_grupo`, `turno_slots_disponibles`,
+-- `turno_bloqueo_sin_pisar_citas`, `turno_cerrar_citas_viejas`,
+-- `turno_estado_barbero`, `turno_min_ocupada`, `turno_liberar_ahora` y
+-- `turno_cita_escritura_del_cliente`. Nueve sitios. Parchearlos uno a uno es
+-- pedir que el décimo se escriba mal dentro de seis meses.
+--
+-- Así que la regla se pone donde no se puede esquivar: en la tabla. Una cita
+-- empieza y termina el mismo día, y su fin va después de su inicio. Con eso,
+-- las nueve cuentas son correctas POR CONSTRUCCIÓN y ya no hay que acordarse.
+--
+-- ── ES LA MISMA DECISIÓN QUE YA TOMÓ LA 115 ─────────────────────────────────
+-- La 115 dejó fuera, a propósito, el hueco que quedaría a caballo del cambio
+-- de día, porque `turno_citas` guarda horas sueltas y una cita así rompería en
+-- silencio todas las comprobaciones de solape. Aquello lo decidía una función;
+-- esto lo hace cumplir la base. Una regla que sólo vive en una de las nueve
+-- funciones que la necesitan no es una regla.
+--
+-- Lo que se pierde: en una barbería de madrugada no se puede reservar la cita
+-- que empieza a las 23:45. La fila sí funciona toda la noche —ésa es la 113 y
+-- es donde pasa el trabajo de verdad—; lo que no se puede es APARTAR esa media
+-- hora concreta. Cambiarlo de verdad es cambiar cómo se guarda una cita
+-- (fecha+hora de inicio y de fin, en vez de un día y dos horas), y eso es una
+-- migración de datos, no un añadido al final de otra cosa.
+--
+-- Comprobado antes de ponerla: de las 11 citas que hay en la base, ninguna
+-- está invertida ni es de longitud cero.
+
+alter table turno_citas drop constraint if exists turno_citas_empieza_antes_de_terminar;
+alter table turno_citas add constraint turno_citas_empieza_antes_de_terminar
+  check (hora_fin > hora_inicio);
