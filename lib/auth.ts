@@ -34,6 +34,26 @@ export async function verificarCodigo(email: string, token: string): Promise<Ses
   return data.session
 }
 
+/**
+ * Entrar con contraseña. Hoy SOLO lo usa la puerta de pruebas (`lib/pruebas.ts`),
+ * que existe mientras se corrige la parte interna de la app.
+ *
+ * No es una vía paralela ni un atajo: abre una sesión normal de Supabase, así
+ * que `auth.uid()` es real y el servidor aplica exactamente las mismas reglas
+ * que a cualquiera. Lo que se salta es el correo y el código, no los porteros.
+ *
+ * El alta de verdad sigue siendo por OTP; esto no se ofrece en ninguna pantalla
+ * que pueda ver un usuario real.
+ */
+export async function entrarConClave(email: string, clave: string): Promise<Session> {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(), password: clave,
+  })
+  if (error) throw error
+  if (!data.session) throw new Error('No se pudo iniciar sesión')
+  return data.session
+}
+
 export async function cerrarSesion() {
   await supabase.auth.signOut()
 }
