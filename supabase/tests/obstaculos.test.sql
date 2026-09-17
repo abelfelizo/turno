@@ -37,7 +37,12 @@ declare
   v_cod text := 'OB-' || upper(substr(md5(random()::text),1,5));
   a_due uuid := gen_random_uuid(); a_bar uuid := gen_random_uuid();
   a_c1  uuid := gen_random_uuid(); a_c2  uuid := gen_random_uuid();
-  u_due uuid; u_bar uuid; u_c1 uuid; u_c2 uuid;
+  -- Un tercero que se une al local y al que NUNCA se le atiende. Hace falta
+  -- para la 117: c1 y c2 acaban los dos con visitas hechas por el barbero
+  -- —una cita atendida deja su rastro en el historial— así que ninguno de los
+  -- dos sirve para probar «al que no has atendido no lo ves».
+  a_c3  uuid := gen_random_uuid();
+  u_due uuid; u_bar uuid; u_c1 uuid; u_c2 uuid; u_c3 uuid;
   v_neg uuid; p_due uuid; p_bar uuid; s_corte uuid;
   q_c1 uuid; cita_tarde uuid; cita_ahora uuid; cita_c2 uuid; cita_vieja uuid;
   -- EL HUSO SE FIJA, NO SE HEREDA. Esta suite monta «una cita en curso» de
@@ -67,7 +72,8 @@ begin
   values (a_due,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','od_'||v_cod||'@t.test','',now(),now()),
          (a_bar,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','ob_'||v_cod||'@t.test','',now(),now()),
          (a_c1 ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','o1_'||v_cod||'@t.test','',now(),now()),
-         (a_c2 ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','o2_'||v_cod||'@t.test','',now(),now());
+         (a_c2 ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','o2_'||v_cod||'@t.test','',now(),now()),
+         (a_c3 ,'00000000-0000-0000-0000-000000000000','authenticated','authenticated','o3_'||v_cod||'@t.test','',now(),now());
 
   -- ── EL LOCAL, CON UN BARBERO YA APROBADO ──────────────────────────────────
   perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
@@ -118,6 +124,9 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', a_c2::text)::text, true);
   perform turno_unirse_cliente(v_cod, 'Cliente Dos', '829');
   select id into u_c2 from turno_usuarios where auth_id = a_c2;
+  perform set_config('request.jwt.claims', json_build_object('sub', a_c3::text)::text, true);
+  perform turno_unirse_cliente(v_cod, 'Cliente Tres', '829');
+  select id into u_c3 from turno_usuarios where auth_id = a_c3;
 
   -- Uno esperando en la fila. Todo lo que sigue le pasa por encima.
   perform set_config('request.jwt.claims', json_build_object('sub', a_c1::text)::text, true);
@@ -411,6 +420,14 @@ begin
   -- Aquí arriba hay de los dos: clientes que se unieron con el código (con
   -- auth_id) y un walk-in que apuntó el barbero (sin auth_id, creado por
   -- turno_registrar_fisico). Es el sitio para probar que la lista distingue.
+  -- ── LA CARTERA ES DEL LOCAL (migración 117) ───────────────────────────────
+  -- Estos dos casos se miraban desde el BARBERO, y desde la 117 eso ya no
+  -- prueba lo que decían: un barbero solo ve a los que él ha atendido. La
+  -- pregunta «¿quién está en la cartera del local?» es del que administra, así
+  -- que se hace desde ahí — y debajo se añade la mitad nueva, que es la que
+  -- importa ahora: que el barbero NO la vea entera.
+  perform set_config('request.jwt.claims', json_build_object('sub', a_due::text)::text, true);
+
   n:=n+1; c:='cartera · el walk-in apuntado por el barbero NO entra en la lista';
   begin
     if exists (select 1 from turno_clientes_del_local(v_neg) x where x.nombre = 'Presente')
@@ -418,12 +435,36 @@ begin
     else ok:=ok+1; end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
-  n:=n+1; c:='cartera · quien se unió con el código SÍ está';
+  n:=n+1; c:='cartera · quien se unió con el código SÍ está, para quien administra';
   begin
     if exists (select 1 from turno_clientes_del_local(v_neg) x where x.cliente_id = u_c1)
       then ok:=ok+1;
     else fallos:=fallos||E'\n  x '||c||' - se cerró de más'; end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- Y AQUÍ EL CIERRE. «Si son empleados no son sus clientes, son del negocio;
+  -- si se va no se los lleva.» Antes de la 117 esta llamada le devolvía al
+  -- barbero la agenda telefónica entera del local.
+  n:=n+1; c:='cartera · un barbero NO ve al cliente del local que no ha atendido';
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
+  begin
+    if exists (select 1 from turno_clientes_del_local(v_neg) x where x.cliente_id = u_c3)
+      then fallos:=fallos||E'\n  x '||c||' - tiene su nombre y su teléfono a un toque';
+    else ok:=ok+1; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  -- Pero al suyo SÍ: cerrar de más también es incumplir la regla. El barbero
+  -- necesita poder escribirle a quien ha atendido.
+  n:=n+1; c:='cartera · pero SÍ ve a quien él mismo atendió';
+  insert into turno_historial_visitas (cliente_id, negocio_id, perfil_id, servicio_id, fecha, precio_cobrado, origen)
+  values (u_c1, v_neg, p_bar, s_corte, v_hoy, 500, 'cola_digital');
+  begin
+    if exists (select 1 from turno_clientes_del_local(v_neg) x where x.cliente_id = u_c1)
+      then ok:=ok+1;
+    else fallos:=fallos||E'\n  x '||c||' - se cerró de más: no puede ni escribirle'; end if;
+  exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
+
+  perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
 
   -- Sacarlo de la cartera no es borrarlo: lo que cobró sigue contando.
   n:=n+1; c:='cartera · la visita del walk-in sigue en el historial del local';
