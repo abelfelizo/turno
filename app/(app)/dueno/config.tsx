@@ -181,6 +181,21 @@ export default function Config() {
   // de asientos alquilados el dueño no manda sobre los puntos ni sobre a quién
   // le toca cada cliente.
   const esRentado = negocio?.tipo === 'espacios_rentados'
+  /**
+   * REGLAS DEL LOCAL: SOLO SI CONSTA QUE TIENE EMPLEADOS.
+   *
+   * Los interruptores de abajo se abrían con `!esRentado`, y eso incluye el
+   * caso "todavía no sé de qué tipo es este local": `negocio` se carga con su
+   * `.catch(() => null)` y, si falla, `esRentado` da falso. Un local de
+   * alquiler se encontraba los puntos, la asignación de clientes y los tiempos
+   * — tres reglas que en esa modalidad NO son suyas, las pone cada barbero. El
+   * servidor las rechaza desde la 92 y la 98, así que el interruptor se movía
+   * y volvía solo.
+   *
+   * Preguntar en positivo hace que la duda no abra nada: si no se sabe, no se
+   * enseña ni un juego de reglas ni el otro.
+   */
+  const conEmpleados = negocio?.tipo === 'empleados'
   const plan = planDueno(asientos)
 
   const TITULO: Record<string, string> = {
@@ -214,8 +229,8 @@ export default function Config() {
     // barbero es un negocio aparte y pone los suyos desde su configuración, así
     // que estos números no mandaban sobre nadie. Un ajuste que no decide nada
     // enseña al dueño a desconfiar de los que sí deciden.
-    ...(esRentado ? [] : [{ k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
-      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` }]),
+    ...(conEmpleados ? [{ k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
+      v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` }] : []),
     { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal',
       v: 'Cerrar sesión, cerrar el local' },
   ]
@@ -446,14 +461,14 @@ export default function Config() {
           Alquilas asientos, así que los puntos y la asignación de clientes los lleva cada barbero desde su propia configuración. Aquí solo quedan las que sí son del local.
         </Text>
       )}
-      {!esRentado && <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />}
+      {conEmpleados && <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />}
       {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
           puntos_por_visita > 0 y el canje exige la meta. El dueño encendía los
           puntos y el cliente no veía sumar ni uno. */}
       {/* Se cuentan recortes, no puntos abstractos: "cada X recortes te ganas
           esto". Y el premio lo escribe el local — no tiene por qué ser un corte
           gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
-      {!esRentado && !!config?.puntos_activos && (
+      {conEmpleados && !!config?.puntos_activos && (
         <>
           <Stepper label="Recortes para el premio"
             desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
@@ -466,11 +481,11 @@ export default function Config() {
             placeholderTextColor={COLORS.textLight} maxLength={60} />
         </>
       )}
-      {!esRentado && <Toggle label="Asignación por el administrador" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
+      {conEmpleados && <Toggle label="Asignación por el administrador" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
       <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
       </>)}
 
-      {seccion === 'tiempos' && !esRentado && (<>
+      {seccion === 'tiempos' && conEmpleados && (<>
       <Text style={s.modNota}>
         Valen para todo tu equipo: son tus empleados y estas reglas son las del local.
       </Text>

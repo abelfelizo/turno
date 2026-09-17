@@ -29,11 +29,13 @@ const DIAS = [
 export default function BarberoDelLocal() {
   const router = useRouter()
   const { perfil, nombre, rol } = useLocalSearchParams<{ perfil: string; nombre?: string; rol?: string }>()
-  // El parámetro solo sirve para pintar algo mientras carga. La verdad se
-  // pregunta a la base en `cargar()`: si esto se queda como única fuente y llega
-  // vacío, la pantalla asume "empleado" y le ofrece al dueño editar los
-  // servicios de alguien que le renta el asiento.
-  const [modalidad, setModalidad] = useState<string>(rol || 'empleado')
+  // El parámetro solo sirve para pintar algo mientras carga; la verdad se
+  // pregunta a la base en `cargar()`. Si no llega ninguna de las dos se queda
+  // en NULL A PROPÓSITO: "no lo sé" no es "es un empleado". El valor por
+  // defecto era 'empleado', que es justo el que abre los controles de edición,
+  // así que un fallo de red le ofrecía al administrador tocarle los servicios
+  // y el horario a alguien que le paga por el asiento. Ver `puedoEditarle`.
+  const [modalidad, setModalidad] = useState<string | null>(rol ?? null)
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -244,6 +246,19 @@ export default function BarberoDelLocal() {
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
 
   const autonomo = modalidad === 'barbero_renta'
+  /**
+   * EDITARLE LO SUYO SOLO SI CONSTA QUE ES EMPLEADO.
+   *
+   * Los controles de edición se abrían con `!autonomo`, y eso incluye el caso
+   * "todavía no sé qué es". Si `getRolDePerfil` falla —lleva su
+   * `.catch(() => null)`— la pantalla daba por empleado a alguien que puede
+   * estar pagando por su asiento, y le ofrecía al administrador tocarle los
+   * servicios y el horario. El servidor lo niega desde la migración 92, así que
+   * el cambio se deshace solo y sin explicación.
+   *
+   * En la duda no se abre: hace falta que conste que es empleado.
+   */
+  const puedoEditarle = modalidad === 'empleado'
   const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
   return (
@@ -278,8 +293,8 @@ export default function BarberoDelLocal() {
       ) : (
         <>
           <View style={s.modRow}>
-            <TouchableOpacity style={[s.modChip, !autonomo && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
-              <Text style={[s.modChipT, !autonomo && { color: '#fff' }]}>Empleado</Text>
+            <TouchableOpacity style={[s.modChip, puedoEditarle && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
+              <Text style={[s.modChipT, puedoEditarle && { color: '#fff' }]}>Empleado</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
               <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
@@ -295,12 +310,12 @@ export default function BarberoDelLocal() {
 
       <View style={s.secRow}>
         <Text style={s.sec}>SERVICIOS</Text>
-        {!autonomo && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
+        {puedoEditarle && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
       </View>
       {servicios.length === 0 && <Text style={s.empty}>Todavía no tiene servicios.</Text>}
       {servicios.map((sv: any) => (
         <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={autonomo}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={!puedoEditarle}>
             <Text style={s.servName}>{sv.nombre}</Text>
             <Text style={s.servMeta}>{sv.duracion_min} min</Text>
           </TouchableOpacity>
@@ -315,7 +330,7 @@ export default function BarberoDelLocal() {
       {DIAS.map(d => {
         const h = horarioDe(d.n); const abierto = h && h.activo
         return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={autonomo}>
+          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={!puedoEditarle}>
             <Text style={s.diaL}>{d.l}</Text>
             <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>
               {abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}
@@ -349,7 +364,7 @@ export default function BarberoDelLocal() {
           Solo para el empleado: el autónomo manda en su silla y aquí no hay
           nada que conceder. Va antes que suspender porque es la decisión del
           día a día; las otras dos son las de "esta persona se va". */}
-      {!autonomo && (
+      {puedoEditarle && (
         <TouchableOpacity style={[s.accionFila, perfilRow?.acepta_por_su_cuenta && s.accionFilaOn]}
           onPress={cambiarCaptacion} disabled={captaBusy}>
           <Ionicons name={perfilRow?.acepta_por_su_cuenta ? 'megaphone' : 'megaphone-outline'} size={20}

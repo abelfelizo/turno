@@ -236,7 +236,27 @@ export default function Config() {
   }
 
   // Regla de producto: el barbero decide lo suyo salvo que sea empleado.
-  const empleado = rolMembresia === 'empleado'
+  /**
+   * MIENTRAS NO SEPAMOS EL ROL, NO SE ASUME EL PERMISIVO.
+   *
+   * Esto era `rolMembresia === 'empleado'`, y `rolMembresia` sale de
+   * `getMisMembresias(...).catch(() => [])`. Si esa consulta falla —un bache de
+   * red, un filtro que cambia— el rol se queda en null, `empleado` da falso y
+   * el empleado se encuentra el menú ENTERO de un barbero autónomo: servicios
+   * editables, horario editable, reglas editables. Nada de eso llega a
+   * guardarse, porque el servidor lo rechaza desde la migración 108; lo que
+   * pasa es que la pantalla le promete lo que la base le va a negar, y el
+   * cambio se deshace solo sin decir nada.
+   *
+   * Un `rol` nulo NO es un rol: es "no lo sé". Y en la duda se cierra. Los
+   * únicos dos valores que abren la pantalla son los que de verdad mandan en
+   * su silla.
+   *
+   * Es la misma trampa que el README de las pruebas ya tenía escrita para el
+   * servidor —«devolver vacío y negarse se parecen mientras la consulta
+   * funcione»—, aquí del lado de la interfaz.
+   */
+  const empleado = rolMembresia !== 'barbero_renta' && rolMembresia !== 'dueno'
 
   function horarioDe(n: number) { return horarios.find(h => h.dia_semana === n) }
   function abrirHorario(n: number) {
