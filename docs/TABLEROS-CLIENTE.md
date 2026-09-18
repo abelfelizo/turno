@@ -1,158 +1,231 @@
-# Tableros del cliente — qué va y qué no en cada uno
+# Tableros del cliente — propuesta v2
 
-Inventario de **todo** lo que hoy muestra cada pantalla del cliente, sacado del
-código, bloque por bloque. Para cada bloque hay una recomendación, pero la
-decisión es tuya: marca `VA`, `FUERA` o `MUEVE A …`.
+Rehecha sobre el concepto que fijaste:
 
-Nada de esto se toca hasta que la hoja esté cerrada.
+> Mi turno sale al tablero principal. Es el nombre de la app, es la propuesta
+> de valor, y es lo que debe estar primero. La tarjeta de mi turno se compone
+> unificada con el estado de la barbería: una sola tarjeta.
 
-**Regla que gobierna todas las recomendaciones** — D2 permite *un solo objeto
-oscuro por pantalla*, y tiene que ser aquello por lo que se abrió la pantalla.
-Casi todos los «FUERA» de abajo salen de ahí o de que la misma función esté en
-dos sitios.
+**Mi turno › Mi barbería › Historial › Configuración.**
 
-Son **7 pantallas**. Hoy solo 3 tienen tablero D2.
+Lo que esto cambia de raíz: **«Inicio» deja de existir.** No como pantalla
+renombrada — desaparece. Era un vestíbulo que resumía cuatro pantallas y
+obligaba a pasar por él para llegar a cualquier sitio. Ahora se entra
+directamente a lo que se viene a hacer.
 
----
-
-## 1 · INICIO — `cliente/home` · tablero `D2-Cliente-Inicio`
-
-La pregunta que contesta: **¿cómo está esto y qué tengo yo?**
-
-| # | Bloque | Qué es hoy | Recomiendo | Por qué |
-|---|---|---|---|---|
-| 1.1 | «Hola» | Saludo suelto sobre el nombre del local | **FUERA** | Ocupa la línea más valiosa de la pantalla para no decir nada. El tablero pone `HOLA, CARLOS` como rótulo pequeño, no como titular. |
-| 1.2 | Logo + nombre + eslogan + dirección | Cabecera de marca | **VA** | Es la identidad del local. La dirección con punto de referencia es como se explica un sitio aquí. |
-| 1.3 | Pestañas de locales + botón «+» + buscar barbero | Tira horizontal de barberías tuyas | **VA, rediseñar** | Necesario si tienes varios locales. Hoy son píldoras redondeadas: en D2 son filete y mayúsculas. |
-| 1.4 | `EstadoLocal` | Bloque oscuro: abierto/cerrado, sillas, espera | **VA — es el objeto oscuro** | Es lo primero que se pregunta quien abre la app. |
-| 1.5 | Ticket «EN LA FILA» | Ticket oscuro con tu turno activo | **MUEVE A «Mi turno»** | **Es el segundo objeto oscuro y rompe la regla.** Además duplica la pantalla que existe para eso. En Inicio basta una línea roja: «Estás en la fila · puesto 3». |
-| 1.6 | `TUS CITAS` | Lista con cuenta atrás, confirmar, reprogramar, cancelar | **VA, recortar** | La cita próxima sí. Pero **confirmar/reprogramar/cancelar en Inicio sobra**: son tres acciones destructivas en la pantalla de entrada. Dejar solo la cita y que se toque para abrirla. |
-| 1.7 | Citas pasadas («SE PASÓ LA HORA») | Cita vencida con su explicación | **FUERA de Inicio** | Inicio es lo que viene, no lo que se perdió. Va a Historial. |
-| 1.8 | `¿QUÉ QUIERES HACER?` + dos puertas | Botón rojo «Fila ahora» + contorno «Agendar» | **VA** | Es la decisión de la pantalla. Recién arreglado. |
-| 1.9 | Aviso «Todavía no atienden por la app» | Sustituye las puertas si no hay sillas activas | **VA** | Sin él, dos botones que llevan a pantallas vacías. |
-| 1.10 | Tarjetas de fidelidad | Barra de progreso, premio, «faltan N recortes» | **MUEVE A «Perfil»** | Ya existe idéntica en Perfil, donde el tablero la pone como objeto oscuro. En Inicio es una tercera cosa compitiendo. |
-| 1.11 | `TUS VISITAS` (4 últimas) + «Ver todo» | Mini-historial con precios | **FUERA** | Historial es una pestaña propia. Enseñar 4 aquí es un cuarto bloque para algo que está a un toque. |
-
-**Resultado:** Inicio pasa de 11 bloques a 6. Un objeto oscuro (el estado del
-local), un rojo macizo (Fila ahora).
+De **7 pantallas** se pasa a **4 pestañas + 3 tarjetas**.
 
 ---
 
-## 2 · MI TURNO — `cliente/turno` · tablero `D2-Cliente-MiTurno`
+## La tarjeta unificada — el corazón de la propuesta
 
-La pregunta: **¿cuánto me falta, y cómo entro?**
+Un solo objeto oscuro que responde las dos preguntas a la vez: *cómo está la
+barbería* y *qué tengo yo*. Hoy son dos tarjetas que compiten (y una tercera,
+la fidelidad, encima). La tarjeta tiene **dos estados**, y son excluyentes:
 
-| # | Bloque | Qué es hoy | Recomiendo | Por qué |
-|---|---|---|---|---|
-| 2.1 | Titular «Mi turno» | Anton 26 | **VA** | |
-| 2.2 | Aviso «Tu turno expiró» | Cuando no llegaste a tiempo | **VA** | Explica por qué desapareció el turno. Sin él parece un fallo. |
-| 2.3 | Ticket del turno activo | Poste, puesto, servicio, ETA, perforación | **VA — es el objeto oscuro** | Es la pantalla entera. Aquí es donde debe vivir (ver 1.5). |
-| 2.4 | «Va después» (segundo turno) | Cuando tienes dos en cola | **VA** | |
-| 2.5 | Píldora «≈ N min de espera» | Estimación | **VA, rediseñar** | En D2 es cifra en Anton dentro del ticket, no píldora redondeada al lado. |
-| 2.6 | `TUS CITAS RESERVADAS` | Lista con cuadrado de fecha | **DECIDIR** | Es la **misma lista que Inicio 1.6**. Hay que elegir un sitio. Recomiendo: **aquí**, porque «Mi turno» es donde está lo que tienes pendiente; en Inicio solo el aviso de la próxima. |
-| 2.7 | `ENTRAR A LA FILA DIGITAL` + lista de barberos | Cada barbero con sus servicios y precios | **VA** | Es la única puerta real a la fila. |
-| 2.8 | Botón «Cualquiera» | Entra con el primero libre | **VA** | Para el que no tiene preferencia, que es la mayoría. |
-| 2.9 | Hoja de entrar a la fila (`HojaFila`) | Panel inferior: ventana de llegada, doble servicio | **VA — necesita tablero** | No tiene tablero D2. Solo existe en la dirección C, descartada. |
+### Estado A — no tienes turno
+
+```
+┌─────────────────────────────────────┐
+│ ▨▨▨ poste ▨▨▨                       │
+│ BARBERÍA DÁVILA        ● ABIERTO    │
+│                                      │
+│  25′          3 esperando            │
+│  DE ESPERA    2 sillas · 1 libre     │
+│                                      │
+│ Jeison  libre   Ana  2 esperando     │
+│ ─────────────────────────────────    │
+│ [ FILA AHORA ]  [ AGENDAR ]          │
+└─────────────────────────────────────┘
+```
+
+La cifra grande es la espera. Los dos botones son el pie de la tarjeta, no una
+sección aparte: entrar a la fila *es* lo que se hace con esta información.
+
+### Estado B — tienes turno
+
+```
+┌─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
+│ ▨▨▨ poste ▨▨▨            BD-208     │
+│ EN LA FILA · BARBERÍA DÁVILA        │
+│                                      │
+│  3º           Corte + barba          │
+│  EN LA FILA   con Jeison             │
+│                                      │
+│  ≈ 25′ · te toca sobre las 3:40      │
+│ · · · · · · perforación · · · · · ·  │
+│ [ VOY EN CAMINO ]  Cancelar          │
+└─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┘
+```
+
+Ticket de verdad: perforación y muescas. La cifra grande pasa a ser **tu
+puesto**, no la espera general — cuando ya estás dentro, la espera del local
+deja de importar. Abajo, la gestión del turno.
+
+**Con turno «llamado»** el ticket se vuelve rojo macizo y la cifra es
+`¡ES TU TURNO!`. Es el único momento en que la pantalla grita.
 
 ---
 
-## 3 · RESERVAR — `cliente/agendar` · **sin tablero**
+## 1 · MI TURNO — pestaña principal
 
-| # | Bloque | Qué es hoy | Recomiendo |
+| # | Bloque | De dónde viene | Nota |
 |---|---|---|---|
-| 3.1 | Titular «Reservar» | Anton 24 | **VA** |
-| 3.2 | Resumen del servicio elegido | Bloque carbón con poste | **VA — es el objeto oscuro** |
-| 3.3 | `1 · BARBERO` | Tira horizontal con avatares | **VA** |
-| 3.4 | `2 · SERVICIO` | Filas con barra roja en el elegido | **VA** |
-| 3.5 | «¿Para cuántas personas?» | Contador tú + acompañantes | **VA** |
-| 3.6 | `3 · DÍA` | Chips de fecha | **VA** |
-| 3.7 | `4 · HORA` | Chips de hora | **VA** |
-| 3.8 | Botón «Confirmar cita · 3:00 PM» | CTA rojo con la hora dentro | **VA** |
+| 1.1 | **Tarjeta unificada** | fusión de `EstadoLocal` + ticket | El objeto oscuro. |
+| 1.2 | Segundo turno («va después») | Mi turno | Ticket pequeño, sin poste. |
+| 1.3 | Aviso «Tu turno expiró» | Mi turno | Si no, el turno desaparece sin explicación. |
+| 1.4 | `TUS CITAS` | Inicio + Mi turno | **Se acaba el duplicado.** Vive solo aquí. |
+| 1.5 | Aviso «Todavía no atienden por la app» | Inicio | Sustituye los botones de la tarjeta. |
 
-Pantalla sana: es un embudo numerado y el orden ya es el correcto. **Solo
-necesita que se dibuje su tablero** para fijar medidas y no volver a
-improvisarla.
+**Cinco bloques.** Se abre la app y está todo lo que importa ahora.
+
+Lo que **ya no** está aquí: el catálogo de barberos con precios (va a Mi
+barbería), la fidelidad, el mini-historial, la cabecera de marca grande.
 
 ---
 
-## 4 · HISTORIAL — `cliente/historial` · **sin tablero**
+## 2 · MI BARBERÍA — barberos, servicios, fidelidad
 
-| # | Bloque | Qué es hoy | Recomiendo |
-|---|---|---|---|
-| 4.1 | Titular «Historial» | Anton 26 | **VA** |
-| 4.2 | Lista de visitas | Servicio, fecha, barbero, precio | **VA** |
-| 4.3 | Vacío: «Aún no tienes visitas registradas» | | **VA** |
-| 4.4 | Hoja «¿Cómo estuvo?» + reseña | Panel para puntuar | **VA** |
-| 4.5 | *(nuevo)* Citas pasadas | Viene de Inicio 1.7 | **DECIDIR** |
-
-La pantalla más vacía de las siete. **Es la candidata natural para recoger lo
-que sale de Inicio** (1.7 y 1.11).
-
----
-
-## 5 · PERFIL — `cliente/perfil` · tablero `D2-Cliente-Perfil`
-
-| # | Bloque | Qué es hoy | Recomiendo | Por qué |
-|---|---|---|---|---|
-| 5.1 | Avatar + nombre + teléfono | Cabecera | **VA** | |
-| 5.2 | Tarjeta de fidelidad | Bloque oscuro con poste, progreso, premio | **VA — es el objeto oscuro** | Recoge también la de Inicio (1.10). |
-| 5.3 | Botón «Canjear» | Aparece al llegar a la meta | **VA** | |
-| 5.4 | `VALES DISPONIBLES` | Premios ya canjeados sin usar | **VA** | «Muéstralo al cobrar»: se usa delante del barbero. |
-| 5.5 | `TUS NÚMEROS` | Visitas, gastado, barbero fav., servicio fav. | **VA** | Cifras en Anton: es lo que mejor encaja en D2. |
-| 5.6 | `MIS PREFERENCIAS` + «Editar» | Resumen de corte, barba, alergias | **VA** | |
-| 5.7 | `MIS LOCALES` | Barberías tuyas | **DECIDIR** | Es la **misma lista que Inicio 1.3**. Recomiendo dejarla aquí y que Inicio solo tenga el conmutador. |
-| 5.8 | `CUENTA`: cerrar sesión | Con explicación de qué se conserva | **VA** | |
-| 5.9 | «Avisos en este teléfono» | Activar notificaciones | **VA** | |
-| 5.10 | `CAMBIAR DE PANEL` (`CambiarRol`) | Si tienes más de un rol | **VA** | |
-| 5.11 | `SIN VUELTA ATRÁS`: eliminar cuenta | Con todas las consecuencias escritas | **VA** | |
-| 5.12 | *(falta)* Distintivo de panel | `PanelBadge` no está en ninguna pantalla de cliente | **DECIDIR** | Como cliente, nada te dice en qué panel estás. |
-
----
-
-## 6 · PREFERENCIAS — `cliente/preferencias` · **sin tablero**
-
-| # | Bloque | Recomiendo |
+| # | Bloque | De dónde viene |
 |---|---|---|
-| 6.1 | Titular «Preferencias» | **VA** |
-| 6.2 | Tipo de corte · Barba · Alergias · Notas | **VA** |
-| 6.3 | Botón «Guardar» | **VA** |
+| 2.1 | Cabecera: logo, nombre, eslogan, dirección | Inicio |
+| 2.2 | Conmutador de locales | Inicio |
+| 2.3 | **Tarjeta de fidelidad** | Perfil · el objeto oscuro |
+| 2.4 | `VALES DISPONIBLES` | Perfil · van con la fidelidad |
+| 2.5 | `EL EQUIPO` — barberos, estado, especialidad | Mi turno |
+| 2.6 | `SERVICIOS Y PRECIOS` | Mi turno |
+| 2.7 | **Tarjeta «agregar barbería o barbero»** | nueva · absorbe `buscar-barbero` |
 
-Cuatro campos y un botón. **No necesita tablero propio**: se deriva de la regla
-de campos (contorno negro de 2 px).
-
----
-
-## 7 · BUSCAR BARBERO — `cliente/buscar-barbero` · **sin tablero**
-
-| # | Bloque | Recomiendo |
-|---|---|---|
-| 7.1 | Titular «Buscar barbero» | **VA** |
-| 7.2 | Campo de búsqueda | **VA** |
-| 7.3 | Resultado: avatar, nombre, especialidad | **VA** |
-| 7.4 | `DÓNDE TRABAJA` | **VA** |
-
-Igual que Preferencias: se deriva de las reglas.
+Aquí es donde se mira **antes** de decidir: quién trabaja, qué cobran, cuánto
+llevo acumulado. Tocar un barbero abre la tarjeta de pedir turno con él ya
+elegido.
 
 ---
 
-## Resumen de lo que hay que decidir
+## 3 · HISTORIAL — visitas, gastos, reseñas
 
-**Duplicados** — la misma cosa en dos pantallas. Hay que elegir sitio:
-
-| Qué | Está en | Recomiendo |
+| # | Bloque | De dónde viene |
 |---|---|---|
-| Ticket del turno | Inicio 1.5 **y** Mi turno 2.3 | Mi turno |
-| Citas reservadas | Inicio 1.6 **y** Mi turno 2.6 | Mi turno (aviso en Inicio) |
-| Fidelidad | Inicio 1.10 **y** Perfil 5.2 | Perfil |
-| Lista de locales | Inicio 1.3 **y** Perfil 5.7 | Perfil |
-| Historial | Inicio 1.11 **y** Historial | Historial |
+| 3.1 | **`TUS NÚMEROS`** — visitas, gastado, barbero y servicio favoritos | Perfil · el objeto oscuro |
+| 3.2 | Lista de visitas con precio | Historial |
+| 3.3 | Citas pasadas | Inicio · aquí sí tienen sentido |
+| 3.4 | **Tarjeta de dejar reseña** | nueva · hoy es una hoja suelta |
+| 3.5 | Vacío: «Aún no tienes visitas» | Historial |
 
-**Tableros que hay que dibujar** (hoy no existen):
+Era la pantalla más vacía de las siete. Ahora tiene cuerpo, y el gasto
+acumulado deja de estar escondido en Perfil.
 
-1. `D2-Cliente-Agendar` — embudo de 4 pasos
-2. `D2-Cliente-Historial` — y decidir si recoge las citas pasadas
-3. `D2-Cliente-HojaFila` — el panel de entrar a la fila
-4. Inicio y Mi turno **hay que redibujarlos**: los actuales tienen el ticket en
-   Inicio y una pestaña «Reservar» que no existe en la app.
+---
 
-**Preferencias y Buscar barbero** no necesitan tablero: salen de las reglas.
+## 4 · CONFIGURACIÓN
+
+| # | Bloque | De dónde viene |
+|---|---|---|
+| 4.1 | Avatar, nombre, teléfono | Perfil |
+| 4.2 | `MIS PREFERENCIAS` — corte, barba, alergias, notas | **absorbe `preferencias` entera** |
+| 4.3 | `CUENTA` — cerrar sesión, avisos en este teléfono | Perfil |
+| 4.4 | `CAMBIAR DE PANEL` | Perfil |
+| 4.5 | `SIN VUELTA ATRÁS` — eliminar cuenta | Perfil |
+
+**Sin objeto oscuro, a propósito.** Es la única pantalla que no tiene nada que
+destacar: son ajustes, y todos pesan lo mismo.
+
+Los cuatro campos de preferencias se editan **aquí mismo**. Una pantalla aparte
+para cuatro campos era un viaje de ida y vuelta por nada.
+
+---
+
+## Las tres tarjetas nuevas
+
+### A · Pedir turno o agendar
+
+Una sola tarjeta con dos caminos, porque la decisión real es *ahora o después*:
+
+```
+  ¿CUÁNDO?     [ AHORA ]   [ OTRO DÍA ]
+  BARBERO      Jeison · Ana · Cualquiera
+  SERVICIO     Corte  RD$400 · 30 min
+  PERSONAS     – 1 +
+  ─────────── si es OTRO DÍA ───────────
+  DÍA          hoy · mañana · vie 12
+  HORA         3:00 · 3:30 · 4:00
+  ─────────────────────────────────────
+  [ ENTRAR A LA FILA ]   o   [ CONFIRMAR 3:00 PM ]
+```
+
+Sustituye a `cliente/agendar` **y** a la hoja de entrar a la fila. Hoy son dos
+recorridos distintos para la misma decisión.
+
+> **Riesgo que conviene que sepas:** cinco pasos son muchos para una tarjeta
+> inferior corta. Propongo tarjeta **alta** (90 % de la pantalla) con scroll
+> propio — que ya tiene el gesto de arrastrar hacia abajo para cerrar que
+> construimos. Funcionalmente es una pantalla; para el pulgar es una tarjeta.
+> Si prefieres que «Otro día» siga siendo pantalla completa, se separa.
+
+### B · Dejar reseña
+
+Hoy existe como hoja suelta en Historial, sin tablero. Pasa a tarjeta con
+nombre propio: barbero, servicio y fecha arriba; estrellas en Anton; campo de
+texto con contorno negro; «Enviar reseña» en rojo macizo.
+
+### C · Agregar barbería o barbero
+
+Absorbe `buscar-barbero` y el botón «+» del conmutador de locales, que hoy son
+dos caminos separados para lo mismo.
+
+```
+  [ TENGO UN CÓDIGO ]     el que te dio la barbería
+  [ BUSCAR BARBERO ]      por nombre
+```
+
+---
+
+## A dónde va cada pantalla de hoy
+
+| Pantalla actual | Destino |
+|---|---|
+| `cliente/home` | **Desaparece.** Se reparte. |
+| `cliente/turno` | Pestaña 1, absorbiendo el estado del local |
+| `cliente/agendar` | Tarjeta A |
+| `cliente/historial` | Pestaña 3, crecida |
+| `cliente/perfil` | Se parte en tres: fidelidad→2, números→3, resto→4 |
+| `cliente/preferencias` | Absorbida en la 4 |
+| `cliente/buscar-barbero` | Tarjeta C |
+
+---
+
+## Consecuencias en código, para que no sorprendan
+
+Esto no es repintar: es mover la estructura de navegación.
+
+1. **La pantalla de entrada del cliente cambia** de `cliente/home` a
+   `cliente/turno`. Toca `app/index.tsx`, `lib/paneles.ts` y el enrutado de los
+   push (`cita` apunta hoy a `home`).
+2. **Dos rutas se borran y una se renombra.** `home` desaparece;
+   `preferencias` y `buscar-barbero` se absorben. `perfil` pasa a
+   `configuracion`.
+3. **`cliente/turno` se vuelve la pantalla más pesada** — absorbe
+   `EstadoLocal`. Hay que vigilar que no repita el error de Inicio.
+4. **Las citas dejan de estar en dos sitios**, así que las acciones
+   (confirmar, reprogramar, cancelar) tienen por fin un solo hogar.
+
+**Nada de esto entra por aire sin más**: es un cambio de pestañas y de rutas,
+y conviene publicarlo de una pieza, no a trozos.
+
+---
+
+## Tableros a dibujar
+
+| Tablero | Estado |
+|---|---|
+| `D2-Cliente-MiTurno-A` (sin turno) | nuevo |
+| `D2-Cliente-MiTurno-B` (con turno) | nuevo |
+| `D2-Cliente-MiBarberia` | nuevo |
+| `D2-Cliente-Historial` | nuevo |
+| `D2-Cliente-Configuracion` | nuevo |
+| `D2-Tarjeta-PedirTurno` | nuevo |
+| `D2-Tarjeta-Reseña` | nuevo |
+| `D2-Tarjeta-AgregarBarberia` | nuevo |
+
+Los tres D2 de cliente que ya existen (`Inicio`, `MiTurno`, `Perfil`) quedan
+**obsoletos**: dibujaban una estructura que esta propuesta deshace.
