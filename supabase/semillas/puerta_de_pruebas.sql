@@ -85,15 +85,42 @@ begin
 
   -- ══ 1. LAS CUENTAS ════════════════════════════════════════════════════════
   for r in select * from jsonb_to_recordset(v_gente) as x(id uuid, email text, nombre text) loop
+    -- LAS CUATRO COLUMNAS DE ABAJO NO SON RELLENO. Costaron que la puerta
+    -- entera diera error, y el motivo no se ve desde SQL.
+    --
+    -- `confirmation_token`, `recovery_token`, `email_change_token_new` y
+    -- `email_change` admiten NULL en la tabla, así que un insert que no las
+    -- nombre las deja en NULL y la fila se ve perfecta: la contraseña
+    -- verifica, el correo está confirmado, la identidad existe. Pero GoTrue
+    -- está escrito en Go y las lee como texto NO nulo, así que al entrar con
+    -- contraseña falla ANTES de comprobar nada:
+    --
+    --   error finding user: sql: Scan error on column index 3,
+    --   name "confirmation_token": converting NULL to string is unsupported
+    --
+    -- Y el error que llega al teléfono es un 500 genérico, que no dice ni
+    -- remotamente esto. Solo aparece en los registros de auth del servidor.
+    --
+    -- GoTrue nunca deja estas columnas en NULL cuando crea la cuenta él: las
+    -- pone en cadena vacía. Sembrar a mano es saltarse ese paso, así que hay
+    -- que hacerlo aquí. Van las ocho de la familia, no las cuatro que
+    -- fallaron: las otras cuatro tienen valor por defecto hoy, y depender de
+    -- eso es esperar a que la próxima versión lo cambie.
     insert into auth.users (
       id, instance_id, aud, role, email, encrypted_password,
       email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-      created_at, updated_at)
+      created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change,
+      email_change_token_current, phone_change, phone_change_token,
+      reauthentication_token)
     values (
       r.id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
       r.email, crypt(v_pass, gen_salt('bf')),
       now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
-      now(), now());
+      now(), now(),
+      '', '', '', '',
+      '', '', '',
+      '');
 
     -- Sin identidad, GoTrue no reconoce la cuenta como de email+contraseña.
     insert into auth.identities (
