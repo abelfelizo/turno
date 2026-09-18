@@ -13,7 +13,7 @@ import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
-import { Display, Avatar, Badge } from '../../../components/ui'
+import { Display, Avatar, Badge, NoCargo } from '../../../components/ui'
 import EstadoLocal from '../../../components/estado-local'
 
 function cuentaRegresiva(fecha: string, hora: string) {
@@ -78,6 +78,8 @@ export default function Home() {
   const [historial, setHistorial] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  /** No es lo mismo «no hay nada» que «no pude preguntar». Ver NoCargo. */
+  const [fallo, setFallo] = useState(false)
 
   /** El barbero descubría los huecos al abrir la agenda; ahora se entera. */
   function avisarCancelacion(cita: any) {
@@ -89,6 +91,12 @@ export default function Home() {
   }
 
   const cargar = useCallback(async () => {
+   // EL TRY NO ES ADORNO. `setLoading(false)` estaba suelto detrás del await,
+   // y dos de estas nueve llamadas no llevaban `.catch`: si cualquiera de las
+   // dos fallaba, esta función reventaba, el spinner no se quitaba nunca y la
+   // pantalla de inicio del cliente se quedaba girando hasta cerrar la app.
+   try {
+    setFallo(false)
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.negocio_id || !ss?.usuario_id) { setLoading(false); return }
     const [neg, est, res, t, cs, negs, pts, hist, yo] = await Promise.all([
@@ -107,7 +115,11 @@ export default function Home() {
     setPuesto(t?.id ? await getPuesto(t.id).catch(() => null) : null)
     setNegocios(negs as any[]); setTarjetas((pts as any[]) ?? []); setHistorial(hist as any[]); setMiNombre((yo as any)?.nombre ?? '')
     programarRecordatoriosCitas((cs as any[]).map(c => ({ fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre })))
-    setLoading(false); setRefreshing(false)
+   } catch {
+     setFallo(true)
+   } finally {
+     setLoading(false); setRefreshing(false)
+   }
   }, [])
 
   useEffect(() => {
@@ -141,6 +153,7 @@ export default function Home() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="tu barbería" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   // Lo que hay detrás de cada puerta, para escribirlo EN la puerta. Sale del
   // servidor (migración 77): la misma respuesta que daría al rechazar el turno.

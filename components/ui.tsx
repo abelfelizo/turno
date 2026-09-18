@@ -164,6 +164,11 @@ export function PuntoVivo({ color, vivo }: { color: string; vivo: boolean }) {
 }
 
 const s = StyleSheet.create({
+  noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
+  noCargoT: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
+  noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
   puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
@@ -185,3 +190,35 @@ const s = StyleSheet.create({
   kvK: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid },
   kvV: { fontFamily: FONTS.bold, fontSize: 14 },
 })
+
+/**
+ * NO SE PUDO CARGAR · el estado que faltaba en todas las pantallas.
+ *
+ * Hasta ahora un fallo de red se pintaba EXACTAMENTE IGUAL que «aquí no hay
+ * nada»: las cargas atrapan cada llamada con `.catch(() => [])` y la pantalla
+ * enseñaba su lista vacía tan tranquila. El cliente veía «no hay barberos» y
+ * concluía que la barbería estaba cerrada; el barbero veía su agenda en blanco
+ * y creía que no tenía citas.
+ *
+ * Es la misma trampa que el README de las pruebas lleva tiempo advirtiendo para
+ * el servidor —«devolver vacío y negarse se parecen mientras la consulta
+ * funcione»— del lado de la interfaz. Se parecen hasta el día que la consulta
+ * falla, y ese día la pantalla miente.
+ *
+ * Con esto son tres estados distintos y no dos: cargando, no pude, y vacío.
+ */
+export function NoCargo({ onReintentar, que }: { onReintentar: () => void; que?: string }) {
+  return (
+    <View style={s.noCargo}>
+      <Ionicons name="cloud-offline-outline" size={30} color={COLORS.textLight} />
+      <Text style={s.noCargoT}>No pudimos cargar {que ?? 'esta pantalla'}</Text>
+      <Text style={s.noCargoD}>
+        Puede ser tu conexión. No es que no haya nada: es que no pudimos preguntar.
+      </Text>
+      <TouchableOpacity style={s.noCargoBtn} onPress={onReintentar} activeOpacity={0.85}>
+        <Ionicons name="refresh" size={16} color="#fff" />
+        <Text style={s.noCargoBtnT}>Reintentar</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}

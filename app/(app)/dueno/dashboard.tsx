@@ -9,7 +9,7 @@ import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero, relojesDeSilla } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { nombreOficio } from '../../../types'
-import { Display, Avatar, PuntoVivo } from '../../../components/ui'
+import { Display, Avatar, PuntoVivo, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 import ClientesLocal from '../../../components/clientes-local'
@@ -62,9 +62,16 @@ export default function Dashboard() {
   const [operativo, setOperativo] = useState(true)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  /** «No hay nada» y «no pude preguntar» no son lo mismo. Ver NoCargo. */
+  const [fallo, setFallo] = useState(false)
   const [verClientes, setVerClientes] = useState(false)
 
   const cargar = useCallback(async () => {
+   // Ocho llamadas, y `getNegocioById` era la única sin `.catch`. Con el
+   // `setLoading(false)` suelto detrás del await, un fallo suyo dejaba el panel
+   // del local girando para siempre.
+   try {
+    setFallo(false)
     const ss = await getSesion()
     if (!ss?.negocio_id) { setLoading(false); return }
     setPerfilPropio(ss.perfil_id ?? null)
@@ -87,7 +94,11 @@ export default function Dashboard() {
     for (const e of ((est ?? []) as any[])) mapa[e.perfil_id] = e
     setEstados(mapa); setEstadosOk(est != null); setOperativo(op as boolean)
     setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[]); setConfig(cfg)
-    setLoading(false); setRefreshing(false)
+   } catch {
+     setFallo(true)
+   } finally {
+     setLoading(false); setRefreshing(false)
+   }
   }, [])
 
   useEffect(() => {
@@ -163,6 +174,7 @@ export default function Dashboard() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="tu local" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   // Cuánto lleva esperando cada uno. El mismo cálculo que en el panel del
   // barbero: es el número con el que se decide a quién se adelanta.

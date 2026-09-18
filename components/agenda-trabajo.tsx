@@ -16,7 +16,7 @@ import { enviarPush, avisos } from '../lib/notificaciones'
 import { suscribirCola, suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { COLORS, FONTS } from '../constants'
-import { Display, Avatar, Badge, PuntoVivo } from './ui'
+import { Display, Avatar, Badge, PuntoVivo, NoCargo } from './ui'
 import Hoja from './hoja'
 import PanelBadge from './panel-badge'
 
@@ -85,6 +85,8 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const [bloqueos, setBloqueos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  /** «No hay citas» y «no pude preguntar» no son lo mismo. Ver NoCargo. */
+  const [fallo, setFallo] = useState(false)
   const [sesion, setSesion] = useState<any>(null)
   const [usuario, setUsuario] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
@@ -158,6 +160,11 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const [localModal, setLocalModal] = useState(false)
 
   const cargar = useCallback(async () => {
+   // Trece llamadas y las dos primeras sin `.catch`. Con `setLoading(false)`
+   // suelto detrás del await, un fallo de cualquiera de las dos dejaba al
+   // barbero mirando un spinner eterno en la pantalla donde trabaja.
+   try {
+    setFallo(false)
     const ss = await getSesion(); setSesion(ss)
     if (!ss?.perfil_id) { setLoading(false); return }
     const [c, q, sv, neg, u, cnt, bl, est, sc, jo, capta, mando, viva] = await Promise.all([
@@ -187,10 +194,14 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     setUsuario(u); setConteo(cnt as any); setBloqueos(bl as any[]); setEstado(est)
     setSinCerrar(sc as any[]); setJornada(jo as any); setCaptaSolo(capta as boolean); setMandoHorario(mando as boolean)
     setEnJornada(!!viva)
-    setLoading(false); setRefreshing(false)
     // Aparte y sin bloquear: solo decide si la cabecera enseña un selector o
     // una línea. Que tarde no debe retrasar la fila.
     if (ss.usuario_id) getBarberoNegocios(ss.usuario_id).then(setLocales).catch(() => {})
+   } catch {
+     setFallo(true)
+   } finally {
+     setLoading(false); setRefreshing(false)
+   }
   }, [fecha, hoy])
 
   async function cambiarLocal(l: any) {
@@ -232,6 +243,9 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
     setCitas(c as any[]); setCola(q as any[]); setBloqueos(bl as any[]); setEstado(est)
     setSinCerrar(sc as any[]); setJornada(jo as any); setEnJornada(!!viva)
   }, [fecha])
+  /** El refresco en vivo corre solo cada pocos segundos: si un tirón de red lo
+   *  hace reventar, que no se lleve por delante el temporizador que lo repite. */
+  const cargarVivoSeguro = useCallback(() => { cargarVivo().catch(() => {}) }, [cargarVivo])
 
   /**
    * Tres suscripciones de realtime llamaban cada una a la recarga completa. Una
@@ -241,8 +255,8 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const pendiente = useRef<any>(null)
   const refrescar = useCallback(() => {
     if (pendiente.current) clearTimeout(pendiente.current)
-    pendiente.current = setTimeout(() => { pendiente.current = null; cargarVivo() }, 250)
-  }, [cargarVivo])
+    pendiente.current = setTimeout(() => { pendiente.current = null; cargarVivoSeguro() }, 250)
+  }, [cargarVivoSeguro])
   useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
 
   /**
@@ -554,6 +568,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator color={COLORS.red} size="large" /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="tu agenda" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   const n1 = cola.filter(c => c.prioridad === 1).length
   const n2 = cola.filter(c => c.prioridad === 2).length

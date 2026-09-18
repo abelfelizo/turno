@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
@@ -8,7 +8,7 @@ import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
-import { Display, Chip, Avatar } from '../../../components/ui'
+import { Display, Chip, Avatar, NoCargo } from '../../../components/ui'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
@@ -30,12 +30,18 @@ export default function Agendar() {
   const [personas, setPersonas] = useState(1)
   const [diasActivos, setDiasActivos] = useState<Set<number> | null>(null)
   const [loading, setLoading] = useState(true)
+  /** «No hay horarios» y «no pude preguntar» no son lo mismo. Ver NoCargo. */
+  const [fallo, setFallo] = useState(false)
   const [cargandoSlots, setCargandoSlots] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const dias = proximosDias(14)
 
-  useEffect(() => {
-    (async () => {
+  // La carga entera va dentro de un try: `getPerfilesNegocio` no llevaba
+  // `.catch` y `setLoading(false)` estaba suelto al final, así que un tirón de
+  // red dejaba esta pantalla girando y sin salida.
+  const cargar = useCallback(async () => {
+    try {
+      setFallo(false)
       const ss = await getSesion()
       if (ss?.negocio_id) {
         const [ps, neg] = await Promise.all([
@@ -75,9 +81,13 @@ export default function Agendar() {
           }
         }
       }
+    } catch {
+      setFallo(true)
+    } finally {
       setLoading(false)
-    })()
+    }
   }, [])
+  useEffect(() => { cargar() }, [cargar])
 
   // Días en que el barbero trabaja (para deshabilitar los cerrados)
   useEffect(() => {
@@ -130,6 +140,7 @@ export default function Agendar() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="los horarios" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   return (
     <View style={s.container}>
