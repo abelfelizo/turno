@@ -264,6 +264,11 @@ export default function BarberoDelLocal() {
       } }])
   }
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  // Antes de las guardas a la fuerza: los hooks se cuentan por orden, y uno que
+  // solo se llama cuando la ficha ya cargó tumba la pantalla al cargar.
+  const volver = useGestoVolver()
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
   if (fallo) return (
     <View style={s.center}>
@@ -286,9 +291,6 @@ export default function BarberoDelLocal() {
    */
   const puedoEditarle = modalidad === 'empleado'
   const localDeAlquiler = tipoLocal === 'espacios_rentados'
-
-  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
-  const volver = useGestoVolver()
 
   return (
     <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>

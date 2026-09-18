@@ -61,15 +61,17 @@ export default function Preferencias() {
     finally { setGuardando(false) }
   }
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  // Tiene que ir ANTES de las guardas: los hooks se cuentan por orden, y uno
+  // que solo se llama cuando ya cargó rompe la pantalla en el render siguiente.
+  const volver = useGestoVolver()
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
   if (fallo) return (
     <View style={s.center}>
       <NoCargo que="tus preferencias" onReintentar={() => { setLoading(true); cargar() }} />
     </View>
   )
-
-  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
-  const volver = useGestoVolver()
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.container} {...volver}>

@@ -144,11 +144,15 @@ export default function Agendar() {
     finally { setEnviando(false) }
   }
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  // ARRIBA DE LAS GUARDAS, y no es colocación: es obligatorio. React lleva la
+  // cuenta de los hooks por ORDEN de llamada, así que si esto queda debajo del
+  // `if (loading) return`, el primer render no lo llama y el segundo sí —
+  // «Rendered more hooks than during the previous render» y pantalla muerta.
+  const volver = useGestoVolver()
+
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="los horarios" onReintentar={() => { setLoading(true); cargar() }} /></View>
-
-  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
-  const volver = useGestoVolver()
 
   return (
     <View style={s.container} {...volver}>

@@ -87,6 +87,16 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
     } finally { setEntrando(false) }
   }
 
+  // Se arrastra hacia abajo para cerrarla, igual que la hoja compartida: el
+  // gesto vive en `components/gestos.tsx` para que las dos se sientan iguales.
+  //
+  // ANTES DEL `return null`, y aquí era el caso más grave de los cuatro: la
+  // hoja arranca con `seleccion` en nulo —se monta con la pantalla, vacía— así
+  // que el hook no se llamaba nunca hasta que el cliente tocaba un servicio, y
+  // justo en ese render aparecía uno de más. O sea que la hoja de entrar a la
+  // fila reventaba EN EL MOMENTO de usarla, no al abrir la pantalla.
+  const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+
   if (!seleccion) return null
   const { negocio, perfil, servicio } = seleccion
   const espera = resumen?.espera_min ?? 0
@@ -107,10 +117,6 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
     ? abiertos.filter((p: any) => p.id !== perfil.id && p.tipo_servicio !== perfil.tipo_servicio)
     : []
   const total = (servicio?.precio ?? 0) + (segundo?.servicio?.precio ?? 0)
-
-  // Se arrastra hacia abajo para cerrarla, igual que la hoja compartida: el
-  // gesto vive en `components/gestos.tsx` para que las dos se sientan iguales.
-  const { y, panHandlers } = useArrastrarParaCerrar(onClose)
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
