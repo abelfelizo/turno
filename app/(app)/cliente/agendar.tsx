@@ -8,7 +8,7 @@ import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
-import { Display, Chip, Avatar, NoCargo } from '../../../components/ui'
+import { Display, Chip, Avatar, NoCargo, Pole } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -162,12 +162,15 @@ export default function Agendar() {
         {/* resumen del servicio elegido (carbón) */}
         {servicio && (
           <View style={s.mini}>
+            <Pole height={6} radius={0} />
+            <View style={s.miniCuerpo}>
             <View style={s.miniIcon}><Ionicons name="cut" size={20} color="#fff" /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.miniName}>{servicio.nombre}</Text>
               <Text style={s.miniMeta}>con {perfil?.turno_usuarios?.nombre ?? '—'} · {servicio.duracion_min} min</Text>
             </View>
             <Text style={s.miniPrice}>{dinero(servicio.precio, negocio?.moneda)}</Text>
+            </View>
           </View>
         )}
 
@@ -277,40 +280,43 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderRadius: 4, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  mini: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.carbon, borderRadius: 6, padding: 14, marginBottom: 20 },
+  back: { width: 36, height: 36, borderRadius: 4, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  mini: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 20, overflow: 'hidden' },
+  miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   miniIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
   miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
+  miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
   vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
-  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 6, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginBottom: 12 },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
   bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
-  bienvenida: { backgroundColor: COLORS.surfaceAlt, borderRadius: 4, padding: 14, marginBottom: 20 },
+  bienvenida: { borderLeftWidth: 3, borderLeftColor: COLORS.ink, paddingLeft: 13, paddingVertical: 4, marginBottom: 20 },
   bienvenidaT: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
-  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 14, marginBottom: 8 },
-  servOn: { borderColor: COLORS.red, backgroundColor: COLORS.redLight },
+  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+  servOn: { borderLeftColor: COLORS.red, paddingLeft: 11 },
   servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrice: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  personas: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginTop: 22 },
+  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 2, borderTopColor: COLORS.ink },
   personasL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   personasD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 40, height: 40, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 42, height: 42, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.ink, minWidth: 22, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  dia: { width: 58, height: 66, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  diaOff: { opacity: 0.4, backgroundColor: COLORS.surfaceAlt },
+  diaOff: { opacity: 0.35 },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
   diaNum: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
-  ctaWrap: { padding: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.bg },
-  cta: { backgroundColor: COLORS.red, borderRadius: 6, padding: 17, alignItems: 'center' },
+  ctaWrap: { padding: 16, paddingBottom: 28, borderTopWidth: 2, borderTopColor: COLORS.ink, backgroundColor: COLORS.bg },
+  cta: { backgroundColor: COLORS.red, borderRadius: 4, padding: 17, alignItems: 'center' },
   ctaT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
 })

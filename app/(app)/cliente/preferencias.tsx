@@ -104,9 +104,9 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderRadius: 4, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 36, height: 36, borderRadius: 4, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
   label: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 15, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
+  input: { borderWidth: 2, borderColor: COLORS.ink, borderRadius: 4, padding: 15, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
   btn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 17, alignItems: 'center', marginTop: 8 },
   btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
 })

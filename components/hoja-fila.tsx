@@ -5,7 +5,7 @@ import { entrarACola, entrarAColaDoble, getResumenFila, getConfiguracion, getMiU
 import { avisos } from '../lib/notificaciones'
 import { dinero } from '../lib/format'
 import { COLORS, FONTS } from '../constants'
-import { Display, Avatar } from './ui'
+import { Display, Avatar, Pole } from './ui'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
 
 type Seleccion = {
@@ -195,6 +195,8 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
           )}
 
           <View style={s.info}>
+            <Pole height={6} radius={0} />
+            <View style={s.infoCuerpo}>
             {cargando ? <ActivityIndicator color={COLORS.red} /> : (
               <>
                 <View style={s.infoCol}>
@@ -208,6 +210,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
                 </View>
               </>
             )}
+            </View>
           </View>
 
           <View style={s.aviso}>
@@ -246,37 +249,40 @@ const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 36 },
   sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 12 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
+    borderTopWidth: 2, borderTopColor: COLORS.ink, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 12 },
   barbero: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   serv: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
-  precio: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.red },
+  precio: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
   orden: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.textLight, width: 18 },
   totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 4 },
   totalL: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   totalN: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   quitar: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight, paddingVertical: 8, marginBottom: 4 },
-  anadir: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.surfaceAlt,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 13, marginBottom: 12 },
+  anadir: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: COLORS.ink,
+    borderRadius: 4, padding: 13, marginBottom: 12 },
   anadirT: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
   anadirD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  elegir: { backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 13, marginBottom: 12 },
+  elegir: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 13, marginBottom: 12 },
   elegirHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   elegirT: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
   elegirX: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight },
   candHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   candN: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.ink },
   candServ: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.bg, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 12, marginBottom: 6 },
+    paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   candServN: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
-  candServP: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red },
-  info: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.carbon, borderRadius: 6, padding: 18, marginBottom: 12, minHeight: 84 },
+  candServP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
+  info: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 12, overflow: 'hidden' },
+  infoCuerpo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, minHeight: 84 },
   infoCol: { flex: 1, alignItems: 'center' },
   infoNum: { fontFamily: FONTS.display, fontSize: 34, color: '#fff' },
-  infoLbl: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  infoLbl: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.onCarbonMid, marginTop: 2 },
   divisor: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.15)' },
-  aviso: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surfaceAlt, borderRadius: 4, padding: 12, marginBottom: 18 },
+  aviso: { flexDirection: 'row', alignItems: 'center', gap: 9, borderLeftWidth: 3, borderLeftColor: COLORS.border,
+    paddingLeft: 11, paddingVertical: 8, marginBottom: 14 },
   avisoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid },
-  cta: { backgroundColor: COLORS.red, borderRadius: 6, padding: 17, alignItems: 'center' },
+  cta: { backgroundColor: COLORS.red, borderRadius: 4, padding: 17, alignItems: 'center' },
   ctaT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
   cancel: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

@@ -8,7 +8,7 @@ import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Avatar, KV, NoCargo } from '../../../components/ui'
+import { Avatar, KV, NoCargo, Pole } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -148,6 +148,8 @@ export default function Perfil() {
         const pct = t.meta > 0 ? Math.min(100, Math.round((enCiclo / t.meta) * 100)) : 0
         return (
           <View key={t.perfil_id ?? 'local'} style={s.fidel}>
+            <Pole height={6} radius={0} />
+            <View style={s.fidelCuerpo}>
             <View style={s.fidelHead}>
               <Text style={s.fidelTitle}>{t.ambito === 'perfil' && t.barbero ? `CON ${String(t.barbero).toUpperCase()}` : 'FIDELIDAD'}</Text>
               <Text style={s.fidelNum}>{enCiclo} / {t.meta} recortes</Text>
@@ -162,6 +164,7 @@ export default function Perfil() {
                 {canjeando ? <ActivityIndicator color={COLORS.carbon} /> : <Text style={s.canjearT}>Canjear: {t.premio}</Text>}
               </TouchableOpacity>
             )}
+            </View>
           </View>
         )
       })}
@@ -268,7 +271,8 @@ const s = StyleSheet.create({
   head: { alignItems: 'center', marginBottom: 20 },
   nombre: { fontFamily: FONTS.extrabold, fontSize: 22, color: COLORS.ink, marginTop: 10 },
   tel: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 2 },
-  fidel: { backgroundColor: COLORS.carbon, borderRadius: 6, padding: 20, marginBottom: 22 },
+  fidel: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 22, overflow: 'hidden' },
+  fidelCuerpo: { padding: 20 },
   fidelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   fidelTitle: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.55)', letterSpacing: 1 },
   fidelNum: { fontFamily: FONTS.display, fontSize: 22, color: '#fff' },
@@ -277,18 +281,18 @@ const s = StyleSheet.create({
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   fidelMeta: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
-  canjearBtn: { backgroundColor: '#fff', borderRadius: 4, padding: 13, alignItems: 'center', marginTop: 14 },
-  canjearT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.carbon },
-  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  cuentaIcono: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  canjearBtn: { backgroundColor: '#fff', borderRadius: 4, padding: 14, alignItems: 'center', marginTop: 14 },
+  canjearT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.carbon, textTransform: 'uppercase', letterSpacing: 0.5 },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cuentaIcono: { width: 34, height: 34, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
     borderRadius: 6, padding: 14, marginBottom: 24 },
   cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
-  vales: { backgroundColor: COLORS.redLight, borderRadius: 6, padding: 14, marginBottom: 22 },
+  vales: { borderWidth: 2, borderColor: COLORS.red, padding: 14, marginBottom: 22 },
   valesT: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1, marginBottom: 10 },
   vale: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   valeT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
@@ -296,12 +300,13 @@ const s = StyleSheet.create({
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   editar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 10 },
   metrics: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 16 },
+  metric: { flex: 1, paddingVertical: 14, paddingRight: 12, borderTopWidth: 2, borderTopColor: COLORS.ink },
   mNum: { fontFamily: FONTS.display, fontSize: 28, color: COLORS.ink },
   mNumSm: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
-  box: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, paddingHorizontal: 16, paddingVertical: 4, marginTop: 10, marginBottom: 24 },
-  localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 14, marginBottom: 8 },
+  box: { borderTopWidth: 2, borderTopColor: COLORS.ink, marginTop: 10, marginBottom: 24 },
+  localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border },
   localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   localSalir: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
   salir: { padding: 16, alignItems: 'center', marginTop: 8 },
