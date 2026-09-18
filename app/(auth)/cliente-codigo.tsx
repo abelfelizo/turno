@@ -95,7 +95,7 @@ export default function ClienteCodigo() {
 }
 
 const s = StyleSheet.create({
-  opcion: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbonEl, borderWidth: 1.5, borderColor: COLORS.carbonBorder, borderRadius: 16, padding: 18, marginBottom: 12 },
+  opcion: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbonEl, borderWidth: 1.5, borderColor: COLORS.carbonBorder, borderRadius: 6, padding: 18, marginBottom: 12 },
   opcionT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   opcionD: { fontFamily: FONTS.medium, fontSize: 13, color: '#9A9CA6', marginTop: 2 },
   volver: { fontFamily: FONTS.semibold, fontSize: 14, color: '#9A9CA6', textAlign: 'center', marginTop: 8 },

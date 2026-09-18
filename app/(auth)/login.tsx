@@ -106,11 +106,11 @@ const s = StyleSheet.create({
   wordmark: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13, letterSpacing: 1 },
   kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
-  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 12, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
+  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 4, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
   code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
   pruebas: { marginTop: 26, padding: 12, alignItems: 'center' },
   pruebasT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#6E7078', textDecorationLine: 'underline' },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 17, alignItems: 'center' },
+  btn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 17, alignItems: 'center' },
   btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },
 })

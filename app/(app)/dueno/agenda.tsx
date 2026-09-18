@@ -187,7 +187,7 @@ function Opcion({ icon, t, d, rojo, onPress }: { icon: any; t: string; d?: strin
   )
 }
 const o = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 15, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 15, marginBottom: 8 },
   t: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   d: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
 })
@@ -196,21 +196,21 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
-  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, borderRadius: 14, padding: 15, marginBottom: 16 },
+  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, borderRadius: 6, padding: 15, marginBottom: 16 },
   sillaT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   sillaD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   hint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  pos: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, marginBottom: 8 },
+  pos: { width: 36, height: 36, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   posT: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
   name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   estado: { fontFamily: FONTS.bold, fontSize: 12 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
   enSilla: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, backgroundColor: COLORS.surfaceAlt,
-    borderRadius: 12, padding: 13, lineHeight: 19 },
+    borderRadius: 4, padding: 13, lineHeight: 19 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

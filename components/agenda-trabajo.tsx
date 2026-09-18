@@ -1677,7 +1677,7 @@ function Opcion({ icon, t, d, rojo, onPress }: { icon: any; t: string; d?: strin
   )
 }
 const op = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 15, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 15, marginBottom: 8 },
   t: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   d: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
 })
@@ -1691,7 +1691,7 @@ function FichaChip({ l, v }: { l: string; v: string }) {
   )
 }
 const fc = StyleSheet.create({
-  chip: { backgroundColor: COLORS.surfaceAlt, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  chip: { backgroundColor: COLORS.surfaceAlt, borderRadius: 4, paddingHorizontal: 12, paddingVertical: 8 },
   l: { fontFamily: FONTS.semibold, fontSize: 10, color: COLORS.textLight, textTransform: 'uppercase' },
   v: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink, marginTop: 1 },
 })
@@ -1708,14 +1708,14 @@ const s = StyleSheet.create({
   modoChip: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
     backgroundColor: 'rgba(255,255,255,0.55)', borderRadius: 999, paddingVertical: 2, paddingHorizontal: 8, marginBottom: 4 },
   modoChipT: { fontFamily: FONTS.bold, fontSize: 10.5, color: 'rgba(0,0,0,0.65)', letterSpacing: 0.2 },
-  cuenta: { backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13, padding: 11, marginTop: 10 },
+  cuenta: { backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 4, padding: 11, marginTop: 10 },
   cuentaTop: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 9 },
   cuentaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   cuentaSub: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: -5, marginBottom: 9 },
   // Envuelve: con teléfono son cinco botones y en un teléfono estrecho la
   // última se salía de la tarjeta.
   cuentaBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  cuentaBtn: { flexGrow: 1, flexBasis: 84, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
+  cuentaBtn: { flexGrow: 1, flexBasis: 84, alignItems: 'center', paddingVertical: 10, borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.18)' },
   cuentaBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   cuentaBtnFuerte: { backgroundColor: '#fff' },
@@ -1723,27 +1723,27 @@ const s = StyleSheet.create({
   // Velo OSCURO y texto blanco, igual que `cuenta`. Estaba al revés —velo claro
   // y texto casi negro— y es el mismo fallo que tenía SIGUEN: ver abajo.
   siguiente: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10,
-    backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 11, paddingVertical: 9, paddingHorizontal: 11 },
+    backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 4, paddingVertical: 9, paddingHorizontal: 11 },
   siguienteT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#fff' },
   ordenNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 18, paddingVertical: 10 },
   cerrado: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
+    borderRadius: 4, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
   cerradoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(0,0,0,0.75)', lineHeight: 17 },
   cerradoBtn: { backgroundColor: COLORS.ink, borderRadius: 9, paddingVertical: 7, paddingHorizontal: 11 },
   cerradoBtnT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
   citaEstado: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink, lineHeight: 19,
-    backgroundColor: COLORS.surfaceAlt, borderRadius: 10, padding: 11, marginTop: 12, marginBottom: 4 },
+    backgroundColor: COLORS.surfaceAlt, borderRadius: 4, padding: 11, marginTop: 12, marginBottom: 4 },
   // ── Cuadro principal: estado, acción y fila, en una sola pieza ────────────
-  panel: { backgroundColor: COLORS.surface, borderRadius: 18, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
+  panel: { backgroundColor: COLORS.surface, borderRadius: 6, padding: 14, marginBottom: 14, borderWidth: 1, borderColor: COLORS.border },
   panelTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   accionPral: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingVertical: 14, marginTop: 12 },
+    backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 4, paddingVertical: 14, marginTop: 12 },
   accionPralT: { color: COLORS.ink, fontSize: 15.5, fontWeight: '800' },
   // Va DENTRO del panel, que tiene fondo de color según el estado: los mismos
   // blancos y negros translúcidos de `cerrado`, no los tokens de la app, que
   // sobre verde o azul no se leen.
   pasivo: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 12, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
+    borderRadius: 4, paddingVertical: 10, paddingHorizontal: 12, marginTop: 12 },
   pasivoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(0,0,0,0.75)', lineHeight: 17 },
   // LA LISTA DE LOS QUE SIGUEN, LEGIBLE.
   //
@@ -1764,7 +1764,7 @@ const s = StyleSheet.create({
   //
   // Ahora sigue el patrón de `cuenta`: velo oscuro translúcido y texto blanco,
   // que funciona igual sobre los cuatro colores en vez de sobre ninguno.
-  siguen: { marginTop: 10, backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 13,
+  siguen: { marginTop: 10, backgroundColor: 'rgba(0,0,0,0.16)', borderRadius: 4,
     paddingHorizontal: 11, paddingTop: 9, paddingBottom: 3 },
   siguenLbl: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginBottom: 4 },
   siguenRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
@@ -1775,7 +1775,7 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
   diasWrap: { marginBottom: 14 },
-  dia: { width: 54, alignItems: 'center', paddingVertical: 9, borderRadius: 13, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
+  dia: { width: 54, alignItems: 'center', paddingVertical: 9, borderRadius: 4, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   diaSem: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 0.5 },
   diaNum: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink, marginTop: 1 },
@@ -1783,47 +1783,47 @@ const s = StyleSheet.create({
   diaDot: { width: 5, height: 5, borderRadius: 3, marginTop: 4, backgroundColor: 'transparent' },
   diaDotHay: { backgroundColor: COLORS.red },
   diaDotOn: { backgroundColor: '#fff' },
-  otroDia: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.surfaceAlt, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 14 },
+  otroDia: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: COLORS.surfaceAlt, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 13, marginBottom: 14 },
   otroDiaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  volverHoy: { backgroundColor: COLORS.ink, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 13 },
+  volverHoy: { backgroundColor: COLORS.ink, borderRadius: 4, paddingVertical: 8, paddingHorizontal: 13 },
   volverHoyT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginTop: -6, marginBottom: 14 },
+  valeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 4, padding: 13, marginTop: -6, marginBottom: 14 },
   valeBarT: { flex: 1, fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   // El halo crece y se desvanece por encima; el núcleo no se mueve, para que
   // el punto siga leyéndose como un indicador y no como una animación.
   estadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff' },
   estadoD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
-  estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  estadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, paddingHorizontal: 14, paddingVertical: 8 },
   estadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
-  ocupado: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 14, padding: 14, marginBottom: 14 },
+  ocupado: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.blue, borderRadius: 6, padding: 14, marginBottom: 14 },
   ocupadoLbl: { fontFamily: FONTS.bold, fontSize: 10, color: 'rgba(255,255,255,0.75)', letterSpacing: 1 },
   ocupadoT: { fontFamily: FONTS.extrabold, fontSize: 16, color: '#fff', marginTop: 2 },
-  ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
+  ocupadoBtn: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, paddingHorizontal: 14, paddingVertical: 9 },
   ocupadoBtnT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
   // Aquí estaban `olvido`, `llamado` y sus botones: la tarjeta verde que
   // duplicaba el panel de estado. Se fue entera al panel, y con ella sus
   // estilos; lo que hacía se hace ahora con `cuenta` y `siguiente`.
-  ficha: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: -6, marginBottom: 14 },
+  ficha: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginTop: -6, marginBottom: 14 },
   fichaTitle: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1, marginBottom: 10 },
   fichaChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   fichaAlerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 10 },
   fichaNota: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 8, fontStyle: 'italic' },
   fichaNotaPriv: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 6 },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginTop: 8, marginBottom: 12 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginTop: 8, marginBottom: 12 },
   // Vive dentro del velo oscuro de `siguen`: el rojo de marca ahí no se lee.
   verTodos: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', textAlign: 'center', paddingVertical: 10 },
   secHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -8, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
   canceladas: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, paddingVertical: 8, paddingHorizontal: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, marginBottom: 8 },
+  rowBloq: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, marginBottom: 8 },
   rowName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   rowServ: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   // Una deuda, no una alarma: borde rojo y nada más. Van arriba del todo, y
   // pintarlas de rojo entero sería gritar por algo que no urge.
   rowDeuda: { borderColor: COLORS.red },
   rowDeudaT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red },
-  walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 14, padding: 15, marginTop: 10 },
+  walkin: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, backgroundColor: COLORS.carbon, borderRadius: 6, padding: 15, marginTop: 10 },
   walkinT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   // LA MISMA TARJETA QUE EL PANEL DEL DUEÑO, hasta en los números: fondo
   // carbón, etiqueta de once puntos, el código en la tipografía de display a
@@ -1831,11 +1831,11 @@ const s = StyleSheet.create({
   // "inspirada": son dos códigos que se comparten igual, y verlos distintos en
   // dos pantallas de la misma app hace dudar de si son la misma cosa.
   codeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon,
-    borderRadius: 16, padding: 18, marginTop: 10 },
+    borderRadius: 6, padding: 18, marginTop: 10 },
   codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   codeVal: { fontFamily: FONTS.display, fontSize: 40, color: '#fff', letterSpacing: 3, marginTop: 4 },
   codeSub: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
-  codeShare: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.red,
+  codeShare: { width: 44, height: 44, borderRadius: 4, backgroundColor: COLORS.red,
     alignItems: 'center', justifyContent: 'center' },
   nombrePropio: { color: COLORS.red },
   localSel: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6,
@@ -1847,22 +1847,22 @@ const s = StyleSheet.create({
   localOpc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   localOpcT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   cerrarHoja: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 18 },
-  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.red, borderRadius: 14, padding: 13, marginTop: 8 },
+  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.red, borderRadius: 6, padding: 13, marginTop: 8 },
   bloquearT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.red },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8 },
+  stepBtn: { width: 44, height: 44, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 4 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink, marginBottom: 10 },
-  modalBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },
-  peligroBtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 4 },
+  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink, marginBottom: 10 },
+  modalBtn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 16, alignItems: 'center' },
+  peligroBtn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 16, alignItems: 'center', marginTop: 4 },
   peligroT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
   modalBtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  wServ: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 10 },
+  wServ: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginBottom: 10 },
   wServN: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   wServD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },

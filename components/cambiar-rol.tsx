@@ -94,8 +94,8 @@ export default function CambiarRol() {
 }
 
 const s = StyleSheet.create({
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12, marginTop: 18 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, marginTop: 18 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
   filaOn: { borderColor: COLORS.success },
   txt: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   det: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

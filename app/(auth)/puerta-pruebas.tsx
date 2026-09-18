@@ -99,7 +99,7 @@ const s = StyleSheet.create({
   ficha: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder,
-    borderRadius: 14, padding: 14, marginBottom: 8,
+    borderRadius: 6, padding: 14, marginBottom: 8,
   },
   nombre: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   papel: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.red, marginTop: 2 },

@@ -67,6 +67,6 @@ export default function Hoja({ visible, onClose, children }: {
 const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
   telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  hoja: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+  hoja: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10,
     paddingHorizontal: 24, paddingTop: 6, paddingBottom: 34 },
 })

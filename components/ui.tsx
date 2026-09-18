@@ -64,10 +64,10 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
 
 export function Avatar({ name, size = 48, color = '#fff', bg = COLORS.blue, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
   if (uri) {
-    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, borderRadius: 14, backgroundColor: bg }]} />
+    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]} />
   }
   return (
-    <View style={[s.avatar, { width: size, height: size, borderRadius: 14, backgroundColor: bg }]}>
+    <View style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]}>
       <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
     </View>
   )
@@ -279,7 +279,7 @@ const s = StyleSheet.create({
   noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
   noCargoT: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
-  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 4, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
   noCargoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   version: { paddingVertical: 14, alignItems: 'center' },
   versionT: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
@@ -299,13 +299,13 @@ const s = StyleSheet.create({
   card: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
   cardDark: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
   cardDarkEl: { backgroundColor: COLORS.carbonEl, borderColor: COLORS.carbonBorder },
-  btn: { borderRadius: 14, paddingVertical: 15, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  btn: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnT: { fontFamily: FONTS.bold, fontSize: 15 },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   badge: { borderRadius: RADIUS.pill, paddingHorizontal: 11, paddingVertical: 6 },
   badgeT: { fontFamily: FONTS.bold, fontSize: 12 },
-  chip: { borderWidth: 1.5, borderRadius: 11, paddingVertical: 10, paddingHorizontal: 15, alignItems: 'center' },
+  chip: { borderWidth: 1.5, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 15, alignItems: 'center' },
   chipT: { fontFamily: FONTS.bold, fontSize: 14 },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },
   kvK: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid },

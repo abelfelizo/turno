@@ -148,7 +148,7 @@ export default function ClientesLocal({ negocioId, moneda, visible, onClose }: {
 }
 
 const s = StyleSheet.create({
-  busca: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12,
+  busca: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4,
     padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink, marginTop: 14, marginBottom: 12 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11,
     borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },
@@ -158,12 +158,12 @@ const s = StyleSheet.create({
   volverT: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.textMid },
   fichaHead: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
   fichaSub: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, marginTop: 2 },
-  wa: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  wa: { width: 40, height: 40, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', gap: 8, marginBottom: 18 },
-  celda: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 11 },
+  celda: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 11 },
   celdaK: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 0.6 },
   celdaV: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink, marginTop: 4 },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 8 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 },
   vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginVertical: 14 },
   visita: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9,
     borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },

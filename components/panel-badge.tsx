@@ -67,6 +67,6 @@ export default function PanelBadge() {
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginBottom: 12 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6, marginBottom: 12 },
   txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', letterSpacing: 0.8, maxWidth: 220 },
 })

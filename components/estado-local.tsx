@@ -21,7 +21,7 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { COLORS, FONTS } from '../constants'
 import { relojesDeSilla, hora12 } from '../lib/format'
-import { PuntoVivo } from './ui'
+import { PuntoVivo, Pole } from './ui'
 
 export type SillaEstado = {
   perfil_id: string
@@ -90,6 +90,10 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
 
   return (
     <View style={s.card}>
+      {/* El poste, impreso arriba del bloque oscuro: es la misma firma que
+          lleva el ticket del turno, y lo que ata las dos pantallas. */}
+      <Pole height={6} radius={0} />
+      <View style={s.cuerpo}>
       <View style={s.head}>
         <PuntoVivo color={abierto ? COLORS.success : 'rgba(255,255,255,0.4)'} vivo={abierto} />
         <View style={{ flex: 1 }}>
@@ -151,6 +155,7 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
           ))}
         </View>
       )}
+      </View>
     </View>
   )
 }
@@ -158,7 +163,9 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
 const s = StyleSheet.create({
   // Fondo carbón, como el cuadro del barbero y la cola del dueño: es la misma
   // información y por eso tiene el mismo peso visual en las tres pantallas.
-  card: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 16 },
+  // El relleno se va al cuerpo: el poste tiene que llegar a los dos cantos.
+  card: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 16, overflow: 'hidden' },
+  cuerpo: { padding: 18 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   lbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   titulo: { fontFamily: FONTS.bold, fontSize: 17, color: '#fff', marginTop: 3 },
