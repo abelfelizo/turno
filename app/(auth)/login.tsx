@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router'
 import { enviarCodigo, verificarCodigo } from '../../lib/auth'
 import { ENCENDIDA as PUERTA_PRUEBAS } from '../../lib/pruebas'
 import { COLORS, FONTS } from '../../constants'
-import { Display, Pole } from '../../components/ui'
+import { Display, Pole, VersionBundle } from '../../components/ui'
 
 export default function Login() {
   const router = useRouter()
@@ -88,6 +88,11 @@ export default function Login() {
           <Text style={s.pruebasT}>Entrar como un perfil de prueba</Text>
         </TouchableOpacity>
       )}
+
+      {/* Qué bundle corre este teléfono. En la primera pantalla de la app a
+          propósito: la pregunta «¿llegó la actualización?» hay que poder
+          contestarla sin iniciar sesión y sin conexión a la base. */}
+      <VersionBundle />
     </ScrollView>
   )
 }

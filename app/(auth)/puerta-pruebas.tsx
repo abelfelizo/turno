@@ -7,7 +7,7 @@ import { entrarConClave, cerrarSesion } from '../../lib/auth'
 import { limpiarSesion } from '../../lib/storage'
 import { ENCENDIDA, CLAVE, REPARTO } from '../../lib/pruebas'
 import { COLORS, FONTS } from '../../constants'
-import { Display } from '../../components/ui'
+import { Display, VersionBundle } from '../../components/ui'
 
 /**
  * PUERTA DE PRUEBAS · el reparto completo, a un toque.
@@ -82,6 +82,12 @@ export default function PuertaPruebas() {
       <TouchableOpacity style={s.volver} onPress={() => router.replace('/(auth)/login')}>
         <Text style={s.volverT}>Entrar con mi correo</Text>
       </TouchableOpacity>
+
+      {/* Qué bundle corre este teléfono. Aquí y no solo en ajustes porque es la
+          pantalla a la que se llega sin iniciar sesión: cuando la duda es «¿me
+          llegó la actualización?», la respuesta tiene que estar antes de la
+          puerta, no detrás. */}
+      <VersionBundle />
     </ScrollView>
   )
 }

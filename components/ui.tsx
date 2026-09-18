@@ -5,6 +5,7 @@
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, AccessibilityInfo } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
+import * as Updates from 'expo-updates'
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants'
 
 type IconName = keyof typeof Ionicons.glyphMap
@@ -280,6 +281,9 @@ const s = StyleSheet.create({
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
   noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
   noCargoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
+  version: { paddingVertical: 14, alignItems: 'center' },
+  versionT: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
+  versionD: { fontFamily: FONTS.regular, fontSize: 10.5, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
   perfFila: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12 },
   ticket: { backgroundColor: COLORS.carbon, borderRadius: 6, overflow: 'hidden' },
   ticketCuerpo: { padding: 16 },
@@ -336,6 +340,53 @@ export function NoCargo({ onReintentar, que }: { onReintentar: () => void; que?:
         <Ionicons name="refresh" size={16} color="#fff" />
         <Text style={s.noCargoBtnT}>Reintentar</Text>
       </TouchableOpacity>
+    </View>
+  )
+}
+
+/**
+ * QUÉ BUNDLE ESTÁ CORRIENDO ESTE TELÉFONO.
+ *
+ * Existe por una tarde entera perdida. Se publicó una actualización por aire,
+ * el registro de EAS decía «Published! Branch preview · Runtime version 1.2.0»
+ * con el commit correcto, y en el teléfono no cambiaba nada. Desde fuera no hay
+ * forma de distinguir los tres motivos posibles:
+ *
+ *   · la actualización no le llegó (el canal del APK no apunta a esa rama),
+ *   · le llegó y todavía no se aplicó (hace falta abrir dos veces),
+ *   · o está corriendo el bundle que venía DENTRO del APK, porque el que se
+ *     bajó reventó al arrancar y expo-updates volvió solo al anterior.
+ *
+ * Los tres se ven igual: "sigue igual". Esta línea los separa en tres segundos.
+ * `isEmbeddedLaunch` es la que más dice: si está en verdadero, ninguna
+ * actualización se ha aplicado nunca en este teléfono.
+ *
+ * En desarrollo los campos vienen vacíos y eso es normal: ahí el bundle lo
+ * sirve Metro, no expo-updates. Por eso todo va envuelto — que una pantalla de
+ * ajustes se caiga por el cartelito de la versión sería el colmo.
+ */
+export function VersionBundle() {
+  let linea = 'Versión no disponible'
+  let detalle = ''
+  try {
+    const emb = Updates.isEmbeddedLaunch
+    const id = Updates.updateId
+    const creado = Updates.createdAt
+    linea = emb
+      ? 'Bundle original del APK · sin actualizaciones aplicadas'
+      : `Actualización aplicada${creado ? ' · ' + creado.toLocaleString() : ''}`
+    detalle = [
+      Updates.channel ? `canal ${Updates.channel}` : null,
+      Updates.runtimeVersion ? `runtime ${Updates.runtimeVersion}` : null,
+      id ? `id ${String(id).slice(0, 8)}` : null,
+    ].filter(Boolean).join(' · ')
+  } catch {
+    // Ni un throw aquí: es información, no una función de la app.
+  }
+  return (
+    <View style={s.version}>
+      <Text style={s.versionT}>{linea}</Text>
+      {!!detalle && <Text style={s.versionD}>{detalle}</Text>}
     </View>
   )
 }
