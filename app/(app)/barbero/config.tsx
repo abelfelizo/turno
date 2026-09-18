@@ -522,7 +522,7 @@ export default function Config() {
         <View style={s.perfilCard}>
           <View style={s.perfilTop}>
             <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
-              <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} bg={COLORS.blue} />
+              <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} />
               <View style={s.fotoBadge}>
                 {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
               </View>

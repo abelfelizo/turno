@@ -80,10 +80,14 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
     ? (libres > 0 && delante === 0 ? 'Abierto · entras directo' : 'Abierto ahora')
     : 'Cerrado ahora'
 
+  // La cifra grande de la derecha. Es lo que el cliente viene a saber y por eso
+  // deja de ser una coletilla dentro de una frase: se lee de un vistazo desde
+  // media calle, como el número de un ticket.
+  const figura = abierto && esperaMin > 0 ? esperaMin : null
+
   const detalle = abierto
     ? [
         delante === 0 ? 'Nadie esperando' : `${delante} esperando`,
-        delante > 0 && esperaMin > 0 ? `unos ${esperaMin} min` : null,
         atendiendo > 0 ? `${atendiendo} en la silla` : null,
       ].filter(Boolean).join(' · ')
     : (motivoComun ? motivoComun.charAt(0).toUpperCase() + motivoComun.slice(1) : 'Ninguna silla está tomando gente ahora')
@@ -95,11 +99,22 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
       <Pole height={6} radius={0} />
       <View style={s.cuerpo}>
       <View style={s.head}>
-        <PuntoVivo color={abierto ? COLORS.success : 'rgba(255,255,255,0.4)'} vivo={abierto} />
+        {/* Baja con la línea del rótulo: la fila se alinea arriba por la cifra. */}
+        <View style={{ marginTop: 3 }}>
+          <PuntoVivo color={abierto ? COLORS.success : 'rgba(255,255,255,0.4)'} vivo={abierto} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={s.lbl}>LA BARBERÍA AHORA</Text>
           <Text style={s.titulo}>{titulo}</Text>
         </View>
+        {figura !== null && (
+          <View style={s.figura}>
+            {/* El rojo de marca no se lee sobre carbón: el que va aquí es el
+                tono claro, que es el mismo rojo pero visible en oscuro. */}
+            <Text style={s.figuraN}>{figura}′</Text>
+            <Text style={s.figuraL}>DE ESPERA</Text>
+          </View>
+        )}
       </View>
       <Text style={s.detalle}>{detalle}</Text>
 
@@ -166,10 +181,13 @@ const s = StyleSheet.create({
   // El relleno se va al cuerpo: el poste tiene que llegar a los dos cantos.
   card: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 16, overflow: 'hidden' },
   cuerpo: { padding: 18 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   lbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   titulo: { fontFamily: FONTS.bold, fontSize: 17, color: '#fff', marginTop: 3 },
   detalle: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 8, lineHeight: 18 },
+  figura: { alignItems: 'flex-end' },
+  figuraN: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 42, color: COLORS.redSoft },
+  figuraL: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 1.4, color: 'rgba(255,255,255,0.5)', marginTop: 1 },
   sillas: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },

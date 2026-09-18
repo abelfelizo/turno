@@ -62,13 +62,26 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
   )
 }
 
-export function Avatar({ name, size = 48, color = '#fff', bg = COLORS.blue, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
+/**
+ * LA INICIAL, EN CUADRO TEÑIDO Y NO EN BLOQUE DE COLOR.
+ *
+ * El azul macizo competía con el único objeto oscuro de cada pantalla: cinco
+ * avatares en una lista y de repente había seis cosas gritando a la vez. En D2
+ * el color sólido se reserva para lo que se toca —el botón rojo— y la identidad
+ * se resuelve con un cuadro teñido y la letra en Anton encima.
+ *
+ * La letra no se pasa casi nunca: se deduce del fondo, porque quien escribe
+ * `bg={COLORS.carbon}` está pidiendo un cuadro oscuro y lo que quiere ahí es
+ * letra blanca. Pasarla explícita sigue funcionando y gana.
+ */
+export function Avatar({ name, size = 48, color, bg = COLORS.blueLight, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
+  const letra = color ?? (bg === COLORS.blueLight ? COLORS.blue : '#fff')
   if (uri) {
     return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]} />
   }
   return (
     <View style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]}>
-      <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
+      <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color: letra }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
     </View>
   )
 }

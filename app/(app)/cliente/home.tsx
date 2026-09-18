@@ -261,10 +261,8 @@ export default function Home() {
         const porConfirmar = !pasada && (cita.estado === 'creada' || cita.estado === 'no_confirmada')
         return (
         <View key={cita.id} style={[s.cita, pasada && s.citaPasada]}>
-          <View style={[s.citaIcon, pasada && s.citaIconPasada]}>
-            <Ionicons name={pasada ? 'time-outline' : 'calendar'} size={22}
-              color={pasada ? COLORS.textLight : COLORS.red} />
-          </View>
+          {/* Sin cuadrito de color: en D2 el estado lo dice la palabra
+              ("PRÓXIMA CITA", "SE PASÓ LA HORA"), no un icono de adorno. */}
           <View style={{ flex: 1 }}>
             <View style={s.citaTop}>
               <Text style={s.citaKick}>{pasada ? 'SE PASÓ LA HORA' : i === 0 ? 'PRÓXIMA CITA' : 'CITA'}</Text>
@@ -329,30 +327,28 @@ export default function Home() {
       <>
       <Text style={s.sec}>¿QUÉ QUIERES HACER?</Text>
 
-      <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/turno')}>
-        <View style={s.accIcon}><Ionicons name="flash-outline" size={22} color={COLORS.red} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.accTitle}>Entrar a la fila digital</Text>
-          <Text style={s.accSub}>
+      {/* Las dos puertas son BOTONES, no renglones de una lista. Con forma de
+          fila parecían ajustes: algo que se consulta. Son lo que se viene a
+          hacer, y por eso pesan — macizo el de ahora, de contorno el de otro
+          día, que es la jerarquía real entre los dos. */}
+      <View style={s.puertas}>
+        <TouchableOpacity style={[s.puerta, s.puertaYa]} onPress={() => router.push('/(app)/cliente/turno')}>
+          <Text style={s.puertaYaT}>Fila ahora</Text>
+          <Text style={s.puertaYaD} numberOfLines={2}>
             {!hayFilaAbierta
               ? (motivoFilaLocal ?? 'Ahora mismo no hay nadie abierto')
               : resumen.delante === 0 ? 'Nadie esperando · entras directo'
               : `${resumen.delante} esperando${resumen.espera_min > 0 ? ` · unos ${resumen.espera_min} min` : ''}`}
           </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-      </TouchableOpacity>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={s.accion} onPress={() => router.push('/(app)/cliente/agendar')}>
-        <View style={s.accIcon}><Ionicons name="calendar-outline" size={22} color={COLORS.red} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.accTitle}>Reservar una cita</Text>
-          <Text style={s.accSub}>
-            {hayCitas ? 'Eliges día y hora · tu lugar queda reservado' : 'Aquí nadie está tomando citas ahora mismo'}
+        <TouchableOpacity style={[s.puerta, s.puertaDespues]} onPress={() => router.push('/(app)/cliente/agendar')}>
+          <Text style={s.puertaDespuesT}>Agendar</Text>
+          <Text style={s.puertaDespuesD} numberOfLines={2}>
+            {hayCitas ? 'Eliges día y hora' : 'Aquí nadie toma citas ahora'}
           </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
       </>
       )}
 
@@ -416,7 +412,6 @@ const s = StyleSheet.create({
   filaLink: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   // D2: no hay tarjeta. La fila se apoya en la página y la separa un filete.
   cita: { flexDirection: 'row', gap: 12, paddingVertical: 16, marginBottom: 0, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  citaIcon: { width: 44, height: 44, borderRadius: 4, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },
   citaTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   citaKick: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.textLight, letterSpacing: 2 },
   citaCd: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red },
@@ -425,7 +420,6 @@ const s = StyleSheet.create({
   citaEstado: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 8, lineHeight: 17 },
   // La que se pasó de hora se apaga, no se esconde: sigue legible.
   citaPasada: { opacity: 0.6 },
-  citaIconPasada: { backgroundColor: COLORS.border },
   citaAcc: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 12 },
   citaBtn: { backgroundColor: COLORS.red, borderRadius: 4, paddingHorizontal: 14, paddingVertical: 8 },
   citaBtnT: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13 },
@@ -437,10 +431,14 @@ const s = StyleSheet.create({
   // si tienes prisa o de si quieres una hora.
   // Aquí vivían los estilos del catálogo de barberos y servicios: se fueron
   // con él a "Mi turno", que es donde se elige.
-  accion: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  accIcon: { width: 44, height: 44, borderRadius: 4, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },
-  accTitle: { fontFamily: FONTS.extrabold, fontSize: 15.5, color: COLORS.ink },
-  accSub: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  puertas: { flexDirection: 'row', gap: 10, marginTop: 4, marginBottom: 8 },
+  puerta: { flex: 1, minHeight: 76, paddingVertical: 13, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 4 },
+  puertaYa: { backgroundColor: COLORS.red },
+  puertaYaT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  puertaYaD: { fontFamily: FONTS.medium, fontSize: 11.5, color: 'rgba(255,255,255,0.9)', marginTop: 3, lineHeight: 15 },
+  puertaDespues: { borderWidth: 2, borderColor: COLORS.ink },
+  puertaDespuesT: { fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink, textTransform: 'uppercase', letterSpacing: 0.5 },
+  puertaDespuesD: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textMid, marginTop: 3, lineHeight: 15 },
   // Ocupa el sitio de "¿qué quieres hacer?" y se parece a una nota, no a una
   // tarjeta con acción: aquí no hay nada que tocar, y un borde pintado de rojo
   // haría parecer que la app está rota cuando la barbería solo está sin activar.
