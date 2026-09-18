@@ -574,7 +574,25 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   const n2 = cola.filter(c => c.prioridad === 2).length
   const n3 = cola.filter(c => c.prioridad === 3).length
   const llamado = cola.find(c => c.estado === 'llamado' || c.estado === 'en_camino' || c.estado === 'atendiendo')
-  const enFila = cola.filter(c => c.estado === 'en_fila')
+  /**
+   * LA FILA SON LOS QUE PUEDES LLAMAR.
+   *
+   * En un doble servicio (migración 114) el segundo turno entra a la fila del
+   * OTRO profesional con `espera_a_id` puesto, y el servidor no lo deja llamar
+   * hasta que el primero termina. Metido en `enFila` salía de primero en
+   * "SIGUEN" y el botón grande decía "Llamar a María" — y al tocarlo no pasaba
+   * nada, porque `turno_llamar_siguiente` lo salta. Un botón que nombra a
+   * alguien a quien no se puede llamar.
+   *
+   * Así que se parten en dos: los que se pueden llamar, y los que están
+   * apuntados pero todavía en la otra silla. Los segundos no desaparecen —la
+   * manicurista necesita saber que le viene alguien—, pero se enseñan aparte y
+   * sin puesto, porque su turno no depende de la fila sino de que su compañero
+   * acabe.
+   */
+  const enCola = cola.filter(c => c.estado === 'en_fila')
+  const enFila = enCola.filter(c => !c.espera_a_id)
+  const enEspera = enCola.filter(c => c.espera_a_id)
   const badgeCita = (e: string) => e === 'confirmada' ? 'success' : e === 'no_llego' || e === 'no_confirmada' ? 'red' : e === 'en_camino' ? 'blue' : 'gray'
   const ahora = horaAhora()   // recalculado en cada tic
   // Tolerancia de 2 min al inicio: el bloqueo lo sella el servidor con la hora
@@ -1070,6 +1088,27 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
                   </Text>
                 </TouchableOpacity>
               )}
+            </View>
+          )}
+
+          {/* DOBLE SERVICIO · los que vienen de otra silla. Sin puesto y sin
+              menú de acciones: todavía no son tuyos. Lo único que hay que
+              saber de ellos es que van a llegar y que no hay que hacer nada. */}
+          {esHoy && enEspera.length > 0 && (
+            <View style={s.siguen}>
+              <Text style={s.siguenLbl}>DESPUÉS DE SU OTRO SERVICIO</Text>
+              {enEspera.map(q => (
+                <View key={q.id} style={s.siguenRow}>
+                  <Ionicons name="swap-vertical-outline" size={16} color="rgba(255,255,255,0.7)" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.siguenName}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
+                    <Text style={s.siguenServ}>
+                      {q.turno_servicios?.nombre} · está en otra silla ahora mismo
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              <Text style={s.verTodos}>Entran a tu fila en cuanto terminen.</Text>
             </View>
           )}
         </View>

@@ -107,7 +107,14 @@ export default function ColaLocal() {
             <Avatar name={q.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
             <View style={{ flex: 1 }}>
               <Text style={s.name}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-              <Text style={s.meta}>{q.turno_servicios?.nombre} · {q.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}</Text>
+              {/* El segundo de un doble servicio dice "En fila" como todos,
+                  pero no se le puede llamar hasta que acabe el primero. Sin
+                  esta línea el administrador ve a alguien parado en la fila sin
+                  que nadie lo atienda y cree que se le olvidó a su barbero. */}
+              <Text style={s.meta}>
+                {q.turno_servicios?.nombre} · {q.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}
+                {q.espera_a_id ? ' · espera su otro servicio' : ''}
+              </Text>
             </View>
             <Text style={[s.estado, { color: e.c }]}>{e.l}</Text>
           </TouchableOpacity>

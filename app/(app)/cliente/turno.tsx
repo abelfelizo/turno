@@ -28,6 +28,9 @@ export default function MiTurno() {
   const [negocio, setNegocio] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [porDueno, setPorDueno] = useState(false)
+  // El local puede apagar el doble servicio. La configuración ya se cargaba
+  // aquí para `asignacion_por_dueno`; esto sale de la misma fila.
+  const [dobleActivo, setDobleActivo] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [fallo, setFallo] = useState(false)
@@ -90,6 +93,11 @@ export default function MiTurno() {
     setNegocioId(ss.negocio_id)
     setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
+    // Por defecto SÍ, igual que en la base (`coalesce(doble_servicio_activo,
+    // true)`): un local sin fila de configuración no es un local que lo haya
+    // apagado. Si la consulta falla, `cfg` es null y aquí da falso — en la duda
+    // no se ofrece, que es lo mismo que hace el resto de la pantalla.
+    setDobleActivo(cfg ? cfg.doble_servicio_activo !== false : false)
     setRatings(rt as any)
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
@@ -244,6 +252,30 @@ export default function MiTurno() {
   const servicioComun = abiertos
     .flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))[0] ?? null
 
+  /**
+   * EL DOBLE SERVICIO SE LEE EN ORDEN.
+   *
+   * `getMisTurnosActivos` ordena por fecha de entrada al revés —lo último
+   * arriba—, que es lo correcto cuando son turnos sueltos: el que acabas de
+   * pedir es el que vienes a mirar. Pero en un doble servicio el segundo entra
+   * después del primero, así que salía ENCIMA: el cliente leía «manicura» y
+   * debajo «corte», justo al revés de lo que va a pasar.
+   *
+   * Aquí se recoloca: cada turno que espera a otro se pone pegado detrás del
+   * suyo. El que espera a uno que ya no está en la lista —porque lo atendieron
+   * y desapareció— se queda donde estaba; ya no espera a nadie.
+   */
+  const ordenados = (() => {
+    const vivos = new Set(turnos.map((t: any) => t.id))
+    const hijos: Record<string, any[]> = {}
+    const raiz: any[] = []
+    for (const t of turnos) {
+      if (t.espera_a_id && vivos.has(t.espera_a_id)) (hijos[t.espera_a_id] ??= []).push(t)
+      else raiz.push(t)
+    }
+    return raiz.flatMap((t: any) => [t, ...(hijos[t.id] ?? [])])
+  })()
+
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
@@ -259,10 +291,16 @@ export default function MiTurno() {
         </View>
       )}
 
-      {turnos.map((t: any) => {
+      {ordenados.map((t: any) => {
         const llamado = t.estado === 'llamado'
         const enCamino = t.estado === 'en_camino'
         const atendiendo = t.estado === 'atendiendo'
+        // ¿Este turno va DESPUÉS de otro que todavía está vivo? Entonces su
+        // puesto y su espera no son los suyos: no le van a llamar hasta que
+        // acabe el primero. Enseñar el número de la fila aquí sería el mismo
+        // fallo que ya arreglamos con `posicion` — un número correcto que
+        // contesta a otra pregunta.
+        const previo = t.espera_a_id ? turnos.find((x: any) => x.id === t.espera_a_id) : null
         const heroBg = atendiendo ? COLORS.blue : llamado ? COLORS.success : enCamino ? COLORS.blue : COLORS.carbon
         return (
           <View key={t.id} style={s.turnoCard}>
@@ -270,7 +308,15 @@ export default function MiTurno() {
               {/* EL PUESTO, no la columna `posicion`. Con un walk-in en la
                   silla, aquí salía un 2 siendo el siguiente: `posicion` es el
                   contador de entrada y cuenta al que ya está sentado. */}
-              {t.estado === 'en_fila' && (<>
+              {t.estado === 'en_fila' && previo && (<>
+                <Ionicons name="swap-vertical-outline" size={30} color="rgba(255,255,255,0.6)" />
+                <Text style={[s.heroBig, { fontSize: 24, marginTop: 6 }]}>Va después</Text>
+                <Text style={s.heroLabel}>
+                  Primero {previo.turno_servicios?.nombre ?? 'tu otro servicio'}
+                  {previo.turno_perfiles?.turno_usuarios?.nombre ? ` con ${previo.turno_perfiles.turno_usuarios.nombre}` : ''}
+                </Text>
+              </>)}
+              {t.estado === 'en_fila' && !previo && (<>
                 <Text style={s.heroNum}>{puestos[t.id] ?? '—'}</Text>
                 <Text style={s.heroLabel}>
                   {puestos[t.id] === 1 ? 'eres el siguiente' : 'tu puesto en la fila digital'}
@@ -445,7 +491,8 @@ export default function MiTurno() {
 
       <Resenas perfilId={resenasDe?.id ?? null} nombre={resenasDe?.nombre} visible={!!resenasDe} onClose={() => setResenasDe(null)} />
 
-      <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }} />
+      <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }}
+        abiertos={abiertos} dobleActivo={dobleActivo} />
     </ScrollView>
   )
 }
