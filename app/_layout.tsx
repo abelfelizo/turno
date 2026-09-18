@@ -16,6 +16,7 @@ import { AvisoActualizacion } from '../components/actualizacion'
 import { faltaConfiguracion } from '../lib/supabase'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles } from '../lib/db'
+import { INICIO_DE_PANEL } from '../lib/paneles'
 import type { PanelActivo } from '../types'
 
 /**
@@ -49,10 +50,10 @@ import type { PanelActivo } from '../types'
  */
 const DESTINO_PUSH: Record<string, { panel: PanelActivo; ruta: string }> = {
   turno:  { panel: 'cliente',  ruta: '/(app)/cliente/turno' },
-  cita:   { panel: 'cliente',  ruta: '/(app)/cliente/home' },
+  cita:   { panel: 'cliente',  ruta: INICIO_DE_PANEL.cliente },
   premio: { panel: 'cliente',  ruta: '/(app)/cliente/perfil' },
-  agenda: { panel: 'silla',    ruta: '/(app)/barbero/agenda' },
-  equipo: { panel: 'barberia', ruta: '/(app)/dueno/dashboard' },
+  agenda: { panel: 'silla',    ruta: INICIO_DE_PANEL.silla },
+  equipo: { panel: 'barberia', ruta: INICIO_DE_PANEL.barberia },
 }
 
 export default function RootLayout() {

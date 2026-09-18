@@ -5,13 +5,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
 import { COLORS, FONTS } from '../constants'
+import { INICIO_DE_PANEL, NOMBRE_DE_PANEL } from '../lib/paneles'
+import type { PanelActivo } from '../types'
 
-const DESTINO: Record<string, string> = {
-  cliente: '/(app)/cliente/home',
-  barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
-}
-const ETIQUETA: Record<string, string> = { cliente: 'CLIENTE', barberia: 'BARBERÍA', silla: 'MI SILLA' }
+
+
 const ICONO: Record<string, keyof typeof Ionicons.glyphMap> = {
   cliente: 'person', barberia: 'storefront', silla: 'cut',
 }
@@ -26,7 +24,7 @@ const FONDO: Record<string, string> = { cliente: COLORS.blue, barberia: COLORS.c
 export default function PanelBadge() {
   const router = useRouter()
   const [opciones, setOpciones] = useState<OpcionPanel[]>([])
-  const [actual, setActual] = useState<{ panel?: string; negocio_id?: string }>({})
+  const [actual, setActual] = useState<{ panel?: PanelActivo; negocio_id?: string }>({})
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
@@ -47,20 +45,20 @@ export default function PanelBadge() {
       ...ss, rol: o.rol as any, panel: o.panel, negocio_id: o.negocio_id,
       perfil_id: o.panel === 'cliente' ? undefined : o.perfil_id,
     })
-    router.replace(DESTINO[o.panel] as any)
+    router.replace(INICIO_DE_PANEL[o.panel] as any)
   }
 
   function abrir() {
     const otros = opciones.filter(o => !(o.panel === actual.panel && o.negocio_id === actual.negocio_id))
-    Alert.alert('Cambiar de panel', 'Estás en: ' + (aqui ? `${ETIQUETA[aqui.panel]} · ${aqui.negocio}` : ''),
-      [...otros.map(o => ({ text: `${ETIQUETA[o.panel]} · ${o.negocio}`, onPress: () => ir(o) })),
+    Alert.alert('Cambiar de panel', 'Estás en: ' + (aqui ? `${NOMBRE_DE_PANEL[aqui.panel]} · ${aqui.negocio}` : ''),
+      [...otros.map(o => ({ text: `${NOMBRE_DE_PANEL[o.panel]} · ${o.negocio}`, onPress: () => ir(o) })),
        { text: 'Quedarme aquí', style: 'cancel' as const }])
   }
 
   return (
     <TouchableOpacity style={[s.pill, { backgroundColor: FONDO[actual.panel] }]} onPress={abrir} activeOpacity={0.85}>
       <Ionicons name={ICONO[actual.panel]} size={13} color="#fff" />
-      <Text style={s.txt} numberOfLines={1}>{ETIQUETA[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
+      <Text style={s.txt} numberOfLines={1}>{NOMBRE_DE_PANEL[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
       <Ionicons name="swap-horizontal" size={14} color="rgba(255,255,255,0.7)" />
     </TouchableOpacity>
   )

@@ -5,12 +5,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
 import { COLORS, FONTS } from '../constants'
+import { INICIO_DE_PANEL } from '../lib/paneles'
 
-const DESTINO: Record<string, string> = {
-  cliente: '/(app)/cliente/home',
-  barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
-}
+
 
 function etiqueta(o: OpcionPanel) {
   if (o.panel === 'cliente') return `Cliente · ${o.negocio}`
@@ -59,7 +56,7 @@ export default function CambiarRol() {
     if (o.panel === 'silla' && o.perfil_id && !o.aprobado) {
       router.replace('/(auth)/barbero-pendiente'); return
     }
-    router.replace(DESTINO[o.panel] as any)
+    router.replace(INICIO_DE_PANEL[o.panel] as any)
   }
 
   return (

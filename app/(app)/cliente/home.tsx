@@ -126,11 +126,23 @@ export default function Home() {
    }
   }, [])
 
+  // LA SUSCRIPCIÓN SE ESCAPABA, Y ESO TRAÍA DATOS DE OTRO LOCAL.
+  //
+  // `getSesion()` es una promesa: si la pantalla se desmonta antes de que
+  // resuelva —cambiar de panel es exactamente eso— la limpieza corría con
+  // `sub` todavía sin asignar, y un instante después se creaba una suscripción
+  // que ya nadie iba a cerrar. Cambiar de barbería un par de veces dejaba
+  // varias vivas, cada una llamando a `cargar()` de una pantalla que pertenece
+  // a otro local. Por eso aparecían nombres y colas que no eran de aquí.
   useEffect(() => {
-    cargar()
+    let vivo = true
     let sub: any
-    getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => cargar()) })
-    return () => { if (sub) desuscribir(sub) }
+    cargar()
+    getSesion().then(ss => {
+      if (!vivo || !ss?.negocio_id) return
+      sub = suscribirCola(ss.negocio_id, () => cargar())
+    })
+    return () => { vivo = false; if (sub) desuscribir(sub) }
   }, [cargar])
 
   /**
