@@ -12,6 +12,7 @@ import {
 import { Text } from 'react-native'
 import { COLORS } from '../constants'
 import { ErrorBoundary } from '../components/error-boundary'
+import { AvisoActualizacion } from '../components/actualizacion'
 import { faltaConfiguracion } from '../lib/supabase'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles } from '../lib/db'
@@ -113,7 +114,14 @@ export default function RootLayout() {
   // debajo de los controles del sistema. Ver components/tabs.tsx.
   return (
     <SafeAreaProvider>
-      <ErrorBoundary><StatusBar style="dark" /><Stack screenOptions={{ headerShown: false }} /></ErrorBoundary>
+      <ErrorBoundary>
+        <StatusBar style="dark" />
+        {/* Encima de todo y en todas las pantallas: la actualización puede
+            terminar de bajarse en cualquier momento, y el aviso no sirve si
+            solo aparece en una pantalla a la que hay que saber llegar. */}
+        <AvisoActualizacion />
+        <Stack screenOptions={{ headerShown: false }} />
+      </ErrorBoundary>
     </SafeAreaProvider>
   )
 }
