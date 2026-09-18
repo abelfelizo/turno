@@ -18,14 +18,18 @@
  *   · Se limita al 88% de la pantalla para que una hoja larga no tape la salida.
  *
  * El botón físico de atrás cierra (onRequestClose), que en Android es LA forma
- * de volver: la app no tiene gesto de deslizar hacia atrás.
+ * de volver.
+ *
+ * Y se cierra arrastrándola hacia abajo desde la barrita, que es lo que esa
+ * barrita venía prometiendo desde el primer día: ver `components/gestos.tsx`.
  */
 import { ReactNode } from 'react'
 import {
   Modal, View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform,
-  TouchableWithoutFeedback, useWindowDimensions,
+  TouchableWithoutFeedback, useWindowDimensions, Animated,
 } from 'react-native'
 import { COLORS } from '../constants'
+import { useArrastrarParaCerrar, Agarre } from './gestos'
 
 export default function Hoja({ visible, onClose, children }: {
   visible: boolean
@@ -33,6 +37,7 @@ export default function Hoja({ visible, onClose, children }: {
   children: ReactNode
 }) {
   const { height } = useWindowDimensions()
+  const { y, panHandlers } = useArrastrarParaCerrar(onClose)
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView
@@ -44,8 +49,8 @@ export default function Hoja({ visible, onClose, children }: {
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={s.telon} />
         </TouchableWithoutFeedback>
-        <View style={[s.hoja, { maxHeight: height * 0.88 }]}>
-          <View style={s.agarre} />
+        <Animated.View style={[s.hoja, { maxHeight: height * 0.88, transform: [{ translateY: y }] }]}>
+          <View {...panHandlers}><Agarre /></View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -53,7 +58,7 @@ export default function Hoja({ visible, onClose, children }: {
           >
             {children}
           </ScrollView>
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
   )
@@ -63,8 +68,5 @@ const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
   telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   hoja: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    paddingHorizontal: 24, paddingTop: 10, paddingBottom: 34 },
-  // La barrita de arriba: dice "esto se cierra" sin escribirlo.
-  agarre: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border, marginBottom: 14 },
+    paddingHorizontal: 24, paddingTop: 6, paddingBottom: 34 },
 })

@@ -9,6 +9,8 @@ import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Chip, Avatar, NoCargo } from '../../../components/ui'
+import { useGestoVolver } from '../../../components/gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
@@ -18,6 +20,9 @@ function proximosDias(n: number) {
 }
 
 export default function Agendar() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const params = useLocalSearchParams<{ perfil?: string; servicio?: string; reagendar?: string }>()
   const [perfiles, setPerfiles] = useState<any[]>([])
@@ -142,10 +147,13 @@ export default function Agendar() {
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="los horarios" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  const volver = useGestoVolver()
+
   return (
-    <View style={s.container}>
+    <View style={s.container} {...volver}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={COLORS.ink} /></TouchableOpacity>
         <Display size={24}>Reservar</Display>
       </View>
@@ -268,7 +276,7 @@ export default function Agendar() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
   back: { width: 36, height: 36, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   mini: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.carbon, borderRadius: 16, padding: 14, marginBottom: 20 },
   miniIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },

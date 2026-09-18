@@ -13,6 +13,7 @@ import { Display, Avatar, PuntoVivo, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 import ClientesLocal from '../../../components/clientes-local'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 // Los nombres de los oficios viven en types/index.ts (OFICIOS). Aquí había una
 // copia con dos entradas, y al añadir masajista y facial se habría quedado
@@ -34,6 +35,9 @@ function estadoTexto(e: any, crudo?: string): string {
 }
 
 export default function Dashboard() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [negocio, setNegocio] = useState<any>(null)
   // Alquilo asientos: agrupo barberos, no los dirijo. De esto cuelga media
@@ -260,7 +264,7 @@ export default function Dashboard() {
   const conEmpleados = !esRentado
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Text style={s.kicker}>Mi local</Text>

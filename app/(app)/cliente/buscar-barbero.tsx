@@ -6,8 +6,13 @@ import { getSesion, guardarSesion } from '../../../lib/storage'
 import { getBarberoPorCodigo, getBarberoNegocios, seguirBarberoEnNegocio } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
+import { useGestoVolver } from '../../../components/gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BuscarBarbero() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [codigo, setCodigo] = useState('')
   const [buscando, setBuscando] = useState(false)
@@ -37,10 +42,13 @@ export default function BuscarBarbero() {
     } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.'); setYendo(false) }
   }
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  const volver = useGestoVolver()
+
   return (
-    <View style={s.container}>
+    <View style={s.container} {...volver}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={COLORS.ink} /></TouchableOpacity>
         <Display size={24}>Buscar barbero</Display>
       </View>
@@ -84,7 +92,7 @@ export default function BuscarBarbero() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
   back: { width: 36, height: 36, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   hint: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, marginBottom: 16 },
   buscarRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },

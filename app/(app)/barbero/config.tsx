@@ -15,6 +15,7 @@ import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import Hoja from '../../../components/hoja'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 // Estos tres son la ÚNICA decisión que toma el barbero sobre su estado: si
 // acepta clientes. Que esté ocupado o libre lo deduce el sistema de la silla y
@@ -58,6 +59,9 @@ const MODOS = [
 ]
 
 export default function Config() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
   const [perfil, setPerfil] = useState<any>(null)
@@ -480,7 +484,7 @@ export default function Config() {
   ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}>
       <PanelBadge />
       {/* ── MENÚ ─────────────────────────────────────────────────────────────
           La pantalla era una tira de once secciones seguidas: para saber cada

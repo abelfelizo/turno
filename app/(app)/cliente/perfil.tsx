@@ -10,6 +10,7 @@ import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Avatar, KV, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 function masFrecuente(arr: any[], key: (x: any) => string | undefined): string | null {
   const m: Record<string, number> = {}
@@ -19,6 +20,9 @@ function masFrecuente(arr: any[], key: (x: any) => string | undefined): string |
 }
 
 export default function Perfil() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [usuario, setUsuario] = useState<any>(null)
   const [prefs, setPrefs] = useState<any>(null)
@@ -130,7 +134,7 @@ export default function Perfil() {
   const servicioFav = masFrecuente(historial, h => h.turno_servicios?.nombre)
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }} showsVerticalScrollIndicator={false}>
       <View style={s.head}>
         <Avatar name={usuario?.nombre} size={72} />
         <Text style={s.nombre}>{usuario?.nombre ?? 'Cliente'}</Text>

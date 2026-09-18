@@ -15,8 +15,12 @@ import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function Config() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   // La pantalla era una tira de secciones seguidas —marca, suscripción,
   // modalidad, funciones, tiempos, cuenta— y había que bajarla entera para ver
@@ -253,7 +257,7 @@ export default function Config() {
   ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}>
       <PanelBadge />
 
       {seccion === null ? (

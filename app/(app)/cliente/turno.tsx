@@ -17,8 +17,12 @@ import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, NoCargo, Pole, Perforacion } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 import Resenas from '../../../components/resenas'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function MiTurno() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const [turnos, setTurnos] = useState<any[]>([])
   const [etas, setEtas] = useState<Record<string, number | null>>({})
   const [puede, setPuede] = useState<Record<string, boolean>>({})
@@ -277,7 +281,7 @@ export default function MiTurno() {
   })()
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 60, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <Display size={26} style={{ marginBottom: 18 }}>Mi turno</Display>
 

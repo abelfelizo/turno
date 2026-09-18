@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, Alert, ScrollView, Animated } from 'react-native'
 import { useEffect, useState } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { entrarACola, entrarAColaDoble, getResumenFila, getConfiguracion, getMiUsuario } from '../lib/db'
@@ -6,6 +6,7 @@ import { avisos } from '../lib/notificaciones'
 import { dinero } from '../lib/format'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar } from './ui'
+import { useArrastrarParaCerrar, Agarre } from './gestos'
 
 type Seleccion = {
   negocio: any
@@ -107,11 +108,15 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
     : []
   const total = (servicio?.precio ?? 0) + (segundo?.servicio?.precio ?? 0)
 
+  // Se arrastra hacia abajo para cerrarla, igual que la hoja compartida: el
+  // gesto vive en `components/gestos.tsx` para que las dos se sientan iguales.
+  const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={s.bg}>
-        <View style={s.sheet}>
-          <View style={s.handle} />
+        <Animated.View style={[s.sheet, { transform: [{ translateY: y }] }]}>
+          <View {...panHandlers}><Agarre /></View>
           <Display size={24} style={{ marginBottom: 4 }}>Entrar a la fila digital</Display>
           <Text style={s.sub}>Revisa antes de confirmar. Reservas un lugar en la fila digital.</Text>
 
@@ -231,7 +236,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
             )}
           </TouchableOpacity>
           <TouchableOpacity onPress={onClose} disabled={entrando}><Text style={s.cancel}>Cancelar</Text></TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   )
@@ -239,8 +244,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36 },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.border, marginBottom: 16 },
+  sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 36 },
   sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 14, marginBottom: 12 },
   barbero: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },

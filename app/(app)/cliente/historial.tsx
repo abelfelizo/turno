@@ -6,8 +6,12 @@ import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function Historial() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const [visitas, setVisitas] = useState<any[]>([])
   const [resenadas, setResenadas] = useState<string[]>([])
   const [moneda, setMoneda] = useState('')
@@ -60,7 +64,7 @@ export default function Historial() {
   )
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, { paddingTop: insets.top + 12 }]}>
       <Display size={26} style={{ marginBottom: 18 }}>Historial</Display>
       <FlatList
         data={visitas} keyExtractor={(it) => it.id} showsVerticalScrollIndicator={false}
@@ -102,7 +106,7 @@ export default function Historial() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 10 },

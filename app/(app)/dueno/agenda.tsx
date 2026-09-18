@@ -9,6 +9,7 @@ import { COLORS, FONTS } from '../../../constants'
 import { fechaLarga } from '../../../lib/format'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const ESTADO: Record<string, { l: string; c: string }> = {
   en_fila: { l: 'En fila', c: COLORS.textLight },
@@ -26,6 +27,9 @@ const ESTADO: Record<string, { l: string; c: string }> = {
  * cosa: aquí el local, y la agenda personal vive en "Mi silla".
  */
 export default function ColaLocal() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [cola, setCola] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,7 +84,7 @@ export default function ColaLocal() {
   )
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Text style={s.kicker}>{fechaLarga()}</Text>

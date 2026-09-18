@@ -7,6 +7,7 @@ import { COLORS, FONTS } from '../../../constants'
 import { nombreOficio } from '../../../types'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }] as const
 type PeriodoK = typeof PERIODOS[number]['k']
@@ -17,6 +18,9 @@ function desdeDe(p: PeriodoK): string {
 }
 
 export default function Stats() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const [stats, setStats] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
   const [moneda, setMoneda] = useState('')
@@ -68,7 +72,7 @@ export default function Stats() {
   )
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Display size={30} style={{ marginBottom: 18 }}>Estadísticas</Display>

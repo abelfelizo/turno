@@ -139,12 +139,19 @@ export function Pole({ height = 8, radius = 4, style, animado = true, ancho = 14
     return () => bucle.stop()
   }, [mover, ancho, x])
 
-  // De sobra para cubrir el ancho del teléfono más el ciclo que se desplaza y
-  // el pico que deja la diagonal.
-  const franjas = Math.ceil(520 / ancho) + 6
+  // Cuántas franjas hacen falta se MIDE, no se adivina: un número fijo cubre
+  // el teléfono de turno y se queda corto en cualquier pantalla más ancha.
+  // Hasta la primera medida se pinta un ancho de teléfono, que es lo común.
+  const [anchoCaja, setAnchoCaja] = useState(430)
+  const franjas = Math.ceil((anchoCaja + ancho * 6) / ancho)
 
   return (
-    <View style={[{ height, borderRadius: radius, overflow: 'hidden' }, style]}>
+    <View
+      onLayout={e => {
+        const w = e.nativeEvent.layout.width
+        if (Math.abs(w - anchoCaja) > 1) setAnchoCaja(w)
+      }}
+      style={[{ height, borderRadius: radius, overflow: 'hidden' }, style]}>
       <Animated.View
         pointerEvents="none"
         style={{

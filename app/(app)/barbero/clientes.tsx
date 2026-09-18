@@ -10,8 +10,12 @@ import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function Clientes() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   // Se puede llegar aquí con un cliente concreto desde la fila del barbero: es
   // donde de verdad hace falta —lo tienes delante— y hasta ahora la única forma
   // de ver su historial era buscarlo en la lista, que además solo trae a quien
@@ -167,7 +171,7 @@ export default function Clientes() {
   )
 
   return (
-    <View style={s.container}>
+    <View style={[s.container, { paddingTop: insets.top + 16 }]}>
       <PanelBadge />
       <Display size={30} style={{ marginBottom: 14 }}>Clientes</Display>
 
@@ -359,7 +363,7 @@ const s = StyleSheet.create({
   ordChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
   ordChipT: { color: COLORS.textMid, fontSize: 13, fontWeight: '700' },
   ordChipTOn: { color: '#fff' },
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 72 },
+  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
   segs: { flexDirection: 'row', gap: 8, marginBottom: 14 },

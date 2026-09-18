@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { Display, NoCargo } from '../../../components/ui'
 import Resenas from '../../../components/resenas'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const ORIGEN: Record<string, string> = { cita: 'Cita', cola_digital: 'Fila digital', cola_fisica: 'Fila física', cola_prioritaria: 'Prioritario' }
 const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }, { k: 'todo', l: 'Todo' }] as const
@@ -23,6 +24,9 @@ function desdeDe(p: PeriodoK): string {
 const PASO_VISITAS = 12
 
 export default function Stats() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const [data, setData] = useState<any>(null)
   const [moneda, setMoneda] = useState('')
   const [periodo, setPeriodo] = useState<PeriodoK>('todo')
@@ -101,7 +105,7 @@ export default function Stats() {
   const ticket = periodo === 'todo' ? (data?.totalVisitas ? Math.round(data.totalIngresos / data.totalVisitas) : 0) : Math.round(pstats?.ticket ?? 0)
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Display size={30} style={{ marginBottom: 14 }}>Estadísticas</Display>

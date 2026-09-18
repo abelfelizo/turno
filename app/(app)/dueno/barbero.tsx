@@ -10,6 +10,8 @@ import { COLORS, FONTS } from '../../../constants'
 import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import Resenas from '../../../components/resenas'
+import { useGestoVolver } from '../../../components/gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -27,6 +29,9 @@ const DIAS = [
  * (`turno_perfil_admin`), no por ser el perfil.
  */
 export default function BarberoDelLocal() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { perfil, nombre, rol } = useLocalSearchParams<{ perfil: string; nombre?: string; rol?: string }>()
   // El parámetro solo sirve para pintar algo mientras carga; la verdad se
@@ -282,8 +287,11 @@ export default function BarberoDelLocal() {
   const puedoEditarle = modalidad === 'empleado'
   const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  const volver = useGestoVolver()
+
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 40 }}>
+    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
       <TouchableOpacity style={s.volver} onPress={() => router.back()}>
         <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Equipo</Text>
       </TouchableOpacity>
@@ -456,7 +464,7 @@ export default function BarberoDelLocal() {
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
       </Hoja>
-    </ScrollView>
+    </ScrollView></View>
   )
 }
 
@@ -476,6 +484,7 @@ const s = StyleSheet.create({
   accionFilaOn: { borderColor: COLORS.success },
   accionFilaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   accionFilaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  pantalla: { flex: 1 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },

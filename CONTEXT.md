@@ -312,6 +312,27 @@ o se corre más temprano o se asume que ese caso no se probó hoy.
 5. **Rediseño del panel del cliente** — pendiente de rehacer contra esta rama (la primera
    versión se hizo contra `main`, que va muy por detrás).
 
+### 🔵 Gestos e interfaz: lo que NO entra por aire (pide APK nuevo)
+
+Los dos gestos que la gente intenta sola —arrastrar la hoja hacia abajo y
+deslizar desde el borde para volver— ya están, hechos con `PanResponder` del
+núcleo de React Native precisamente para que viajaran por OTA. Viven en
+`components/gestos.tsx`. Lo que queda necesita código nativo o una
+recompilación, así que va en la próxima versión del APK:
+
+| Qué | Por qué no entra por aire |
+|---|---|
+| **`react-native-gesture-handler`** | Es código nativo. Haría que el gesto de volver funcione también empezándolo DENTRO de un ScrollView (hoy el scroll se queda con el toque si ya está desplazándose) y que la hoja se arrastre desde cualquier parte, no solo desde la barrita. |
+| **Deslizar entre pestañas** | Pide `@react-navigation/material-top-tabs`, que también es nativo. |
+| **Color del splash** | `app.json` dice `#16171C`, el carbón viejo; el de la app ahora es `#0B0C10`. El splash se compila dentro del APK. |
+| **Tablet y horizontal** | `supportsTablet: false` y `orientation: "portrait"` en `app.json`. Decisión, no fallo — pero cambiarla es recompilar. |
+| **Acciones deslizando una fila** (p. ej. deslizar una cita para cancelar) | Mismo motivo: gesture-handler. |
+
+Lo que sí se arregló y ya está en el teléfono por OTA: el fondo claro
+(`COLORS.bg`), el poste animado que mide su propio ancho, el ticket del turno,
+y el hueco de arriba de todas las pantallas leído de `useSafeAreaInsets()` en
+vez de los 60/72 px que estaban escritos a mano.
+
 ### 🟡 De las reglas que mandó el dueño del producto, lo que queda por construir
 El resumen suyo: **«un tipo de cliente, 3 tipos de cola, dos tipos de barbero o servicio,
 dos tipos de administración.»** Hecho: lo del empleado (107–109 + pantallas) y la

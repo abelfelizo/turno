@@ -15,6 +15,7 @@ import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
 import { Display, Avatar, Badge, NoCargo, Ticket } from '../../../components/ui'
 import EstadoLocal from '../../../components/estado-local'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 function cuentaRegresiva(fecha: string, hora: string) {
   const ms = new Date(`${fecha}T${hora}`).getTime() - Date.now()
@@ -59,6 +60,9 @@ function yaPaso(cita: any) {
 }
 
 export default function Home() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
   const [miNombre, setMiNombre] = useState('')
@@ -188,7 +192,7 @@ export default function Home() {
   const sinServicio = sillasOk && sillas.length === 0
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
 
       <Text style={s.hola}>Hola</Text>
