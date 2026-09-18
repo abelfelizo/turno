@@ -13,7 +13,7 @@ import { programarRecordatoriosCitas, avisos } from '../../../lib/notificaciones
 import { COLORS, FONTS } from '../../../constants'
 import { hora12, dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
-import { Display, Avatar, Badge, NoCargo } from '../../../components/ui'
+import { Display, Avatar, Badge, NoCargo, Ticket } from '../../../components/ui'
 import EstadoLocal from '../../../components/estado-local'
 
 function cuentaRegresiva(fecha: string, hora: string) {
@@ -228,17 +228,20 @@ export default function Home() {
       <EstadoLocal sillas={sillas as any} delante={resumen.delante} esperaMin={resumen.espera_min} />
 
       {turno && (
-        <TouchableOpacity style={s.fila} onPress={() => router.push('/(app)/cliente/turno')}>
-          <View style={s.rowLbl}><Ionicons name="flash" size={13} color={COLORS.red} /><Text style={s.filaLbl}>EN LA FILA</Text></View>
-          <Text style={s.filaTitle}>{turno.turno_servicios?.nombre}</Text>
-          {/* El puesto sale de turno_puesto, no de la columna `posicion`: esa
-              cuenta también al que ya está en la silla. Ver getPuesto. */}
-          <Text style={s.filaSub}>
-            {turno.estado === 'en_fila'
-              ? (puesto === 1 ? 'Eres el siguiente' : puesto ? `Puesto ${puesto} en la fila digital` : 'En la fila digital')
-              : turno.estado === 'llamado' ? 'Te están llamando' : 'Vas en camino'}
-          </Text>
-          <View style={s.linkRow}><Text style={s.filaLink}>Ver mi turno</Text><Ionicons name="chevron-forward" size={16} color="#fff" /></View>
+        <TouchableOpacity activeOpacity={0.9} style={s.fila} onPress={() => router.push('/(app)/cliente/turno')}>
+          <Ticket
+            fondo={COLORS.bg}
+            pie={<View style={s.linkRow}><Text style={s.filaLink}>Ver mi turno</Text><Ionicons name="chevron-forward" size={16} color="#fff" /></View>}>
+            <View style={s.rowLbl}><Ionicons name="flash" size={13} color={COLORS.redSoft} /><Text style={s.filaLbl}>EN LA FILA</Text></View>
+            <Text style={s.filaTitle}>{turno.turno_servicios?.nombre}</Text>
+            {/* El puesto sale de turno_puesto, no de la columna `posicion`: esa
+                cuenta también al que ya está en la silla. Ver getPuesto. */}
+            <Text style={s.filaSub}>
+              {turno.estado === 'en_fila'
+                ? (puesto === 1 ? 'Eres el siguiente' : puesto ? `Puesto ${puesto} en la fila digital` : 'En la fila digital')
+                : turno.estado === 'llamado' ? 'Te están llamando' : 'Vas en camino'}
+            </Text>
+          </Ticket>
         </TouchableOpacity>
       )}
 
@@ -400,11 +403,12 @@ const s = StyleSheet.create({
   tabT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid, maxWidth: 160 },
   tabMas: { paddingHorizontal: 13, paddingVertical: 9, borderRadius: 11, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
   rowLbl: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 12 },
-  fila: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 14, borderLeftWidth: 4, borderLeftColor: COLORS.red },
-  filaLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.red, letterSpacing: 1 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  // El ticket pone el fondo, el poste y la perforación; aquí solo el hueco.
+  fila: { marginBottom: 14 },
+  filaLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.redSoft, letterSpacing: 1 },
   filaTitle: { fontFamily: FONTS.extrabold, fontSize: 19, color: '#fff', marginTop: 8 },
-  filaSub: { fontFamily: FONTS.medium, fontSize: 14, color: '#9A9CA6', marginTop: 2 },
+  filaSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 2 },
   filaLink: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   cita: { flexDirection: 'row', gap: 12, backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: COLORS.border },
   citaIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.redLight, alignItems: 'center', justifyContent: 'center' },

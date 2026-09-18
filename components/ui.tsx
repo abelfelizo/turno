@@ -2,8 +2,8 @@
  * Sistema visual NAVAJA · Barber Co. — primitivos reutilizables.
  * Rojo primario, azul secundario, blanco, negro carbón. Display = Anton.
  */
-import { ReactNode, useEffect, useRef } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing } from 'react-native'
+import { ReactNode, useEffect, useRef, useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, AccessibilityInfo } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, SPACING, RADIUS, FONTS } from '../constants'
 
@@ -94,13 +94,117 @@ export function Chip({ children, selected, disabled, tone = 'red', onPress }: { 
   )
 }
 
-/** Motivo poste de barbero (franjas rojo/blanco/azul). */
-export function Pole({ height = 8, radius = 4, style }: { height?: number; radius?: number; style?: StyleProp<ViewStyle> }) {
+/**
+ * EL POSTE DE BARBERO, GIRANDO.
+ *
+ * Las franjas son diagonales y se deslizan en bucle, como el cilindro de la
+ * puerta de una barbería: es el único adorno del sistema y hace de firma en
+ * todas las cabeceras y encima del ticket del turno.
+ *
+ * Cómo se mueve sin gastar batería: no se anima el color ni el layout, se
+ * desplaza UNA sola capa con `translateX` sobre el hilo nativo
+ * (`useNativeDriver`), y solo un ciclo de tres franjas — al terminar vuelve a
+ * cero y el patrón encaja consigo mismo, así que el bucle no se ve.
+ *
+ * Quien tenga "reducir movimiento" puesto en el teléfono lo ve quieto: es
+ * decoración, y una decoración que no se puede parar es un problema de
+ * accesibilidad, no un detalle de marca.
+ */
+export function Pole({ height = 8, radius = 4, style, animado = true, ancho = 14 }: {
+  height?: number; radius?: number; style?: StyleProp<ViewStyle>
+  /** Quieto cuando el poste acompaña a algo que ya se mueve. */
+  animado?: boolean
+  /** Ancho de cada franja, en px. El ciclo completo son tres. */
+  ancho?: number
+}) {
+  const x = useRef(new Animated.Value(0)).current
+  const [mover, setMover] = useState(false)
+
+  // El ajuste del sistema manda sobre la prop, nunca al revés.
+  useEffect(() => {
+    let vivo = true
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(reducir => { if (vivo) setMover(animado && !reducir) })
+      .catch(() => { if (vivo) setMover(animado) })
+    return () => { vivo = false }
+  }, [animado])
+
+  useEffect(() => {
+    if (!mover) { x.setValue(0); return }
+    const ciclo = ancho * 3
+    const bucle = Animated.loop(
+      Animated.timing(x, { toValue: -ciclo, duration: 2200, easing: Easing.linear, useNativeDriver: true }),
+    )
+    bucle.start()
+    return () => bucle.stop()
+  }, [mover, ancho, x])
+
+  // De sobra para cubrir el ancho del teléfono más el ciclo que se desplaza y
+  // el pico que deja la diagonal.
+  const franjas = Math.ceil(520 / ancho) + 6
+
   return (
-    <View style={[{ height, borderRadius: radius, overflow: 'hidden', flexDirection: 'row' }, style]}>
-      {Array.from({ length: 9 }).map((_, i) => (
-        <View key={i} style={{ flex: 1, backgroundColor: i % 3 === 0 ? COLORS.red : i % 3 === 1 ? '#fff' : COLORS.blue }} />
+    <View style={[{ height, borderRadius: radius, overflow: 'hidden' }, style]}>
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute', left: -ancho * 3, top: -height,
+          height: height * 3, flexDirection: 'row',
+          transform: [{ translateX: x }, { skewX: '-22deg' }],
+        }}>
+        {Array.from({ length: franjas }).map((_, i) => (
+          <View key={i} style={{ width: ancho, backgroundColor: i % 3 === 0 ? COLORS.red : i % 3 === 1 ? '#fff' : COLORS.blue }} />
+        ))}
+      </Animated.View>
+    </View>
+  )
+}
+
+/**
+ * LA LÍNEA PERFORADA DEL TICKET.
+ *
+ * Dibujada a mano con segmentos: `borderStyle: 'dashed'` en un solo lado no es
+ * fiable entre Android e iOS —se ve continua en uno y a trozos distintos en el
+ * otro— y aquí la raya ES el objeto, no un adorno.
+ */
+export function Perforacion({ color = COLORS.carbonDash }: { color?: string }) {
+  return (
+    <View style={s.perfFila} pointerEvents="none">
+      {Array.from({ length: 34 }).map((_, i) => (
+        <View key={i} style={{ flex: 1, height: 1.5, backgroundColor: i % 2 === 0 ? color : 'transparent' }} />
       ))}
+    </View>
+  )
+}
+
+/**
+ * EL TICKET DEL TURNO.
+ *
+ * El único bloque negro de una pantalla clara: el turno es lo que llevas en la
+ * mano, y por eso es lo que pesa. Lleva el poste impreso arriba y, cuando hay
+ * pie, la perforación con las dos muescas recortadas del color del fondo — las
+ * muescas se recortan solas porque el contenedor corta lo que sobresale.
+ *
+ * `fondo` tiene que ser el color de la pantalla donde se pone, no el del
+ * ticket: es lo que hace que el troquel parezca un agujero y no un lunar.
+ */
+export function Ticket({ children, pie, fondo = COLORS.bg, style }: {
+  children: ReactNode; pie?: ReactNode; fondo?: string; style?: StyleProp<ViewStyle>
+}) {
+  return (
+    <View style={[s.ticket, style]}>
+      <Pole height={7} radius={0} />
+      <View style={s.ticketCuerpo}>{children}</View>
+      {pie != null && (
+        <>
+          <View style={s.ticketPerf}>
+            <Perforacion />
+            <View style={[s.muesca, { left: -9, backgroundColor: fondo }]} />
+            <View style={[s.muesca, { right: -9, backgroundColor: fondo }]} />
+          </View>
+          <View style={s.ticketPie}>{pie}</View>
+        </>
+      )}
     </View>
   )
 }
@@ -169,6 +273,12 @@ const s = StyleSheet.create({
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
   noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
   noCargoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
+  perfFila: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12 },
+  ticket: { backgroundColor: COLORS.carbon, borderRadius: 6, overflow: 'hidden' },
+  ticketCuerpo: { padding: 16 },
+  ticketPerf: { height: 18, justifyContent: 'center' },
+  muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9 },
+  ticketPie: { paddingHorizontal: 16, paddingBottom: 14, paddingTop: 2 },
   puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
   puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   puntoNucleo: { width: 10, height: 10, borderRadius: 5 },

@@ -4,38 +4,52 @@
 
 // Sistema visual NAVAJA · Barber Co. — rojo primario, azul secundario,
 // blanco y negro carbón. Tokens del handoff "Sistema Barbería".
+//
+// EL FONDO ES CLARO Y FRÍO, Y EL PESO LO LLEVA EL NEGRO.
+// El beige de antes (#F6F5F2) apagaba la pantalla entera: sobre él ni el
+// blanco de las tarjetas ni el rojo de marca levantaban, y todo se leía
+// descolorido. El fondo pasa a un gris casi blanco y la tinta baja a un negro
+// más profundo, así que el único objeto oscuro de cada pantalla —el ticket del
+// turno— es lo que pesa. Cambiar `bg` aquí cambia la app entera: es un token,
+// no un color escrito en cada pantalla.
 export const COLORS = {
   red: '#E5202B',          // PRIMARIO · CTA · marca
   redDark: '#C2161F',
-  redLight: '#FCE7E8',
+  redLight: '#FFF0F1',
+  /** Rojo legible SOBRE carbón: el de marca no llega al contraste en oscuro. */
+  redSoft: '#FF6B73',
   blue: '#1646E0',         // secundario
-  blueLight: '#E7ECFD',
-  carbon: '#16171C',       // negro carbón (oscuro)
-  carbonEl: '#20222A',     // superficie oscura elevada
-  carbonBorder: '#2C2E37',
-  primary: '#16171C',      // compat: superficies/texto oscuros
+  blueLight: '#EDF1FE',
+  carbon: '#0B0C10',       // negro carbón (oscuro)
+  carbonEl: '#16181F',     // superficie oscura elevada
+  carbonBorder: '#262A34',
+  primary: '#0B0C10',      // compat: superficies/texto oscuros
   gold: '#E5202B',         // compat: acento → rojo
   purple: '#1646E0',       // compat: avatares → azul
-  purpleLight: '#E7ECFD',
-  ink: '#14151A',
-  text: '#14151A',
-  textMid: '#4A4B52',
-  textLight: '#9A9CA6',
-  line: '#D8D6D1',
-  canvas: '#EBE8E3',
-  bg: '#F6F5F2',           // fondo de pantalla
+  purpleLight: '#EDF1FE',
+  ink: '#0B0C10',
+  text: '#0B0C10',
+  textMid: '#5C6270',
+  textLight: '#8A90A0',
+  line: '#DDE0E6',
+  canvas: '#EEF0F4',
+  bg: '#FAFBFC',           // fondo de pantalla
   surface: '#FFFFFF',      // tarjetas
-  surfaceAlt: '#F1EFEB',
-  border: '#E6E4E0',
-  borderSoft: '#EFEDE9',
-  success: '#1E7E34',
-  successLight: '#E6F4EA',
+  surfaceAlt: '#F1F3F8',
+  border: '#E6E8EC',
+  borderSoft: '#F0F1F4',
+  /** Texto y filete sobre carbón (el ticket). */
+  onCarbon: '#FFFFFF',
+  onCarbonMid: '#9BA1AF',
+  carbonDash: '#3A3F4C',
+  success: '#0E7C46',
+  successLight: '#E9F8F0',
   danger: '#C2161F',
-  dangerLight: '#FCE7E8',
+  dangerLight: '#FFF0F1',
   warning: '#B45309',
-  warningLight: '#FBEEDA',
+  warningLight: '#FDF1E3',
   info: '#1646E0',
-  infoLight: '#E7ECFD',
+  infoLight: '#EDF1FE',
 }
 
 // Familias de fuente (cargadas en app/_layout.tsx)

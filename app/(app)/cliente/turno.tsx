@@ -14,7 +14,7 @@ import { aceptaFila, filaAbierta, fraseFila } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar, NoCargo } from '../../../components/ui'
+import { Display, Avatar, NoCargo, Pole, Perforacion } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 import Resenas from '../../../components/resenas'
 
@@ -304,6 +304,10 @@ export default function MiTurno() {
         const heroBg = atendiendo ? COLORS.blue : llamado ? COLORS.success : enCamino ? COLORS.blue : COLORS.carbon
         return (
           <View key={t.id} style={s.turnoCard}>
+            {/* El turno se lee como lo que es: un ticket. Poste impreso arriba,
+                la mitad oscura con el puesto, y por debajo de la perforación el
+                talón claro donde están tus respuestas. */}
+            <Pole height={7} radius={0} />
             <View style={[s.hero, { backgroundColor: heroBg }]}>
               {/* EL PUESTO, no la columna `posicion`. Con un walk-in en la
                   silla, aquí salía un 2 siendo el siguiente: `posicion` es el
@@ -341,6 +345,11 @@ export default function MiTurno() {
                 <Text style={s.heroLabel}>{t.llego_at ? 'El barbero ya lo sabe' : 'El barbero te espera'}</Text>
               </>)}
               {atendiendo && (<><Text style={s.heroBig}>Te están atendiendo</Text><Text style={s.heroLabel}>Disfruta tu corte ✂️</Text></>)}
+            </View>
+            <View style={s.perf}>
+              <Perforacion color={COLORS.border} />
+              <View style={[s.muesca, { left: -9 }]} />
+              <View style={[s.muesca, { right: -9 }]} />
             </View>
             <View style={s.detalle}>
               <Text style={s.dServ}>{t.turno_servicios?.nombre}</Text>
@@ -514,17 +523,21 @@ const s = StyleSheet.create({
   expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.redLight, borderRadius: 14, padding: 14, marginBottom: 16 },
   expT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.red },
   expS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  turnoCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 18, padding: 12, marginBottom: 14 },
-  hero: { borderRadius: 14, padding: 24, alignItems: 'center', marginBottom: 10 },
+  // Sin relleno y recortando lo que sobresale: así las muescas de la
+  // perforación se comen el borde en vez de pintarse encima.
+  turnoCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 18, marginBottom: 14, overflow: 'hidden' },
+  hero: { padding: 24, alignItems: 'center' },
   heroNum: { fontFamily: FONTS.display, fontSize: 68, color: COLORS.red, lineHeight: 72 },
   heroLabel: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
   heroBig: { fontFamily: FONTS.display, fontSize: 32, color: '#fff' },
   etaPill: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 10 },
   etaT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  detalle: { paddingHorizontal: 6, marginBottom: 10 },
+  perf: { height: 18, justifyContent: 'center' },
+  muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.bg },
+  detalle: { paddingHorizontal: 16, paddingTop: 10, marginBottom: 10 },
   dServ: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
   dMeta: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 2, textTransform: 'capitalize' },
-  acciones: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  acciones: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 12, paddingBottom: 12 },
   // "Ya estoy aquí" es la respuesta que cierra el asunto —apaga el reloj— así
   // que se lleva el botón lleno; "voy en camino" queda de secundaria.
   respuestas: { flex: 1, gap: 8 },
