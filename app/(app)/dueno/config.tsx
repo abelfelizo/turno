@@ -12,7 +12,7 @@ import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
 import Selector from '../../../components/selector'
 import { fechaLarga, fechaDeISO } from '../../../lib/format'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
 
@@ -39,6 +39,7 @@ export default function Config() {
   }
   const [asientos, setAsientos] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   // marca / contacto del local
   const [nombre, setNombre] = useState(''); const [slogan, setSlogan] = useState('')
   const [direccion, setDireccion] = useState(''); const [telefono, setTelefono] = useState(''); const [ig, setIg] = useState('')
@@ -50,14 +51,21 @@ export default function Config() {
   const [subiendoLogo, setSubiendoLogo] = useState(false)
   const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null)
 
+  // Igual que la configuración del barbero: ninguna llamada se tapa. Aquí el
+  // formulario ES el local —nombre, dirección, teléfono, moneda— y cargarlo a
+  // medias pone todos esos campos en blanco delante de un botón de guardar.
+  // Además `negocio.tipo` decide media pantalla: sin él un local de alquiler
+  // se ve como uno de empleados. Ver el comentario de `esRentado` más abajo.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion()
-    if (!ss?.negocio_id) { setLoading(false); return }
+    if (!ss?.negocio_id) return
     setNegocioId(ss.negocio_id)
     const [cfg, neg, asi, sus] = await Promise.all([
-      getConfiguracion(ss.negocio_id).catch(() => null),
-      getNegocioById(ss.negocio_id).catch(() => null),
-      getAsientosNegocio(ss.negocio_id).catch(() => 0),
+      getConfiguracion(ss.negocio_id),
+      getNegocioById(ss.negocio_id),
+      getAsientosNegocio(ss.negocio_id),
       getSuscripcion(ss.negocio_id).catch(() => null),
     ])
     setConfig(cfg); setNegocio(neg); setAsientos(asi); setSuscripcion(sus)
@@ -66,7 +74,11 @@ export default function Config() {
     setDireccion(neg?.direccion ?? ''); setTelefono(neg?.telefono ?? ''); setIg(neg?.instagram ?? '')
     setPais(neg?.pais ?? 'DO'); setCiudad(neg?.ciudad ?? ''); setSector(neg?.sector ?? '')
     setReferencia(neg?.referencia ?? ''); setMoneda(neg?.moneda ?? 'DOP')
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false)
+   }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -176,6 +188,11 @@ export default function Config() {
   }, [seccion])
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="la configuración del local" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   // La modalidad decide qué controles tiene sentido enseñar aquí: en un local
   // de asientos alquilados el dueño no manda sobre los puntos ni sobre a quién

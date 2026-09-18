@@ -8,7 +8,7 @@ import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Avatar, KV } from '../../../components/ui'
+import { Avatar, KV, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 
 function masFrecuente(arr: any[], key: (x: any) => string | undefined): string | null {
@@ -30,10 +30,17 @@ export default function Perfil() {
   const [canjes, setCanjes] = useState<any[]>([])
   const [canjeando, setCanjeando] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
 
+  // Sin `.catch` va `getMiUsuario`: es de quién es este perfil. Tapado con
+  // `null`, la pantalla se pintaba entera con el nombre vacío, sin foto y sin
+  // teléfono — parecía una cuenta recién hecha o a medio borrar. El resto sí lo
+  // conserva: los puntos, los vales o el local son adornos de la ficha.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion()
-    const u = await getMiUsuario().catch(() => null)
+    const u = await getMiUsuario()
     setUsuario(u)
     if (u && ss?.negocio_id) {
       const [pr, pt, cfg, hist, neg] = await Promise.all([
@@ -47,7 +54,11 @@ export default function Perfil() {
       setLocales(await getMisNegociosCliente(u.id).catch(() => []))
       setCanjes(await getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []))
     }
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false)
+   }
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
@@ -108,6 +119,11 @@ export default function Perfil() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tu perfil" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   const totalGastado = historial.reduce((sum, h) => sum + Number(h.precio_cobrado || 0), 0)
   const barberoFav = masFrecuente(historial, h => h.turno_perfiles?.turno_usuarios?.nombre)

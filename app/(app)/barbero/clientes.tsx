@@ -7,7 +7,7 @@ import { getClientesDelLocal, getNotaBarbero, getNotasBarbero, guardarNotaBarber
 import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 
@@ -25,6 +25,7 @@ export default function Clientes() {
   const [seg, setSeg] = useState<'todos' | 'recuperar'>('todos')
   const [orden, setOrden] = useState<'recientes' | 'frecuentes' | 'nuevos' | 'az'>('recientes')
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   const [activo, setActivo] = useState<any>(null)
   const [nota, setNota] = useState('')
   const [cargandoNota, setCargandoNota] = useState(false)
@@ -36,19 +37,31 @@ export default function Clientes() {
   const [perfilId, setPerfilId] = useState<string | null>(null)
   const [ficha, setFicha] = useState<{ historial: any[]; puntos: any; prefs: any; meta: number; premio: string } | null>(null)
 
+  // La lista de clientes va sin `.catch`, y aquí importa más que en ninguna
+  // otra pantalla: desde la migración 117 una lista vacía es una RESPUESTA
+  // legítima —el empleado solo ve a quien ha atendido él—, así que el vacío ya
+  // significa algo. Si además significara "se cayó la llamada", el barbero no
+  // tendría forma de distinguir "todavía no has atendido a nadie" de "hoy no
+  // hay conexión". Lo demás sí se tapa: las notas y la moneda adornan la ficha.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion()
-    if (!ss?.usuario_id) { setLoading(false); return }
+    if (!ss?.usuario_id) return
     setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
     const [cl, rec, neg, nts] = await Promise.all([
-      ss.negocio_id ? getClientesDelLocal(ss.negocio_id).catch(() => []) : Promise.resolve([]),
+      ss.negocio_id ? getClientesDelLocal(ss.negocio_id) : Promise.resolve([]),
       ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
       ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
       getNotasBarbero(ss.usuario_id).catch(() => ({})),
     ])
     setClientes(cl); setRecuperar(rec as any[]); setMoneda((neg as any)?.moneda ?? '')
     setNotas(nts as Record<string, string>)
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false)
+   }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -147,6 +160,11 @@ export default function Clientes() {
   const sinVenir = clientes.filter((c: any) => c.visitas === 0).length
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tus clientes" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
     <View style={s.container}>

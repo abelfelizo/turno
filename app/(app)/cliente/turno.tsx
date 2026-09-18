@@ -14,7 +14,7 @@ import { aceptaFila, filaAbierta, fraseFila } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import HojaFila from '../../../components/hoja-fila'
 import Resenas from '../../../components/resenas'
 
@@ -30,6 +30,7 @@ export default function MiTurno() {
   const [porDueno, setPorDueno] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
   const [accion, setAccion] = useState<string | null>(null)
   const [hoja, setHoja] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
@@ -63,11 +64,19 @@ export default function MiTurno() {
     return () => clearInterval(i)
   }, [hayCuenta])
 
+  // De las ocho llamadas, la de los turnos va SIN `.catch`. Es la más peligrosa
+  // de tapar de toda la app: si se cae y devuelve una lista vacía, el cliente
+  // que ESTÁ en la fila lee que no tiene ningún turno, se va del local y pierde
+  // el puesto. Las otras siete se quedan como están: sin ratings, sin citas o
+  // sin el nombre del negocio la pantalla enseña menos, pero lo que enseña es
+  // verdad.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion()
-    if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
+    if (!ss?.usuario_id || !ss?.negocio_id) return
     const [ts, neg, perf, cfg, cts, yo, rt, pref] = await Promise.all([
-      getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
+      getMisTurnosActivos(ss.usuario_id, ss.negocio_id),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }).catch(() => []),
       getConfiguracion(ss.negocio_id).catch(() => null),
@@ -85,7 +94,11 @@ export default function MiTurno() {
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     await calcularEtas(ts as any[])
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false); setRefreshing(false)
+   }
   }, [])
 
   /**
@@ -207,6 +220,11 @@ export default function MiTurno() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tu turno" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   // Para "cualquiera disponible" hace falta UN servicio de referencia: el turno
   // entra sin barbero, pero sí con servicio (de ahí sale la duración y el ETA).

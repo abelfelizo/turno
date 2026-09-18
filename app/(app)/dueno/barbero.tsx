@@ -7,7 +7,7 @@ import { getSesion } from '../../../lib/storage'
 import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import Resenas from '../../../components/resenas'
 
@@ -39,6 +39,7 @@ export default function BarberoDelLocal() {
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
 
   const [svModal, setSvModal] = useState<null | 'nuevo' | any>(null)
   const [svNombre, setSvNombre] = useState(''); const [svDur, setSvDur] = useState('30'); const [svPrecio, setSvPrecio] = useState('')
@@ -68,19 +69,34 @@ export default function BarberoDelLocal() {
     finally { setModBusy(false) }
   }
 
+  // Aquí NINGUNA lleva `.catch`, y es la única pantalla de la app donde se
+  // decide así. Esta es la mesa desde la que el administrador le toca los
+  // precios y la jornada a otra persona: media pantalla cargada es media
+  // pantalla inventada. Sin servicios parece que el barbero no ofrece nada;
+  // sin el rol, que no lo sabemos —lo que ya cierra la edición, pero dejando
+  // los controles a la vista y sin explicar por qué no responden—; sin el tipo
+  // de local, que aquí se puede nombrar empleado donde no se puede. Si falta
+  // cualquiera de las cinco, se dice que no cargó y se ofrece reintentar.
   const cargar = useCallback(async () => {
-    if (!perfil) { setLoading(false); return }
-    const ss = await getSesion()
-    const [sv, hr, rl, pf, neg] = await Promise.all([
-      getServiciosPerfil(perfil, false).catch(() => []),
-      getHorariosPerfil(perfil).catch(() => []),
-      getRolDePerfil(perfil).catch(() => null),
-      getPerfilPorId(perfil).catch(() => null),
-      ss?.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
-    ])
-    if (rl) setModalidad(rl)
-    setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf)
-    setTipoLocal((neg as any)?.tipo ?? null); setLoading(false)
+    try {
+      setFallo(false)
+      if (!perfil) return
+      const ss = await getSesion()
+      const [sv, hr, rl, pf, neg] = await Promise.all([
+        getServiciosPerfil(perfil, false),
+        getHorariosPerfil(perfil),
+        getRolDePerfil(perfil),
+        getPerfilPorId(perfil),
+        ss?.negocio_id ? getNegocioById(ss.negocio_id) : Promise.resolve(null),
+      ])
+      if (rl) setModalidad(rl)
+      setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf)
+      setTipoLocal((neg as any)?.tipo ?? null)
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false)
+    }
   }, [perfil])
   useEffect(() => { cargar() }, [cargar])
 
@@ -244,6 +260,11 @@ export default function BarberoDelLocal() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="la ficha de esta persona" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   const autonomo = modalidad === 'barbero_renta'
   /**

@@ -5,7 +5,7 @@ import { getEstadisticasNegocio, getPerfilesNegocio, getNegocioById, getStatsPer
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { nombreOficio } from '../../../types'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 
 const PERIODOS = [{ k: 'hoy', l: 'Hoy' }, { k: '7d', l: '7 días' }, { k: '30d', l: '30 días' }] as const
@@ -26,19 +26,32 @@ export default function Stats() {
   const [esRentado, setEsRentado] = useState(false)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
 
+  // Aquí van SIN `.catch` dos llamadas, no una. Las cifras, por lo evidente.
+  // Y el negocio, porque de él sale `esRentado`, que decide si la pantalla abre
+  // con dinero o con visitas: si esa llamada se cae y se tapa con `null`, un
+  // local de alquiler cae al lado de empleados y enseña "INGRESOS DEL LOCAL ·
+  // empleados y tu silla" en RD$0 — justo la contradicción que arreglamos.
+  // Mejor decir que no se pudo cargar que enseñar el local de otro.
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    if (!ss?.negocio_id) { setLoading(false); return }
-    setNegocioId(ss.negocio_id)
-    const [st, ps, neg] = await Promise.all([
-      getEstadisticasNegocio(ss.negocio_id).catch(() => null),
-      getPerfilesNegocio(ss.negocio_id).catch(() => []),
-      getNegocioById(ss.negocio_id).catch(() => null),
-    ])
-    setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? '')
-    setEsRentado(neg?.tipo === 'espacios_rentados')
-    setLoading(false); setRefreshing(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      if (!ss?.negocio_id) return
+      setNegocioId(ss.negocio_id)
+      const [st, ps, neg] = await Promise.all([
+        getEstadisticasNegocio(ss.negocio_id),
+        getPerfilesNegocio(ss.negocio_id).catch(() => []),
+        getNegocioById(ss.negocio_id),
+      ])
+      setStats(st); setPerfiles(ps as any[]); setMoneda(neg?.moneda ?? '')
+      setEsRentado(neg?.tipo === 'espacios_rentados')
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false); setRefreshing(false)
+    }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -48,6 +61,11 @@ export default function Stats() {
   }, [negocioId, periodo])
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="las estadísticas del local" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}

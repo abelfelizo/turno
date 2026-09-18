@@ -4,7 +4,7 @@ import { getSesion } from '../../../lib/storage'
 import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
 import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 
 export default function Historial() {
@@ -12,20 +12,32 @@ export default function Historial() {
   const [resenadas, setResenadas] = useState<string[]>([])
   const [moneda, setMoneda] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   const [activa, setActiva] = useState<any>(null)
   const [rating, setRating] = useState(0)
   const [comentario, setComentario] = useState('')
   const [enviando, setEnviando] = useState(false)
 
+  // El historial va sin `.catch`: es la pantalla entera. Si esa llamada se cae
+  // y se devuelve una lista vacía, el cliente lee "aún no tienes visitas" y se
+  // cree que se le perdieron los cortes. Las reseñas y la moneda sí lo
+  // conservan: sin ellas la lista sigue diciendo la verdad.
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    if (!ss?.usuario_id || !ss?.negocio_id) { setLoading(false); return }
-    const [h, r, neg] = await Promise.all([
-      getHistorialCliente(ss.usuario_id, ss.negocio_id).catch(() => []),
-      getMisResenas(ss.usuario_id).catch(() => []),
-      getNegocioById(ss.negocio_id).catch(() => null),
-    ])
-    setVisitas(h as any[]); setResenadas(r as string[]); setMoneda(neg?.moneda ?? ''); setLoading(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      if (!ss?.usuario_id || !ss?.negocio_id) return
+      const [h, r, neg] = await Promise.all([
+        getHistorialCliente(ss.usuario_id, ss.negocio_id),
+        getMisResenas(ss.usuario_id).catch(() => []),
+        getNegocioById(ss.negocio_id).catch(() => null),
+      ])
+      setVisitas(h as any[]); setResenadas(r as string[]); setMoneda(neg?.moneda ?? '')
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { cargar() }, [cargar])
@@ -41,6 +53,11 @@ export default function Historial() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tu historial" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
     <View style={s.container}>

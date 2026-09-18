@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import { getMiUsuario, getPreferenciasCliente, guardarPreferencias } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { Display, NoCargo } from '../../../components/ui'
 
 export default function Preferencias() {
   const router = useRouter()
@@ -16,19 +16,31 @@ export default function Preferencias() {
   const [alergias, setAlergias] = useState('')
   const [notas, setNotas] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    (async () => {
+  // Las dos llamadas van sin `.catch`, por lo mismo que en las pantallas de
+  // configuración: esto es un formulario que ya trae cosas escritas. Si la
+  // consulta de preferencias se cae y se tapa con `null`, los cuatro campos
+  // salen en blanco, el cliente toca "Guardar" —y borra su alergia. Aquí un
+  // fallo no puede parecerse a "todavía no has escrito nada".
+  const cargar = useCallback(async () => {
+    try {
+      setFallo(false)
       const ss = await getSesion(); setSesion(ss)
-      const u = await getMiUsuario().catch(() => null); setUsuario(u)
+      const u = await getMiUsuario(); setUsuario(u)
       if (u && ss?.negocio_id) {
-        const p = await getPreferenciasCliente(u.id, ss.negocio_id).catch(() => null)
+        const p = await getPreferenciasCliente(u.id, ss.negocio_id)
         if (p) { setTipoCorte(p.tipo_corte || ''); setBarba(p.barba || ''); setAlergias(p.alergias || ''); setNotas(p.notas || '') }
       }
+    } catch {
+      setFallo(true)
+    } finally {
       setLoading(false)
-    })()
+    }
   }, [])
+
+  useEffect(() => { cargar() }, [cargar])
 
   async function guardar() {
     if (!usuario || !sesion?.negocio_id) return
@@ -45,6 +57,11 @@ export default function Preferencias() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tus preferencias" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.container}>

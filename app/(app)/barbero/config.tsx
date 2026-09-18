@@ -11,7 +11,7 @@ import { hora12 } from '../../../lib/format'
 import { planDeMiSilla } from '../../../lib/pricing'
 import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import Hoja from '../../../components/hoja'
 import PanelBadge from '../../../components/panel-badge'
@@ -65,6 +65,7 @@ export default function Config() {
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   // modales
   const [svModal, setSvModal] = useState<any | 'nuevo' | null>(null)
   const [svN, setSvN] = useState(''); const [svD, setSvD] = useState(30); const [svP, setSvP] = useState('')
@@ -102,15 +103,28 @@ export default function Config() {
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
 
+  // EN UNA PANTALLA DE CONFIGURACIÓN NO SE TAPA NINGUNA LLAMADA.
+  //
+  // En las demás pantallas un dato que no llega solo resta: se enseña menos.
+  // Aquí resta y encima INVITA A ESCRIBIR. Los campos de identidad salen vacíos
+  // y el primer "Guardar" le borra al barbero su bio, su especialidad y sus
+  // contactos, que sí estaban en la base. Los servicios salen vacíos y los
+  // vuelve a crear, duplicados. Y el rol se queda en null, que abajo cierra el
+  // menú a propósito —eso está bien— pero sin decir por qué, así que parece que
+  // la barbería le quitó permisos.
+  //
+  // Un formulario cargado a medias es peor que un formulario que no cargó.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion(); setSesion(ss)
-    if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
+    if (!ss?.perfil_id || !ss?.negocio_id) return
     const [u, p, sv, hr, mems, cfg, sus] = await Promise.all([
-      getMiUsuario().catch(() => null),
-      getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
-      getServiciosPerfil(ss.perfil_id, false).catch(() => []),
-      getHorariosPerfil(ss.perfil_id).catch(() => []),
-      getMisMembresias(ss.usuario_id).catch(() => []),
+      getMiUsuario(),
+      getMiPerfil(ss.usuario_id, ss.negocio_id),
+      getServiciosPerfil(ss.perfil_id, false),
+      getHorariosPerfil(ss.perfil_id),
+      getMisMembresias(ss.usuario_id),
       getConfiguracion(ss.negocio_id).catch(() => null),
       getSuscripcionDe(ss.perfil_id).catch(() => null),
     ])
@@ -120,8 +134,8 @@ export default function Config() {
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
       const [locs, neg] = await Promise.all([
-        getBarberoNegocios(ss.usuario_id).catch(() => []),
-        getNegocioById(ss.negocio_id!).catch(() => null),
+        getBarberoNegocios(ss.usuario_id),
+        getNegocioById(ss.negocio_id!),
       ])
       setCfgLocalTipo((neg as any)?.tipo ?? null)
       setLocales(locs as any[])
@@ -131,7 +145,11 @@ export default function Config() {
     setEsp(u?.especialidad ?? ''); setBio(u?.bio ?? ''); setIg(u?.instagram ?? ''); setWa(u?.whatsapp ?? '')
     // Mensaje de bienvenida: por local (se queda en el perfil).
     setMsg(p?.mensaje_bienvenida ?? '')
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false)
+   }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -378,6 +396,11 @@ export default function Config() {
   }, [seccion])
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tu configuración" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   const TITULO: Record<string, string> = {
     cuenta: 'Mi cuenta', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
@@ -624,6 +647,17 @@ export default function Config() {
           {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
         </View>
         {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el administrador.</Text>}
+        {/* La lista vacía era un encabezado solo, sin una línea que dijera qué
+            pasa. Y lo que hay que decir no es lo mismo para los dos: el
+            autónomo puede arreglarlo con el botón de arriba; el empleado no
+            puede tocar nada aquí, así que se le dice a quién preguntarle. */}
+        {servicios.length === 0 && (
+          <Text style={s.vacio}>
+            {empleado
+              ? `Todavía no te han puesto servicios. Pídeselos a ${negocioNombre ?? 'tu barbería'}.`
+              : 'Todavía no tienes servicios. Agrega el primero con “+ Agregar”: sin al menos uno, nadie puede pedirte turno.'}
+          </Text>
+        )}
         {servicios.map((sv: any) => (
           <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
@@ -1148,6 +1182,7 @@ const s = StyleSheet.create({
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
   nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
   deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
+  vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
   sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.dangerLight,
     borderRadius: 12, padding: 12, marginTop: -4, marginBottom: 12 },
   sembradaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },

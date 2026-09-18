@@ -5,7 +5,7 @@ import { getMisEstadisticas, getNegocioById, getStatsPeriodoPerfil, type StatsPe
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Ionicons } from '@expo/vector-icons'
-import { Display } from '../../../components/ui'
+import { Display, NoCargo } from '../../../components/ui'
 import Resenas from '../../../components/resenas'
 import PanelBadge from '../../../components/panel-badge'
 
@@ -34,23 +34,35 @@ export default function Stats() {
   const [perfilId, setPerfilId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
   const [verResenas, setVerResenas] = useState(false)
   // Cuántas visitas se enseñan. Crece por tandas en vez de pintarlas todas:
   // una lista de cuatrocientas filas en un ScrollView es lo que hacía que la
   // pantalla "se alargara sin fin".
   const [verVisitas, setVerVisitas] = useState(PASO_VISITAS)
 
+  // El `.catch` se le quitó a `getMisEstadisticas`, que es la llamada que
+  // sostiene la pantalla: si esa falla no hay nada que enseñar, y taparla con
+  // `null` convertía la caída en "aún no tienes visitas" — una mentira. Las
+  // otras dos sí lo conservan: sin moneda o sin el dato de hoy la pantalla
+  // sigue siendo cierta, solo enseña un poco menos.
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    if (!ss?.perfil_id) { setLoading(false); return }
-    setPerfilId(ss.perfil_id)
-    const [st, neg, hy] = await Promise.all([
-      getMisEstadisticas().catch(() => null),
-      ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
-      getStatsPeriodoPerfil(ss.perfil_id, fechaISOLocal(), fechaISOLocal()).catch(() => null),
-    ])
-    setData(st); setMoneda(neg?.moneda ?? ''); setHoy(hy)
-    setLoading(false); setRefreshing(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      if (!ss?.perfil_id) return
+      setPerfilId(ss.perfil_id)
+      const [st, neg, hy] = await Promise.all([
+        getMisEstadisticas(),
+        ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
+        getStatsPeriodoPerfil(ss.perfil_id, fechaISOLocal(), fechaISOLocal()).catch(() => null),
+      ])
+      setData(st); setMoneda(neg?.moneda ?? ''); setHoy(hy)
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false); setRefreshing(false)
+    }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -66,6 +78,11 @@ export default function Stats() {
   useEffect(() => { setVerVisitas(PASO_VISITAS) }, [periodo])
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tus estadísticas" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   const visitas: any[] = data?.visitas ?? []
   // "Todo" usa el agregado de por vida; los demás, el período.

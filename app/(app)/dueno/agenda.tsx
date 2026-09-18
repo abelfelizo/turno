@@ -7,7 +7,7 @@ import { getColaActiva, marcarNoEsta } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { fechaLarga } from '../../../lib/format'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
 
 const ESTADO: Record<string, { l: string; c: string }> = {
@@ -30,15 +30,28 @@ export default function ColaLocal() {
   const [cola, setCola] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
   const [atiende, setAtiende] = useState(false)
   const [sel, setSel] = useState<any>(null)
 
+  // Una sola llamada, y sin `.catch`: esta pantalla ES la cola del local. Si se
+  // cae y devuelve una lista vacía, el administrador lee "no hay nadie
+  // esperando" con la barbería llena, cierra antes o manda a alguien a su casa.
+  // Y como se recarga sola con cada aviso de realtime, un fallo pasajero se
+  // arregla en el siguiente; lo que no se puede es enseñar el local vacío
+  // mientras tanto.
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    setAtiende(!!ss?.perfil_id)
-    if (!ss?.negocio_id) { setLoading(false); return }
-    setCola(await getColaActiva(ss.negocio_id).catch(() => []) as any[])
-    setLoading(false); setRefreshing(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      setAtiende(!!ss?.perfil_id)
+      if (!ss?.negocio_id) return
+      setCola(await getColaActiva(ss.negocio_id) as any[])
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false); setRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -60,6 +73,11 @@ export default function ColaLocal() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="la cola del local" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
