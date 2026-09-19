@@ -137,30 +137,24 @@ para cuatro campos era un viaje de ida y vuelta por nada.
 
 ## Las tres tarjetas nuevas
 
-### A · Pedir turno o agendar
+### A · Entrar a la fila · y · B · Reservar una cita — **dos tarjetas**
 
-Una sola tarjeta con dos caminos, porque la decisión real es *ahora o después*:
+Intenté unificarlas en una con un conmutador `AHORA / OTRO DÍA`, y era
+redundante: los dos botones de la pantalla abrían la misma hoja, y la hoja
+volvía a preguntar lo que ya habías contestado al pulsar.
 
-```
-  ¿CUÁNDO?     [ AHORA ]   [ OTRO DÍA ]
-  BARBERO      Jeison · Ana · Cualquiera
-  SERVICIO     Corte  RD$400 · 30 min
-  PERSONAS     – 1 +
-  ─────────── si es OTRO DÍA ───────────
-  DÍA          hoy · mañana · vie 12
-  HORA         3:00 · 3:30 · 4:00
-  ─────────────────────────────────────
-  [ ENTRAR A LA FILA ]   o   [ CONFIRMAR 3:00 PM ]
-```
+**Son dos decisiones distintas, y cada una abre la suya, ya resuelta:**
 
-Sustituye a `cliente/agendar` **y** a la hoja de entrar a la fila. Hoy son dos
-recorridos distintos para la misma decisión.
+| | Entrar a la fila | Reservar una cita |
+|---|---|---|
+| Cuándo | Hoy, por orden de llegada | El día y la hora que elijas |
+| Pasos | con quién · qué · cuántos van | con quién · qué · qué día · a qué hora |
+| Cierre | `ENTRAR A LA FILA` + «entras 3º, unos 25 min» | `CONFIRMAR CITA` + «viernes 12, 3:00 PM» |
 
-> **Riesgo que conviene que sepas:** cinco pasos son muchos para una tarjeta
-> inferior corta. Propongo tarjeta **alta** (90 % de la pantalla) con scroll
-> propio — que ya tiene el gesto de arrastrar hacia abajo para cerrar que
-> construimos. Funcionalmente es una pantalla; para el pulgar es una tarjeta.
-> Si prefieres que «Otro día» siga siendo pantalla completa, se separa.
+Las dos abren rellenas con los favoritos y **lo dicen**, con filete rojo.
+
+Las dos avisan de que **los precios son del barbero elegido**: `Los precios son
+de Jeison. Si cambias de barbero, cambian.`
 
 ### B · Dejar reseña
 
@@ -168,15 +162,43 @@ Hoy existe como hoja suelta en Historial, sin tablero. Pasa a tarjeta con
 nombre propio: barbero, servicio y fecha arriba; estrellas en Anton; campo de
 texto con contorno negro; «Enviar reseña» en rojo macizo.
 
-### C · Agregar barbería o barbero
+### C · Agregar con un código — **sin buscador**
 
-Absorbe `buscar-barbero` y el botón «+» del conmutador de locales, que hoy son
-dos caminos separados para lo mismo.
+Absorbe `buscar-barbero` y el botón «+» del conmutador, que hoy son dos caminos
+para lo mismo. Y el buscador por nombre **desaparece**:
 
-```
-  [ TENGO UN CÓDIGO ]     el que te dio la barbería
-  [ BUSCAR BARBERO ]      por nombre
-```
+> A una barbería se entra porque te invitan, no porque aparezcas en una lista.
+
+Se queda el código y nada más, con la salida para quien no lo tenga («pídeselo
+a tu barbero, lo tiene en sus ajustes»), y debajo los locales donde ya estás.
+
+---
+
+## Cada barbero, sus servicios y sus precios
+
+`turno_servicios` cuelga de `perfil_id`: **ya era así en el modelo**, y el
+primer mockup lo contaba mal, con una lista única de precios como si todos
+cobraran lo mismo. En un local de sillas alquiladas el precio ni siquiera es
+del local.
+
+En **Mi barbería**, cada barbero es un bloque con su filete: el tuyo abierto
+con sus servicios, sus precios y sus dos acciones (`FILA CON JEISON` /
+`RESERVAR`); los demás plegados con su resumen (`4 servicios · desde RD$ 350`).
+Miguel dice en su línea que **renta su silla y pone sus precios**.
+
+La fidelidad también es por barbero: `FIDELIDAD · CON JEISON`, y debajo,
+`con Ana llevas 2 de 8`.
+
+---
+
+## La cabecera de Mi turno
+
+El conmutador de barberías era una tira de píldoras flotando encima de la
+tarjeta: no pesaba nada y además repetía el nombre que la tarjeta ya decía.
+
+**Ahora el nombre del local ES la cabecera, y vive dentro del bloque oscuro**,
+en Anton a 31 px, con su chevrón. Es la identidad de la pantalla y el
+conmutador a la vez, y hay un elemento flotante menos.
 
 ---
 
