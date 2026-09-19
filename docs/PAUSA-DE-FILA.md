@@ -104,19 +104,33 @@ Se suman a los 18 ya definidos.
 ```
 ▨▨▨ poste ▨▨▨
 BARBERÍA DÁVILA                  ◐ EN PAUSA
-  3:15              Jeison salió un momento
-  VUELVE SOBRE
-  Ana sigue atendiendo · 1 esperando
+  3:15         Jeison vuelve 3:15
+  VUELVE SOBRE Miguel vuelve 3:40
+               Ana y Kelvin siguen atendiendo
 ──────────────────────────────────────────
-[ FILA CON ANA ]            [ AGENDAR ]
+[ ENTRAR A LA FILA ]        [ AGENDAR ]
 ```
 
 **La cifra grande es la hora de vuelta.** Es el séptimo significado de esa
 ranura, y encaja: es lo único que decide si esperas o te vas.
 
-**Con más de un barbero, la pausa de uno no cierra el local.** El botón rojo
-pasa a nombrar al que sí atiende. Si todos están en pausa, no hay botón de fila
-y queda `AGENDAR` solo.
+**Con más de un barbero, la pausa de uno no cierra el local.** Si todos están
+en pausa, no hay botón de fila y queda `AGENDAR` solo.
+
+> **El botón no nombra a nadie.** Con tres barberos y dos en pausa no hay un
+> nombre que poner — y elegir uno por el cliente es recomendar, que no es lo que
+> hace este botón.
+
+La cifra es la hora de vuelta **del primero que vuelve**. El cuerpo lista quién
+está fuera y hasta cuándo, y quién sigue atendiendo. La persona se elige dentro
+de la tarjeta de pedir turno, donde el que está en pausa sale deshabilitado con
+su hora.
+
+**Y de ahí sale una regla para los favoritos:** si tu barbero de siempre es el
+que está en pausa, la tarjeta no puede abrirse rellenada con él como si nada.
+Se abre con él marcado y deshabilitado, diciendo hasta cuándo — y con los
+demás disponibles debajo. Rellenar con alguien que no puede atenderte es peor
+que no rellenar.
 
 ### E20 · Con turno · tu barbero está en pausa
 

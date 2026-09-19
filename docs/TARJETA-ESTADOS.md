@@ -246,10 +246,16 @@ rechaza los turnos nuevos. Lo que falta es el reloj y el aviso.
 
 | Estado | Cifra grande | Clave |
 |---|---|---|
-| **E19** · sin turno, fila en pausa | la hora de vuelta (`3:15`) | Con varios barberos, la pausa de uno no cierra el local: el botón rojo nombra al que sí atiende. |
+| **E19** · sin turno, fila en pausa | la hora de vuelta (`3:15`) | La pausa de uno no cierra el local. El botón **no nombra a nadie**: quién queda libre se dice en el cuerpo. |
 | **E20** · con turno, tu barbero en pausa | tu puesto, **sin tocar** | La pausa no te mueve de sitio. Cambia la línea de la estimación, que pasa a decir el motivo. |
 
-Dos reglas duras:
+**Ningún botón nombra a una persona.** Con tres barberos y dos en pausa no hay
+un nombre que poner, y elegir uno por el cliente es recomendar. El botón dice
+`ENTRAR A LA FILA`; el cuerpo de la tarjeta dice quién está en pausa y hasta
+cuándo; y **la persona se elige dentro de la tarjeta de pedir turno**, donde el
+que está en pausa sale deshabilitado con su hora de vuelta.
+
+Tres reglas duras:
 
 > Una pausa sin hora de vuelta es indistinguible de un cierre.
 
