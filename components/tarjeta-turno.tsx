@@ -49,6 +49,8 @@ export type TurnoVivo = {
   codigo?: string | null
   servicio?: string | null
   barbero?: string | null
+  /** Para cruzarlo con las sillas y ver si TU barbero se puso en pausa. */
+  perfilId?: string | null
   /** Ya formateado: la tarjeta no sabe en qué moneda cobra este local. */
   precio?: string | null
   /**
@@ -187,6 +189,11 @@ export default function TarjetaTurno(p: Props) {
 function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: boolean; motivoComun: string | null }) {
   const soloCitas = soloConCita(p.sillas)
   const nadie = p.abierto && p.delante === 0
+  // Qué puertas tiene este local de verdad. `modo` lo manda turno_estado_local
+  // con cada silla; si falta, se supone que las dos, porque el silencio nunca
+  // puede cerrar una puerta que está abierta.
+  const hayFila = p.sillas.some(x => (x.modo ?? 'ambos') !== 'solo_citas')
+  const hayAgenda = p.sillas.some(x => (x.modo ?? 'ambos') !== 'solo_fila')
 
   return (
     <>
@@ -241,10 +248,16 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
 
       {/* Sin servicio no hay puertas: dos botones que llevan a pantallas
           vacías son peor que ninguno. */}
-      {!p.sinServicio && (
+      {/* LAS DOS PUERTAS SALEN SOLO SI EXISTEN.
+          «Reservar» estaba siempre, y en un local donde todos trabajan por
+          orden de llegada abría una hoja vacía: el cliente tocaba, leía
+          «nadie está tomando reservas» y volvía. Un botón que solo sirve para
+          descubrir que no sirve. Y sin servicio no hay ninguna de las dos:
+          dos puertas a pantallas vacías son peor que ninguna. */}
+      {!p.sinServicio && (hayFila || hayAgenda) && (
         <Pie
-          principal={p.abierto && !soloCitas ? { texto: 'Entrar a la fila', onPress: p.onFila } : null}
-          secundario={{ texto: p.abierto ? 'Reservar cita' : 'Reservar otro día', onPress: p.onAgendar }}
+          principal={p.abierto && !soloCitas && hayFila ? { texto: 'Entrar a la fila', onPress: p.onFila } : null}
+          secundario={hayAgenda ? { texto: p.abierto ? 'Reservar cita' : 'Reservar otro día', onPress: p.onAgendar } : null}
         />
       )}
     </>
@@ -258,6 +271,12 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
   // asunto. Ver `llego` en TurnoVivo.
   const llego = !!p.turno?.llego
   const enCamino = p.turno?.estado === 'en_camino'
+  // Solo mientras esperas: una vez te llamaron o estás en la silla, la pausa
+  // de su fila ya no te afecta — la tuya ya salió.
+  const pausado = !p.llamado && !p.enSilla && p.turno?.perfilId
+    ? p.sillas.find(x => x.perfil_id === p.turno!.perfilId
+        && (x.fila_abierta === false || x.estado === 'descanso')) ?? null
+    : null
 
   // «Voy en camino» avisa al barbero pero NO para el reloj, así que la cifra
   // sigue siendo la misma que cuando te llamaron: lo que te queda para llegar.
@@ -301,6 +320,20 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
       </Text>
 
       {p.urgente && <Text style={s.consecuencia}>Si no llegas, pierdes el turno</Text>}
+
+      {/* TU BARBERO SE FUE UN MOMENTO Y TÚ YA ESTÁS EN LA FILA.
+          El miedo es inmediato y es uno solo: «¿perdí mi turno?». Se contesta
+          antes de que se pregunte, y se dice lo que se sabe —hasta cuándo— sin
+          tocar el puesto: la pausa mueve el reloj, no la fila. */}
+      {pausado && (
+        <View style={s.pausa}>
+          <Ionicons name="pause-circle-outline" size={16} color={COLORS.ambarNoche} />
+          <Text style={s.pausaT}>
+            Tu barbero está en pausa{pausado.hasta ? ` hasta las ${hora12(pausado.hasta)}` : ''}.
+            Tu turno sigue en pie.
+          </Text>
+        </View>
+      )}
       {!p.llamado && !p.enSilla && p.etaMin != null && (
         <View style={s.eta}><Text style={s.etaT}>≈ {p.etaMin}′ de espera</Text></View>
       )}
@@ -450,6 +483,9 @@ const s = StyleSheet.create({
   servicio: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginTop: 14 },
   servicioMeta: { fontFamily: FONTS.medium, fontSize: 12.5, marginTop: 2 },
   consecuencia: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', marginTop: 10 },
+  pausa: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13,
+    borderLeftWidth: 3, borderLeftColor: COLORS.ambarNoche, paddingLeft: 11 },
+  pausaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff', lineHeight: 18 },
 
   eta: { alignSelf: 'flex-start', marginTop: 12, backgroundColor: COLORS.red, paddingVertical: 7, paddingHorizontal: 12 },
   etaT: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff' },

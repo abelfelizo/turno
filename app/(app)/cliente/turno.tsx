@@ -347,6 +347,7 @@ export default function MiTurno() {
     codigo: principal.codigo ?? null,
     servicio: principal.turno_servicios?.nombre ?? null,
     barbero: principal.turno_perfiles?.turno_usuarios?.nombre ?? null,
+    perfilId: principal.perfil_id ?? null,
     precio: principal.turno_servicios?.precio != null
       ? dinero(principal.turno_servicios.precio, negocio?.moneda) : null,
     llego: !!principal.llego_at,
