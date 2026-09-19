@@ -252,14 +252,23 @@ export default function MiTurno() {
     return () => { vigente = false }
   }, [soloCitas, hayTurno, perfiles, preferido])
 
-  // El parámetro se consume UNA vez: sin esto, cada vuelta a la pestaña
-  // reabriría la hoja del barbero que se tocó hace media hora.
+  /**
+   * El parámetro se consume UNA vez: sin esto, cada vuelta a la pestaña
+   * reabriría la hoja del barbero que se tocó hace media hora.
+   *
+   * Se marca como gastado en una ref y NO se borra con `setParams`. Borrarlo
+   * sería tocar el estado de navegación de una pestaña para no volver a leer
+   * un dato que ya leímos: un efecto de verdad —y con su re-render— para
+   * resolver algo que es nuestro y que se acuerda aquí sin salir del
+   * componente.
+   */
   const perfilParam = params.perfil
+  const gastado = useRef<string | null>(null)
   useEffect(() => {
-    if (!perfilParam) return
+    if (!perfilParam || gastado.current === perfilParam) return
+    gastado.current = perfilParam
     setSoloPerfil(perfilParam)
     setVia('fila')
-    router.setParams({ perfil: undefined })
   }, [perfilParam])
 
   // Una acción dispara varios eventos de cola casi a la vez; se agrupan.

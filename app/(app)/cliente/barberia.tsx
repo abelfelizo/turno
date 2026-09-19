@@ -28,12 +28,13 @@ import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
   getNegocioById, getMisNegociosCliente, getPerfilesNegocio, getEstadoLocal,
   getMisTarjetas, getMisCanjesActivos, getMiUsuario, getMiPreferido,
-  emitirCanje, salirLocal,
+  emitirCanje, salirLocal, getRatingsNegocio,
 } from '../../../lib/db'
 import { dinero } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
 import { COLORS, FONTS } from '../../../constants'
 import { Avatar } from '../../../components/ui'
+import Resenas from '../../../components/resenas'
 
 export default function MiBarberia() {
   const insets = useSafeAreaInsets()
@@ -47,6 +48,16 @@ export default function MiBarberia() {
   const [vales, setVales] = useState<any[]>([])
   const [preferido, setPreferido] = useState<string | null>(null)
   const [abierto, setAbierto] = useState<string | null>(null)
+  /**
+   * LAS ESTRELLAS Y LO QUE HAY DETRÁS.
+   *
+   * Vivían en la lista de barberos de «Mi turno», y esa lista se fue: quedó
+   * la nota sin el texto, o sea nada. Aquí es donde se mira a cada uno, así
+   * que aquí van — y se tocan, porque una media sin las palabras que la
+   * hicieron no ayuda a decidir con quién te sientas.
+   */
+  const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
+  const [resenasDe, setResenasDe] = useState<{ id: string; nombre?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [canjeando, setCanjeando] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -57,7 +68,7 @@ export default function MiBarberia() {
       if (!ss?.negocio_id) { setLoading(false); return }
       setSesion(ss)
       const u = await getMiUsuario().catch(() => null)
-      const [neg, locs, ps, est, tjs, vs, pref] = await Promise.all([
+      const [neg, locs, ps, est, tjs, vs, pref, rt] = await Promise.all([
         getNegocioById(ss.negocio_id).catch(() => null),
         u?.id ? getMisNegociosCliente(u.id).catch(() => []) : Promise.resolve([]),
         getPerfilesNegocio(ss.negocio_id).catch(() => []),
@@ -65,8 +76,9 @@ export default function MiBarberia() {
         getMisTarjetas(ss.negocio_id).catch(() => []),
         u?.id ? getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []) : Promise.resolve([]),
         getMiPreferido(ss.negocio_id).catch(() => null),
+        getRatingsNegocio(ss.negocio_id).catch(() => ({})),
       ])
-      setNegocio(neg); setLocales(locs as any[]); setPerfiles(ps as any[])
+      setNegocio(neg); setLocales(locs as any[]); setPerfiles(ps as any[]); setRatings(rt as any)
       setEstado((est ?? []) as any[]); setTarjetas(tjs as any[]); setVales(vs as any[])
       setPreferido((pref as any)?.perfil_id ?? (pref as any) ?? null)
       // El tuyo abierto de entrada: es el que vas a mirar. Los demás plegados
@@ -208,6 +220,8 @@ export default function MiBarberia() {
           onFila={() => router.push({ pathname: '/(app)/cliente/turno', params: { perfil: p.id } })}
           onAgendar={() => router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: p.id } })}
           moneda={negocio?.moneda}
+          rating={ratings[p.id]}
+          onResenas={() => setResenasDe({ id: p.id, nombre: p.turno_usuarios?.nombre })}
         />
       ))}
 
@@ -220,13 +234,16 @@ export default function MiBarberia() {
         <View style={{ flex: 1 }} />
         <Ionicons name="add" size={20} color={COLORS.ink} />
       </TouchableOpacity>
+
+      <Resenas perfilId={resenasDe?.id ?? null} nombre={resenasDe?.nombre}
+        visible={!!resenasDe} onClose={() => setResenasDe(null)} />
     </ScrollView>
   )
 }
 
 /* ───────────────────────────── un barbero ───────────────────────────────── */
 
-function Barbero({ perfil, estado, preferido, abierto, onAbrir, onFila, onAgendar, moneda }: any) {
+function Barbero({ perfil, estado, preferido, abierto, onAbrir, onFila, onAgendar, moneda, rating, onResenas }: any) {
   const u = perfil?.turno_usuarios ?? {}
   const servicios: any[] = perfil?.turno_servicios ?? []
   const activos = servicios.filter((x: any) => x.activo !== false)
@@ -253,10 +270,16 @@ function Barbero({ perfil, estado, preferido, abierto, onAbrir, onFila, onAgenda
             <Text style={s.bNombre} numberOfLines={1}>{u.nombre ?? 'Barbero'}</Text>
             {preferido && <Text style={s.bTuyo}>TU BARBERO</Text>}
           </View>
-          <Text style={s.bMeta} numberOfLines={1}>
-            {u.especialidad || 'Barbero'}
-            {perfil?.rol === 'barbero_renta' ? ' · pone sus precios' : ''}
-          </Text>
+          {/* La nota se toca: era un número suelto y lo que la gente escribió
+              no se leía en ningún sitio de la app. */}
+          <TouchableOpacity onPress={rating ? onResenas : undefined} disabled={!rating} hitSlop={6}>
+            <Text style={s.bMeta} numberOfLines={1}>
+              {[u.especialidad || 'Barbero',
+                perfil?.rol === 'barbero_renta' ? 'pone sus precios' : null,
+                rating ? `★ ${rating.promedio} (${rating.total})` : 'Sin reseñas'].filter(Boolean).join(' · ')}
+              {rating ? '  ·  ver reseñas' : ''}
+            </Text>
+          </TouchableOpacity>
         </View>
         <Text style={[s.bEstado, { color: estCol }]} numberOfLines={1}>{est}</Text>
         <Contacto whatsapp={u.whatsapp} telefono={u.telefono} instagram={u.instagram} nombre={u.nombre} />
@@ -279,7 +302,7 @@ function Barbero({ perfil, estado, preferido, abierto, onAbrir, onFila, onAgenda
           <View style={s.bAcciones}>
             {!cerrada && (
               <TouchableOpacity style={[s.bBtn, s.bBtnRojo]} onPress={onFila}>
-                <Text style={s.bBtnT}>Fila con {String(u.nombre ?? '').split(' ')[0]}</Text>
+                <Text style={s.bBtnT} numberOfLines={1}>Fila con {String(u.nombre ?? '').split(' ')[0]}</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity style={[s.bBtn, s.bBtnContorno]} onPress={onAgendar}>
