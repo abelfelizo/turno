@@ -191,6 +191,43 @@ La fidelidad también es por barbero: `FIDELIDAD · CON JEISON`, y debajo,
 
 ---
 
+## Los premios se activan — y ya funciona así
+
+Comprobado: **el modelo ya lo hace todo.**
+
+| Regla | Dónde está |
+|---|---|
+| El premio se activa o no | `turno_fidelidad` devuelve **`activo`** |
+| Lo activa la barbería **o** el barbero | **`ambito: 'negocio' \| 'perfil'`** |
+| Sin activar no le aparece al cliente | `turno_mis_tarjetas` filtra con **`and f.activo`** |
+| Cada barbero puede llevar el suyo | Ya documentado en `getMisTarjetas` |
+
+Y el comentario del código ya explica el caso difícil:
+
+> Puede haber más de una: donde se alquilan asientos, **cada barbero lleva su
+> propio programa**, así que el cliente junta recortes por separado con cada uno.
+
+### Lo que falta es de diseño, no de modelo
+
+Mis tableros dibujan **siempre** la tarjeta de fidelidad. Faltan dos estados:
+
+**Sin programa ninguno** → en Mi barbería no hay bloque oscuro. Hay que decidir
+qué ocupa su sitio: el equipo sube a lo alto, o queda un hueco. **Recomiendo que
+suba el equipo**, y que la fidelidad simplemente no exista — sin «aquí no hay
+premios», que es anunciar una carencia.
+
+**Programa de uno sí y de otro no** → el cliente ve la tarjeta de Jeison y nada
+de Ana. Sin explicarlo parece un fallo. Basta una línea bajo la tarjeta:
+`Ana no tiene programa de recortes.`
+
+### Y quién lo configura hay que decirlo en la tarjeta
+
+Porque cambia a quién se le reclama. `FIDELIDAD · CON JEISON` cuando el `ambito`
+es `perfil`, y `FIDELIDAD · BARBERÍA DÁVILA` cuando es `negocio`. Es el mismo
+`ambito` que ya devuelve el servidor, puesto en el rótulo.
+
+---
+
 ## La cabecera de Mi turno
 
 El conmutador de barberías era una tira de píldoras flotando encima de la
