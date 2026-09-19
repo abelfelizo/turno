@@ -1,0 +1,74 @@
+/**
+ * LA HOJA QUE SUBE DESDE ABAJO, CON EL TECLADO RESUELTO.
+ *
+ * Reportado desde el teléfono: "cuando sale algún formulario desde abajo, el
+ * teclado termina tapando lo que estoy llenando, se superpone". Pasaba en las
+ * cinco hojas de la app, y en las cinco por lo mismo: la hoja está anclada al
+ * borde inferior con `justifyContent: 'flex-end'`, y el teclado de Android se
+ * dibuja ENCIMA sin empujar nada.
+ *
+ * Aquí se arregla una vez:
+ *
+ *   · KeyboardAvoidingView levanta la hoja lo que mide el teclado. En iOS con
+ *     'padding' y en Android con 'height', que es lo que respeta cada uno.
+ *   · El contenido va dentro de un ScrollView con
+ *     `keyboardShouldPersistTaps="handled"`: sin eso, el primer toque en un
+ *     botón con el teclado abierto solo cierra el teclado y hay que tocar dos
+ *     veces — que es la otra mitad de la queja.
+ *   · Se limita al 88% de la pantalla para que una hoja larga no tape la salida.
+ *
+ * El botón físico de atrás cierra (onRequestClose), que en Android es LA forma
+ * de volver.
+ *
+ * Y se cierra arrastrándola hacia abajo desde la barrita, que es lo que esa
+ * barrita venía prometiendo desde el primer día: ver `components/gestos.tsx`.
+ */
+import { ReactNode } from 'react'
+import {
+  Modal, View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform,
+  TouchableWithoutFeedback, useWindowDimensions, Animated,
+} from 'react-native'
+import { COLORS } from '../constants'
+import { useArrastrarParaCerrar, Agarre } from './gestos'
+
+export default function Hoja({ visible, onClose, children }: {
+  visible: boolean
+  onClose: () => void
+  children: ReactNode
+}) {
+  const { height } = useWindowDimensions()
+  const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView
+        style={s.fondo}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Tocar fuera cierra. Es el gesto que todo el mundo intenta primero y
+            hasta ahora no hacía nada: había que buscar el "Cancelar". */}
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={s.telon} />
+        </TouchableWithoutFeedback>
+        <Animated.View style={[s.hoja, { maxHeight: height * 0.88, transform: [{ translateY: y }] }]}>
+          <View {...panHandlers}><Agarre /></View>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 8 }}
+          >
+            {children}
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </Modal>
+  )
+}
+
+const s = StyleSheet.create({
+  fondo: { flex: 1, justifyContent: 'flex-end' },
+  telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  // Cuadrada, como el resto. Era el último sitio con las esquinas
+  // redondeadas de antes, y como esta hoja la usan cinco pantallas, era la
+  // costura que se veía en las cinco.
+  hoja: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26 },
+})

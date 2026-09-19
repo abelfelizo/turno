@@ -5,12 +5,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
 import { COLORS, FONTS } from '../constants'
+import { INICIO_DE_PANEL } from '../lib/paneles'
 
-const DESTINO: Record<string, string> = {
-  cliente: '/(app)/cliente/home',
-  barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
-}
+
 
 function etiqueta(o: OpcionPanel) {
   if (o.panel === 'cliente') return `Cliente · ${o.negocio}`
@@ -59,7 +56,7 @@ export default function CambiarRol() {
     if (o.panel === 'silla' && o.perfil_id && !o.aprobado) {
       router.replace('/(auth)/barbero-pendiente'); return
     }
-    router.replace(DESTINO[o.panel] as any)
+    router.replace(INICIO_DE_PANEL[o.panel] as any)
   }
 
   return (
@@ -73,7 +70,15 @@ export default function CambiarRol() {
             <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.success : COLORS.textMid} />
             <View style={{ flex: 1 }}>
               <Text style={s.txt}>{etiqueta(o)}</Text>
-              <Text style={s.det}>{!o.aprobado && o.panel === 'silla' ? 'Pendiente de aprobación' : detalle(o)}</Text>
+              {/* «Pendiente de aprobación» era la única espera posible hasta la
+                  110. Ahora la espera puede ser AL REVÉS —te invitaron y el que
+                  no ha contestado eres tú— y decirle que espera al dueño le
+                  esconde que tiene algo que hacer. */}
+              <Text style={s.det}>
+                {!o.aprobado && o.panel === 'silla'
+                  ? (o.pendiente_de === 'barbero' ? 'Te invitaron · falta que aceptes' : 'Pendiente de aprobación')
+                  : detalle(o)}
+              </Text>
             </View>
             {esActual
               ? <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
@@ -86,8 +91,8 @@ export default function CambiarRol() {
 }
 
 const s = StyleSheet.create({
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12, marginTop: 18 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, marginTop: 18 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
   filaOn: { borderColor: COLORS.success },
   txt: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   det: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

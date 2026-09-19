@@ -42,8 +42,8 @@ export default function BarberoCodigo() {
   const renta = negocio?.tipo === 'espacios_rentados'
 
   return (
-    <OnbScreen paso="Tu trabajo · 2 de 3" titulo="Código del local"
-      subtitulo="Pídeselo al dueño de la barbería donde vas a trabajar.">
+    <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Código del local"
+      subtitulo="Pídeselo al administrador de la barbería donde vas a trabajar.">
       <Campo label="Código de acceso" placeholder="ABC-1234" autoCapitalize="characters"
         maxLength={9} value={codigo}
         onChangeText={(t: string) => { setCodigo(t); setNegocio(null); setError('') }} />
@@ -57,9 +57,14 @@ export default function BarberoCodigo() {
           <View style={s.modalidad}>
             <Ionicons name={renta ? 'person' : 'business'} size={16} color={COLORS.textMid} />
             <Text style={s.modalidadT}>
+              {/* QUÉ CAMBIA SEGÚN LA MODALIDAD: quién pone las reglas y quién
+                  paga. Lo que YA NO cambia es si hay que esperar a alguien —la
+                  migración 110 lo igualó— porque entrar a un local lo firman
+                  los dos, alquile asientos o tenga empleados. Este texto decía
+                  «entras directo, sin esperar aprobación» y era la 94. */}
               {renta
-                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción.'
-                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción.'}
+                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. El administrador tiene que aceptarte, pero no te dirige.'
+                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el local cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
             </Text>
           </View>
         </View>
@@ -76,7 +81,7 @@ export default function BarberoCodigo() {
 
 const s = StyleSheet.create({
   error: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 10 },
-  card: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginTop: 16 },
+  card: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginTop: 16 },
   cardKicker: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1 },
   cardNombre: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.ink, marginTop: 4 },
   modalidad: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 12 },

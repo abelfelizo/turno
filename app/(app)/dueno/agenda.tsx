@@ -3,12 +3,13 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getColaActiva, sacarDeCola, moverEnCola } from '../../../lib/db'
+import { getColaActiva, marcarNoEsta } from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { fechaLarga } from '../../../lib/format'
-import { Display, Avatar } from '../../../components/ui'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const ESTADO: Record<string, { l: string; c: string }> = {
   en_fila: { l: 'En fila', c: COLORS.textLight },
@@ -26,19 +27,35 @@ const ESTADO: Record<string, { l: string; c: string }> = {
  * cosa: aquí el local, y la agenda personal vive en "Mi silla".
  */
 export default function ColaLocal() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [cola, setCola] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
   const [atiende, setAtiende] = useState(false)
   const [sel, setSel] = useState<any>(null)
 
+  // Una sola llamada, y sin `.catch`: esta pantalla ES la cola del local. Si se
+  // cae y devuelve una lista vacía, el administrador lee "no hay nadie
+  // esperando" con la barbería llena, cierra antes o manda a alguien a su casa.
+  // Y como se recarga sola con cada aviso de realtime, un fallo pasajero se
+  // arregla en el siguiente; lo que no se puede es enseñar el local vacío
+  // mientras tanto.
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    setAtiende(!!ss?.perfil_id)
-    if (!ss?.negocio_id) { setLoading(false); return }
-    setCola(await getColaActiva(ss.negocio_id).catch(() => []) as any[])
-    setLoading(false); setRefreshing(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      setAtiende(!!ss?.perfil_id)
+      if (!ss?.negocio_id) return
+      setCola(await getColaActiva(ss.negocio_id) as any[])
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false); setRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -60,9 +77,14 @@ export default function ColaLocal() {
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="la cola del local" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
       <PanelBadge />
       <Text style={s.kicker}>{fechaLarga()}</Text>
@@ -80,7 +102,7 @@ export default function ColaLocal() {
       )}
 
       {cola.length === 0 && <Text style={s.empty}>No hay nadie en la cola ahora mismo.</Text>}
-      {cola.length > 0 && <Text style={s.hint}>Toca a alguien para moverlo o sacarlo de la fila.</Text>}
+      {cola.length > 0 && <Text style={s.hint}>Toca a alguien para ver su turno. El orden lo lleva la fila.</Text>}
       {cola.map((q: any, i: number) => {
         const e = ESTADO[q.estado] ?? ESTADO.en_fila
         return (
@@ -89,7 +111,14 @@ export default function ColaLocal() {
             <Avatar name={q.turno_usuarios?.nombre} size={42} bg={COLORS.surfaceAlt} color={COLORS.ink} />
             <View style={{ flex: 1 }}>
               <Text style={s.name}>{q.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-              <Text style={s.meta}>{q.turno_servicios?.nombre} · {q.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}</Text>
+              {/* El segundo de un doble servicio dice "En fila" como todos,
+                  pero no se le puede llamar hasta que acabe el primero. Sin
+                  esta línea el administrador ve a alguien parado en la fila sin
+                  que nadie lo atienda y cree que se le olvidó a su barbero. */}
+              <Text style={s.meta}>
+                {q.turno_servicios?.nombre} · {q.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}
+                {q.espera_a_id ? ' · espera su otro servicio' : ''}
+              </Text>
             </View>
             <Text style={[s.estado, { color: e.c }]}>{e.l}</Text>
           </TouchableOpacity>
@@ -101,14 +130,42 @@ export default function ColaLocal() {
           <View style={s.modal}>
             <Display size={22}>{sel?.turno_usuarios?.nombre ?? 'Turno'}</Display>
             <Text style={s.modalSub}>{sel?.turno_servicios?.nombre} · {(ESTADO[sel?.estado] ?? ESTADO.en_fila).l}</Text>
+            {/* SUBIR Y BAJAR SE FUERON. El orden de la fila lo decide la regla
+                —primero quien tenía cita, después quien esperaba, y el que
+                llega sin avisar cuando no queda nadie— y moverlo a mano es
+                quitarle el turno a alguien que ya lo tenía. De hecho el
+                servidor lleva negándose desde la migración 58: los botones
+                estaban ahí dando error.
+
+                Y SACAR DE LA FILA tampoco: si el cliente no aparece cuando le
+                toca, la puerta correcta es llamarlo y marcar que no está, que
+                deja constancia y le da el turno al siguiente en vez de
+                borrarlo a mano. */}
             {sel?.estado === 'en_fila' && (
-              <>
-                <Opcion icon="arrow-up" t="Subir un puesto" onPress={() => op(() => moverEnCola(sel.id, -1), 'No se pudo mover')} />
-                <Opcion icon="arrow-down" t="Bajar un puesto" onPress={() => op(() => moverEnCola(sel.id, 1), 'No se pudo mover')} />
-              </>
+              <Text style={s.enSilla}>
+                Está esperando su turno. El orden lo lleva la fila: cuando le toque, el barbero lo llama.
+              </Text>
             )}
-            <Opcion icon="exit-outline" t="Sacar de la fila" d="Se fue del local o no apareció" rojo
-              onPress={() => op(() => sacarDeCola(sel.id), 'No se pudo sacar')} />
+            {/* EN LA SILLA NO SE TOCA. El dueño podía sacar de la fila a un
+                cliente que un barbero estaba atendiendo: se lo levantaba a
+                mitad de corte y, de paso, el turno quedaba 'abandonado', que no
+                registra visita — o sea que el corte que se estaba dando
+                desaparecía de las cuentas del barbero. Desde la migración 76 el
+                servidor lo niega; aquí ni se ofrece, y se dice por qué, que es
+                distinto de esconder el botón sin explicación. */}
+            {sel?.estado === 'atendiendo' && (
+              <Text style={s.enSilla}>
+                Lo está atendiendo {sel?.turno_perfiles?.turno_usuarios?.nombre ?? 'un barbero'}. Lo que pase en esa
+                silla lo cierra quien está cortando.
+              </Text>
+            )}
+            {/* La única salida del dueño sobre un cliente, y solo cuando YA LE
+                TOCÓ: se le llamó y no está. turno_no_esta exige exactamente eso
+                —haberlo llamado antes— y deja el turno expirado, no borrado. */}
+            {(sel?.estado === 'llamado' || sel?.estado === 'en_camino') && (
+              <Opcion icon="person-remove-outline" t="No se presentó" d="Se le llamó y no apareció · pasa el turno al siguiente" rojo
+                onPress={() => op(() => marcarNoEsta(sel.id), 'No se pudo marcar')} />
+            )}
             <TouchableOpacity onPress={() => setSel(null)}><Text style={s.modalCerrar}>Cerrar</Text></TouchableOpacity>
           </View>
         </View>
@@ -130,7 +187,7 @@ function Opcion({ icon, t, d, rojo, onPress }: { icon: any; t: string; d?: strin
   )
 }
 const o = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 15, marginBottom: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 15, marginBottom: 8 },
   t: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   d: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
 })
@@ -139,19 +196,21 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, textTransform: 'capitalize', marginBottom: 4 },
-  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, borderRadius: 14, padding: 15, marginBottom: 16 },
+  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, borderRadius: 6, padding: 15, marginBottom: 16 },
   sillaT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   sillaD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   hint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 10 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  pos: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 12, marginBottom: 8 },
+  pos: { width: 36, height: 36, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   posT: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
   name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   estado: { fontFamily: FONTS.bold, fontSize: 12 },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
   modalSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
+  enSilla: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, backgroundColor: COLORS.surfaceAlt,
+    borderRadius: 4, padding: 13, lineHeight: 19 },
   modalCerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

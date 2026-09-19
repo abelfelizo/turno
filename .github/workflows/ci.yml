@@ -19,3 +19,9 @@ jobs:
       - run: npm ci --legacy-peer-deps
       - name: TypeScript typecheck
         run: npx tsc --noEmit
+
+      # tsc no ve las reglas de los hooks y el proyecto no tiene eslint. Esta
+      # comprobación cubre el fallo que ya llegó a un teléfono: un hook debajo
+      # de un `if (...) return`. Ver el encabezado del script.
+      - name: Hooks por encima de las guardas
+        run: node scripts/hooks-antes-de-las-guardas.mjs

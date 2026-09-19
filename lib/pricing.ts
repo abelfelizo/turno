@@ -46,7 +46,7 @@ export function planIndependiente(): Plan {
 
 /** Empleado: lo cubre el dueño del local. */
 export function planCubierto(): Plan {
-  return { clave: 'cubierto', titulo: 'Tu suscripción', detalle: 'Incluida: la cubre el dueño del local.', monto: 0, montoTexto: 'Incluida' }
+  return { clave: 'cubierto', titulo: 'Tu suscripción', detalle: 'Incluida: la cubre el administrador del local.', monto: 0, montoTexto: 'Incluida' }
 }
 
 /**
