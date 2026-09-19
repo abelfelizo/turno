@@ -180,6 +180,44 @@ dos caminos separados para lo mismo.
 
 ---
 
+## Los favoritos se quedan puestos
+
+Una vez configurados, barbero y servicio quedan por defecto para los próximos
+turnos y citas.
+
+**Medio construido ya, y conviene saber cuál mitad:**
+
+| Pieza | Estado |
+|---|---|
+| `turno_marcar_preferido` / `turno_mi_preferido` (migración 83) | **Hecho** |
+| `agendar.tsx:69` preselecciona el barbero preferido | **Hecho** |
+| Servicio habitual guardado | **Falta** |
+| Se aplica también al entrar a la fila, no solo a las citas | **Falta** |
+
+Ojo con una confusión que ya existe en el código: `barberoFav` y `servicioFav`
+de Perfil **se calculan del historial**, no son preferencias guardadas. Son dos
+cosas distintas con el mismo nombre. Lo que se guarda es `preferido`; lo que se
+deduce es `masFrecuente(...)`. La propuesta usa lo guardado, y propone el
+deducido como sugerencia la primera vez.
+
+Dónde se ve:
+
+- **Configuración** abre con `LO QUE SE QUEDA POR DEFECTO`: dos cuadros de
+  contorno con el barbero y el servicio. Es lo primero de la pantalla porque es
+  lo que más ahorra.
+- **La tarjeta de pedir turno** abre **ya rellena**, y lo dice con un filete
+  rojo: `Rellenado con lo tuyo de siempre · cámbialo si hoy quieres otra cosa`.
+
+> **Que esté relleno se avisa, no se esconde.** Un formulario que aparece
+> completo sin decir por qué se confirma sin leer — y se pide un servicio que
+> no era.
+
+- **Mi barbería** marca al preferido con el cuadro en rojo y `TU PREFERIDO`, y
+  al servicio habitual con `TU HABITUAL`. Cambiar de favorito se hace ahí,
+  donde se está mirando el equipo.
+
+---
+
 ## A dónde va cada pantalla de hoy
 
 | Pantalla actual | Destino |
