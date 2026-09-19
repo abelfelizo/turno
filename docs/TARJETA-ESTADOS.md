@@ -49,6 +49,36 @@ importa es cuánto te queda para llegar.
 
 ---
 
+## 2 bis · El rojo de la cifra sobre carbón
+
+`redSoft: '#FF6B73'` **cambia a `#FF4438`.** El token vive en
+`constants/index.ts` y ya se usa en `home.tsx` y `estado-local.tsx`, así que
+esto es un cambio de código, no solo de lienzo.
+
+No fallaba por contraste: tenía **7,08 : 1** sobre `#0B0C10`, de sobra. Fallaba
+por cómo estaba construido.
+
+> Era el rojo de marca **aclarado con blanco**. Añadir blanco no solo sube la
+> luminosidad: desatura y empuja el tono hacia el rosa. De ahí el salmón.
+
+El nuevo baja luminosidad, recupera saturación y gira un punto al cálido, así
+que se lee como el mismo rojo de la marca:
+
+| | Sobre carbón | Lectura |
+|---|---|---|
+| `#FF6B73` (antes) | 7,08 : 1 | salmón |
+| **`#FF4438`** (ahora) | **5,71 : 1** | rojo de marca |
+| `#E5202B` (marca, sin tocar) | 4,26 : 1 | correcto pero apagado en cifra grande |
+
+5,71 : 1 pasa holgado el 3 : 1 que pide el texto grande, y hasta el 4,5 : 1 del
+texto normal.
+
+**El rojo de marca se queda como está** para los botones y bloques sobre
+página clara: ahí el fondo es blanco y no hace falta tocarlo. El `#FF4438` es
+solo el de la cifra sobre carbón.
+
+---
+
 ## 3 · Estados sin turno — manda el local
 
 ### E1 · Abierto, hay cola
