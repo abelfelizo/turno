@@ -8,7 +8,7 @@ import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
 import { COLORS, FONTS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
-import { Display, Chip, Avatar, NoCargo, Pole } from '../../../components/ui'
+import { Display, Avatar, NoCargo, Pole } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -159,7 +159,10 @@ export default function Agendar() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={COLORS.ink} /></TouchableOpacity>
-        <Display size={24}>Reservar</Display>
+        <View style={{ flex: 1 }}>
+          <Display size={24}>{params.reagendar ? 'Cambiar la cita' : 'Reservar una cita'}</Display>
+          <Text style={s.subtitulo}>Eliges el día y la hora. Te guardan el sitio.</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
@@ -259,23 +262,49 @@ export default function Agendar() {
             {cargandoSlots ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 16 }} /> :
               slots.length === 0 ? <Text style={s.empty}>No hay horarios disponibles ese día.</Text> :
                 <View style={s.slots}>
+                  {/* Cuadradas y sin la píldora azul de antes: es el último
+                      toque antes de confirmar y tiene que leerse como el
+                      resto de la app, no como un control prestado. */}
                   {slots.map(t => (
-                    <View key={t} style={{ width: '31%' }}>
-                      <Chip tone="blue" selected={hora === t} onPress={() => setHora(t)}>{hora12(t)}</Chip>
-                    </View>
+                    <TouchableOpacity key={t} style={[s.slot, hora === t && s.slotOn]} onPress={() => setHora(t)}>
+                      <Text style={[s.slotT, hora === t && { color: '#fff' }]}>{hora12(t)}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>}
           </>
         )}
       </ScrollView>
 
-      {hora ? (
+      {/* EL PIE NO APARECE DE LA NADA. Salía solo al elegir la hora, y hasta
+          ese momento la pantalla no tenía fondo: no se veía adónde llevaba
+          todo esto ni cuánto iba a costar. Ahora está siempre y dice lo que
+          falta, que es la única pregunta abierta mientras se rellena. */}
+      {perfiles.length > 0 && (
         <View style={s.ctaWrap}>
-          <TouchableOpacity style={s.cta} onPress={confirmar} disabled={enviando}>
-            {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>{personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'} · {hora12(hora)}</Text>}
+          <View style={s.recuento}>
+            <Text style={s.recuentoT} numberOfLines={1}>
+              {!perfil ? 'Elige con quién'
+                : !servicio ? 'Elige qué te haces'
+                : !fecha ? 'Elige el día'
+                : !hora ? 'Elige la hora'
+                : `${fechaLarga(fechaDeISO(fecha))} · ${hora12(hora)}`}
+            </Text>
+            {!!servicio && (
+              <Text style={s.recuentoP}>
+                {dinero((servicio.precio ?? 0) * personas, negocio?.moneda)}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity style={[s.cta, !hora && s.ctaOff]} onPress={confirmar} disabled={enviando || !hora}>
+            {enviando ? <ActivityIndicator color="#fff" /> : (
+              <Text style={s.ctaT}>
+                {params.reagendar ? 'Cambiar la cita'
+                  : personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      ) : null}
+      )}
     </View>
   )
 }
@@ -284,17 +313,17 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderRadius: 4, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  mini: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 20, overflow: 'hidden' },
+  back: { width: 36, height: 36, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  mini: { backgroundColor: COLORS.carbon, marginBottom: 20, overflow: 'hidden' },
   miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  miniIcon: { width: 40, height: 40, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  miniIcon: { width: 40, height: 40, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
   miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 2 },
   miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
   vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
     borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginBottom: 12 },
-  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', gap: 6 },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', gap: 6 },
   bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
   bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
@@ -310,17 +339,25 @@ const s = StyleSheet.create({
   personasL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   personasD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 42, height: 42, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 42, height: 42, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.ink, minWidth: 22, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  stepVal: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
+  dia: { width: 58, height: 66, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
   diaOff: { opacity: 0.35 },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
-  diaNum: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink, marginTop: 2 },
+  diaNum: { fontFamily: FONTS.display, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
-  ctaWrap: { padding: 16, paddingBottom: 28, borderTopWidth: 2, borderTopColor: COLORS.ink, backgroundColor: COLORS.bg },
-  cta: { backgroundColor: COLORS.red, borderRadius: 4, padding: 17, alignItems: 'center' },
-  ctaT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.bg },
+  recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11, gap: 10 },
+  recuentoT: { flexShrink: 1, fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, textTransform: 'capitalize' },
+  recuentoP: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
+  cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
+  ctaOff: { backgroundColor: COLORS.border },
+  ctaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  subtitulo: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  slot: { width: '31%', height: 46, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  slotOn: { backgroundColor: COLORS.blue, borderColor: COLORS.blue },
+  slotT: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.ink },
 })

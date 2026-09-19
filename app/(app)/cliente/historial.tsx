@@ -21,6 +21,12 @@ import { Display, NoCargo, Pole } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+/** Lo que quiso decir cada puntuación. La estrella es el gesto; esto es el
+ *  significado, y es lo que evita el toque de más. */
+const PALABRA: Record<number, string> = {
+  1: 'MALO', 2: 'REGULAR', 3: 'BIEN', 4: 'MUY BUENO', 5: 'EXCELENTE',
+}
+
 /** El que más se repite. Un solo recorrido: la lista puede ser larga. */
 function masFrecuente(arr: any[], key: (x: any) => string | undefined): string | null {
   const m: Record<string, number> = {}
@@ -171,18 +177,52 @@ export default function Historial() {
       {/* Hoja compartida: levanta el contenido cuando sale el teclado y cierra
           tocando fuera o con el botón de atrás. Ver components/hoja.tsx. */}
       <Hoja visible={!!activa} onClose={() => setActiva(null)}>
-            <Display size={22}>¿Cómo estuvo?</Display>
-            <Text style={s.modalSub}>{activa?.turno_servicios?.nombre} · {activa?.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
-            <View style={s.stars}>
+            <Display size={26}>¿Cómo estuvo?</Display>
+
+            {/* QUÉ SE ESTÁ CALIFICANDO, con nombre, fecha y lo que costó.
+                «Fade y barba · Jeison» a secas no basta cuando vas al mismo
+                sitio cada dos semanas: sin la fecha no se sabe cuál de los
+                cinco cortes es este. */}
+            <View style={s.rVisita}>
+              <View style={s.rIni}>
+                <Text style={s.rIniT}>
+                  {(activa?.turno_perfiles?.turno_usuarios?.nombre ?? '?').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.rServ}>{activa?.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                <Text style={s.rMeta}>
+                  {[activa?.turno_perfiles?.turno_usuarios?.nombre, activa?.fecha,
+                    activa?.precio_cobrado != null ? dinero(activa.precio_cobrado, moneda) : null]
+                    .filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+            </View>
+
+            {/* LA PUNTUACIÓN SE DICE CON PALABRAS, no solo con estrellas.
+                Cuatro estrellas de cinco es un gesto; «muy bueno» es lo que
+                esa persona quiso decir, y es lo que evita el toque de más. */}
+            <View style={s.rStars}>
               {[1, 2, 3, 4, 5].map(n => (
-                <TouchableOpacity key={n} onPress={() => setRating(n)}><Text style={[s.star, n <= rating && { color: COLORS.red }]}>★</Text></TouchableOpacity>
+                <TouchableOpacity key={n} onPress={() => setRating(n)} hitSlop={6}>
+                  <Text style={[s.rStar, n <= rating && { color: COLORS.red }]}>★</Text>
+                </TouchableOpacity>
               ))}
             </View>
-            <TextInput style={s.input} placeholder="Comentario (opcional)" placeholderTextColor={COLORS.textLight} value={comentario} onChangeText={setComentario} multiline />
-            <TouchableOpacity style={s.btn} onPress={enviar} disabled={enviando}>
-              {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Enviar reseña</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setActiva(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
+            <Text style={s.rPalabra}>{PALABRA[rating] ?? 'TOCA LAS ESTRELLAS'}</Text>
+
+            <Text style={s.rSec}>CUÉNTALE</Text>
+            <TextInput style={s.rInput} placeholder="Lo que quieras decirle al barbero."
+              placeholderTextColor={COLORS.textLight} value={comentario} onChangeText={setComentario} multiline />
+
+            <View style={s.rPie}>
+              <TouchableOpacity style={s.rCta} onPress={enviar} disabled={enviando}>
+                {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.rCtaT}>Enviar reseña</Text>}
+              </TouchableOpacity>
+              {/* «Cancelar» sonaba a deshacer algo. No se cancela nada: se deja
+                  para luego, y la tarjeta seguirá arriba esperando. */}
+              <TouchableOpacity onPress={() => setActiva(null)}><Text style={s.rLuego}>Ahora no</Text></TouchableOpacity>
+            </View>
       </Hoja>
     </View>
   )
@@ -213,11 +253,22 @@ const s = StyleSheet.create({
   calificar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 6 },
   calificado: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.success, marginTop: 6 },
   precio: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 6, marginBottom: 16 },
-  stars: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 },
-  star: { fontSize: 42, color: '#D8D6D1' },
-  input: { borderWidth: 2, borderColor: COLORS.ink, borderRadius: 4, padding: 14, fontSize: 15, fontFamily: FONTS.medium, minHeight: 70, textAlignVertical: 'top', marginBottom: 16 },
-  btn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 16, alignItems: 'center' },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
+  rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15,
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink },
+  rIni: { width: 46, height: 46, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center' },
+  rIniT: { fontFamily: FONTS.display, fontSize: 21, color: COLORS.blue },
+  rServ: { fontFamily: FONTS.bold, fontSize: 15.5, color: COLORS.ink },
+  rMeta: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  rStars: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 22 },
+  rStar: { fontFamily: FONTS.display, fontSize: 46, lineHeight: 50, color: COLORS.border },
+  rPalabra: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.6, color: COLORS.textMid,
+    textAlign: 'center', marginTop: 8 },
+  rSec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2,
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22 },
+  rInput: { borderWidth: 2, borderColor: COLORS.ink, padding: 13, fontSize: 13.5, fontFamily: FONTS.medium,
+    color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11 },
+  rPie: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 18, paddingTop: 14 },
+  rCta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
+  rCtaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  rLuego: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 12.5, marginTop: 11 },
 })

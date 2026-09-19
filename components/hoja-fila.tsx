@@ -5,7 +5,7 @@ import { entrarACola, entrarAColaDoble, getResumenFila, getConfiguracion, getMiU
 import { avisos } from '../lib/notificaciones'
 import { dinero } from '../lib/format'
 import { COLORS, FONTS } from '../constants'
-import { Display, Avatar, Pole } from './ui'
+import { Display, Avatar } from './ui'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
 
 type Seleccion = {
@@ -200,25 +200,6 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
             </View>
           )}
 
-          <View style={s.info}>
-            <Pole height={6} radius={0} />
-            <View style={s.infoCuerpo}>
-            {cargando ? <ActivityIndicator color={COLORS.red} /> : (
-              <>
-                <View style={s.infoCol}>
-                  <Text style={s.infoNum}>{resumen?.delante ?? 0}</Text>
-                  <Text style={s.infoLbl}>{(resumen?.delante ?? 0) === 1 ? 'persona delante' : 'personas delante'}</Text>
-                </View>
-                <View style={s.divisor} />
-                <View style={s.infoCol}>
-                  <Text style={s.infoNum}>≈ {espera}</Text>
-                  <Text style={s.infoLbl}>min de espera</Text>
-                </View>
-              </>
-            )}
-            </View>
-          </View>
-
           <View style={s.aviso}>
             <Ionicons name="alarm-outline" size={16} color={COLORS.textMid} />
             <Text style={s.avisoT}>Cuando te llamen tendrás {ventana} min para llegar. Te avisaremos por notificación.</Text>
@@ -227,24 +208,38 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
           {/* LO QUE HAY QUE SABER DEL DOBLE SERVICIO, dicho antes de confirmar:
               que el segundo no se adelanta. Es la diferencia con entrar dos
               veces a mano, que es lo que la gente hacía y por lo que acababa
-              llamada desde dos sillas a la vez. Y que la cuenta de arriba es
+              llamada desde dos sillas a la vez. Y que el puesto del pie es el
               del primero: contar los dos sería prometer una hora inventada. */}
           {segundo && (
             <View style={s.aviso}>
               <Ionicons name="swap-vertical-outline" size={16} color={COLORS.textMid} />
               <Text style={s.avisoT}>
                 Primero {perfil?.turno_usuarios?.nombre ?? 'el primero'} y después {segundo.perfil?.turno_usuarios?.nombre ?? 'el segundo'}.
-                No te llaman para el segundo hasta que termines el primero; la espera de arriba es la del primero.
+                  No te llaman para el segundo hasta que termines el primero, y el puesto de abajo es el del primero.
               </Text>
             </View>
           )}
 
-          <TouchableOpacity style={s.cta} onPress={entrar} disabled={entrando || cargando}>
-            {entrando ? <ActivityIndicator color="#fff" /> : (
-              <Text style={s.ctaT}>{segundo ? 'Entrar a las dos filas' : 'Entrar a la fila digital'}</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity onPress={onClose} disabled={entrando}><Text style={s.cancel}>Cancelar</Text></TouchableOpacity>
+          {/* EL RECUENTO VA PEGADO AL BOTÓN, no en un bloque aparte arriba.
+              Estaba en un rectángulo oscuro con las cifras en grande, y
+              competía con la decisión: lo que se lee justo antes de tocar es
+              en qué puesto entras, cuánto esperas y cuánto cuesta. Los tres
+              datos en una línea, al alcance del pulgar que va a confirmar. */}
+          <View style={s.pie}>
+            <View style={s.recuento}>
+              <Text style={s.recuentoT}>
+                {cargando ? 'Consultando la fila…'
+                  : `Entras ${(resumen?.delante ?? 0) + 1}º · unos ${espera} min`}
+              </Text>
+              <Text style={s.recuentoP}>{dinero(total, negocio?.moneda)}</Text>
+            </View>
+            <TouchableOpacity style={s.cta} onPress={entrar} disabled={entrando || cargando}>
+              {entrando ? <ActivityIndicator color="#fff" /> : (
+                <Text style={s.ctaT}>{segundo ? 'Entrar a las dos filas' : 'Entrar a la fila'}</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} disabled={entrando}><Text style={s.cancel}>Cancelar</Text></TouchableOpacity>
+          </View>
         </Animated.View>
       </View>
     </Modal>
@@ -253,7 +248,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, paddingHorizontal: 24, paddingTop: 6, paddingBottom: 36 },
+  sheet: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 24 },
   sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14,
     borderTopWidth: 2, borderTopColor: COLORS.ink, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 12 },
@@ -266,10 +261,10 @@ const s = StyleSheet.create({
   totalN: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   quitar: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight, paddingVertical: 8, marginBottom: 4 },
   anadir: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: COLORS.ink,
-    borderRadius: 4, padding: 13, marginBottom: 12 },
+    padding: 13, marginBottom: 12 },
   anadirT: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
   anadirD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  elegir: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 13, marginBottom: 12 },
+  elegir: { borderWidth: 1.5, borderColor: COLORS.border, padding: 13, marginBottom: 12 },
   elegirHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   elegirT: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
   elegirX: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight },
@@ -279,16 +274,14 @@ const s = StyleSheet.create({
     paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   candServN: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   candServP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
-  info: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 12, overflow: 'hidden' },
-  infoCuerpo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 18, minHeight: 84 },
-  infoCol: { flex: 1, alignItems: 'center' },
-  infoNum: { fontFamily: FONTS.display, fontSize: 34, color: '#fff' },
-  infoLbl: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.onCarbonMid, marginTop: 2 },
-  divisor: { width: 1, height: 40, backgroundColor: 'rgba(255,255,255,0.15)' },
   aviso: { flexDirection: 'row', alignItems: 'center', gap: 9, borderLeftWidth: 3, borderLeftColor: COLORS.border,
     paddingLeft: 11, paddingVertical: 8, marginBottom: 14 },
   avisoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid },
-  cta: { backgroundColor: COLORS.red, borderRadius: 4, padding: 17, alignItems: 'center' },
-  ctaT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
+  ctaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  pie: { borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 14, marginTop: 4 },
+  recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 },
+  recuentoT: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },
+  recuentoP: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   cancel: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
 })

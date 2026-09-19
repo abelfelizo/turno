@@ -100,42 +100,57 @@ panel del barbero, que es donde se decide cómo se presenta un local de uno.
 
 ## Lo que quedó fuera del frontend de cliente
 
-El panel de cliente ya está convertido: pestañas, tarjeta unificada, hoja de
-elegir, historial y ajustes. Lo que **no** entró en esa ronda:
+El panel de cliente está convertido entero: las cuatro pestañas, la tarjeta
+unificada con sus 20 estados, y las cuatro ventanas auxiliares (elegir,
+confirmar la fila, reservar, reseñar, agregar con un código). Lo que **no**
+entró, y por qué:
 
-### 1 · `agendar.tsx` sigue sin convertir a D2
+### 1 · Las etiquetas rápidas de la reseña
 
-Funciona y recibe `perfil` y `servicio` desde la hoja de elegir, así que la
-puerta está bien puesta. Lo que le falta es el lenguaje visual: sigue con las
-esquinas redondeadas y la tipografía de antes. **No se tocó a propósito**: es
-la pantalla con más estado de todo el panel (día, hueco, grupo, reprogramar) y
-mezclar un rediseño con el cambio de rutas es la forma de no saber cuál de los
-dos rompió qué.
+El pliego dibuja cuatro botones —Puntual, Buen corte, Buen trato, Local
+limpio— debajo del comentario. **No están porque no hay dónde guardarlos**:
+`turno_resenas` tiene `rating` y `comentario`, y nada más. Meterlos dentro del
+texto libre sería ensuciar el único campo que el barbero lee de verdad.
+Necesita una migración (una tabla de etiquetas, o un `text[]`), y eso es
+trabajo de servidor, no de pantalla.
 
 ### 2 · La pausa de fila, del lado del servidor
 
-La tarjeta y la hoja ya **saben** leerla —el barbero en pausa sale apagado y
-con la hora a la que vuelve, y el chip de su silla se pinta en ámbar— pero el
-motivo que enseñan es el que ya manda `turno_estado_barbero`. Poner la fila en
-pausa desde el panel del barbero, y el aviso de retraso a quien espera, es
-trabajo de migración: entero en `PAUSA-DE-FILA.md`.
+La app ya **sabe leerla** entera: el barbero en pausa sale apagado y con la
+hora a la que vuelve, el chip de su silla se pinta en ámbar, la fila entera en
+pausa cambia la cifra por la hora de vuelta, y si tienes turno se te dice que
+sigue en pie. Todo eso sale de lo que `turno_estado_barbero` ya manda. Lo que
+falta es **poner** la pausa desde el panel del barbero y avisar del retraso a
+quien espera: entero en `PAUSA-DE-FILA.md`.
 
-### 3 · Reseñas e historial siguen siendo de UN local
+### 3 · El historial sigue siendo de UN local
 
-`getHistorialCliente` filtra por `negocio_id`, así que «TUS NÚMEROS AQUÍ»
-dice la verdad —son los de este local— pero el cliente que va a dos barberías
-no tiene dónde ver su total. (`getMisResenas` sí es de la persona entera, y no
-pasa nada: solo se usa para tachar las visitas ya calificadas, y una visita
-solo existe en el local donde pasó.) Va cuando se decida qué es de
-la persona y qué del local, la misma pregunta que `BARBERO-QUE-ALQUILA.md`
-contesta para los recortes.
+`getHistorialCliente` filtra por `negocio_id`, así que «TUS NÚMEROS AQUÍ» dice
+la verdad —son los de este local— pero el cliente que va a dos barberías no
+tiene dónde ver su total. Va cuando se decida qué es de la persona y qué del
+local, la misma pregunta que `BARBERO-QUE-ALQUILA.md` contesta para los
+recortes. (`getMisResenas` sí es de la persona entera, y no pasa nada: solo se
+usa para tachar las visitas ya calificadas, y una visita solo existe en el
+local donde pasó.)
 
 ### 4 · El próximo hueco solo mira HOY
 
 Con el local trabajando únicamente con cita, la cifra grande enseña la hora
-del primer hueco libre de hoy. Si no queda ninguno dice que no quedan, y para
-otro día está el botón de reservar. Mirar mañana ahí dentro convertiría la
-cifra principal en un dato que no se puede usar sin abrir la agenda igual.
+del primer hueco libre de hoy. Si no queda ninguno lo dice, y para otro día
+está el botón de reservar. Mirar mañana ahí dentro convertiría la cifra
+principal en un dato que no se puede usar sin abrir la agenda igual.
+
+### 5 · Dos desvíos del pliego, hechos a propósito
+
+- **Entrar a la fila son dos hojas, no una.** El tablero dibuja una sola:
+  elegir barbero, servicio y cuántos van, todo con el botón abajo. Se quedó en
+  dos —elegir y confirmar— porque la de confirmar es la que pide el **doble
+  servicio**, que el tablero nunca dibujó y que la base sabe hacer desde la
+  migración 114. Meterlo todo en una hoja obligaba a tirar esa parte o a
+  dibujarla de nuevo a ciegas.
+- **La reserva numera sus pasos** (1 · BARBERO, 2 · SERVICIO…) y el tablero
+  no. Son cuatro decisiones encadenadas en una pantalla que se desplaza:
+  numerarlas dice cuántas quedan, que es la pregunta que se hace a mitad.
 
 ---
 

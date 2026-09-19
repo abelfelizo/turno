@@ -86,17 +86,24 @@ export default function BuscarBarbero() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.hint}>
-          Escribe el código que te dieron. Sirve el de la barbería y el de tu
-          barbero: si es el suyo, te enseñamos dónde trabaja para que elijas.
-        </Text>
+        <Text style={s.sec}>EL CÓDIGO</Text>
+        {/* El campo es GRANDE y las letras van separadas porque un código se
+            copia de un papel mirando una letra cada vez. Apretado y en
+            cuerpo normal se salta un carácter y el error llega al final. */}
         <View style={s.buscarRow}>
-          <TextInput style={s.input} placeholder="Código" placeholderTextColor={COLORS.textLight}
-            autoCapitalize="characters" maxLength={9} value={codigo} onChangeText={t => setCodigo(t.toUpperCase())} />
-          <TouchableOpacity style={s.buscarBtn} onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
-            {buscando ? <ActivityIndicator color="#fff" /> : <Ionicons name="search" size={20} color="#fff" />}
+          <TextInput style={s.input} placeholder="BD4K" placeholderTextColor={COLORS.border}
+            autoCapitalize="characters" autoCorrect={false} maxLength={9}
+            value={codigo} onChangeText={t => setCodigo(t.toUpperCase())}
+            onSubmitEditing={buscar} returnKeyType="go" />
+          <TouchableOpacity style={[s.buscarBtn, (buscando || codigo.trim().length < 4) && s.buscarBtnOff]}
+            onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
+            {buscando ? <ActivityIndicator color="#fff" /> : <Text style={s.buscarBtnT}>Entrar</Text>}
           </TouchableOpacity>
         </View>
+        <Text style={s.hint}>
+          Te lo da la barbería, o tu barbero. Con él entras directo, sin buscar
+          nada. Si es el suyo, te enseñamos dónde trabaja para que elijas.
+        </Text>
 
         {/* Solo aparece con un código DE BARBERO: el de la barbería entra
             derecho, sin pantalla intermedia — no hay nada que elegir. */}
@@ -116,8 +123,10 @@ export default function BuscarBarbero() {
             {negocios.map((n) => (
               <TouchableOpacity key={n.negocio_id} style={s.local} onPress={() => irAlLocal(n)} disabled={yendo}>
                 <Ionicons name="storefront-outline" size={20} color={COLORS.red} />
-                <Text style={s.localT}>{n.nombre}</Text>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+                <Text style={s.localT} numberOfLines={1}>{n.nombre}</Text>
+                {/* Una flecha no dice qué pasa al tocar. Esto sí, y es lo que
+                    el cliente vino a hacer: sumarse a ese local. */}
+                <View style={s.agregar}><Text style={s.agregarT}>Agregar</Text></View>
               </TouchableOpacity>
             ))}
           </>
@@ -130,14 +139,17 @@ export default function BuscarBarbero() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderRadius: 4, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  hint: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, marginBottom: 16 },
-  buscarRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  input: { flex: 1, borderWidth: 2, borderColor: COLORS.ink, borderRadius: 4, padding: 14, fontSize: 18, fontFamily: FONTS.bold, letterSpacing: 3, color: COLORS.ink },
-  buscarBtn: { width: 54, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  back: { width: 36, height: 36, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  hint: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
+  buscarRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
+  input: { flex: 1, height: 56, borderWidth: 2, borderColor: COLORS.ink, paddingHorizontal: 14,
+    fontFamily: FONTS.display, fontSize: 26, letterSpacing: 5, color: COLORS.ink },
+  buscarBtn: { width: 112, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  buscarBtnOff: { backgroundColor: COLORS.border },
+  buscarBtnT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16,
     borderTopWidth: 2, borderTopColor: COLORS.ink, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  nombre: { fontFamily: FONTS.extrabold, fontSize: 18, color: COLORS.ink },
+  nombre: { fontFamily: FONTS.display, fontSize: 21, color: COLORS.ink, textTransform: 'uppercase' },
   esp: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginTop: 2 },
   bio: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
@@ -145,4 +157,6 @@ const s = StyleSheet.create({
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   localT: { flex: 1, fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.red },
+  agregarT: { fontFamily: FONTS.display, fontSize: 14, color: '#fff', textTransform: 'uppercase' },
 })

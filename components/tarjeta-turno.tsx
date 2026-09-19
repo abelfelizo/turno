@@ -36,7 +36,8 @@
  * «Eres el siguiente» se queda en filete: gastar el grito antes lo desactiva
  * para cuando de verdad hace falta.
  */
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native'
+import { useEffect, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, FONTS } from '../constants'
 import { Pole, PuntoVivo } from './ui'
@@ -85,6 +86,15 @@ type Props = {
    * sirviendo; uno viejo disfrazado de fresco manda al cliente al local.
    */
   desconectado?: boolean
+
+  /**
+   * Minutos desde la última consulta que SÍ llegó.
+   *
+   * «Sin conexión» solo dice que ahora no hay línea; lo que decide si el
+   * cliente puede fiarse del número es cuánto hace que se midió. Dos minutos
+   * es la misma fila; veinte no se parece en nada.
+   */
+  desdeMin?: number | null
 
   /**
    * Todavía no está en ninguna barbería (cuenta recién hecha).
@@ -292,7 +302,8 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
         </View>
         {p.abierto && !p.sinServicio && !p.sinLocal && (
           <Text style={s.estadoDer} numberOfLines={1}>
-            {p.desconectado ? 'Último dato conocido'
+            {p.desconectado
+              ? (p.desdeMin != null ? `Datos de hace ${p.desdeMin} min` : 'Último dato conocido')
               : (p.delante === 0 ? 'Nadie esperando' : `${p.delante} esperando`)
                 + (p.libres > 0 ? ` · ${p.libres} libre${p.libres === 1 ? '' : 's'}` : '')}
           </Text>
@@ -420,6 +431,10 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
         color="#fff"
         // «Eres el siguiente» todavía NO es rojo macizo: aún no te han llamado.
         filete={!p.llamado && p.puesto === 1}
+        // E12 · Solo cuando de verdad se acaba el tiempo. Late despacio, no
+        // parpadea: un destello rápido se lee como un fallo de la pantalla y
+        // se mira menos, justo al revés de lo que hace falta aquí.
+        latiendo={p.urgente}
       />
 
       <Text style={s.servicio} numberOfLines={1}>{p.turno?.servicio ?? 'Tu turno'}</Text>
@@ -478,10 +493,31 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
 
 /* ─────────────────────────────── piezas ─────────────────────────────────── */
 
-function Cifra({ valor, rotulo, color, filete }: { valor: string; rotulo: string; color: string; filete?: boolean }) {
+function Cifra({ valor, rotulo, color, filete, latiendo }: {
+  valor: string; rotulo: string; color: string; filete?: boolean; latiendo?: boolean
+}) {
+  /**
+   * El latido va por `opacity` y con el driver nativo, así que corre en el
+   * hilo de la interfaz: si fuera por JavaScript se pararía justo cuando la
+   * pantalla está ocupada recargando la fila —que es exactamente el minuto
+   * en el que tiene que latir.
+   */
+  const alfa = useRef(new Animated.Value(1)).current
+  useEffect(() => {
+    if (!latiendo) { alfa.setValue(1); return }
+    const ciclo = Animated.loop(Animated.sequence([
+      Animated.timing(alfa, { toValue: 0.25, duration: 520, useNativeDriver: true }),
+      Animated.timing(alfa, { toValue: 1, duration: 520, useNativeDriver: true }),
+    ]))
+    ciclo.start()
+    return () => { ciclo.stop(); alfa.setValue(1) }
+  }, [latiendo, alfa])
+
   return (
     <View style={[s.cifraCaja, filete && s.cifraFilete]}>
-      <Text style={[s.cifra, { color }, valor.length > 3 && { fontSize: 46 }]}>{valor}</Text>
+      <Animated.Text style={[s.cifra, { color, opacity: alfa }, valor.length > 3 && { fontSize: 46 }]}>
+        {valor}
+      </Animated.Text>
       <Text style={s.cifraRot}>{rotulo}</Text>
     </View>
   )

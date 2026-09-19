@@ -68,6 +68,8 @@ export default function MiTurno() {
   const [sinLocal, setSinLocal] = useState(false)
   // La última consulta viva no llegó. Lo que se ve es lo de antes y se dice.
   const [desconectado, setDesconectado] = useState(false)
+  // Cuándo se midió por última vez lo que se está enseñando. Ver `desdeMin`.
+  const [medidoEn, setMedidoEn] = useState<number | null>(null)
   const [porDueno, setPorDueno] = useState(false)
   // El local puede apagar el doble servicio. La configuración ya se cargaba
   // aquí para `asignacion_por_dueno`; esto sale de la misma fila.
@@ -102,12 +104,15 @@ export default function MiTurno() {
       ? Math.max(0, Math.ceil((new Date(t.expira_at).getTime() - Date.now()) / 60000))
       : null
   }
+  // El mismo latido sirve para dos cosas: la ventana de llegada y la edad del
+  // dato cuando se cayó la conexión. Sin la segunda, «hace 2 min» se quedaba
+  // clavado en 2 aunque pasara media hora.
   const hayCuenta = turnos.some((t: any) => t.expira_at && t.estado !== 'atendiendo')
   useEffect(() => {
-    if (!hayCuenta) return
+    if (!hayCuenta && !desconectado) return
     const i = setInterval(() => setTic(x => x + 1), 15000)
     return () => clearInterval(i)
-  }, [hayCuenta])
+  }, [hayCuenta, desconectado])
 
   const cargar = useCallback(async () => {
    try {
@@ -131,7 +136,8 @@ export default function MiTurno() {
     ])
     setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
-    setSillas(est as any[]); setResumen(res as any); setDesconectado(false)
+    setSillas(est as any[]); setResumen(res as any)
+    setDesconectado(false); setMedidoEn(Date.now())
     // Por defecto SÍ, igual que en la base (`coalesce(doble_servicio_activo,
     // true)`): un local sin fila de configuración no es un local que lo haya
     // apagado. Si la consulta falla, `cfg` es null y aquí da falso — en la duda
@@ -195,6 +201,7 @@ export default function MiTurno() {
     setDesconectado(!est || !res)
     if (est) setSillas(est as any[])
     if (res) setResumen(res as any)
+    if (est && res) setMedidoEn(Date.now())
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     await calcularEtas(ts as any[])
   }, [calcularEtas])
@@ -413,6 +420,9 @@ export default function MiTurno() {
         delante={resumen.delante}
         esperaMin={resumen.espera_min}
         desconectado={desconectado}
+        // Se recalcula con el mismo `tic` de 15 s que lleva la cuenta atrás:
+        // un reloj más para esto sería despertar la pantalla dos veces.
+        desdeMin={medidoEn != null ? Math.max(0, Math.floor((Date.now() - medidoEn) / 60000)) : null}
         sinLocal={sinLocal}
         onAgregarLocal={() => router.push('/(app)/cliente/buscar-barbero')}
         proximoHueco={hueco?.hora ?? null}
