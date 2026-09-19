@@ -139,7 +139,7 @@ export default function Agendar() {
       }
       const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
       const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`
-      Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
+      Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/turno') }])
     } catch (e: any) { Alert.alert('No se pudo agendar', e.message ?? 'Intenta otro horario.') }
     finally { setEnviando(false) }
   }

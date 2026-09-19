@@ -1,9 +1,27 @@
+/**
+ * AGREGAR CON UN CÓDIGO. UN SOLO CAMPO PARA LAS DOS COSAS.
+ *
+ * El cliente no sabe —ni tiene por qué— si el papelito que le dieron lleva el
+ * código de la barbería o el de su barbero: es un código y ya. Preguntárselo
+ * («¿es de local o de barbero?») es pedirle que nos resuelva a nosotros un
+ * problema nuestro, y equivocarse le devolvía un «no encontrado» que era
+ * mentira: el código existía, solo que se buscó en la tabla que no era.
+ *
+ * Aquí se preguntan las dos a la vez y se queda la que conteste. Salen juntas
+ * y no una detrás de otra porque encadenarlas cobraría dos esperas a quien
+ * traiga un código de barbero, que es el caso más común.
+ *
+ * Por código y NO por buscador. Una barbería no se elige de una lista de
+ * resultados: se va a la del barrio, a la que le dieron a uno el papel. Un
+ * buscador abierto invita a escribir «barbería» y llevarse cien nombres que
+ * no le sirven a nadie.
+ */
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native'
 import { useState } from 'react'
 import { useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getBarberoPorCodigo, getBarberoNegocios, seguirBarberoEnNegocio } from '../../../lib/db'
+import { getBarberoPorCodigo, getBarberoNegocios, seguirBarberoEnNegocio, getNegocioPorCodigo } from '../../../lib/db'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
@@ -24,10 +42,24 @@ export default function BuscarBarbero() {
     if (codigo.trim().length < 4) return
     setBuscando(true); setBarbero(null); setNegocios([])
     try {
-      const b = await getBarberoPorCodigo(codigo.trim())
-      if (!b) { Alert.alert('No encontrado', 'No hay un barbero con ese código. Revísalo e intenta de nuevo.'); return }
-      setBarbero(b)
-      setNegocios(await getBarberoNegocios(b.id).catch(() => []))
+      // `getNegocioPorCodigo` LANZA cuando no lo encuentra y `getBarberoPorCodigo`
+      // devuelve null: dos formas de decir lo mismo. Aquí se igualan a null,
+      // porque en esta pantalla «no es un local» no es un error — es la mitad
+      // de la respuesta.
+      const [neg, bar] = await Promise.all([
+        getNegocioPorCodigo(codigo.trim()).catch(() => null),
+        getBarberoPorCodigo(codigo.trim()).catch(() => null),
+      ])
+      // El local primero: si un día un código valiera para los dos, entrar a
+      // la barbería lleva dentro a su barbero, y al revés no.
+      if (neg) { await irAlLocal({ negocio_id: neg.id, nombre: neg.nombre }); return }
+      if (!bar) {
+        Alert.alert('No encontrado',
+          'No hay ninguna barbería ni ningún barbero con ese código. Revísalo e intenta de nuevo.')
+        return
+      }
+      setBarbero(bar)
+      setNegocios(await getBarberoNegocios(bar.id).catch(() => []))
     } catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
     finally { setBuscando(false) }
   }
@@ -38,7 +70,7 @@ export default function BuscarBarbero() {
       await seguirBarberoEnNegocio(n.negocio_id)
       const ss = await getSesion()
       await guardarSesion({ ...(ss || {}), negocio_id: n.negocio_id, rol: 'cliente' } as any)
-      router.replace('/(app)/cliente/home')
+      router.replace('/(app)/cliente/turno')
     } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.'); setYendo(false) }
   }
 
@@ -50,19 +82,24 @@ export default function BuscarBarbero() {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={COLORS.ink} /></TouchableOpacity>
-        <Display size={24}>Buscar barbero</Display>
+        <Display size={24}>Agregar con un código</Display>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
-        <Text style={s.hint}>Escribe el código que te compartió tu barbero para seguirlo y reservar donde trabaje.</Text>
+        <Text style={s.hint}>
+          Escribe el código que te dieron. Sirve el de la barbería y el de tu
+          barbero: si es el suyo, te enseñamos dónde trabaja para que elijas.
+        </Text>
         <View style={s.buscarRow}>
-          <TextInput style={s.input} placeholder="Código del barbero" placeholderTextColor={COLORS.textLight}
+          <TextInput style={s.input} placeholder="Código" placeholderTextColor={COLORS.textLight}
             autoCapitalize="characters" maxLength={9} value={codigo} onChangeText={t => setCodigo(t.toUpperCase())} />
           <TouchableOpacity style={s.buscarBtn} onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
             {buscando ? <ActivityIndicator color="#fff" /> : <Ionicons name="search" size={20} color="#fff" />}
           </TouchableOpacity>
         </View>
 
+        {/* Solo aparece con un código DE BARBERO: el de la barbería entra
+            derecho, sin pantalla intermedia — no hay nada que elegir. */}
         {barbero && (
           <>
             <View style={s.card}>

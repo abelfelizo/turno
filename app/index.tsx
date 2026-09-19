@@ -53,7 +53,7 @@ export default function Index() {
       await guardarSesion({ usuario_id: usuario.id, negocio_id: m.negocio_id, perfil_id, rol, panel })
       registrarPush() // fire-and-forget: registra/actualiza el token push del usuario
 
-      if (panel === 'cliente') router.replace('/(app)/cliente/home')
+      if (panel === 'cliente') router.replace('/(app)/cliente/turno')
       else if (panel === 'barberia') router.replace('/(app)/dueno/dashboard')
       else router.replace('/(app)/barbero/agenda')
     })().catch(() => router.replace('/(auth)/login'))

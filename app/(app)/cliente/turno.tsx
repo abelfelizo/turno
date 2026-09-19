@@ -1,28 +1,57 @@
+/**
+ * MI TURNO. LA PRIMERA PANTALLA, Y LA RAZÓN DE QUE LA APP SE LLAME TURNO.
+ *
+ * Antes esta pantalla era una lista: el ticket del turno, debajo el catálogo
+ * entero de barberos con sus servicios colgando, y entre medias dos botones
+ * que volvían a abrir ese mismo catálogo. La decisión principal —¿cuánto
+ * falta para lo mío?— competía con veinte precios.
+ *
+ * Ahora manda UNA TARJETA. Es el único objeto oscuro de la pantalla y funde
+ * dos cosas que antes eran dos bloques con dos postes: cómo está la barbería y
+ * cómo va tu turno. La regla que lo ordena está escrita en el componente:
+ * si tienes turno manda tu turno y el local baja a nota al pie; si no lo
+ * tienes, manda el local.
+ *
+ * Elegir barbero y servicio se fue a una hoja (components/hoja-pedir), y la
+ * lista de precios a «Mi barbería», que es donde se va a mirar precios. Aquí
+ * solo quedan las puertas.
+ *
+ * LO QUE SE CARGA SIN `.catch` ES LA LISTA DE TURNOS. Es la más peligrosa de
+ * toda la app para tapar: si falla y devuelve vacío, el cliente que ESTÁ en la
+ * fila lee que no tiene turno, se va del local y pierde el puesto. Lo demás
+ * sí lo lleva — sin el estado de las sillas o sin las citas la pantalla
+ * enseña menos, pero lo que enseña es verdad.
+ */
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
   getMisTurnosActivos, getTurnoExpirado, confirmarCamino, salirDeCola, etaCola, yaLlegue,
   getPerfilesNegocio, getNegocioById, getConfiguracion, puedeConfirmar, getMisCitas, getMiUsuario,
-  getRatingsNegocio, getPuesto, getMiPreferido, marcarPreferido,
+  getRatingsNegocio, getPuesto, getMiPreferido, getEstadoLocal, getResumenFila, getMisNegociosCliente,
+  slotsDisponibles,
 } from '../../../lib/db'
-import { hora12, fechaLarga, fechaDeISO } from '../../../lib/format'
+import { hora12, fechaLarga, fechaDeISO, fechaISOLocal, dinero } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
-import { aceptaFila, filaAbierta, fraseFila } from '../../../lib/atencion'
+import { filaAbierta, aceptaCitas } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
-import { dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar, NoCargo, Pole, Perforacion } from '../../../components/ui'
+import { NoCargo } from '../../../components/ui'
+import TarjetaTurno, { soloConCita, type TurnoVivo } from '../../../components/tarjeta-turno'
+import HojaPedir, { type Via } from '../../../components/hoja-pedir'
 import HojaFila from '../../../components/hoja-fila'
-import Resenas from '../../../components/resenas'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function MiTurno() {
   // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
   // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
   const insets = useSafeAreaInsets()
+  const router = useRouter()
+  // Se llega aquí desde la ficha de un barbero en «Mi barbería». Ese toque ya
+  // eligió persona: la hoja se abre con él y solo queda el servicio.
+  const params = useLocalSearchParams<{ perfil?: string }>()
   const [turnos, setTurnos] = useState<any[]>([])
   const [etas, setEtas] = useState<Record<string, number | null>>({})
   const [puede, setPuede] = useState<Record<string, boolean>>({})
@@ -31,6 +60,9 @@ export default function MiTurno() {
   const [expirado, setExpirado] = useState<any>(null)
   const [negocio, setNegocio] = useState<any>(null)
   const [perfiles, setPerfiles] = useState<any[]>([])
+  const [sillas, setSillas] = useState<any[]>([])
+  const [resumen, setResumen] = useState({ delante: 0, espera_min: 0 })
+  const [variosLocales, setVariosLocales] = useState(false)
   const [porDueno, setPorDueno] = useState(false)
   // El local puede apagar el doble servicio. La configuración ya se cargaba
   // aquí para `asignacion_por_dueno`; esto sale de la misma fila.
@@ -39,17 +71,18 @@ export default function MiTurno() {
   const [refreshing, setRefreshing] = useState(false)
   const [fallo, setFallo] = useState(false)
   const [accion, setAccion] = useState<string | null>(null)
+  const [via, setVia] = useState<Via | null>(null)
+  const [soloPerfil, setSoloPerfil] = useState<string | null>(null)
   const [hoja, setHoja] = useState<any>(null)
   const [citas, setCitas] = useState<any[]>([])
   const [usuarioNombre, setUsuarioNombre] = useState('')
-  // Especialidad y estrellas: estaban en Inicio, dentro del catálogo que se
-  // quitó. Van donde se elige de verdad — aquí — porque son exactamente lo que
-  // se mira para decidir con quién te sientas.
   const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
-  const [resenasDe, setResenasDe] = useState<{ id: string; nombre?: string } | null>(null)
-  // Su barbero de confianza en este local (migración 83).
+  // Su barbero de confianza en este local (migración 83). Se marca en «Mi
+  // barbería», que es donde está la ficha de cada uno.
   const [preferido, setPreferido] = useState<string | null>(null)
-  const [negocioId, setNegocioId] = useState<string | null>(null)
+  // El próximo hueco de hoy cuando el local solo trabaja con cita. Ver más
+  // abajo: es una consulta aparte porque solo hace falta en ese caso.
+  const [hueco, setHueco] = useState<{ hora: string; mio: boolean } | null>(null)
   const [tic, setTic] = useState(0)
 
   // La ventana de llegada corre desde que el barbero llama (`expira_at`, que lo
@@ -71,18 +104,12 @@ export default function MiTurno() {
     return () => clearInterval(i)
   }, [hayCuenta])
 
-  // De las ocho llamadas, la de los turnos va SIN `.catch`. Es la más peligrosa
-  // de tapar de toda la app: si se cae y devuelve una lista vacía, el cliente
-  // que ESTÁ en la fila lee que no tiene ningún turno, se va del local y pierde
-  // el puesto. Las otras siete se quedan como están: sin ratings, sin citas o
-  // sin el nombre del negocio la pantalla enseña menos, pero lo que enseña es
-  // verdad.
   const cargar = useCallback(async () => {
    try {
     setFallo(false)
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) return
-    const [ts, neg, perf, cfg, cts, yo, rt, pref] = await Promise.all([
+    const [ts, neg, perf, cfg, cts, yo, rt, pref, est, res] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }).catch(() => []),
@@ -93,10 +120,12 @@ export default function MiTurno() {
       getMiUsuario().catch(() => null),
       getRatingsNegocio(ss.negocio_id).catch(() => ({})),
       getMiPreferido(ss.negocio_id).catch(() => null),
+      getEstadoLocal(ss.negocio_id).catch(() => []),
+      getResumenFila(ss.negocio_id).catch(() => ({ delante: 0, espera_min: 0 })),
     ])
-    setNegocioId(ss.negocio_id)
     setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
+    setSillas(est as any[]); setResumen(res as any)
     // Por defecto SÍ, igual que en la base (`coalesce(doble_servicio_activo,
     // true)`): un local sin fila de configuración no es un local que lo haya
     // apagado. Si la consulta falla, `cfg` es null y aquí da falso — en la duda
@@ -104,6 +133,11 @@ export default function MiTurno() {
     setDobleActivo(cfg ? cfg.doble_servicio_activo !== false : false)
     setRatings(rt as any)
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
+    // El nombre del local solo se vuelve conmutador si hay a dónde conmutar.
+    // Con un local, una flecha que no lleva a ningún sitio.
+    if ((yo as any)?.id) {
+      setVariosLocales(((await getMisNegociosCliente((yo as any).id).catch(() => [])) as any[]).length > 1)
+    }
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     await calcularEtas(ts as any[])
    } catch {
@@ -116,7 +150,7 @@ export default function MiTurno() {
   /**
    * Iba de uno en uno, con dos `await` en serie por turno. Con la conexión de un
    * móvil eso se nota: cada turno sumaba dos idas y vueltas ENCADENADAS, después
-   * de las seis de arriba. Ahora van todas a la vez.
+   * de las de arriba. Ahora van todas a la vez.
    */
   const calcularEtas = useCallback(async (ts: any[]) => {
     const res = await Promise.all(ts.map(async (t: any) => ({
@@ -133,21 +167,84 @@ export default function MiTurno() {
   }, [])
 
   /**
-   * Lo que cambia mientras esperas es tu turno y su ETA. El negocio, los
-   * barberos, la configuración y tu nombre no cambian porque alguien más entre a
-   * la fila, y sin embargo se volvían a pedir con cada evento y cada 60 s.
+   * Lo que cambia mientras esperas es tu turno, su ETA y la fila del local. El
+   * negocio, los barberos, la configuración y tu nombre no cambian porque
+   * alguien más entre a la fila, y sin embargo se volvían a pedir con cada
+   * evento y cada 60 s.
    */
   const cargarVivo = useCallback(async () => {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) return
-    const [ts, cts] = await Promise.all([
+    const [ts, cts, est, res] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id).catch(() => []),
       getMisCitas(ss.usuario_id, ss.negocio_id).catch(() => []),
+      getEstadoLocal(ss.negocio_id).catch(() => null),
+      getResumenFila(ss.negocio_id).catch(() => null),
     ])
     setTurnos(ts as any[]); setCitas(cts as any[])
+    // `null` aquí es "no pude preguntar", no "no hay nadie": pisar las sillas
+    // con una lista vacía apagaría un local que está abierto.
+    if (est) setSillas(est as any[])
+    if (res) setResumen(res as any)
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
     await calcularEtas(ts as any[])
   }, [calcularEtas])
+
+  /**
+   * EL PRÓXIMO HUECO, SOLO CUANDO HACE FALTA.
+   *
+   * Con el local trabajando únicamente con cita, la cifra grande de la tarjeta
+   * no tiene espera que enseñar. Enseñaba un guion: verdad inútil, porque deja
+   * al cliente con la pregunta entera y le obliga a abrir la agenda para
+   * saber a qué hora puede venir.
+   *
+   * Se pregunta por TU BARBERO primero, y si no tiene nada, por el resto en
+   * orden. Las consultas salen a la vez —con cuatro barberos, en serie, eran
+   * cuatro idas y vueltas antes de pintar nada— y la prioridad se aplica
+   * después, sobre las respuestas.
+   *
+   * El servicio de referencia es el primero activo de cada uno: los huecos
+   * dependen de cuánto dura el servicio, así que hace falta uno para poder
+   * preguntar. No se busca el habitual del cliente porque el habitual es de
+   * quien lo hace, y aquí todavía no se ha elegido con quién.
+   *
+   * Solo mira HOY. «Mañana a las nueve» no es una respuesta que merezca la
+   * cifra principal: para eso está el botón de reservar, que abre la agenda.
+   */
+  const soloCitas = soloConCita(sillas as any)
+  const hayTurno = turnos.length > 0
+  useEffect(() => {
+    if (!soloCitas || hayTurno) { setHueco(null); return }
+    // Como cualquier `await` dentro de un efecto: si la pantalla se fue o los
+    // datos cambiaron mientras la red iba y venía, lo que vuelve ya no vale.
+    let vigente = true
+    const candidatos = perfiles
+      .filter((p: any) => aceptaCitas(p))
+      .map((p: any) => ({ p, sv: (p.turno_servicios ?? []).find((x: any) => x.activo) }))
+      .filter((c: any) => !!c.sv)
+      .sort((a: any, b: any) => (b.p.id === preferido ? 1 : 0) - (a.p.id === preferido ? 1 : 0))
+    if (candidatos.length === 0) { setHueco(null); return }
+    const hoy = fechaISOLocal()
+    Promise.all(candidatos.map((c: any) =>
+      slotsDisponibles(c.p.id, hoy, c.sv.id).catch(() => [] as string[])))
+      .then(listas => {
+        if (!vigente) return
+        const i = listas.findIndex(l => l.length > 0)
+        setHueco(i < 0 ? null
+          : { hora: hora12(listas[i][0]), mio: candidatos[i].p.id === preferido })
+      })
+    return () => { vigente = false }
+  }, [soloCitas, hayTurno, perfiles, preferido])
+
+  // El parámetro se consume UNA vez: sin esto, cada vuelta a la pestaña
+  // reabriría la hoja del barbero que se tocó hace media hora.
+  const perfilParam = params.perfil
+  useEffect(() => {
+    if (!perfilParam) return
+    setSoloPerfil(perfilParam)
+    setVia('fila')
+    router.setParams({ perfil: undefined })
+  }, [perfilParam])
 
   // Una acción dispara varios eventos de cola casi a la vez; se agrupan.
   const pendiente = useRef<any>(null)
@@ -157,8 +254,8 @@ export default function MiTurno() {
   }, [cargarVivo])
   useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
 
-  // Igual que en Inicio: volver a la pantalla recarga. Aquí también viven las
-  // citas, y reservar una no dispara ningún evento de cola.
+  // Volver a la pantalla recarga: reservar una cita o cambiar de local no
+  // dispara ningún evento de cola.
   const yaEnfocado = useRef(false)
   useFocusEffect(useCallback(() => {
     if (!yaEnfocado.current) { yaEnfocado.current = true; return }
@@ -172,52 +269,31 @@ export default function MiTurno() {
     // El ETA envejece solo: la silla ocupada se vacía con el reloj, no con un
     // cambio en la base, así que sin este refresco el cliente ve una espera
     // que ya no es cierta.
-    // El ETA envejece solo aunque no pase nada en el servidor.
     const t = setInterval(() => cargarVivo(), 60000)
     return () => { if (sub) desuscribir(sub); clearInterval(t) }
   }, [cargar])
 
-  async function voy(t: any) {
+  /**
+   * LA RESPUESTA AL "ES TU TURNO" ES UNA SOLA, Y DEPENDE DE DÓNDE ESTÉS.
+   *
+   * Llamado significa que la silla te espera: lo que hace falta es apagar la
+   * cuenta atrás, y eso es «ya llegué». Todavía en la fila, lo útil es avisar
+   * de que vienes para que no llamen al siguiente mientras cruzas la calle.
+   */
+  async function responder(t: any) {
     setAccion(t.id)
     try {
-      await confirmarCamino(t.id)
-      // El barbero necesita saber que viene en camino para no llamar al
-      // siguiente mientras este cruza la calle.
       const barbero = perfiles.find((p: any) => p.id === t.perfil_id)
-      if (barbero?.usuario_id) avisos.barberoVaEnCamino(barbero.usuario_id, usuarioNombre || 'Tu cliente')
+      if (t.estado === 'llamado' || t.estado === 'en_camino') {
+        await yaLlegue(t.id)
+        if (barbero?.usuario_id) avisos.barberoYaLlego(barbero.usuario_id, usuarioNombre || 'Tu cliente')
+      } else {
+        await confirmarCamino(t.id)
+        if (barbero?.usuario_id) avisos.barberoVaEnCamino(barbero.usuario_id, usuarioNombre || 'Tu cliente')
+      }
       await cargarVivo()
     }
     catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
-  }
-  /**
-   * "Estoy aquí" no es un "voy en camino" más entusiasta: apaga la cuenta atrás
-   * de la ventana de llegada. Ese reloj existe para el que no aparece, y quien
-   * está de pie en el local ya apareció — perder el turno ahí sería absurdo.
-   */
-  async function llegue(t: any) {
-    setAccion(t.id)
-    try {
-      await yaLlegue(t.id)
-      const barbero = perfiles.find((p: any) => p.id === t.perfil_id)
-      if (barbero?.usuario_id) avisos.barberoYaLlego(barbero.usuario_id, usuarioNombre || 'Tu cliente')
-      await cargarVivo()
-    }
-    catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') } finally { setAccion(null) }
-  }
-  /**
-   * MARCAR A MI BARBERO. Un toque en la estrella, sin pantalla intermedia: es
-   * una preferencia, no una configuración, y se cambia el día que te cambias de
-   * barbero. Se guarda en el acto y se refleja aquí mismo.
-   */
-  async function alternarPreferido(p: any) {
-    if (!negocioId) return
-    const nuevo = preferido === p.id ? null : p.id
-    setPreferido(nuevo)                       // optimista: el toque se ve al instante
-    try { await marcarPreferido(negocioId, nuevo) }
-    catch (e: any) {
-      setPreferido(preferido)                 // se deshace si el servidor dice que no
-      Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.')
-    }
   }
 
   function salir(t: any) {
@@ -238,159 +314,119 @@ export default function MiTurno() {
     </View>
   )
 
+  const abiertos = perfiles.filter((p: any) => filaAbierta(p))
   // Para "cualquiera disponible" hace falta UN servicio de referencia: el turno
   // entra sin barbero, pero sí con servicio (de ahí sale la duración y el ETA).
-  // Se coge el primero activo de quien esté aceptando; si un día hay que dejar
-  // elegir servicio primero, este es el punto por donde crece.
-  // Quien trabaja SOLO CON CITA no tiene fila: ofrecerle un turno al cliente
-  // sería mandarlo a un error, porque turno_entrar_a_cola lo rechaza.
-  //
-  // Los DEMÁS salen todos, abiertos o no. Antes se filtraba por
-  // estado_actual === 'disponible' y el barbero desaparecía sin más; ahora el
-  // que está cerrado se queda a la vista, apagado y CON EL MOTIVO —"abre de
-  // 09:00 a 18:00"—, que es justo lo que el cliente necesita saber. El motivo
-  // lo da el servidor (migración 74) con las mismas palabras que usaría para
-  // rechazar el turno: el letrero y la puerta dicen lo mismo.
-  const conFila = perfiles.filter((p: any) => aceptaFila(p))
-  const abiertos = conFila.filter((p: any) => filaAbierta(p))
   const servicioComun = abiertos
     .flatMap((p: any) => (p.turno_servicios ?? []).filter((sv: any) => sv.activo))[0] ?? null
 
   /**
-   * EL DOBLE SERVICIO SE LEE EN ORDEN.
+   * CUÁL DE MIS TURNOS MANDA EN LA TARJETA.
    *
-   * `getMisTurnosActivos` ordena por fecha de entrada al revés —lo último
-   * arriba—, que es lo correcto cuando son turnos sueltos: el que acabas de
-   * pedir es el que vienes a mirar. Pero en un doble servicio el segundo entra
-   * después del primero, así que salía ENCIMA: el cliente leía «manicura» y
-   * debajo «corte», justo al revés de lo que va a pasar.
-   *
-   * Aquí se recoloca: cada turno que espera a otro se pone pegado detrás del
-   * suyo. El que espera a uno que ya no está en la lista —porque lo atendieron
-   * y desapareció— se queda donde estaba; ya no espera a nadie.
+   * Con un doble servicio hay dos vivos a la vez y solo una tarjeta. El que
+   * manda no es el más nuevo —`getMisTurnosActivos` ordena por entrada al
+   * revés— sino el más urgente: primero el que te están llamando, después el
+   * que ya está en la silla, y al final el que espera. El otro baja a una
+   * línea debajo, que es exactamente su peso: todavía no es asunto tuyo.
    */
-  const ordenados = (() => {
-    const vivos = new Set(turnos.map((t: any) => t.id))
-    const hijos: Record<string, any[]> = {}
-    const raiz: any[] = []
-    for (const t of turnos) {
-      if (t.espera_a_id && vivos.has(t.espera_a_id)) (hijos[t.espera_a_id] ??= []).push(t)
-      else raiz.push(t)
+  const PESO: Record<string, number> = { llamado: 0, en_camino: 1, atendiendo: 2, en_fila: 3 }
+  const ordenados = [...turnos].sort((a: any, b: any) => {
+    const d = (PESO[a.estado] ?? 9) - (PESO[b.estado] ?? 9)
+    if (d) return d
+    // A igualdad de estado, primero el que no espera a nadie: en un doble
+    // servicio el segundo va detrás del primero, y leerlo al revés es leer el
+    // futuro antes que el presente.
+    return (a.espera_a_id ? 1 : 0) - (b.espera_a_id ? 1 : 0)
+  })
+  const principal = ordenados[0] ?? null
+  const detras = ordenados.slice(1)
+
+  const vivo: TurnoVivo | null = principal ? {
+    id: principal.id,
+    estado: principal.estado,
+    codigo: principal.codigo ?? null,
+    servicio: principal.turno_servicios?.nombre ?? null,
+    barbero: principal.turno_perfiles?.turno_usuarios?.nombre ?? null,
+    precio: principal.turno_servicios?.precio != null
+      ? dinero(principal.turno_servicios.precio, negocio?.moneda) : null,
+    llego: !!principal.llego_at,
+  } : null
+
+  // El cerrojo de distancia solo tiene sentido mientras haya algo que
+  // responder; ya dentro de la silla no hay botón que apagar.
+  const bloqueo = principal && !puede[principal.id]
+    && principal.estado !== 'atendiendo' && !principal.llego_at
+    ? 'Se activa cuando estés cerca' : null
+
+  function abrir(v: Via) {
+    // Con el local repartiendo los turnos no hay barbero que elegir: la hoja
+    // enseñaría una lista que no decide nada. Se entra derecho.
+    if (v === 'fila' && porDueno) {
+      if (!servicioComun || !abiertos.length) {
+        Alert.alert('Ahora no se puede entrar', 'Ninguna silla está tomando gente en este momento.')
+        return
+      }
+      setHoja({ negocio, perfil: undefined, servicio: servicioComun })
+      return
     }
-    return raiz.flatMap((t: any) => [t, ...(hijos[t.id] ?? [])])
-  })()
+    setSoloPerfil(null)
+    setVia(v)
+  }
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
-      <Display size={26} style={{ marginBottom: 18 }}>Mi turno</Display>
 
       {expirado && (
         <View style={s.expirado}>
           <Ionicons name="time-outline" size={20} color={COLORS.red} />
           <View style={{ flex: 1 }}>
             <Text style={s.expT}>Tu turno expiró</Text>
-            <Text style={s.expS}>No alcanzaste a llegar en la ventana. Puedes entrar de nuevo abajo.</Text>
+            <Text style={s.expS}>No alcanzaste a llegar en la ventana. Puedes entrar de nuevo desde la tarjeta.</Text>
           </View>
         </View>
       )}
 
-      {ordenados.map((t: any) => {
-        const llamado = t.estado === 'llamado'
-        const enCamino = t.estado === 'en_camino'
-        const atendiendo = t.estado === 'atendiendo'
-        // ¿Este turno va DESPUÉS de otro que todavía está vivo? Entonces su
-        // puesto y su espera no son los suyos: no le van a llamar hasta que
-        // acabe el primero. Enseñar el número de la fila aquí sería el mismo
-        // fallo que ya arreglamos con `posicion` — un número correcto que
-        // contesta a otra pregunta.
-        const previo = t.espera_a_id ? turnos.find((x: any) => x.id === t.espera_a_id) : null
-        const heroBg = atendiendo ? COLORS.blue : llamado ? COLORS.success : enCamino ? COLORS.blue : COLORS.carbon
-        return (
-          <View key={t.id} style={s.turnoCard}>
-            {/* El turno se lee como lo que es: un ticket. Poste impreso arriba,
-                la mitad oscura con el puesto, y por debajo de la perforación el
-                talón claro donde están tus respuestas. */}
-            <Pole height={7} radius={0} />
-            <View style={[s.hero, { backgroundColor: heroBg }]}>
-              {/* EL PUESTO, no la columna `posicion`. Con un walk-in en la
-                  silla, aquí salía un 2 siendo el siguiente: `posicion` es el
-                  contador de entrada y cuenta al que ya está sentado. */}
-              {t.estado === 'en_fila' && previo && (<>
-                <Ionicons name="swap-vertical-outline" size={30} color="rgba(255,255,255,0.6)" />
-                <Text style={[s.heroBig, { fontSize: 24, marginTop: 6 }]}>Va después</Text>
-                <Text style={s.heroLabel}>
-                  Primero {previo.turno_servicios?.nombre ?? 'tu otro servicio'}
-                  {previo.turno_perfiles?.turno_usuarios?.nombre ? ` con ${previo.turno_perfiles.turno_usuarios.nombre}` : ''}
-                </Text>
-              </>)}
-              {t.estado === 'en_fila' && !previo && (<>
-                <Text style={s.heroNum}>{puestos[t.id] ?? '—'}</Text>
-                <Text style={s.heroLabel}>
-                  {puestos[t.id] === 1 ? 'eres el siguiente' : 'tu puesto en la fila digital'}
-                </Text>
-                {etas[t.id] != null && <View style={s.etaPill}><Text style={s.etaT}>≈ {etas[t.id]} min de espera</Text></View>}
-              </>)}
-              {/* El mismo reloj que ve el barbero. Sin el número, "es tu turno"
-                  no le dice a nadie si puede terminarse el café. */}
-              {llamado && (() => {
-                const min = quedan[t.id]
-                return (<>
-                  <Text style={s.heroBig}>¡Es tu turno!</Text>
-                  <Text style={s.heroLabel}>
-                    {min == null ? 'Ve al local ahora'
-                      : min > 0 ? `Te esperan ${min} min más`
-                      : 'Se te pasó el tiempo — avisa que ya llegas'}
-                  </Text>
-                </>)
-              })()}
-              {enCamino && (<>
-                <Text style={s.heroBig}>{t.llego_at ? 'Ya llegaste' : 'Vas en camino'}</Text>
-                <Text style={s.heroLabel}>{t.llego_at ? 'El barbero ya lo sabe' : 'El barbero te espera'}</Text>
-              </>)}
-              {atendiendo && (<><Text style={s.heroBig}>Te están atendiendo</Text><Text style={s.heroLabel}>Disfruta tu corte ✂️</Text></>)}
-            </View>
-            <View style={s.perf}>
-              <Perforacion color={COLORS.border} />
-              <View style={[s.muesca, { left: -9 }]} />
-              <View style={[s.muesca, { right: -9 }]} />
-            </View>
-            <View style={s.detalle}>
-              <Text style={s.dServ}>{t.turno_servicios?.nombre}</Text>
-              <Text style={s.dMeta}>{t.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'} · {t.turno_servicios?.duracion_min ?? '—'} min · {t.estado.replace('_', ' ')}</Text>
-            </View>
-            {/* Las dos respuestas al "es tu turno". Antes solo estaba "voy en
-                camino", que no sirve para quien YA está en la puerta: tenía que
-                decir que venía de camino estando dentro, y el reloj le seguía
-                corriendo igual. */}
-            <View style={s.acciones}>
-              {/* Ya dijo que está aquí: no quedan respuestas que dar, y dejar el
-                  hueco vacío al lado de "Salir" descuadra la fila de botones. */}
-              {!atendiendo && (t.estado === 'en_fila' || llamado || enCamino) && !t.llego_at && (
-                puede[t.id]
-                  ? <View style={s.respuestas}>
-                      <TouchableOpacity style={s.cta} onPress={() => llegue(t)} disabled={accion === t.id}>
-                        {accion === t.id ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>Ya estoy aquí</Text>}
-                      </TouchableOpacity>
-                      {!enCamino && (
-                        <TouchableOpacity style={s.ctaSec} onPress={() => voy(t)} disabled={accion === t.id}>
-                          <Text style={s.ctaSecT}>Voy en camino</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  : <View style={s.ctaOff}><Ionicons name="lock-closed" size={14} color={COLORS.textLight} /><Text style={s.ctaOffT}>Se activa cuando estés cerca</Text></View>
-              )}
-              {!atendiendo && t.llego_at && (
-                <View style={s.yaAqui}>
-                  <Ionicons name="checkmark-circle" size={15} color={COLORS.success} />
-                  <Text style={s.yaAquiT}>El barbero sabe que estás aquí</Text>
-                </View>
-              )}
-              {!atendiendo && <TouchableOpacity style={s.salir} onPress={() => salir(t)} disabled={accion === t.id}><Text style={s.salirT}>Salir</Text></TouchableOpacity>}
-            </View>
+      <TarjetaTurno
+        negocio={negocio}
+        variosLocales={variosLocales}
+        // El conmutador de locales vive en «Mi barbería» y solo ahí: dos
+        // implementaciones del mismo selector es como empiezan a divergir.
+        onCambiarLocal={() => router.push('/(app)/cliente/barberia')}
+        sillas={sillas as any}
+        delante={resumen.delante}
+        esperaMin={resumen.espera_min}
+        proximoHueco={hueco?.hora ?? null}
+        deTuBarbero={!!hueco?.mio}
+        turno={vivo}
+        puesto={principal ? puestos[principal.id] ?? null : null}
+        etaMin={principal ? etas[principal.id] ?? null : null}
+        quedanMin={principal ? quedan[principal.id] ?? null : null}
+        bloqueo={bloqueo}
+        onFila={() => abrir('fila')}
+        onAgendar={() => abrir('cita')}
+        onVoyEnCamino={() => principal && accion !== principal.id && responder(principal)}
+        onCancelar={() => principal && salir(principal)}
+      />
+
+      {/* EL SEGUNDO SERVICIO DE LA VISITA. Una línea, no otra tarjeta: todavía
+          no te toca, y darle el mismo tamaño haría dudar de cuál de los dos
+          es el que corre. */}
+      {detras.map((t: any) => (
+        <View key={t.id} style={s.detras}>
+          <Ionicons name="return-down-forward-outline" size={17} color={COLORS.textMid} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.detrasT}>Después: {t.turno_servicios?.nombre ?? 'tu otro servicio'}</Text>
+            <Text style={s.detrasM}>
+              {t.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin asignar'}
+              {t.turno_servicios?.duracion_min ? ` · ${t.turno_servicios.duracion_min} min` : ''}
+            </Text>
           </View>
-        )
-      })}
+          <TouchableOpacity onPress={() => salir(t)} hitSlop={8} disabled={accion === t.id}>
+            <Text style={s.detrasX}>Quitar</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
 
       {citas.length > 0 && (
         <>
@@ -415,94 +451,36 @@ export default function MiTurno() {
         </>
       )}
 
-      {/* Pedir un turno desde aquí mismo (R3) */}
-      {/* "FILA DIGITAL" con todas las letras. Aquí decía solo "pedir un turno",
-          y en el local hay dos filas: la de la app y la gente sentada en el
-          banco. Nombrarla es lo que deja claro cuál de las dos es esta. */}
-      <Text style={s.sec}>{turnos.length ? 'ENTRAR OTRA VEZ A LA FILA DIGITAL' : 'ENTRAR A LA FILA DIGITAL'}</Text>
-      {perfiles.length === 0 && <Text style={s.empty}>No hay profesionales disponibles ahora.</Text>}
-
-      {/* ELEGIR BARBERO ES DEL CLIENTE, SIEMPRE.
-          Antes era todo o nada: con "asignación por dueño" encendida el cliente
-          NUNCA elegía, y apagada elegía siempre a la fuerza. No había forma de
-          decir "me da igual, el que esté libre", que es lo más normal en una
-          barbería. Ahora se elige a quien se quiera, y quien no tenga
-          preferencia entra sin barbero asignado: lo coge el que se desocupe, o
-          se lo asigna el dueño desde su panel. */}
-      {perfiles.length > 0 && (
-        <>
-          {/* Sin nadie abierto esto no es "cualquiera disponible": es un botón
-              que va a dar error. Se apaga y lo dice. */}
-          <TouchableOpacity style={[s.cualquiera, !abiertos.length && s.barberoCerrado]}
-            onPress={() => setHoja({ negocio, perfil: undefined, servicio: servicioComun })}
-            disabled={!servicioComun || !abiertos.length}>
-            <Ionicons name="people-outline" size={20} color={COLORS.ink} />
-            <View style={{ flex: 1 }}>
-              <Text style={s.cualquieraT}>Cualquiera disponible</Text>
-              <Text style={s.cualquieraD}>
-                {!abiertos.length ? 'Ahora mismo no hay nadie abierto en el local'
-                  : preferido && conFila.some((p: any) => p.id === preferido && filaAbierta(p))
-                    ? `Te ponemos con ${conFila.find((p: any) => p.id === preferido)?.turno_usuarios?.nombre ?? 'tu barbero'}, que está abierto`
-                    : 'Te atiende el primero que se desocupe'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-          </TouchableOpacity>
-          {/* ASIGNACIÓN POR DUEÑO. La configuración existe desde el principio
-              y esta pantalla la cargaba en `porDueno`… y no la usaba: el
-              cliente elegía barbero igual, en un local donde el dueño ha dicho
-              que reparte él. Otra regla que solo vivía en la pantalla del que
-              la puso. Con ella encendida solo queda una puerta, y se dice por
-              qué en vez de esconder la lista sin explicación. */}
-          {porDueno
-            ? <Text style={s.oElige}>Aquí el local reparte los turnos: te toca el barbero que se desocupe.</Text>
-            : <Text style={s.oElige}>o elige a tu barbero</Text>}
-        </>
+      {/* ASIGNACIÓN POR DUEÑO. La configuración existe desde el principio y
+          esta pantalla la cargaba… y no la usaba: el cliente elegía barbero
+          igual, en un local donde el dueño ha dicho que reparte él. Con ella
+          encendida la hoja de elegir ni se abre, y se dice por qué en vez de
+          dejar al cliente preguntándose qué pasó. */}
+      {porDueno && (
+        <Text style={s.nota}>Aquí el local reparte los turnos: te toca el barbero que se desocupe.</Text>
       )}
 
-      {!porDueno && conFila.map((p: any) => {
-            const abierta = filaAbierta(p)
-            const motivo = fraseFila(p)
-            return (
-            <View key={p.id} style={[s.barbero, !abierta && s.barberoCerrado]}>
-              <View style={s.barberoHead}>
-                <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={38} />
-                <View style={{ flex: 1 }}>
-                  <Text style={s.barberoN}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-                  {!abierta && !!motivo
-                    ? <Text style={s.barberoCerradoT}>{motivo}</Text>
-                    : (() => {
-                        const r = ratings[p.id]
-                        const linea = [p.turno_usuarios?.especialidad,
-                          r ? `★ ${r.promedio} (${r.total})` : 'Sin reseñas'].filter(Boolean).join(' · ')
-                        // Las estrellas se tocan: hasta ahora eran un número
-                        // suelto y lo que la gente escribió no se leía en
-                        // ningún sitio.
-                        return (
-                          <TouchableOpacity onPress={() => setResenasDe({ id: p.id, nombre: p.turno_usuarios?.nombre })}>
-                            <Text style={s.barberoMeta}>{linea}{r ? '  ·  ver reseñas' : ''}</Text>
-                          </TouchableOpacity>
-                        )
-                      })()}
-                </View>
-                {/* MI BARBERO. La estrella es la relación que sostiene una
-                    barbería —"voy donde Abel"— y hasta ahora la app no sabía
-                    nada de ella: cada turno había que volver a buscarlo en la
-                    lista. Marcado, "cualquiera disponible" lo intenta a él. */}
-                <TouchableOpacity style={s.estrella} onPress={() => alternarPreferido(p)} hitSlop={10}>
-                  <Ionicons name={preferido === p.id ? 'star' : 'star-outline'} size={20}
-                    color={preferido === p.id ? COLORS.red : COLORS.textLight} />
-                </TouchableOpacity>
-              </View>
-              {preferido === p.id && <Text style={s.esMio}>Tu barbero · te lo asignamos cuando pidas turno</Text>}
-              {abierta && (p.turno_servicios ?? []).filter((sv: any) => sv.activo).map((sv: any) => (
-                <TouchableOpacity key={sv.id} style={s.servRow} onPress={() => setHoja({ negocio, perfil: p, servicio: sv })}>
-                  <Text style={s.servN}>{sv.nombre} · {sv.duracion_min} min</Text>
-                  <Text style={s.servP}>{dinero(sv.precio, negocio?.moneda)}</Text>
-                </TouchableOpacity>))}
-            </View>)})}
-
-      <Resenas perfilId={resenasDe?.id ?? null} nombre={resenasDe?.nombre} visible={!!resenasDe} onClose={() => setResenasDe(null)} />
+      {/* Elegir con quién y qué. La misma hoja para las dos vías: lo que
+          cambia es quién puede salir en ella. */}
+      <HojaPedir
+        via={via ?? 'fila'}
+        visible={!!via}
+        onClose={() => { setVia(null); setSoloPerfil(null) }}
+        negocio={negocio}
+        perfiles={perfiles}
+        ratings={ratings}
+        preferido={preferido}
+        soloPerfil={soloPerfil}
+        onCualquiera={servicioComun ? () => { setVia(null); setSoloPerfil(null); setHoja({ negocio, perfil: undefined, servicio: servicioComun }) } : undefined}
+        onElegir={(p, sv) => {
+          const v = via
+          setVia(null); setSoloPerfil(null)
+          if (v === 'fila') setHoja({ negocio, perfil: p, servicio: sv })
+          // La agenda necesita su propia pantalla: hay que elegir día y hora,
+          // y eso no cabe en una hoja encima de otra hoja.
+          else router.push({ pathname: '/(app)/cliente/agendar', params: { perfil: p.id, servicio: sv.id } })
+        }}
+      />
 
       <HojaFila seleccion={hoja} visible={!!hoja} onClose={() => setHoja(null)} onEntrado={() => { setHoja(null); cargarVivo() }}
         abiertos={abiertos} dobleActivo={dobleActivo} />
@@ -511,65 +489,28 @@ export default function MiTurno() {
 }
 
 const s = StyleSheet.create({
-  cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cualquieraT: { color: COLORS.ink, fontSize: 15.5, fontWeight: '800' },
-  cualquieraD: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
-  oElige: { color: COLORS.textLight, fontSize: 12.5, marginTop: 14, marginBottom: 6 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+
+  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: COLORS.red, padding: 13, marginBottom: 14 },
+  expT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.red },
+  expS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2, lineHeight: 17 },
+
+  detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13,
+    borderWidth: 1, borderColor: COLORS.border, marginBottom: 10 },
+  detrasT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  detrasM: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  detrasX: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.danger },
+
+  nota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
+
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 20, marginBottom: 4 },
   cita: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  citaFecha: { width: 52, height: 52, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  citaFecha: { width: 52, height: 52, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
   citaDia: { fontFamily: FONTS.display, fontSize: 21, color: COLORS.ink },
   citaMes: { fontFamily: FONTS.bold, fontSize: 9.5, color: COLORS.textLight, letterSpacing: 1.2 },
   citaServ: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   citaMeta: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red, marginTop: 2 },
   citaDia2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
-  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: COLORS.red, padding: 13, marginBottom: 16 },
-  expT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.red },
-  expS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  // Sin relleno y recortando lo que sobresale: así las muescas de la
-  // perforación se comen el borde en vez de pintarse encima.
-  turnoCard: { backgroundColor: COLORS.surface, borderRadius: 6, marginBottom: 14, overflow: 'hidden' },
-  hero: { padding: 24, alignItems: 'center' },
-  heroNum: { fontFamily: FONTS.display, fontSize: 68, color: COLORS.red, lineHeight: 72 },
-  heroLabel: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 4 },
-  heroBig: { fontFamily: FONTS.display, fontSize: 32, color: '#fff' },
-  etaPill: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 6, marginTop: 10 },
-  etaT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  perf: { height: 18, justifyContent: 'center' },
-  muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.bg },
-  detalle: { paddingHorizontal: 16, paddingTop: 10, marginBottom: 10 },
-  dServ: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  dMeta: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 2, textTransform: 'capitalize' },
-  acciones: { flexDirection: 'row', gap: 10, alignItems: 'center', paddingHorizontal: 12, paddingBottom: 12 },
-  // "Ya estoy aquí" es la respuesta que cierra el asunto —apaga el reloj— así
-  // que se lleva el botón lleno; "voy en camino" queda de secundaria.
-  respuestas: { flex: 1, gap: 8 },
-  cta: { backgroundColor: COLORS.red, borderRadius: 4, padding: 14, alignItems: 'center' },
-  ctaT: { fontFamily: FONTS.display, fontSize: 18, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
-  ctaSec: { borderRadius: 4, padding: 13, alignItems: 'center', borderWidth: 2, borderColor: COLORS.ink },
-  ctaSecT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  yaAqui: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    backgroundColor: COLORS.successLight, borderRadius: 4, padding: 14 },
-  yaAquiT: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.ink },
-  ctaOff: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.surfaceAlt, borderRadius: 4, padding: 14 },
-  ctaOffT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
-  salir: { padding: 14, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 18, marginBottom: 4 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  barbero: { paddingTop: 14, paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 6 },
-  barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  barberoN: { fontFamily: FONTS.extrabold, fontSize: 15.5, color: COLORS.ink },
-  // Cerrado se ve apagado, no escondido: el cliente tiene que poder leer a qué
-  // hora abre sin salir de la pantalla.
-  barberoCerrado: { opacity: 0.5 },
-  barberoCerradoT: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  barberoMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  estrella: { padding: 4 },
-  esMio: { fontFamily: FONTS.bold, fontSize: 11.5, color: COLORS.red, marginTop: -2, marginBottom: 6 },
-  servRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 11, borderTopWidth: 1, borderTopColor: COLORS.borderSoft },
-  servN: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  servP: { fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
 })

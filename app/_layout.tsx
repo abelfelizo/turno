@@ -49,9 +49,9 @@ import type { PanelActivo } from '../types'
  * negocio en el payload, y eso toca todos los emisores.
  */
 const DESTINO_PUSH: Record<string, { panel: PanelActivo; ruta: string }> = {
-  turno:  { panel: 'cliente',  ruta: '/(app)/cliente/turno' },
+  turno:  { panel: 'cliente',  ruta: INICIO_DE_PANEL.cliente },
   cita:   { panel: 'cliente',  ruta: INICIO_DE_PANEL.cliente },
-  premio: { panel: 'cliente',  ruta: '/(app)/cliente/perfil' },
+  premio: { panel: 'cliente',  ruta: '/(app)/cliente/barberia' },
   agenda: { panel: 'silla',    ruta: INICIO_DE_PANEL.silla },
   equipo: { panel: 'barberia', ruta: INICIO_DE_PANEL.barberia },
 }

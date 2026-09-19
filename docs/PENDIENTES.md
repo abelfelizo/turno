@@ -98,6 +98,47 @@ panel del barbero, que es donde se decide cómo se presenta un local de uno.
 
 ---
 
+## Lo que quedó fuera del frontend de cliente
+
+El panel de cliente ya está convertido: pestañas, tarjeta unificada, hoja de
+elegir, historial y ajustes. Lo que **no** entró en esa ronda:
+
+### 1 · `agendar.tsx` sigue sin convertir a D2
+
+Funciona y recibe `perfil` y `servicio` desde la hoja de elegir, así que la
+puerta está bien puesta. Lo que le falta es el lenguaje visual: sigue con las
+esquinas redondeadas y la tipografía de antes. **No se tocó a propósito**: es
+la pantalla con más estado de todo el panel (día, hueco, grupo, reprogramar) y
+mezclar un rediseño con el cambio de rutas es la forma de no saber cuál de los
+dos rompió qué.
+
+### 2 · La pausa de fila, del lado del servidor
+
+La tarjeta y la hoja ya **saben** leerla —el barbero en pausa sale apagado y
+con la hora a la que vuelve, y el chip de su silla se pinta en ámbar— pero el
+motivo que enseñan es el que ya manda `turno_estado_barbero`. Poner la fila en
+pausa desde el panel del barbero, y el aviso de retraso a quien espera, es
+trabajo de migración: entero en `PAUSA-DE-FILA.md`.
+
+### 3 · Reseñas e historial siguen siendo de UN local
+
+`getHistorialCliente` filtra por `negocio_id`, así que «TUS NÚMEROS AQUÍ»
+dice la verdad —son los de este local— pero el cliente que va a dos barberías
+no tiene dónde ver su total. (`getMisResenas` sí es de la persona entera, y no
+pasa nada: solo se usa para tachar las visitas ya calificadas, y una visita
+solo existe en el local donde pasó.) Va cuando se decida qué es de
+la persona y qué del local, la misma pregunta que `BARBERO-QUE-ALQUILA.md`
+contesta para los recortes.
+
+### 4 · El próximo hueco solo mira HOY
+
+Con el local trabajando únicamente con cita, la cifra grande enseña la hora
+del primer hueco libre de hoy. Si no queda ninguno dice que no quedan, y para
+otro día está el botón de reservar. Mirar mañana ahí dentro convertiría la
+cifra principal en un dato que no se puede usar sin abrir la agenda igual.
+
+---
+
 ## Ya anotado en otros documentos
 
 | Qué | Dónde |
@@ -108,3 +149,4 @@ panel del barbero, que es donde se decide cómo se presenta un local de uno.
 | Servicio habitual guardado + favoritos en la fila | `TABLEROS-CLIENTE.md` |
 | Gestos que piden APK nuevo (gesture-handler, swipe entre pestañas, splash) | `CONTEXT.md` |
 | La guarda de panel, sin publicar | commit `5e42fe6` |
+| El panel de barbero y el de barbería, sin convertir | `MAPA-D2.md` |

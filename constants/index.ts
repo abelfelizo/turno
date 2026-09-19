@@ -17,7 +17,7 @@ export const COLORS = {
   redDark: '#C2161F',
   redLight: '#FFF0F1',
   /** Rojo legible SOBRE carbón: el de marca no llega al contraste en oscuro. */
-  redSoft: '#FF6B73',
+  redSoft: '#FF4438',
   blue: '#1646E0',         // secundario
   blueLight: '#EDF1FE',
   carbon: '#0B0C10',       // negro carbón (oscuro)
@@ -44,6 +44,16 @@ export const COLORS = {
   carbonDash: '#3A3F4C',
   success: '#0E7C46',
   successLight: '#E9F8F0',
+
+  // SEÑALES SOBRE CARBÓN. No son las de marca aclaradas con blanco: mezclar
+  // con blanco desatura y empuja al pastel — el azul llegó a tener la MITAD
+  // de la saturación de su marca (0.46 frente a 0.90) y por eso se veía
+  // lavado aunque el contraste sobrara. Están bajadas de luminosidad
+  // manteniendo el chroma, así que las cuatro —con redSoft— caen en el mismo
+  // rango: 5,3 a 7,9 de contraste sobre #0B0C10.
+  okNoche: '#1FA85C',      // libre, abierto, confirmado
+  azulNoche: '#4D7DFF',    // atendiendo, informativo
+  ambarNoche: '#E8901A',   // en pausa, sin conexión: ni roto ni normal
   danger: '#C2161F',
   dangerLight: '#FFF0F1',
   warning: '#B45309',
