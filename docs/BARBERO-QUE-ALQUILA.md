@@ -156,14 +156,3 @@ La pregunta que quedaba abierta aquí —¿los recortes son del local o del
 barbero?— **está contestada** arriba. Lo que sigue abierto es más pequeño y
 está en `VINCULAR-BARBERO.md` § 8: si se puede trabajar en dos sitios a la vez,
 y qué pasa si el dueño echa al barbero al día siguiente de mudarse.
-
-**¿Los recortes son del local o del barbero?** Hoy la fidelidad cuelga de los
-dos (`negocio_id` y `perfil_id`, con un `ambito`). Si un barbero se muda:
-
-- **Viajan con él** → el cliente no pierde nada, pero un local se queda sin los
-  recortes que creía suyos.
-- **Se quedan en el local** → el local conserva su programa, pero el cliente
-  que seguía a *la persona* pierde lo acumulado.
-
-Las dos son defendibles y la respuesta depende de a quién consideras dueño de
-la relación. **Sin eso no se puede escribir D.**
