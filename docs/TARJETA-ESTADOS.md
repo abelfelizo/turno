@@ -77,6 +77,34 @@ texto normal.
 página clara: ahí el fondo es blanco y no hace falta tocarlo. El `#FF4438` es
 solo el de la cifra sobre carbón.
 
+### Y lo mismo pasaba con los otros tres
+
+Al mirarlos juntos, el azul, el verde y el ámbar estaban construidos igual: la
+marca aclarada con blanco. Medido, **todos habían perdido la mitad de su
+saturación.**
+
+| Señal | Antes | Sat. | Ahora | Sat. | Contraste |
+|---|---|---|---|---|---|
+| Rojo | `#FF6B73` | 0,55 | **`#FF4438`** | 0,78 | 5,71 : 1 |
+| Azul | `#8AB4FF` | **0,46** | **`#4D7DFF`** | 0,70 | 5,30 : 1 |
+| Verde | `#7BE08E` | **0,45** | **`#1FA85C`** | 0,82 | 6,34 : 1 |
+| Ámbar | `#F5B544` | 0,72 | **`#E8901A`** | 0,89 | 7,85 : 1 |
+
+(La marca: azul `#1646E0` sat 0,90; verde `#0E7C46` sat 0,89. Los pastel
+estaban a la mitad.)
+
+El contraste nunca fue el problema — el azul pastel daba **9,36 : 1** y el verde
+**12,00 : 1**. Sobraba tanto que era justamente la señal de que estaban
+lavados: solo se llega ahí metiendo mucho blanco.
+
+Ahora los cuatro caen en el mismo rango, **5,3 a 7,9 de contraste y 0,70 a 0,89
+de saturación**, en vez de tres pasteles al lado de un rojo.
+
+**Regla, para no repetirlo:** para llevar un color de marca a fondo oscuro no se
+mezcla con blanco. Se baja la luminosidad y se mantiene el chroma; si hace
+falta, se gira un punto hacia el cálido. Mezclar con blanco desatura, y un
+color desaturado no señala nada.
+
 ---
 
 ## 3 · Estados sin turno — manda el local
