@@ -77,6 +77,25 @@ type Props = {
   esperaMin: number
 
   /**
+   * La última consulta no llegó y lo que se ve es lo de antes.
+   *
+   * Vaciar la tarjeta sería mentir —diría que no hay nadie en el local
+   * cuando lo que pasa es que no pudimos preguntar—, así que se conserva el
+   * último dato y se marca. Un dato viejo etiquetado como viejo sigue
+   * sirviendo; uno viejo disfrazado de fresco manda al cliente al local.
+   */
+  desconectado?: boolean
+
+  /**
+   * Todavía no está en ninguna barbería (cuenta recién hecha).
+   *
+   * No es lo mismo que un local sin sillas activas: ahí hay un local que
+   * nombrar y una espera a que lo enciendan. Aquí no hay nada que enseñar, y
+   * la tarjeta deja de informar para convertirse en la invitación.
+   */
+  sinLocal?: boolean
+
+  /**
    * EL PRÓXIMO HUECO LIBRE, cuando el local solo trabaja con cita.
    *
    * Sin esto la cifra era un guion: «hoy solo con cita» y nada más. Es cierto
@@ -111,6 +130,8 @@ type Props = {
   bloqueo?: string | null
 
   onFila?: () => void
+  /** Solo con `sinLocal`: la única puerta que tiene una cuenta recién hecha. */
+  onAgregarLocal?: () => void
   onAgendar?: () => void
   onVoyEnCamino?: () => void
   onCancelar?: () => void
@@ -153,9 +174,17 @@ export default function TarjetaTurno(p: Props) {
   const fondo = llamado ? (urgente ? COLORS.redDark : COLORS.red) : COLORS.carbon
   const tenue = llamado ? 'rgba(255,255,255,0.72)' : COLORS.onCarbonMid
 
+  /**
+   * EL POSTE ES LA SEÑAL DE QUE LA BARBERÍA ESTÁ ABIERTA, no un adorno de la
+   * tarjeta. Girando sobre un local cerrado, sobre uno que todavía no atiende
+   * por la app o sobre una cuenta que aún no tiene barbería, dice lo
+   * contrario de lo que dice el texto que tiene debajo. Se apaga.
+   */
+  const conPoste = !p.sinLocal && p.sillas.length > 0 && (abierto || !!p.turno)
+
   return (
     <View style={[s.card, { backgroundColor: fondo }]}>
-      <Pole height={7} radius={0} animado={!llamado} />
+      {conPoste && <Pole height={7} radius={0} animado={!llamado} />}
 
       <View style={s.cuerpo}>
         {/* EL NOMBRE DEL LOCAL ES LA CABECERA, y vive dentro del bloque.
@@ -169,7 +198,9 @@ export default function TarjetaTurno(p: Props) {
           accessibilityLabel={p.variosLocales ? 'Cambiar de barbería' : undefined}
           style={s.cab}>
           <View style={{ flex: 1 }}>
-            <Text style={s.local} numberOfLines={2}>{p.negocio?.nombre ?? 'Tu barbería'}</Text>
+            <Text style={s.local} numberOfLines={2}>
+              {p.sinLocal ? 'Aún no tienes barbería' : p.negocio?.nombre ?? 'Tu barbería'}
+            </Text>
             {p.variosLocales && <Text style={[s.localSub, { color: tenue }]}>Tocá para cambiar de barbería</Text>}
           </View>
           {p.variosLocales && <Ionicons name="chevron-down" size={18} color={tenue} />}
@@ -179,6 +210,36 @@ export default function TarjetaTurno(p: Props) {
 
         {p.turno ? <ConTurno {...p} llamado={llamado} enSilla={enSilla} urgente={urgente} tenue={tenue} />
                  : <SinTurno {...p} abierto={abierto} libres={libres} sinServicio={sinServicio} motivoComun={motivoComun} />}
+      </View>
+    </View>
+  )
+}
+
+/**
+ * E16 · MIENTRAS CARGA, LA FORMA DE LO QUE VA A LLEGAR.
+ *
+ * Un aro girando en medio de la pantalla no promete nada: no dice cuánto
+ * falta, no dice qué va a aparecer, y cuando aparece la tarjeta el salto es
+ * total. El esqueleto ya tiene el tamaño y el peso de la tarjeta, así que lo
+ * que llega la rellena en vez de sustituirla.
+ *
+ * SIN POSTE, con la tira apagada: el poste es la señal de que la barbería
+ * está abierta, y eso todavía no se sabe.
+ */
+export function TarjetaEsqueleto() {
+  return (
+    <View style={[s.card, { backgroundColor: COLORS.carbon }]} accessibilityLabel="Cargando tu turno">
+      <View style={s.huesoPoste} />
+      <View style={s.cuerpo}>
+        <View style={[s.hueso, { height: 26, width: '62%' }]} />
+        <View style={[s.filete, { backgroundColor: COLORS.carbonDash }]} />
+        <View style={[s.hueso, { height: 11, width: '38%' }]} />
+        <View style={[s.hueso, { height: 52, width: '45%', marginTop: 14 }]} />
+        <View style={[s.hueso, { height: 10, width: '30%', marginTop: 10 }]} />
+        <View style={{ flexDirection: 'row', gap: 9, marginTop: 24 }}>
+          <View style={[s.hueso, { height: 50, flex: 1 }]} />
+          <View style={[s.hueso, { height: 50, flex: 1, opacity: 0.55 }]} />
+        </View>
       </View>
     </View>
   )
@@ -195,19 +256,45 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
   const hayFila = p.sillas.some(x => (x.modo ?? 'ambos') !== 'solo_citas')
   const hayAgenda = p.sillas.some(x => (x.modo ?? 'ambos') !== 'solo_fila')
 
+  /**
+   * TODA LA FILA EN PAUSA no es lo mismo que el local cerrado, y confundirlos
+   * le cuesta la visita a alguien: cerrado significa «vuelve mañana» y pausa
+   * significa «vuelve en veinte minutos». La diferencia la marca que haya una
+   * hora de vuelta; sin ella no se afirma, se dice que están en pausa y ya.
+   */
+  const enFila = p.sillas.filter(x => (x.modo ?? 'ambos') !== 'solo_citas' && x.fila_abierta !== false)
+  const pausados = enFila.filter(x => x.estado === 'descanso')
+  const todoEnPausa = enFila.length > 0 && pausados.length === enFila.length
+  const vuelta = pausados.map(x => x.hasta).filter(Boolean).sort()[0] as string | undefined
+
+  /**
+   * UN SOLO RÓTULO, Y EL ORDEN IMPORTA: se lee el más grave que sea cierto.
+   * «Abierto» encima de un dato de hace diez minutos es peor que no decir
+   * nada, y «solo citas» en un local cerrado contesta una pregunta que el
+   * cliente no llegó a hacer.
+   */
+  const rotulo =
+    p.sinLocal ? { texto: 'NUEVA', color: COLORS.onCarbonMid }
+    : p.desconectado ? { texto: 'SIN CONEXIÓN', color: COLORS.ambarNoche }
+    : p.sinServicio ? { texto: 'SIN SERVICIO', color: COLORS.onCarbonMid }
+    : !p.abierto ? { texto: 'CERRADO', color: COLORS.onCarbonMid }
+    : todoEnPausa ? { texto: 'EN PAUSA', color: COLORS.ambarNoche }
+    : soloCitas ? { texto: 'SOLO CITAS', color: COLORS.azulNoche }
+    : !hayAgenda ? { texto: 'SOLO FILA', color: COLORS.okNoche }
+    : { texto: 'ABIERTO AHORA', color: COLORS.okNoche }
+
   return (
     <>
       <View style={s.estadoFila}>
         <View style={s.estadoIzq}>
-          <PuntoVivo color={p.abierto ? COLORS.okNoche : 'rgba(255,255,255,0.4)'} vivo={p.abierto} />
-          <Text style={[s.estadoT, { color: p.abierto ? COLORS.okNoche : COLORS.onCarbonMid }]}>
-            {p.sinServicio ? 'SIN SERVICIO' : p.abierto ? 'ABIERTO AHORA' : 'CERRADO'}
-          </Text>
+          <PuntoVivo color={rotulo.color} vivo={p.abierto && !p.desconectado} />
+          <Text style={[s.estadoT, { color: rotulo.color }]}>{rotulo.texto}</Text>
         </View>
-        {p.abierto && !p.sinServicio && (
+        {p.abierto && !p.sinServicio && !p.sinLocal && (
           <Text style={s.estadoDer} numberOfLines={1}>
-            {p.delante === 0 ? 'Nadie esperando' : `${p.delante} esperando`}
-            {p.libres > 0 ? ` · ${p.libres} libre${p.libres === 1 ? '' : 's'}` : ''}
+            {p.desconectado ? 'Último dato conocido'
+              : (p.delante === 0 ? 'Nadie esperando' : `${p.delante} esperando`)
+                + (p.libres > 0 ? ` · ${p.libres} libre${p.libres === 1 ? '' : 's'}` : '')}
           </Text>
         )}
       </View>
@@ -215,7 +302,14 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
       {/* SIN SERVICIO Y CERRADO NO LLEVAN CIFRA. En su sitio va el motivo, que
           viene del servidor palabra por palabra: es el mismo texto con el que
           rechazaría el turno, así que no hay dos versiones de la verdad. */}
-      {p.sinServicio ? (
+      {p.sinLocal ? (
+        /* E18 · No hay local que enseñar, así que la tarjeta deja de informar
+           y se convierte en la invitación. Un estado vacío con la forma de un
+           dato («0 esperando») haría creer que ya está dentro de algún sitio. */
+        <Text style={s.motivo}>
+          Entra con el código que te dan en el local y aquí verás tu turno.
+        </Text>
+      ) : p.sinServicio ? (
         <Text style={s.motivo}>
           Todavía no atienden por la app. Puedes seguir yendo como siempre — y en
           cuanto la activen, aparecerá aquí.
@@ -228,13 +322,21 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
         </Text>
       ) : (
         <Cifra
-          valor={soloCitas ? (p.proximoHueco ?? '—') : nadie ? '0' : `${p.esperaMin || 0}′`}
-          rotulo={soloCitas
-            ? (p.proximoHueco
-                ? (p.deTuBarbero ? 'PRÓXIMO CON TU BARBERO' : 'PRÓXIMO HUECO LIBRE')
-                : 'HOY SOLO CON CITA')
-            : nadie ? 'ENTRAS DIRECTO' : 'DE ESPERA SI ENTRAS AHORA'}
-          color={nadie ? COLORS.okNoche : soloCitas ? COLORS.azulNoche : COLORS.redSoft}
+          valor={todoEnPausa ? (vuelta ? hora12(vuelta) : '—')
+            : soloCitas ? (p.proximoHueco ?? '—')
+            : nadie ? '0' : `${p.esperaMin || 0}′`}
+          rotulo={todoEnPausa ? (vuelta ? 'VUELVE SOBRE' : 'LA FILA ESTÁ EN PAUSA')
+            : soloCitas
+              ? (p.proximoHueco
+                  ? (p.deTuBarbero ? 'PRÓXIMO CON TU BARBERO' : 'PRÓXIMO HUECO LIBRE')
+                  : 'HOY SOLO CON CITA')
+              : nadie ? 'ENTRAS DIRECTO' : 'DE ESPERA SI ENTRAS AHORA'}
+          // Sin conexión la cifra se apaga: el número sigue siendo el que
+          // había, pero ya no se afirma con el color de un dato de ahora.
+          color={p.desconectado ? COLORS.onCarbonMid
+            : todoEnPausa ? COLORS.ambarNoche
+            : nadie ? COLORS.okNoche
+            : soloCitas ? COLORS.azulNoche : COLORS.redSoft}
         />
       )}
 
@@ -244,7 +346,7 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
         <Text style={s.motivo}>Hoy no quedan huecos. Reserva para otro día.</Text>
       )}
 
-      {p.sillas.length > 0 && <Sillas sillas={p.sillas} />}
+      {!p.sinLocal && p.sillas.length > 0 && <Sillas sillas={p.sillas} />}
 
       {/* Sin servicio no hay puertas: dos botones que llevan a pantallas
           vacías son peor que ninguno. */}
@@ -254,9 +356,16 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
           «nadie está tomando reservas» y volvía. Un botón que solo sirve para
           descubrir que no sirve. Y sin servicio no hay ninguna de las dos:
           dos puertas a pantallas vacías son peor que ninguna. */}
-      {!p.sinServicio && (hayFila || hayAgenda) && (
+      {p.sinLocal && (
+        <Pie principal={{ texto: 'Tengo un código', onPress: p.onAgregarLocal }} secundario={null} />
+      )}
+
+      {!p.sinLocal && !p.sinServicio && (hayFila || hayAgenda) && (
         <Pie
-          principal={p.abierto && !soloCitas && hayFila ? { texto: 'Entrar a la fila', onPress: p.onFila } : null}
+          // E2 · «Entrar a la fila» con la fila vacía nombra algo que no
+          // existe. Si no hay nadie delante no se entra a una fila: se entra.
+          principal={p.abierto && !soloCitas && hayFila
+            ? { texto: nadie && !todoEnPausa ? 'Entrar ya' : 'Entrar a la fila', onPress: p.onFila } : null}
           secundario={hayAgenda ? { texto: p.abierto ? 'Reservar cita' : 'Reservar otro día', onPress: p.onAgendar } : null}
         />
       )}
@@ -459,6 +568,8 @@ function Pie({ principal, secundario, cancelar, nota }: {
 
 const s = StyleSheet.create({
   card: { borderRadius: 6, overflow: 'hidden', marginBottom: 12 },
+  hueso: { backgroundColor: 'rgba(255,255,255,0.11)', marginTop: 12 },
+  huesoPoste: { height: 7, backgroundColor: COLORS.carbonDash },
   cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
 
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },

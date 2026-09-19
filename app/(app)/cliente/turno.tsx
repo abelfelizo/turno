@@ -22,7 +22,7 @@
  * sí lo lleva — sin el estado de las sillas o sin las citas la pantalla
  * enseña menos, pero lo que enseña es verdad.
  */
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -39,7 +39,7 @@ import { filaAbierta, aceptaCitas } from '../../../lib/atencion'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
-import TarjetaTurno, { soloConCita, type TurnoVivo } from '../../../components/tarjeta-turno'
+import TarjetaTurno, { TarjetaEsqueleto, soloConCita, type TurnoVivo } from '../../../components/tarjeta-turno'
 import HojaPedir, { type Via } from '../../../components/hoja-pedir'
 import HojaFila from '../../../components/hoja-fila'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -63,6 +63,11 @@ export default function MiTurno() {
   const [sillas, setSillas] = useState<any[]>([])
   const [resumen, setResumen] = useState({ delante: 0, espera_min: 0 })
   const [variosLocales, setVariosLocales] = useState(false)
+  // Cuenta recién hecha: todavía no está en ninguna barbería. No es lo mismo
+  // que un local sin sillas activas, y la tarjeta enseña otra cosa.
+  const [sinLocal, setSinLocal] = useState(false)
+  // La última consulta viva no llegó. Lo que se ve es lo de antes y se dice.
+  const [desconectado, setDesconectado] = useState(false)
   const [porDueno, setPorDueno] = useState(false)
   // El local puede apagar el doble servicio. La configuración ya se cargaba
   // aquí para `asignacion_por_dueno`; esto sale de la misma fila.
@@ -108,7 +113,8 @@ export default function MiTurno() {
    try {
     setFallo(false)
     const ss = await getSesion()
-    if (!ss?.usuario_id || !ss?.negocio_id) return
+    if (!ss?.usuario_id || !ss?.negocio_id) { setSinLocal(true); return }
+    setSinLocal(false)
     const [ts, neg, perf, cfg, cts, yo, rt, pref, est, res] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id),
       getNegocioById(ss.negocio_id).catch(() => null),
@@ -125,7 +131,7 @@ export default function MiTurno() {
     ])
     setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
-    setSillas(est as any[]); setResumen(res as any)
+    setSillas(est as any[]); setResumen(res as any); setDesconectado(false)
     // Por defecto SÍ, igual que en la base (`coalesce(doble_servicio_activo,
     // true)`): un local sin fila de configuración no es un local que lo haya
     // apagado. Si la consulta falla, `cfg` es null y aquí da falso — en la duda
@@ -183,7 +189,10 @@ export default function MiTurno() {
     ])
     setTurnos(ts as any[]); setCitas(cts as any[])
     // `null` aquí es "no pude preguntar", no "no hay nadie": pisar las sillas
-    // con una lista vacía apagaría un local que está abierto.
+    // con una lista vacía apagaría un local que está abierto. Se conserva lo
+    // último que se supo y se marca como viejo — un dato viejo etiquetado
+    // sirve, uno viejo disfrazado de fresco manda al cliente al local.
+    setDesconectado(!est || !res)
     if (est) setSillas(est as any[])
     if (res) setResumen(res as any)
     setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
@@ -307,7 +316,13 @@ export default function MiTurno() {
     ])
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  // E16 · El esqueleto tiene la forma de la tarjeta, así que lo que llega la
+  // rellena en vez de sustituirla. Un aro girando no promete nada.
+  if (loading) return (
+    <View style={s.container}>
+      <View style={{ padding: 16, paddingTop: insets.top + 12 }}><TarjetaEsqueleto /></View>
+    </View>
+  )
   if (fallo) return (
     <View style={s.center}>
       <NoCargo que="tu turno" onReintentar={() => { setLoading(true); cargar() }} />
@@ -397,6 +412,9 @@ export default function MiTurno() {
         sillas={sillas as any}
         delante={resumen.delante}
         esperaMin={resumen.espera_min}
+        desconectado={desconectado}
+        sinLocal={sinLocal}
+        onAgregarLocal={() => router.push('/(app)/cliente/buscar-barbero')}
         proximoHueco={hueco?.hora ?? null}
         deTuBarbero={!!hueco?.mio}
         turno={vivo}
