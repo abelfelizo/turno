@@ -151,33 +151,44 @@ pantalla: dos contadores a la vez para el mismo cliente.
 
 ---
 
-## 7 · Qué hay que construir
+## 7 · Qué hay que construir — mucho menos de lo que parecía
 
-| Capa | Trabajo |
-|---|---|
-| **Servidor** | `turno_trasladar_perfil(perfil_viejo, perfil_nuevo)`: mueve clientes, historial, reseñas y fidelidad; cierra el negocio viejo si se queda sin sillas |
-| **Servidor** | Que la invitación devuelva **lo que el barbero trae**, para la salida 2 |
-| **Servidor** | Push `invitacion` al barbero — hoy no hay tipo para esto |
-| **Barbero** | La invitación en su panel (cinta + fila en ajustes), no en la sala de espera |
-| **Barbero** | `UNIRME A UNA BARBERÍA` con el código del local |
-| **Barbería** | Ver lo que trae antes de invitar |
-| **Cliente** | Aviso de que su barbero se mudó, y a dónde |
+En la primera versión propuse una migración de **traslado de perfil**. Ya no
+hace falta, y esto es consecuencia directa de lo que decidiste:
 
-**El cliente también se entera.** Si tu barbero se muda y no te lo dicen, un
-día abres la app y la barbería tiene otro nombre. Eso es un push y una línea en
-la tarjeta: *«Jeison ahora atiende en Barbería Dávila. Tus 7 recortes siguen
-contigo.»*
+> **Si se puede estar en dos sitios y se puede salir de uno, la mudanza no es
+> una operación: es entrar al nuevo y salir del viejo.** Las dos piezas ya
+> existen.
+
+Lo que queda no es mover nada. Es que **lo suyo no se quede atrás**:
+
+| Capa | Trabajo | Por qué |
+|---|---|---|
+| **Servidor** | Valoración e historial **por usuario**, no por perfil | Sin esto, cambiar de sitio borra 120 reseñas |
+| **Servidor** | Push `invitacion` — hoy no hay tipo para esto | Si no, se entera por fuera de la app |
+| **Barbero** | Preguntar el rol al unirse, en vez de fijar `empleado` | El rol decide de quién son los recortes |
+| **Barbero** | La invitación en su panel, no en la sala de espera del alta | Hoy no la ve nunca |
+| **Barbería** | Ver lo que trae antes de invitar | § 6 |
+| **Cliente** | Aviso de que su barbero se mudó, y a dónde | Si no, un día la barbería tiene otro nombre |
+
+**El cliente también se entera.** Un push y una línea en la tarjeta: *«Jeison
+ahora atiende en Barbería Dávila. Tus 7 recortes siguen contigo.»*
+
+Y con dos sitios a la vez, el aviso no siempre es una mudanza: también puede
+ser *«Jeison ahora también atiende en Barbería Dávila»*. **La app no debe
+suponer que se fue** — puede que solo haya sumado un sitio.
 
 ---
 
-## 8 · Lo que queda por decidir
+## 8 · Decidido
 
-1. **¿Se puede estar en dos sitios a la vez?** Hoy el modelo lo permite —dos
-   perfiles, dos negocios— y el conmutador de panel ya los muestra. Mudarse es
-   una cosa; trabajar de verdad en dos locales es otra, y hay barberos que lo
-   hacen. **Recomiendo permitirlo y que «mudarse» sea explícito**, no el efecto
-   secundario de aceptar una invitación.
-2. **¿Puede el dueño deshacer la mudanza?** Si echa al barbero al día
-   siguiente, ¿vuelve a su negocio viejo o se queda sin nada? Sin respuesta,
-   una mudanza es una puerta de un solo sentido — y acabamos de gastar un
-   documento entero explicando por qué eso es malo.
+| Pregunta | Respuesta |
+|---|---|
+| ¿Dos sitios a la vez? | **Sí.** Ya funciona: el conmutador de panel los lista |
+| ¿De quién es el perfil? | **Del barbero. Donde sea, se lo lleva** |
+| ¿Se puede deshacer? | **Sí.** `dejarLocal` ya existe |
+| ¿De quién son los recortes? | **Del local solo si es empleado** |
+
+Lo único abierto es el § 6: qué pasa cuando un empleado nuevo llega con
+recortes que el local nunca vendió. Mi recomendación sigue siendo enseñárselo
+al dueño antes de invitar.
