@@ -15,7 +15,7 @@ import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, 
 import { useEffect, useState, useCallback } from 'react'
 import { getSesion } from '../../../lib/storage'
 import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
-import { dinero } from '../../../lib/format'
+import { dinero, fechaDeISO } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, NoCargo, Pole } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
@@ -23,6 +23,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 /** Lo que quiso decir cada puntuación. La estrella es el gesto; esto es el
  *  significado, y es lo que evita el toque de más. */
+/** «12 sep», no «2026-09-12». La fecha está ahí para reconocer la visita, y
+ *  un ISO no se reconoce: se descifra. */
+function diaCorto(iso?: string | null): string | null {
+  if (!iso) return null
+  const d = fechaDeISO(iso)
+  return `${d.getDate()} ${d.toLocaleDateString('es', { month: 'short' }).replace('.', '')}`
+}
+
 const PALABRA: Record<number, string> = {
   1: 'MALO', 2: 'REGULAR', 3: 'BIEN', 4: 'MUY BUENO', 5: 'EXCELENTE',
 }
@@ -192,7 +200,7 @@ export default function Historial() {
               <View style={{ flex: 1 }}>
                 <Text style={s.rServ}>{activa?.turno_servicios?.nombre ?? 'Servicio'}</Text>
                 <Text style={s.rMeta}>
-                  {[activa?.turno_perfiles?.turno_usuarios?.nombre, activa?.fecha,
+                  {[activa?.turno_perfiles?.turno_usuarios?.nombre, diaCorto(activa?.fecha),
                     activa?.precio_cobrado != null ? dinero(activa.precio_cobrado, moneda) : null]
                     .filter(Boolean).join(' · ')}
                 </Text>
