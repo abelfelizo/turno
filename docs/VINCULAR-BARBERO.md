@@ -42,90 +42,87 @@ El dueño la usa desde `dueno/dashboard.tsx:153`.
 
 ---
 
-## 3 · Los tres huecos
+## 3 · Corrección: casi todo estaba construido
 
-### a) La invitación llega a una puerta por la que él ya no pasa
+En la primera versión de este documento dije que faltaba «que él pida entrar
+con el código del local desde sus ajustes». **Era falso.** Está en
+`barbero/config.tsx`, y bien hecho:
+
+| Pieza | Dónde |
+|---|---|
+| `MIS LOCALES` con todos sus sitios | `getBarberoNegocios` · línea 141 |
+| Unirse a un local con su código | `unirseProfesional` · línea 343, con su modal |
+| **Dejar un local** (deshacer) | `dejarLocal` · línea 360 |
+| El dueño lo desvincula | `desvincularBarbero` |
+| Dos sitios a la vez | El conmutador de panel ya los lista |
+
+Y hasta el caso fino está resuelto:
+
+> Si ese local ya te había INVITADO, tu solicitud es el segundo sí y entras de
+> una. Mandar a esperar a quien ya está dentro es el fallo que este `if` evita.
+
+**Trabajar en dos sitios y deshacerlo no hay que construirlo. Ya funciona.**
+
+---
+
+## 4 · Lo que el front end NO respeta
+
+Fijado el principio —**el perfil siempre es del barbero, y donde sea se lo
+lleva**— quedan tres sitios donde la app lo contradice.
+
+### a) Las estrellas se quedan en el local *(el grave)*
+
+`turno_resumen_resenas(p_perfil)` agrega **por perfil**, y hay un perfil por
+local. Consecuencia:
+
+> Un barbero con 4,8 ★ y 120 reseñas que entra en otro local **aparece sin
+> valoración**. Empieza de cero como si nunca hubiera cortado.
+
+Eso choca de frente con el principio. Si el perfil es suyo, **sus estrellas son
+suyas**: se ganaron cortando pelo, no ocupando una silla concreta. Lo mismo
+vale para el historial de visitas.
+
+Arreglo: la valoración se agrega **por usuario**, no por perfil. Y si se quiere
+conservar el detalle, la tarjeta puede decir `4,8 ★ · 120 cortes · 31 aquí`.
+
+### b) Al unirse por código, el rol está fijo a «empleado»
+
+`config.tsx:343` llama a `unirseProfesional` con **`rol: 'empleado'`** escrito a
+mano. Un barbero que va a **alquilar** una silla no puede entrar como tal.
+
+Y esto ya no es cosmético, porque **el rol decide de quién son los recortes**:
+entra mal clasificado, y el programa de fidelidad queda del local cuando
+debería ser suyo. Hay que preguntarlo: *¿vas de empleado o alquilas tu silla?*
+
+### c) La invitación no le llega donde vive
 
 `getMisInvitaciones` y `responderInvitacion` **solo se usan en
-`(auth)/barbero-pendiente.tsx`** — una pantalla de la sala de espera del alta.
+`(auth)/barbero-pendiente.tsx`**, la sala de espera del alta. Un barbero que ya
+trabaja nunca la ve.
 
-> Un barbero independiente que ya está trabajando en su propio panel **nunca ve
-> la invitación**. Le llega y se queda ahí.
-
-Es el hueco más barato de tapar y el que rompe todo el flujo: el local invita,
-el barbero no se entera, y el dueño concluye que no funciona.
-
-### b) No puede unirse por su cuenta
-
-Existe `(auth)/barbero-codigo` para meter el código del local, pero es del
-alta. Desde dentro, un barbero ya montado no tiene dónde escribirlo.
-
-Hace falta la dirección contraria a la invitación: **él pide entrar.**
-
-### c) Aceptar crea una segunda silla, no una mudanza
-
-Hoy la invitación crea un **perfil nuevo** en el negocio del local. Al
-aceptarlo, Jeison acaba con dos:
-
-| | Perfil viejo | Perfil nuevo |
-|---|---|---|
-| Negocio | «Jeison Reyes» | Barbería Dávila |
-| Su código | el que dio a sus clientes | otro |
-| Historial | ahí | vacío |
-| **Recortes de sus clientes** | **ahí** | vacío |
-
-Nada dice que el nuevo **es la continuación** del viejo. Esa es la
-vinculación que falta.
+Existe la salida —que teclee el código y entre por el segundo sí— pero **tiene
+que enterarse por fuera de la app** de que le invitaron.
 
 ---
 
-## 4 · Las dos puertas
+## 5 · Qué es suyo y qué es del sitio
 
-### Puerta A · El local llama — *ya existe el motor, falta la puerta*
+«El perfil siempre es del barbero» no puede querer decir que **todo** viaje: de
+empleado, los precios los pone el local, y eso ya está acordado. La línea que
+cuadra las dos cosas:
 
-```
-[ Barbería Dávila te invitó ]
-  Como: EMPLEADO
-  ─────────────────────────────
-  Lo que cambia si aceptas:
-  · Tus precios y tu horario pasa a ponerlos el local
-  · Tus 27 clientes y sus 84 recortes se van contigo
-  · Tu código BD4K deja de funcionar; te damos el del local
-  ─────────────────────────────
-  [ ACEPTAR Y MUDARME ]   No, gracias
-```
+> **Lo que dice quién es, es suyo. Lo que dice cómo trabaja aquí, es del sitio.**
 
-Aparece **en su panel**, no en la sala de espera del alta: cinta arriba de su
-agenda y fila en sus ajustes.
+| Suyo · va con él a todas partes | Del sitio · uno por local |
+|---|---|
+| Su nombre, su foto, su código | Sus precios |
+| **Su valoración y sus reseñas** | Sus servicios |
+| Su historial de cortes | Su horario y su jornada |
+| Sus clientes | Su estado (libre, pausa, descanso) |
+| Sus recortes **si alquila o va solo** | Sus recortes **si es empleado** |
 
-### Puerta B · Él pide entrar — *nueva*
-
-En sus ajustes, `UNIRME A UNA BARBERÍA`: escribe el código del local, ve
-**quién es** antes de pedirlo (la misma confirmación que ya diseñamos para el
-cliente) y queda pendiente de que el dueño lo apruebe.
-
-Simétrico a lo que ya existe: uno invita, el otro pide, **y siempre hacen falta
-los dos síes**.
-
----
-
-## 5 · Qué se lleva al mudarse
-
-| Qué | ¿Viaja? | Por qué |
-|---|---|---|
-| Sus clientes | **Sí** | Le siguen a él, no al sitio |
-| Historial de visitas | **Sí** | Es su trabajo |
-| Reseñas y valoración | **Sí** | Se las ganó él |
-| **Recortes acumulados** | **Sí, siempre** | El cliente los ganó **con esa persona** |
-| Sus servicios y precios | **Solo si entra como renta** | De empleado, los pone el local |
-| Su horario | **Solo si entra como renta** | Igual |
-| Su código de barbero | **No** | Pasa a usar el del local |
-| Turnos y citas vivos | **No** | Se cierran antes de mudarse |
-
-**Lo acumulado viaja siempre; lo que cambia según el rol es de quién son los
-recortes que se generen A PARTIR DE AHORA.** Así el cliente nunca pierde nada
-—que era el daño que no tiene explicación posible— y la regla del local solo
-gobierna lo que viene.
+Los recortes son la única fila que cambia de columna, y la decide el rol — que
+es exactamente la regla que ya fijaste.
 
 ---
 
