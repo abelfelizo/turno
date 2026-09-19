@@ -220,6 +220,19 @@ premios», que es anunciar una carencia.
 de Ana. Sin explicarlo parece un fallo. Basta una línea bajo la tarjeta:
 `Ana no tiene programa de recortes.`
 
+### Hablar con el barbero
+
+Cada barbero lleva en su línea **dos iconos: WhatsApp y llamar**.
+
+El dato ya existe y no hay que pedir nada nuevo: `turno_usuarios` trae
+**`whatsapp`** e `instagram` además del teléfono, y `getPerfilesNegocio` ya se
+los pasa al cliente.
+
+Van como iconos y no como botones con texto porque comparten la línea del
+nombre y el destino se entiende sin leer. **WhatsApp primero** —aquí es el canal
+por defecto— y llamar al lado, que es lo que se hace cuando el otro no
+contesta. **Solo salen si ese barbero dejó su número.**
+
 ### Y quién lo configura hay que decirlo en la tarjeta
 
 Porque cambia a quién se le reclama. `FIDELIDAD · CON JEISON` cuando el `ambito`

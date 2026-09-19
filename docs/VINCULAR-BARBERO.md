@@ -105,49 +105,58 @@ que enterarse por fuera de la app** de que le invitaron.
 
 ---
 
-## 5 · Qué es suyo y qué es del sitio
+## 5 · Qué viaja — la regla, corregida
 
-«El perfil siempre es del barbero» no puede querer decir que **todo** viaje: de
-empleado, los precios los pone el local, y eso ya está acordado. La línea que
-cuadra las dos cosas:
+Mi versión anterior decía «lo que dice quién es viaja, lo que dice cómo trabajas
+aquí se queda», **para todos**. La regla real es más simple y depende del rol:
 
-> **Lo que dice quién es, es suyo. Lo que dice cómo trabaja aquí, es del sitio.**
+> **Si es independiente, viaja todo — incluidos sus precios y sus servicios.**
+> **Si es empleado, solo viaja lo que dice quién es.**
 
-| Suyo · va con él a todas partes | Del sitio · uno por local |
-|---|---|
-| Su nombre, su foto, su código | Sus precios |
-| **Su valoración y sus reseñas** | Sus servicios |
-| Su historial de cortes | Su horario y su jornada |
-| Sus clientes | Su estado (libre, pausa, descanso) |
-| Sus recortes **si alquila o va solo** | Sus recortes **si es empleado** |
+| | Independiente (solo o renta) | Empleado |
+|---|---|---|
+| Nombre, foto, código | Viaja | Viaja |
+| Valoración y reseñas | Viaja | Viaja |
+| Historial de cortes | Viaja | Viaja |
+| Clientes | Viaja | Viaja |
+| **Precios** | **Viajan** | Los pone el local |
+| **Servicios** | **Viajan** | Los pone el local |
+| Horario | Suyo | Lo pone el local |
+| Recortes | Suyos | Del local |
 
-Los recortes son la única fila que cambia de columna, y la decide el rol — que
-es exactamente la regla que ya fijaste.
+Y tiene sentido: **el independiente es el mismo negocio en otra dirección.** Se
+lleva su carta de precios como se lleva su tijera. El empleado entra a un
+negocio ajeno, y ahí la carta es del negocio.
+
+Consecuencia práctica: cuando un independiente se une a un local **como renta**,
+sus servicios y precios tienen que aparecer ya cargados, no en blanco. Volver a
+teclear la carta entera es la clase de fricción que hace que no lo use.
 
 ---
 
-## 6 · El caso espinoso, que conviene ver antes y no después
+## 6 · Quién paga el premio
 
-Jeison entra **como empleado** trayendo clientes con 84 recortes acumulados.
-Esos recortes se ganaron en su negocio, no en Dávila. Y ahora:
+> **El contador es de quien lo active, y paga el que ofrece el premio.**
+> Barbero independiente: lo activa él, lo paga él. Con empleados: paga la
+> barbería.
 
-> **Dávila tiene que regalar cortes que nunca vendió.**
+Esto **disuelve el problema** que ocupaba antes esta sección. Yo lo había
+planteado como «Dávila tiene que regalar cortes que nunca vendió», y con esta
+regla **Dávila no hereda ninguna deuda**: el programa lo activó Jeison, así que
+los recortes acumulados son suyos y los honra él.
 
-Tres salidas:
+Ya no hay que enseñarle al dueño lo que el barbero trae para que decida: no le
+cuesta nada.
 
-1. **El local los honra sin más.** Lo más limpio para el cliente, y un coste
-   real para un local que no lo pidió.
-2. **Se le enseña al dueño ANTES de invitar** — «este barbero trae 27 clientes
-   con 84 recortes; 3 ya tienen premio» — y que decida con el número delante.
-3. **Los recortes viajan pero se congelan**: siguen contando para el programa
-   viejo hasta que se canjeen, y los nuevos ya son del local.
+**Mi lectura de la consecuencia, por si hay que corregirla:** cuando Jeison
+entra **como empleado**, su programa deja de admitir recortes nuevos —ahí manda
+el del local— pero **lo ya acumulado sigue vivo y lo paga él**. Es un saldo que
+se cierra, no algo que se borre. El cliente no pierde nada y el local no paga
+nada.
 
-**Recomiendo la 2.** No cambia el modelo, no le quita nada al cliente, y
-convierte una sorpresa desagradable en una condición de la invitación. Un dueño
-que ve «trae 84 recortes» y aun así invita, invitó sabiendo.
-
-La 3 es la más justa sobre el papel y la más difícil de explicar en una
-pantalla: dos contadores a la vez para el mismo cliente.
+Y en la tarjeta del cliente hay que decir **quién ofrece el premio**, porque es
+a quien se le reclama: `FIDELIDAD · CON JEISON` frente a
+`FIDELIDAD · BARBERÍA DÁVILA`. Es el `ambito` que el servidor ya devuelve.
 
 ---
 
@@ -168,7 +177,6 @@ Lo que queda no es mover nada. Es que **lo suyo no se quede atrás**:
 | **Servidor** | Push `invitacion` — hoy no hay tipo para esto | Si no, se entera por fuera de la app |
 | **Barbero** | Preguntar el rol al unirse, en vez de fijar `empleado` | El rol decide de quién son los recortes |
 | **Barbero** | La invitación en su panel, no en la sala de espera del alta | Hoy no la ve nunca |
-| **Barbería** | Ver lo que trae antes de invitar | § 6 |
 | **Cliente** | Aviso de que su barbero se mudó, y a dónde | Si no, un día la barbería tiene otro nombre |
 
 **El cliente también se entera.** Un push y una línea en la tarjeta: *«Jeison
@@ -188,7 +196,7 @@ suponer que se fue** — puede que solo haya sumado un sitio.
 | ¿De quién es el perfil? | **Del barbero. Donde sea, se lo lleva** |
 | ¿Se puede deshacer? | **Sí.** `dejarLocal` ya existe |
 | ¿De quién son los recortes? | **Del local solo si es empleado** |
+| ¿Quién paga el premio? | **El que lo ofrece.** Independiente: él. Empleados: la barbería |
+| ¿Qué viaja? | **Independiente: todo, precios incluidos. Empleado: solo quién es** |
 
-Lo único abierto es el § 6: qué pasa cuando un empleado nuevo llega con
-recortes que el local nunca vendió. Mi recomendación sigue siendo enseñárselo
-al dueño antes de invitar.
+Nada abierto.
