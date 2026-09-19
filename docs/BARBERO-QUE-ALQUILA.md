@@ -128,7 +128,34 @@ crece con el número de barberos solos.
 
 ---
 
-## 6 · Lo que no puedo decidir yo
+## 6 · Decidido
+
+**Los recortes son del local solo cuando el barbero es empleado.** Si alquila
+su silla o trabaja solo, son suyos y viajan con él.
+
+No es una regla nueva: es **la misma línea que el repo ya traza para el
+dinero**, aplicada a la fidelidad. Una sola pregunta —*¿de quién es el
+negocio?*— contesta quién pone los precios (88), de quién es el ingreso (117),
+quién paga la suscripción (93) y ahora también de quién son los recortes.
+
+La puerta de vinculación, entera, en **`VINCULAR-BARBERO.md`**. El resumen:
+
+- **La invitación ya existe** (`turno_invitar_barbero`, por código de barbero)
+  pero llega a `(auth)/barbero-pendiente`, una pantalla de la sala de espera
+  del alta: **un barbero que ya trabaja nunca la ve.**
+- **Falta la dirección contraria:** que él pida entrar con el código del local
+  desde sus ajustes.
+- **Y falta el traslado:** aceptar crea hoy una segunda silla, no una mudanza.
+  Nada dice que el perfil nuevo es la continuación del viejo.
+
+---
+
+## 7 · Lo que ya no está en duda
+
+La pregunta que quedaba abierta aquí —¿los recortes son del local o del
+barbero?— **está contestada** arriba. Lo que sigue abierto es más pequeño y
+está en `VINCULAR-BARBERO.md` § 8: si se puede trabajar en dos sitios a la vez,
+y qué pasa si el dueño echa al barbero al día siguiente de mudarse.
 
 **¿Los recortes son del local o del barbero?** Hoy la fidelidad cuelga de los
 dos (`negocio_id` y `perfil_id`, con un `ambito`). Si un barbero se muda:

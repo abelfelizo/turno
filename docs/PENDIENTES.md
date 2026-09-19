@@ -77,8 +77,11 @@ el suyo y no pide dirección— pero al evaluarlo apareció un problema de verda
 Es el único daño irreversible de los tres, y **empeora con el tiempo**. Entero
 en `BARBERO-QUE-ALQUILA.md`, con las opciones comparadas.
 
-**Bloqueado por una decisión de producto:** ¿los recortes son del local o del
-barbero? Sin eso no se puede escribir la migración.
+**Decidido:** los recortes son **del local solo cuando el barbero es
+empleado**. Si alquila o trabaja solo, son suyos y viajan con él — la misma
+línea que el repo ya traza para el dinero.
+
+La puerta de vinculación, especificada en `VINCULAR-BARBERO.md`.
 
 ### Lo que sí queda del tema, y es de diseño
 
