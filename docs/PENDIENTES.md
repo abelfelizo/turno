@@ -64,6 +64,22 @@ horarios.
 O sea: **un barbero sin barbería no existe en el modelo**, y el cliente siempre
 tiene local que mirar. La puerta ya está construida.
 
+### Reabierto y evaluado: ¿y el que alquila en un local sin app?
+
+La regla «el barbero siempre tiene barbería» parecía obligarle a inventarse un
+local. **El alta ya lo resuelve** —dice «Tu trabajo», el nombre por defecto es
+el suyo y no pide dirección— pero al evaluarlo apareció un problema de verdad:
+
+> **No existe función para trasladar un perfil de un negocio a otro.** Cuando
+> el dueño del local sí se apunte a Turno, el barbero no puede entrar: tendría
+> que empezar de cero y sus clientes **perderían los recortes**.
+
+Es el único daño irreversible de los tres, y **empeora con el tiempo**. Entero
+en `BARBERO-QUE-ALQUILA.md`, con las opciones comparadas.
+
+**Bloqueado por una decisión de producto:** ¿los recortes son del local o del
+barbero? Sin eso no se puede escribir la migración.
+
 ### Lo que sí queda del tema, y es de diseño
 
 **Mi barbería cuando el local es de una silla.** Los tableros dibujan un local
@@ -83,6 +99,7 @@ panel del barbero, que es donde se decide cómo se presenta un local de uno.
 
 | Qué | Dónde |
 |---|---|
+| El traslado de perfil entre negocios | `BARBERO-QUE-ALQUILA.md` |
 | La pausa de fila (migración + push `retraso`) | `PAUSA-DE-FILA.md` |
 | El rojo `redSoft` → `#FF4438` en `constants/index.ts` | `TARJETA-ESTADOS.md` § 2 bis |
 | Servicio habitual guardado + favoritos en la fila | `TABLEROS-CLIENTE.md` |
