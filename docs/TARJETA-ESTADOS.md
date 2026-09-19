@@ -4,8 +4,8 @@ Sacados del modelo de datos real, no inventados: `turno_cola.estado`,
 `modo_atencion`, `fila_abierta` / `fila_motivo`, `expira_at`, y las
 condiciones de local sin servicio que ya existen en el código.
 
-**Son 17 estados.** Trece del dominio, tres de la propia tarjeta, uno de
-cuenta nueva.
+**Son 20 estados.** Quince del dominio, tres de la propia tarjeta, uno de
+cuenta nueva, y dos de fila en pausa (sección 5 bis).
 
 ---
 
@@ -14,7 +14,7 @@ cuenta nueva.
 | Eje | Valores |
 |---|---|
 | **Tu turno** | ninguno · `en_fila` · `llamado` · `en_camino` · `atendiendo` · expirado |
-| **El local** | fila abierta · solo citas · solo fila · cerrado (con motivo) · sin servicio |
+| **El local** | fila abierta · solo citas · solo fila · **en pausa** · cerrado (con motivo) · sin servicio |
 
 **No son independientes, y esa es la regla que ordena todo:**
 
@@ -25,7 +25,7 @@ Es lo que hace que la tarjeta no se convierta en una tabla de 30 combinaciones.
 
 ---
 
-## 2 · La cifra grande — una ranura, seis significados
+## 2 · La cifra grande — una ranura, siete significados
 
 La tarjeta tiene **un solo hueco para la cifra en Anton**. Lo que ocupa ese
 hueco es la decisión de diseño más importante de toda la propuesta, porque es
@@ -39,6 +39,7 @@ lo único que se lee a un metro de distancia.
 | En la fila | `3º` | EN LA FILA |
 | Te llamaron | `4′` | PARA LLEGAR |
 | En la silla | `AHORA` | TE ESTÁN ATENDIENDO |
+| Fila en pausa | `3:15` | VUELVE SOBRE |
 | Local cerrado | *(sin cifra)* | el motivo ocupa su sitio |
 
 **La cifra cambia de significado al entrar a la fila, a propósito.** Sin turno,
@@ -176,6 +177,30 @@ No hay local que mostrar. La tarjeta se convierte en la invitación:
 AÚN NO TIENES BARBERÍA
 [ TENGO UN CÓDIGO ]   [ BUSCAR BARBERO ]
 ```
+
+---
+
+## 5 bis · La fila en pausa — E19 y E20
+
+Un barbero que sale un momento y no quiere más gente en la fila. **Ya existe a
+medias en el código**: el botón de descanso cierra la fila y el servidor
+rechaza los turnos nuevos. Lo que falta es el reloj y el aviso.
+
+| Estado | Cifra grande | Clave |
+|---|---|---|
+| **E19** · sin turno, fila en pausa | la hora de vuelta (`3:15`) | Con varios barberos, la pausa de uno no cierra el local: el botón rojo nombra al que sí atiende. |
+| **E20** · con turno, tu barbero en pausa | tu puesto, **sin tocar** | La pausa no te mueve de sitio. Cambia la línea de la estimación, que pasa a decir el motivo. |
+
+Dos reglas duras:
+
+> Una pausa sin hora de vuelta es indistinguible de un cierre.
+
+> **La ventana de llegada no corre durante una pausa.** Si te llamaron y el
+> barbero se ausenta, `expira_at` se congela. Perder el turno por un retraso
+> ajeno es el peor fallo posible de esta app.
+
+Entero en `PAUSA-DE-FILA.md`, porque toca servidor y panel del barbero, no solo
+la tarjeta.
 
 ---
 
