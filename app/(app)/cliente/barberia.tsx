@@ -21,7 +21,8 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
   RefreshControl, Linking, Alert,
 } from 'react-native'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter } from 'expo-router'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getSesion, guardarSesion } from '../../../lib/storage'
@@ -104,7 +105,7 @@ export default function MiBarberia() {
     } finally { setLoading(false); setRefreshing(false) }
   }, [])
 
-  useFocusEffect(useCallback(() => { cargar() }, [cargar]))
+  useRecargaAlEnfocar(cargar)
 
   /** El cliente emite el vale al llegar a la meta. Lo aplica el barbero al
    *  cobrar: el cliente nunca marca su propio cobro. */
@@ -450,7 +451,7 @@ const s = StyleSheet.create({
 
   servicio: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11,
     borderBottomWidth: 1, borderBottomColor: COLORS.line },
-  svN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  svN: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
   svD: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
   svP: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink },
 

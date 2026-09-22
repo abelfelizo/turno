@@ -12,7 +12,8 @@
  */
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useRouter } from 'expo-router'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, limpiarSesion } from '../../../lib/storage'
 import { getMiUsuario, getPreferenciasCliente, guardarPreferencias, eliminarCuenta } from '../../../lib/db'
@@ -61,8 +62,9 @@ export default function Configuracion() {
    }
   }, [])
 
-  useEffect(() => { cargar() }, [cargar])
-  useFocusEffect(useCallback(() => { cargar() }, [cargar]))
+  // Montaje y primer enfoque son el mismo instante: con los dos, cada
+  // apertura pedía todo dos veces. Ver lib/recarga.
+  useRecargaAlEnfocar(cargar)
 
   function salir() {
     Alert.alert('Cerrar sesión', '¿Seguro que quieres salir? Necesitarás un código nuevo para volver a entrar.', [
@@ -121,10 +123,15 @@ export default function Configuracion() {
 
   return (
     <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }} showsVerticalScrollIndicator={false}>
+      {/* Alineada a la izquierda, como la cabecera de «Mi barbería». La foto
+          centrada con el nombre debajo era la ficha de perfil de antes: aquí
+          no se presenta a nadie, se ajustan cosas. */}
       <View style={s.head}>
-        <Avatar name={usuario?.nombre} size={72} />
-        <Text style={s.nombre}>{usuario?.nombre ?? 'Cliente'}</Text>
-        <Text style={s.tel}>{usuario?.telefono ?? ''}</Text>
+        <Avatar name={usuario?.nombre} size={56} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.nombre} numberOfLines={2}>{usuario?.nombre ?? 'Cliente'}</Text>
+          {!!usuario?.telefono && <Text style={s.tel}>{usuario.telefono}</Text>}
+        </View>
       </View>
 
       <Text style={s.sec}>MIS PREFERENCIAS</Text>
@@ -209,17 +216,19 @@ const s = StyleSheet.create({
   guardarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.4 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  head: { alignItems: 'center', marginBottom: 20 },
-  nombre: { fontFamily: FONTS.extrabold, fontSize: 22, color: COLORS.ink, marginTop: 10 },
-  tel: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 2 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
+  nombre: { fontFamily: FONTS.display, fontSize: 28, lineHeight: 30, color: COLORS.ink, textTransform: 'uppercase' },
+  tel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
     borderBottomWidth: 1, borderBottomColor: COLORS.border },
   cuentaIcono: { width: 34, height: 34, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink, textTransform: 'uppercase' },
   cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
     padding: 14, marginBottom: 24 },
-  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  cuentaBorrarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', textTransform: 'uppercase' },
   cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 },
+  // La misma sección que el resto de la app: rótulo con filete negro debajo.
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22, marginBottom: 2 },
 })

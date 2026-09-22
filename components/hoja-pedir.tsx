@@ -31,6 +31,7 @@ import { aceptaFila, aceptaCitas, filaAbierta, fraseFila, porQueNo } from '../li
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar } from './ui'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export type Via = 'fila' | 'cita'
 
@@ -58,6 +59,16 @@ export default function HojaPedir({
   soloPerfil?: string | null
 }) {
   const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+  /**
+   * LA BARRA DE ANDROID NO ES PARTE DE LA HOJA.
+   *
+   * La hoja se ancla al borde de abajo de la pantalla, y en Android ese borde
+   * está DEBAJO de la barra de navegación (atrás, inicio, recientes): el botón
+   * de confirmar quedaba tapado por ella, o medio tapado, justo donde va el
+   * pulgar. Lo que mide esa barra lo da el sistema —cambia entre botones y
+   * gestos, y de un teléfono a otro— así que se suma, no se adivina.
+   */
+  const abajo = useSafeAreaInsets().bottom
 
   const esFila = via === 'fila'
   // Quien no trabaja por esta vía no sale: no es que esté cerrado hoy, es que
@@ -73,9 +84,9 @@ export default function HojaPedir({
   const abiertos = esFila ? lista.filter((p: any) => filaAbierta(p)) : lista
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose} statusBarTranslucent>
       <View style={s.fondo}>
-        <Animated.View style={[s.hoja, { transform: [{ translateY: y }] }]}>
+        <Animated.View style={[s.hoja, { paddingBottom: 18 + abajo, transform: [{ translateY: y }] }]}>
           <View {...panHandlers}><Agarre /></View>
 
           <View style={s.cab}>

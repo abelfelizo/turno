@@ -12,7 +12,8 @@
  * Una sola, la última: pedir cinco reseñas a la vez no consigue ninguna.
  */
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { getSesion } from '../../../lib/storage'
 import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
 import { dinero, fechaDeISO } from '../../../lib/format'
@@ -79,7 +80,10 @@ export default function Historial() {
     }
   }, [])
 
-  useEffect(() => { cargar() }, [cargar])
+  // Cargaba SOLO al montar, y una pestaña no se desmonta al salir de ella:
+  // una visita nueva o una reseña recién enviada no aparecían hasta cerrar
+  // la app. Ver lib/recarga.
+  useRecargaAlEnfocar(cargar)
 
   async function enviar() {
     if (!activa || rating === 0) { Alert.alert('Elige una calificación', 'Toca las estrellas.'); return }
@@ -169,12 +173,25 @@ export default function Historial() {
         renderItem={({ item }) => {
           const ya = resenadas.includes(item.id)
           return (
+            /* LA VISITA SE LEE COMO LA CITA DE «MI TURNO»: la fecha en un
+               bloque a la izquierda —día grande en Anton, mes debajo—,
+               servicio y barbero en medio, precio a la derecha. Antes era la
+               fecha en ISO dentro de una línea gris, y la fecha es justo lo
+               que se busca al bajar por el historial. */
             <View style={s.card}>
-              <View style={{ flex: 1 }}>
-                <Text style={s.servicio}>{item.turno_servicios?.nombre ?? 'Servicio'}</Text>
-                <Text style={s.fecha}>{item.fecha} · {item.turno_perfiles?.turno_usuarios?.nombre ?? ''}</Text>
-                {ya ? <Text style={s.calificado}>✓ Calificado</Text>
-                    : <TouchableOpacity onPress={() => { setActiva(item); setRating(0); setComentario('') }}><Text style={s.calificar}>★ Calificar</Text></TouchableOpacity>}
+              <View style={s.dia}>
+                <Text style={s.diaN}>{item.fecha ? fechaDeISO(item.fecha).getDate() : '—'}</Text>
+                <Text style={s.diaM}>
+                  {item.fecha ? fechaDeISO(item.fecha).toLocaleDateString('es', { month: 'short' }).replace('.', '').toUpperCase() : ''}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.servicio} numberOfLines={1}>{item.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                <Text style={s.fecha} numberOfLines={1}>{item.turno_perfiles?.turno_usuarios?.nombre ?? 'Sin barbero'}</Text>
+                {ya ? <Text style={s.calificado}>Calificado</Text>
+                    : <TouchableOpacity hitSlop={8} onPress={() => { setActiva(item); setRating(0); setComentario('') }}>
+                        <Text style={s.calificar}>Calificar</Text>
+                      </TouchableOpacity>}
               </View>
               <Text style={s.precio}>{dinero(item.precio_cobrado, moneda)}</Text>
             </View>
@@ -254,13 +271,18 @@ const s = StyleSheet.create({
   numL: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
-  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16,
+  card: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  dia: { width: 52, height: 52, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  diaN: { fontFamily: FONTS.display, fontSize: 21, lineHeight: 24, color: COLORS.ink },
+  diaM: { fontFamily: FONTS.bold, fontSize: 9.5, color: COLORS.textLight, letterSpacing: 1.2 },
   servicio: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  fecha: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
-  calificar: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 6 },
-  calificado: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.success, marginTop: 6 },
-  precio: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
+  fecha: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  // Una acción en rojo con mayúsculas espaciadas, no un «★ Calificar» con
+  // emoji: la estrella ya es de la hoja que se abre.
+  calificar: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.red, marginTop: 6, textTransform: 'uppercase' },
+  calificado: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.textLight, marginTop: 6, textTransform: 'uppercase' },
+  precio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15,
     borderBottomWidth: 2, borderBottomColor: COLORS.ink },
   rIni: { width: 46, height: 46, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center' },

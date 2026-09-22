@@ -28,6 +28,7 @@ import {
   Modal, View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform,
   TouchableWithoutFeedback, useWindowDimensions, Animated,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { COLORS } from '../constants'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
 
@@ -38,6 +39,16 @@ export default function Hoja({ visible, onClose, children }: {
 }) {
   const { height } = useWindowDimensions()
   const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+  /**
+   * LA BARRA DE ANDROID NO ES PARTE DE LA HOJA.
+   *
+   * La hoja se ancla al borde de abajo de la pantalla, y en Android ese borde
+   * está DEBAJO de la barra de navegación (atrás, inicio, recientes): el botón
+   * de confirmar quedaba tapado por ella, o medio tapado, justo donde va el
+   * pulgar. Lo que mide esa barra lo da el sistema —cambia entre botones y
+   * gestos, y de un teléfono a otro— así que se suma, no se adivina.
+   */
+  const abajo = useSafeAreaInsets().bottom
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <KeyboardAvoidingView
@@ -49,7 +60,7 @@ export default function Hoja({ visible, onClose, children }: {
         <TouchableWithoutFeedback onPress={onClose}>
           <View style={s.telon} />
         </TouchableWithoutFeedback>
-        <Animated.View style={[s.hoja, { maxHeight: height * 0.88, transform: [{ translateY: y }] }]}>
+        <Animated.View style={[s.hoja, { maxHeight: height * 0.88, paddingBottom: 26 + abajo, transform: [{ translateY: y }] }]}>
           <View {...panHandlers}><Agarre /></View>
           <ScrollView
             keyboardShouldPersistTaps="handled"

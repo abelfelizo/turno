@@ -7,6 +7,7 @@ import { dinero } from '../lib/format'
 import { COLORS, FONTS } from '../constants'
 import { Display, Avatar } from './ui'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type Seleccion = {
   negocio: any
@@ -96,6 +97,18 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
   // justo en ese render aparecía uno de más. O sea que la hoja de entrar a la
   // fila reventaba EN EL MOMENTO de usarla, no al abrir la pantalla.
   const { y, panHandlers } = useArrastrarParaCerrar(onClose)
+  /**
+   * LA BARRA DE ANDROID NO ES PARTE DE LA HOJA.
+   *
+   * La hoja se ancla al borde de abajo de la pantalla, y en Android ese borde
+   * está DEBAJO de la barra de navegación (atrás, inicio, recientes): el botón
+   * de confirmar quedaba tapado por ella, o medio tapado, justo donde va el
+   * pulgar. Lo que mide esa barra lo da el sistema —cambia entre botones y
+   * gestos, y de un teléfono a otro— así que se suma, no se adivina.
+   */
+  // Antes del `return null`, igual que el gesto: un hook nunca va detrás de
+  // una salida temprana.
+  const abajo = useSafeAreaInsets().bottom
 
   if (!seleccion) return null
   const { negocio, perfil, servicio } = seleccion
@@ -119,9 +132,9 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
   const total = (servicio?.precio ?? 0) + (segundo?.servicio?.precio ?? 0)
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
       <View style={s.bg}>
-        <Animated.View style={[s.sheet, { transform: [{ translateY: y }] }]}>
+        <Animated.View style={[s.sheet, { paddingBottom: 24 + abajo, transform: [{ translateY: y }] }]}>
           <View {...panHandlers}><Agarre /></View>
           <Display size={24} style={{ marginBottom: 4 }}>Entrar a la fila digital</Display>
           <Text style={s.sub}>Revisa antes de confirmar. Reservas un lugar en la fila digital.</Text>

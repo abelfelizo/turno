@@ -453,24 +453,39 @@ export async function getRolDePerfil(perfil_id: string): Promise<string | null> 
  * se corrige una.
  */
 export async function getPerfilesNegocio(negocio_id: string, opts?: { soloAlDia?: boolean }) {
-  const { data, error } = await supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true)
+  /**
+   * LAS TRES PREGUNTAS SALEN A LA VEZ.
+   *
+   * Iban una detrás de otra —los barberos, DESPUÉS sus roles, DESPUÉS si su
+   * fila está abierta— y ninguna necesita la respuesta de las otras: las
+   * tres solo necesitan el local. Esta función la llaman «Mi turno», «Mi
+   * barbería», la reserva y los paneles de barbero y de dueño, así que eran
+   * dos esperas de red de más en casi cada pantalla de la app.
+   *
+   * Lo que pasa si una falla no cambia: sin barberos, error; sin roles, la
+   * lista sale sin rol; sin filas, sale entera y sin letrero.
+   */
+  const [{ data, error }, { data: mem }, { data: filas, error: eFilas }] = await Promise.all([
+    supabase.from(T('perfiles')).select('*, turno_usuarios(nombre, telefono, codigo_barbero, foto_url, bio, especialidad, instagram, whatsapp), turno_servicios(*)').eq('negocio_id', negocio_id).eq('aprobado', true).eq('activo', true),
+    // El rol vive en la membresía, no en el perfil, y el dueño lo necesita para
+    // saber a quién puede ponerle servicios y horario (empleado) y a quién no
+    // (barbero_renta, que es autónomo).
+    supabase.from(T('membresias')).select('usuario_id, rol')
+      .eq('negocio_id', negocio_id).eq('activo', true)
+      .in('rol', ['empleado', 'barbero_renta', 'dueno']),
+    // ¿ESTÁ ABIERTA SU FILA AHORA MISMO? (migración 74). No se puede deducir
+    // de la fila de turno_perfiles: depende del horario del día, de la hora
+    // local del negocio y del modo. La respuesta la da el servidor —el mismo
+    // que luego abre o cierra la puerta— para que la pantalla no ofrezca lo
+    // que él va a rechazar. Si esta llamada falla, la lista sale igual y sin
+    // motivo: perder el letrero no puede dejar al cliente sin ver a sus
+    // barberos.
+    supabase.rpc('turno_filas_abiertas', { p_negocio: negocio_id }),
+  ])
   if (error) throw error
-  // El rol vive en la membresía, no en el perfil, y el dueño lo necesita para
-  // saber a quién puede ponerle servicios y horario (empleado) y a quién no
-  // (barbero_renta, que es autónomo).
-  const { data: mem } = await supabase.from(T('membresias')).select('usuario_id, rol')
-    .eq('negocio_id', negocio_id).eq('activo', true)
-    .in('rol', ['empleado', 'barbero_renta', 'dueno'])
   const rol: Record<string, string> = {}
   for (const m of (mem ?? []) as any[]) if (!rol[m.usuario_id] || m.rol === 'dueno') rol[m.usuario_id] = m.rol
 
-  // ¿ESTÁ ABIERTA SU FILA AHORA MISMO? (migración 74). No se puede deducir de
-  // la fila de turno_perfiles: depende del horario del día, de la hora local
-  // del negocio y del modo. La respuesta la da el servidor —el mismo que luego
-  // abre o cierra la puerta— para que la pantalla no ofrezca lo que él va a
-  // rechazar. Si esta llamada falla, la lista sale igual y sin motivo: perder
-  // el letrero no puede dejar al cliente sin ver a sus barberos.
-  const { data: filas, error: eFilas } = await supabase.rpc('turno_filas_abiertas', { p_negocio: negocio_id })
   const abierta: Record<string, { abierta: boolean; motivo: string | null }> = {}
   for (const f of (filas ?? []) as any[]) abierta[f.perfil_id] = { abierta: f.abierta, motivo: f.motivo }
 

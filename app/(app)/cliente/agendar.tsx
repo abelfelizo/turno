@@ -1,5 +1,6 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
@@ -41,12 +42,35 @@ export default function Agendar() {
   const [enviando, setEnviando] = useState(false)
   const dias = proximosDias(14)
 
-  // La carga entera va dentro de un try: `getPerfilesNegocio` no llevaba
-  // `.catch` y `setLoading(false)` estaba suelto al final, así que un tirón de
-  // red dejaba esta pantalla girando y sin salida.
+  /**
+   * LA RESERVA SE REHACE CADA VEZ QUE SE ABRE.
+   *
+   * Esta pantalla es una pestaña oculta, y las pestañas no se desmontan al
+   * salir de ellas. Cargaba los barberos UNA vez, la primera que se abría, y
+   * nunca más. Con dos barberías eso creaba citas en el local equivocado: la
+   * abrías estando en uno, cambiabas al otro, volvías a reservar, y la lista
+   * seguía siendo la del primero. Elegías barbero creyendo estar en un sitio
+   * y la cita se creaba en el otro — con su barbero, su precio y su hora. Así
+   * se quedó «Prueba Empleados» con cero citas y «Prueba Alquiler» con todas.
+   *
+   * Ahora cada vez que se abre: formulario en blanco, barberos del local que
+   * está en la sesión AHORA, y la preselección que traiga ESTA visita. Los
+   * parámetros se leen de una ref porque la función se creó en el primer
+   * render: leídos por cierre, serían los de la primera vez para siempre.
+   *
+   * La carga entera va dentro de un try: `getPerfilesNegocio` no llevaba
+   * `.catch` y `setLoading(false)` estaba suelto al final, así que un tirón de
+   * red dejaba esta pantalla girando y sin salida.
+   */
+  const paramsRef = useRef(params)
+  paramsRef.current = params
   const cargar = useCallback(async () => {
     try {
       setFallo(false)
+      const params = paramsRef.current
+      // Lo de la visita anterior fuera: una reserva a medio hacer de otro
+      // barbero —o de otro local— no puede aparecer ya rellena.
+      setPerfil(null); setServicio(null); setFecha(''); setHora(''); setPersonas(1)
       const ss = await getSesion()
       if (ss?.negocio_id) {
         const [ps, neg] = await Promise.all([
@@ -92,7 +116,7 @@ export default function Agendar() {
       setLoading(false)
     }
   }, [])
-  useEffect(() => { cargar() }, [cargar])
+  useRecargaAlEnfocar(cargar)
 
   // Días en que el barbero trabaja (para deshabilitar los cerrados)
   useEffect(() => {
@@ -110,6 +134,20 @@ export default function Agendar() {
 
   async function confirmar() {
     if (!perfil || !servicio || !fecha || !hora) return
+    /**
+     * LA ÚLTIMA COMPROBACIÓN ANTES DE CREAR NADA: ¿este barbero es del local
+     * en el que estoy? La cita se crea en el local DEL BARBERO —el servidor lo
+     * saca del perfil—, así que si la lista estuviera vieja, la cita iría a
+     * parar a otra barbería sin que nada lo dijera. Recargar al abrir ya lo
+     * evita; esto es para el día que otro camino deje la lista vieja.
+     */
+    const ssAhora = await getSesion()
+    if (perfil.negocio_id && ssAhora?.negocio_id && perfil.negocio_id !== ssAhora.negocio_id) {
+      Alert.alert('Cambiaste de barbería',
+        'Este barbero es de otro local. Te enseñamos los de la barbería en la que estás ahora.')
+      await cargar()
+      return
+    }
     setEnviando(true)
     try {
       if (params.reagendar) {

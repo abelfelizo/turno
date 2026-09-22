@@ -406,7 +406,7 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
   const cifra = corriendo ? `${Math.max(0, p.quedanMin ?? 0)}′`
     : p.enSilla ? 'AHORA'
     : llego ? 'AQUÍ'
-    : p.puesto ? `${p.puesto}º` : '—'
+    : p.puesto ? ordinal(p.puesto) : '—'
   const rotulo = corriendo ? 'PARA LLEGAR'
     : p.enSilla ? 'TE ESTÁN ATENDIENDO'
     : llego ? 'ESPERANDO EN EL LOCAL'
@@ -491,6 +491,23 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
   )
 }
 
+/**
+ * EL PUESTO SE ESCRIBE COMO SE DICE: 1ro, 2do, 3ro.
+ *
+ * Era `3º`. El indicador ordinal es un volado —se dibuja arriba del todo, por
+ * encima incluso de las mayúsculas— y en una cifra de 76 px era lo primero
+ * que se salía de la caja. Pero aunque cupiera, en un cartel a ese tamaño el
+ * volado se lee como una mota de suciedad en la pantalla, no como parte del
+ * número.
+ *
+ * Y se dice así: nadie en una barbería dice «tercero grado», dice «el tercero».
+ * Escribirlo con letras lo pone a la altura de las cifras, que es donde se lee.
+ */
+function ordinal(n: number): string {
+  const SUF: Record<number, string> = { 1: 'ro', 2: 'do', 3: 'ro', 4: 'to', 7: 'mo', 8: 'vo', 9: 'no' }
+  return `${n}${SUF[n] ?? 'to'}`
+}
+
 /* ─────────────────────────────── piezas ─────────────────────────────────── */
 
 function Cifra({ valor, rotulo, color, filete, latiendo }: {
@@ -513,10 +530,23 @@ function Cifra({ valor, rotulo, color, filete, latiendo }: {
     return () => { ciclo.stop(); alfa.setValue(1) }
   }, [latiendo, alfa])
 
+  // El sufijo del ordinal se separa para poder empequeñecerlo. Lo demás
+  // —«25′», «AHORA», «3:15»— no tiene sufijo y sale entero.
+  const m = /^(\d+)(ro|do|to|mo|vo|no)$/.exec(valor)
+  const num = m ? m[1] : valor
+  const suf = m ? m[2] : ''
+  // Se mide lo que se pinta: con el sufijo aparte, «10mo» son dos caracteres
+  // de número, no cuatro, y no tiene por qué encogerse como «AHORA».
+  const largo = num.length > 3
+
   return (
     <View style={[s.cifraCaja, filete && s.cifraFilete]}>
-      <Animated.Text style={[s.cifra, { color, opacity: alfa }, valor.length > 3 && { fontSize: 46 }]}>
-        {valor}
+      {/* El sufijo va dentro del mismo Text, no al lado: así comparte línea
+          base con la cifra. Un Text hermano se alinearía por la caja y el
+          «ro» quedaría flotando a media altura del número. */}
+      <Animated.Text style={[s.cifra, { color, opacity: alfa }, largo && { fontSize: 46, lineHeight: 50 }]}>
+        {num}
+        {!!suf && <Text style={[s.cifraSufijo, largo && { fontSize: 22 }]}>{suf}</Text>}
       </Animated.Text>
       <Text style={s.cifraRot}>{rotulo}</Text>
     </View>
@@ -621,9 +651,17 @@ const s = StyleSheet.create({
   estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 12, color: COLORS.onCarbonMid },
   codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, color: '#fff' },
 
-  cifraCaja: { marginTop: 9 },
+  cifraCaja: { marginTop: 6 },
   cifraFilete: { borderLeftWidth: 3, borderLeftColor: COLORS.redSoft, paddingLeft: 12, marginLeft: -15 },
-  cifra: { fontFamily: FONTS.display, fontSize: 76, lineHeight: 64 },
+  /**
+   * `lineHeight` NUNCA por debajo de `fontSize`. Estaba en 64 con letra de 76:
+   * doce píxeles menos que la letra, así que la caja recortaba por arriba y
+   * el remate del ordinal —lo que más sube de toda la cifra— quedaba cortado
+   * por el filo de la línea. Se veía como un fallo de pintado y era una resta.
+   * Anton sube bastante sobre la altura de la x; 1.06 le deja sitio.
+   */
+  cifra: { fontFamily: FONTS.display, fontSize: 76, lineHeight: 81 },
+  cifraSufijo: { fontFamily: FONTS.display, fontSize: 34 },
   cifraRot: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.6, color: COLORS.onCarbonMid, marginTop: 6 },
 
   motivo: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 12, lineHeight: 20 },

@@ -74,13 +74,18 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
  * `bg={COLORS.carbon}` está pidiendo un cuadro oscuro y lo que quiere ahí es
  * letra blanca. Pasarla explícita sigue funcionando y gana.
  */
+/**
+ * La foto y la inicial van CUADRADAS, como todo lo demás. Eran la última
+ * esquina redondeada que salía en cada lista de barberos, y al estar al lado
+ * del nombre en Anton era lo primero que delataba el diseño viejo.
+ */
 export function Avatar({ name, size = 48, color, bg = COLORS.blueLight, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
   const letra = color ?? (bg === COLORS.blueLight ? COLORS.blue : '#fff')
   if (uri) {
-    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]} />
+    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, backgroundColor: bg }]} />
   }
   return (
-    <View style={[s.avatar, { width: size, height: size, borderRadius: 6, backgroundColor: bg }]}>
+    <View style={[s.avatar, { width: size, height: size, backgroundColor: bg }]}>
       <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color: letra }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
     </View>
   )

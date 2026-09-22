@@ -24,7 +24,8 @@
  */
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, RefreshControl } from 'react-native'
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useFocusEffect, useRouter, useLocalSearchParams } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
 import {
@@ -36,7 +37,7 @@ import {
 import { hora12, fechaLarga, fechaDeISO, fechaISOLocal, dinero } from '../../../lib/format'
 import { avisos } from '../../../lib/notificaciones'
 import { filaAbierta, aceptaCitas } from '../../../lib/atencion'
-import { suscribirCola, desuscribir } from '../../../lib/realtime'
+import { suscribirCola, suscribirMisCitas, suscribirEstadoPerfil, desuscribir } from '../../../lib/realtime'
 import { COLORS, FONTS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import TarjetaTurno, { TarjetaEsqueleto, soloConCita, type TurnoVivo } from '../../../components/tarjeta-turno'
@@ -120,7 +121,22 @@ export default function MiTurno() {
     const ss = await getSesion()
     if (!ss?.usuario_id || !ss?.negocio_id) { setSinLocal(true); return }
     setSinLocal(false)
-    const [ts, neg, perf, cfg, cts, yo, rt, pref, est, res] = await Promise.all([
+    /**
+     * UNA TANDA, NO CUATRO.
+     *
+     * Esto iba en cuatro esperas encadenadas: las diez consultas de abajo,
+     * DESPUÉS los locales del cliente, DESPUÉS el turno expirado, DESPUÉS
+     * los relojes de cada turno. Con la red de un móvil cada espera son unos
+     * cientos de milisegundos, y se notaba: la pantalla tardaba en pintar lo
+     * que ya tenía.
+     *
+     * Los locales y el expirado no dependen de nada de la tanda —solo del
+     * usuario, que ya está en la sesión— así que entran en ella. El expirado
+     * se pide aunque haya turnos y se descarta si los hay: una consulta de
+     * más EN PARALELO sale más barata que una espera de más en serie. Solo
+     * los relojes siguen detrás, porque necesitan saber qué turnos hay.
+     */
+    const [ts, neg, perf, cfg, cts, yo, rt, pref, est, res, locs, exp] = await Promise.all([
       getMisTurnosActivos(ss.usuario_id, ss.negocio_id),
       getNegocioById(ss.negocio_id).catch(() => null),
       getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }).catch(() => []),
@@ -133,6 +149,8 @@ export default function MiTurno() {
       getMiPreferido(ss.negocio_id).catch(() => null),
       getEstadoLocal(ss.negocio_id).catch(() => []),
       getResumenFila(ss.negocio_id).catch(() => ({ delante: 0, espera_min: 0 })),
+      getMisNegociosCliente(ss.usuario_id).catch(() => []),
+      getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null),
     ])
     setPreferido(pref as string | null)
     setTurnos(ts as any[]); setNegocio(neg); setPerfiles(perf as any[]); setPorDueno(!!cfg?.asignacion_por_dueno)
@@ -147,10 +165,8 @@ export default function MiTurno() {
     setCitas(cts as any[]); setUsuarioNombre((yo as any)?.nombre ?? '')
     // El nombre del local solo se vuelve conmutador si hay a dónde conmutar.
     // Con un local, una flecha que no lleva a ningún sitio.
-    if ((yo as any)?.id) {
-      setVariosLocales(((await getMisNegociosCliente((yo as any).id).catch(() => [])) as any[]).length > 1)
-    }
-    setExpirado((ts as any[]).length === 0 ? await getTurnoExpirado(ss.usuario_id, ss.negocio_id).catch(() => null) : null)
+    setVariosLocales((locs as any[]).length > 1)
+    setExpirado((ts as any[]).length === 0 ? exp : null)
     await calcularEtas(ts as any[])
    } catch {
     setFallo(true)
@@ -165,12 +181,18 @@ export default function MiTurno() {
    * de las de arriba. Ahora van todas a la vez.
    */
   const calcularEtas = useCallback(async (ts: any[]) => {
-    const res = await Promise.all(ts.map(async (t: any) => ({
-      id: t.id,
-      eta: t.estado === 'en_fila' ? await etaCola(t.id).catch(() => null) : null,
-      puesto: t.estado === 'en_fila' ? await getPuesto(t.id).catch(() => null) : null,
-      puede: await puedeConfirmar(t.id).catch(() => false),   // gating R2
-    })))
+    // Los tres `await` dentro de un mismo objeto literal NO van a la vez: se
+    // evalúan en orden, así que cada turno esperaba su ETA, después su
+    // puesto, después su cerrojo. Con Promise.all salen juntos.
+    const res = await Promise.all(ts.map(async (t: any) => {
+      const enFila = t.estado === 'en_fila'
+      const [eta, puesto, puede] = await Promise.all([
+        enFila ? etaCola(t.id).catch(() => null) : null,
+        enFila ? getPuesto(t.id).catch(() => null) : null,
+        puedeConfirmar(t.id).catch(() => false),   // gating R2
+      ])
+      return { id: t.id, eta, puesto, puede }
+    }))
     const map: Record<string, number | null> = {}
     const pmap: Record<string, boolean> = {}
     const qmap: Record<string, number | null> = {}
@@ -279,24 +301,44 @@ export default function MiTurno() {
   }, [cargarVivo])
   useEffect(() => () => { if (pendiente.current) clearTimeout(pendiente.current) }, [])
 
-  // Volver a la pantalla recarga: reservar una cita o cambiar de local no
-  // dispara ningún evento de cola.
-  const yaEnfocado = useRef(false)
-  useFocusEffect(useCallback(() => {
-    if (!yaEnfocado.current) { yaEnfocado.current = true; return }
-    cargarVivo()
-  }, [cargarVivo]))
+  /**
+   * VOLVER A LA PANTALLA ES RECARGARLA ENTERA, incluida la primera vez.
+   *
+   * Antes el primer enfoque se saltaba —para no repetir la carga del
+   * montaje— y los demás solo refrescaban el turno y las citas. Así, cambiar
+   * tu barbero de confianza en «Mi barbería», o reservar y volver, dependía de
+   * que montaje y enfoque llegaran en un orden concreto; y lo que no fuera
+   * turno o cita (los barberos, sus precios, tu preferido) se quedaba viejo
+   * hasta cerrar la app. Ver lib/recarga.
+   */
+  useRecargaAlEnfocar(cargar)
 
   useEffect(() => {
-    cargar()
-    let sub: any
-    getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => refrescar()) })
+    /**
+     * LO QUE SE ESCUCHA EN VIVO: la fila, mis citas y el estado de cada silla.
+     *
+     * Solo se escuchaba la fila. Una cita que el barbero confirmaba o
+     * cancelaba, o un barbero que se ponía en pausa, no llegaban hasta el
+     * refresco de cada minuto — o hasta cerrar y abrir la app. Las tres
+     * tablas ya se publican en vivo desde la base; faltaba oírlas.
+     *
+     * Los tres avisos van al mismo `refrescar`, que agrupa los que llegan
+     * juntos: una sola acción del barbero dispara varios a la vez.
+     */
+    const subs: any[] = []
+    let vivo = true
+    getSesion().then(ss => {
+      if (!vivo || !ss?.negocio_id) return
+      subs.push(suscribirCola(ss.negocio_id, () => refrescar()))
+      subs.push(suscribirEstadoPerfil(ss.negocio_id, () => refrescar()))
+      if (ss.usuario_id) subs.push(suscribirMisCitas(ss.usuario_id, () => refrescar()))
+    })
     // El ETA envejece solo: la silla ocupada se vacía con el reloj, no con un
     // cambio en la base, así que sin este refresco el cliente ve una espera
     // que ya no es cierta.
     const t = setInterval(() => cargarVivo(), 60000)
-    return () => { if (sub) desuscribir(sub); clearInterval(t) }
-  }, [cargar])
+    return () => { vivo = false; subs.forEach(desuscribir); clearInterval(t) }
+  }, [cargarVivo, refrescar])
 
   /**
    * LA RESPUESTA AL "ES TU TURNO" ES UNA SOLA, Y DEPENDE DE DÓNDE ESTÉS.

@@ -67,7 +67,7 @@ export default function CambiarRol() {
         return (
           <TouchableOpacity key={`${o.panel}-${o.negocio_id}`} style={[s.fila, esActual && s.filaOn]}
             onPress={() => cambiar(o)} disabled={esActual}>
-            <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.success : COLORS.textMid} />
+            <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.red : COLORS.textMid} />
             <View style={{ flex: 1 }}>
               <Text style={s.txt}>{etiqueta(o)}</Text>
               {/* «Pendiente de aprobación» era la única espera posible hasta la
@@ -81,7 +81,7 @@ export default function CambiarRol() {
               </Text>
             </View>
             {esActual
-              ? <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              ? <Text style={s.aqui}>AQUÍ</Text>
               : <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
           </TouchableOpacity>
         )
@@ -91,9 +91,17 @@ export default function CambiarRol() {
 }
 
 const s = StyleSheet.create({
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, marginTop: 18 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  filaOn: { borderColor: COLORS.success },
-  txt: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  det: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  // Filas con filete, no tarjetas blancas con borde: en D2 una lista es una
+  // lista, y las cajas sueltas son para lo que se lee aparte.
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
+    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  // El panel en el que estás: filete rojo a la izquierda, como «tu barbero»
+  // en Mi barbería. Una marca, no un recuadro verde.
+  filaOn: { borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 11 },
+  txt: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink, textTransform: 'uppercase' },
+  det: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  aqui: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: '#fff', backgroundColor: COLORS.red,
+    paddingHorizontal: 7, paddingVertical: 3 },
 })
