@@ -1,5 +1,11 @@
 # Tableros del barbero — propuesta v1
 
+> **Decidido (22 sep):** cinco pestañas · **ningún dinero en Mi silla**, solo
+> en su pestaña · esa pestaña se llama **Estadísticas**, no «Números» · se
+> empieza por **Mi silla**. Antes de los tableros en limpio van los bocetos:
+> Mi silla, los 20 modos de su tarjeta y sus 8 ventanas emergentes, en el
+> lienzo de diseño junto a los del cliente.
+
 El mismo método que con el cliente: primero qué va en cada pestaña y qué no,
 después los tableros, después los estados, y al final el código. Esto es solo
 lo primero. **No hay nada dibujado ni tocado todavía.**
@@ -39,7 +45,7 @@ que exista la app. **Para el barbero la razón es la silla.**
 ## La propuesta: cinco pestañas
 
 ```
-MI SILLA   ·   AGENDA   ·   CLIENTES   ·   NÚMEROS   ·   AJUSTES
+MI SILLA   ·   AGENDA   ·   CLIENTES   ·   ESTADÍSTICAS   ·   AJUSTES
   ahora       calendario     personas       dinero       reglas
 ```
 
@@ -93,7 +99,7 @@ ficha. Lo que cambia es de diseño, más una cosa:
 - **Los botones de contacto que pediste para el cliente van también aquí**:
   WhatsApp y llamar, en la línea de cada cliente, solo si dejó el dato.
 
-### 4 · NÚMEROS — lo que hoy es «Stats»
+### 4 · ESTADÍSTICAS — lo que hoy es «Stats»
 
 - El ingreso del periodo en grande, con `7 días · 30 días · Todo`.
 - **De dónde vino**: fila / citas / sin cita. Está en el tablero D2 y no en el
