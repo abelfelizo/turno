@@ -5,6 +5,14 @@
 > empieza por **Mi silla**. Antes de los tableros en limpio van los bocetos:
 > Mi silla, los 20 modos de su tarjeta y sus 8 ventanas emergentes, en el
 > lienzo de diseño junto a los del cliente.
+>
+> **Mi silla, en limpio (22 sep):** once tableros `D2B-*` en el lienzo —la
+> pantalla libre (A) y con alguien en la silla (B), la lámina de los 20 modos
+> de su tarjeta, y las 8 hojas: cobrar, no está, menú de una persona, atender
+> sin cita, salgo un momento, ficha, cambiar de local y la cita—. Enlazados
+> entre sí para recorrerlos en modo Play. La tarjeta copia la anatomía de
+> `components/tarjeta-turno.tsx` tal como está programada, no como se dibujó
+> antes: si tablero y código discrepan, manda el código.
 
 El mismo método que con el cliente: primero qué va en cada pestaña y qué no,
 después los tableros, después los estados, y al final el código. Esto es solo
