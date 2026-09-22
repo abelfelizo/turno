@@ -83,14 +83,19 @@ en todo el documento.
 | `cliente/buscar-barbero` | **ninguno** | Convertida a ojo | tarjetas: 2 |
 | `cliente/preferencias` | **ninguno** | Convertida a ojo | tarjetas: 0 |
 
-### Barbero — 4 pantallas, 3 con tablero
+### Barbero — 5 pantallas, convertidas (22 sep)
 
-| Pantalla | Tablero | Estado | Deuda |
+| Pantalla | Tablero | Estado | Vive en |
 |---|---|---|---|
-| `barbero/agenda` | `D2-Barbero-Agenda` | **Sin convertir** | vive en `agenda-trabajo.tsx` |
-| `barbero/clientes` | `D2-Barbero-Clientes` | **Sin convertir** | tarjetas: 6 |
-| `barbero/stats` | `D2-Barbero-Stats` | **Sin convertir** | tarjetas: 4 |
-| `barbero/config` | **ninguno** | **Sin convertir** | tarjetas: 13 |
+| `barbero/silla` | `D2B · Mi silla` + 20 modos + 8 hojas | **Convertida** | `mi-silla.tsx`, `tarjeta-silla.tsx`, `hojas-silla.tsx` |
+| `barbero/agenda` | `D2-Barbero-Agenda` | **Convertida** (solo calendario) | `agenda-calendario.tsx` |
+| `barbero/clientes` | `D2-Barbero-Clientes` | **Convertida** | la propia pantalla |
+| `barbero/stats` | `D2-Barbero-Stats` | **Convertida** | la propia pantalla |
+| `barbero/config` | **ninguno** | **Convertida a ojo**: menú en tres grupos y estilos D2; las secciones internas conservan su estructura | la propia pantalla |
+
+Piezas compartidas nuevas: `components/d2.tsx` (encabezado, rótulo, pestañas,
+cifras) y `components/hoja-piezas.tsx` (título, opción, dato, nota y botones
+de una hoja).
 
 ### Barbería — 5 pantallas, 3 con tablero
 
@@ -120,7 +125,7 @@ No son pantallas pero mandan sobre varias:
 
 | Componente | Manda en | Tablero |
 |---|---|---|
-| `agenda-trabajo.tsx` (~1.800 líneas) | barbero + dueño que atiende | `D2-Barbero-Agenda` |
+| `agenda-trabajo.tsx` (~1.900 líneas) | **ya no la usa ninguna pantalla** (la reemplazan Mi silla y `agenda-calendario.tsx`); se conserva hasta confirmar que se puede borrar | — |
 | `hoja-fila.tsx` | hoja de entrar a la fila | solo existe en C (descartada) |
 | `estado-local.tsx` | Inicio del cliente | dentro de `D2-Cliente-Inicio` |
 | `clientes-local.tsx` | barbero + dueño | `D2-Barbero-Clientes` |

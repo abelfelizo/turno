@@ -1570,6 +1570,25 @@ export async function getStatsPeriodoPerfil(perfil_id: string, desde: string, ha
   return mapPeriodo(data)
 }
 
+/**
+ * Las visitas de UNA silla entre dos fechas, una por fila.
+ *
+ * Estadísticas necesita desglosar —de dónde vino cada cliente, qué servicio—
+ * y los agregados del servidor solo devuelven totales; `turno_mis_visitas`
+ * trae las últimas veinte, que no alcanzan para contar un mes. La política de
+ * lectura (`turno_manda_en_la_silla`) es la misma que usa el agregado del
+ * período, así que esto no enseña nada que aquel no contara ya.
+ */
+export async function getVisitasPerfil(perfil_id: string, desde: string, hasta: string) {
+  const { data, error } = await supabase.from(T('historial_visitas'))
+    .select('id, fecha, origen, precio_cobrado, cliente_id, servicio_id, created_at, turno_servicios(nombre)')
+    .eq('perfil_id', perfil_id).gte('fecha', desde).lte('fecha', hasta)
+    .order('fecha', { ascending: false }).order('created_at', { ascending: false })
+    .limit(5000)
+  if (error) throw error
+  return data || []
+}
+
 // ── CICLO DE VIDA · bajas lógicas (nunca se borra historial) ──────────────────
 /** Cliente sale de una barbería (conserva su historial). */
 export async function salirLocal(negocio_id: string) {

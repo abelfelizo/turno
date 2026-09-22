@@ -114,7 +114,7 @@ texto libre sería ensuciar el único campo que el barbero lee de verdad.
 Necesita una migración (una tabla de etiquetas, o un `text[]`), y eso es
 trabajo de servidor, no de pantalla.
 
-### 2 · La pausa de fila, del lado del servidor
+### 2 · La pausa de fila, del lado del servidor — HECHO (22 sep, sin migración: ver `PAUSA-DE-FILA.md`)
 
 La app ya **sabe leerla** entera: el barbero en pausa sale apagado y con la
 hora a la que vuelve, el chip de su silla se pinta en ámbar, la fila entera en
@@ -159,9 +159,9 @@ principal en un dato que no se puede usar sin abrir la agenda igual.
 | Qué | Dónde |
 |---|---|
 | El traslado de perfil entre negocios | `BARBERO-QUE-ALQUILA.md` |
-| La pausa de fila (migración + push `retraso`) | `PAUSA-DE-FILA.md` |
+| ~~La pausa de fila~~ — hecha en Mi silla, sin migración | `PAUSA-DE-FILA.md` |
 | El rojo `redSoft` → `#FF4438` en `constants/index.ts` | `TARJETA-ESTADOS.md` § 2 bis |
 | Servicio habitual guardado + favoritos en la fila | `TABLEROS-CLIENTE.md` |
 | Gestos que piden APK nuevo (gesture-handler, swipe entre pestañas, splash) | `CONTEXT.md` |
 | La guarda de panel, sin publicar | commit `5e42fe6` |
-| El panel de barbero y el de barbería, sin convertir | `MAPA-D2.md` |
+| El panel de barbería, sin convertir (el de barbero ya está) | `MAPA-D2.md` |

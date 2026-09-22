@@ -25,6 +25,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import Hoja from './hoja'
+import { Titulo, Sub, Seccion, Nota, Dato, Opcion, Pie, BotonRojo, BotonContorno, AhoraNo } from './hoja-piezas'
 import { ordinal } from './tarjeta-turno'
 import { COLORS, FONTS } from '../constants'
 import { dinero, fechaDeISO } from '../lib/format'
@@ -592,82 +593,6 @@ function Ficha({ f, sesion, moneda, setHoja }: Props & { f: Extract<HojaSilla, {
         <AhoraNo texto={f.volver ? 'Volver' : 'Cerrar'} onPress={() => setHoja(f.volver)} />
       </Pie>
     </>
-  )
-}
-
-/* ─────────────────────────── piezas ─────────────────────────── */
-
-function Titulo({ children }: { children: React.ReactNode }) {
-  return <Text style={s.titulo}>{children}</Text>
-}
-function Sub({ children }: { children: React.ReactNode }) {
-  return <Text style={s.sub}>{children}</Text>
-}
-function Seccion({ children }: { children: React.ReactNode }) {
-  return (
-    <View style={{ marginTop: 18 }}>
-      <Text style={s.secT}>{String(children).toUpperCase()}</Text>
-      <View style={s.secFilete} />
-    </View>
-  )
-}
-const TONO = { gris: COLORS.textLight, azul: COLORS.blue, ambar: COLORS.warning, rojo: COLORS.red }
-function Nota({ tono, children }: { tono: keyof typeof TONO; children: React.ReactNode }) {
-  return (
-    <View style={[s.nota, { borderLeftColor: TONO[tono] }]}>
-      <Text style={s.notaT}>{children}</Text>
-    </View>
-  )
-}
-function Dato({ l, v, color, onPress }: { l: string; v: string; color?: string; onPress?: () => void }) {
-  const cuerpo = (
-    <View style={s.datoFila}>
-      <Text style={s.datoL}>{l}</Text>
-      <Text style={[s.datoV, color ? { color } : null]} numberOfLines={2}>{v}</Text>
-    </View>
-  )
-  return onPress
-    ? <TouchableOpacity style={s.dato} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">{cuerpo}</TouchableOpacity>
-    : <View style={s.dato}>{cuerpo}</View>
-}
-function Opcion({ t, d, rojo, flecha, disabled, onPress }: {
-  t: string; d?: string; rojo?: boolean; flecha?: boolean; disabled?: boolean; onPress: () => void
-}) {
-  return (
-    <TouchableOpacity style={[s.opc, disabled && { opacity: 0.5 }]} onPress={onPress} disabled={disabled}
-      activeOpacity={0.7} accessibilityRole="button">
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[s.opcT, rojo && { color: COLORS.redDark }]}>{t}</Text>
-        {d ? <Text style={s.opcD}>{d}</Text> : null}
-      </View>
-      {flecha && <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />}
-    </TouchableOpacity>
-  )
-}
-function Pie({ children }: { children: React.ReactNode }) {
-  return <View style={s.pie}>{children}</View>
-}
-function BotonRojo({ texto, onPress, ocupado, disabled }: { texto: string; onPress: () => void; ocupado?: boolean; disabled?: boolean }) {
-  const off = !!ocupado || !!disabled
-  return (
-    <TouchableOpacity style={[s.rojo, off && { opacity: 0.45 }]} onPress={onPress} disabled={off}
-      activeOpacity={0.85} accessibilityRole="button" accessibilityState={{ disabled: off }}>
-      {ocupado ? <ActivityIndicator color="#fff" /> : <Text style={s.rojoT} numberOfLines={1}>{texto}</Text>}
-    </TouchableOpacity>
-  )
-}
-function BotonContorno({ texto, onPress }: { texto: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={s.contorno} onPress={onPress} activeOpacity={0.8} accessibilityRole="button">
-      <Text style={s.contornoT} numberOfLines={1}>{texto}</Text>
-    </TouchableOpacity>
-  )
-}
-function AhoraNo({ texto = 'Ahora no', onPress }: { texto?: string; onPress: () => void }) {
-  return (
-    <TouchableOpacity onPress={onPress} style={s.ahoraNo} accessibilityRole="button">
-      <Text style={s.ahoraNoT}>{texto}</Text>
-    </TouchableOpacity>
   )
 }
 

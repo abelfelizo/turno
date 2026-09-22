@@ -263,3 +263,21 @@ cuenta como pausa: «EN PAUSA · VUELVE SOBRE 3:15», y el chip de la silla dice
 - **Precios en las hojas.** La tarjeta y la pantalla no enseñan dinero, como se
   decidió. Las hojas de cobrar, sin cita y la ficha sí enseñan el precio,
   porque así estaban en los tableros aprobados. Si tampoco ahí, se quitan.
+
+## Las otras cuatro pestañas, en código (22 sep)
+
+| Pestaña | Qué cambió |
+|---|---|
+| **Agenda** | Componente nuevo, `components/agenda-calendario.tsx`: solo calendario. Selector de día arriba (manda), SIN CERRAR arriba y en rojo, la jornada (hoy se cambia; otro día solo se enseña), citas y horas bloqueadas del día con sus hojas, bloquear una hora, y el código de barbero para compartir. |
+| **Clientes** | D2. Pestañas Todos / Por recuperar, buscador por nombre, WhatsApp y llamar en cada línea (solo con teléfono real), los días sin venir en rojo, el umbral (`revisita_dias`) dicho arriba, y un aviso a todos los por recuperar que enseña el texto exacto antes de mandarse. |
+| **Estadísticas** | D2. Todo sale de las mismas visitas del periodo (`getVisitasPerfil`): ingresos, comparación con el periodo anterior, visitas / clientes / ticket, **de dónde vinieron** (citas · fila por la app · en el local) y **por servicio**, tu calificación y la lista. |
+| **Ajustes** | Menú en tres grupos —Quién soy · Cómo trabajo · Dónde y cuenta— y estilos D2. La lógica de cada sección no se tocó. |
+
+**«Sin cita» no se puede separar en Estadísticas.** El que entra sin cita se
+registra como `cola_fisica`, igual que la fila presencial, así que el reparto
+dice «En el local» y no «Sin cita»: afirmar lo segundo sería inventar un dato.
+Separarlos pide que la visita guarde la prioridad (3 = sin cita); es una
+migración pequeña, anotada aquí y sin hacer.
+
+**`components/agenda-trabajo.tsx` ya no lo usa ninguna pantalla.** No lo he
+borrado: son ~1.900 líneas y se borran solo con tu visto bueno.

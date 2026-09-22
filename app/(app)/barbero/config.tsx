@@ -13,6 +13,7 @@ import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
 import { COLORS, FONTS } from '../../../constants'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
+import { Encabezado, Rotulo } from '../../../components/d2'
 import Hoja from '../../../components/hoja'
 import PanelBadge from '../../../components/panel-badge'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -33,6 +34,12 @@ const ESTADOS = [
   { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight,
     d: 'Para ausencias largas: cierra también la agenda futura. Nadie puede reservar contigo para ningún día hasta que vuelvas.' },
 ]
+const GRUPOS = [
+  { k: 'quien', l: 'Quién soy' },
+  { k: 'como', l: 'Cómo trabajo' },
+  { k: 'donde', l: 'Dónde y cuenta' },
+] as const
+
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
 // POR DÓNDE LE LLEGA EL TRABAJO. No todos los barberos trabajan igual: uno de
@@ -407,7 +414,7 @@ export default function Config() {
   )
 
   const TITULO: Record<string, string> = {
-    cuenta: 'Mi cuenta', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
+    cuenta: 'Perfil público', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
     horario: empleado ? 'Horario del local' : 'Mi horario', reglas: 'Reglas', puntos: 'Sistema de puntos',
     recordatorios: 'Recordatorios', locales: 'Mis locales', otros: 'Otros',
     suscripcion: 'Mi suscripción',
@@ -443,43 +450,43 @@ export default function Config() {
   const localActivo = locales.find((l: any) => l.negocio_id === sesion?.negocio_id)
 
   const MENU = [
-    { k: 'cuenta', t: 'Mi cuenta', icono: 'person-outline', ver: true,
+    { k: 'cuenta', g: 'quien', t: 'Perfil público y código', icono: 'person-outline', ver: true,
       v: [usuario?.nombre, planDeMiSilla(rolMembresia, cfgLocalTipo).montoTexto].filter(Boolean).join(' · ') },
     // Dos mitades de la misma decisión: si aceptas trabajo, y por dónde. La
     // segunda solo se nombra cuando NO es la normal — "Acepto clientes · Citas
     // y fila" en todos los perfiles sería ruido en el noventa por ciento.
-    { k: 'estado', t: 'Estado', icono: 'radio-button-on-outline', ver: true,
+    { k: 'estado', g: 'como', t: 'Estado', icono: 'radio-button-on-outline', ver: true,
       v: [estadoActual?.l ?? 'Acepto clientes',
           modoActual && modoActual.k !== 'ambos' ? modoActual.l : null].filter(Boolean).join(' · ') },
-    { k: 'servicios', t: empleado ? 'Servicios del local' : 'Mis servicios', icono: 'cut-outline', ver: true,
+    { k: 'servicios', g: 'como', t: empleado ? 'Servicios del local' : 'Mis servicios', icono: 'cut-outline', ver: true,
       v: empleado ? `Los pone ${negocioNombre ?? 'la barbería'}`
         : svActivos === 0 ? 'Ninguno todavía' : `${svActivos} activo${svActivos === 1 ? '' : 's'}` },
-    { k: 'horario', t: empleado ? 'Horario del local' : 'Mi horario', icono: 'calendar-outline', ver: true,
+    { k: 'horario', g: 'como', t: empleado ? 'Horario del local' : 'Mi horario', icono: 'calendar-outline', ver: true,
       v: empleado ? `Lo fija ${negocioNombre ?? 'la barbería'}` : resumenHorario },
-    { k: 'reglas', t: 'Reglas', icono: 'options-outline', ver: true,
+    { k: 'reglas', g: 'como', t: 'Reglas', icono: 'options-outline', ver: true,
       v: empleado ? `Las pone ${negocioNombre ?? 'la barbería'}`
         : tiemposPropios ? 'Uso mis propios tiempos' : `Sigo los de ${negocioNombre ?? 'la barbería'}` },
     // Solo quien alquila su asiento lleva tarjeta propia; al empleado se la
     // pone el local, y una fila que no decide nada solo estorba.
-    { k: 'puntos', t: 'Sistema de puntos', icono: 'gift-outline', ver: rolMembresia === 'barbero_renta',
+    { k: 'puntos', g: 'como', t: 'Sistema de puntos', icono: 'gift-outline', ver: rolMembresia === 'barbero_renta',
       v: perfil?.puntos_activos
         ? `Cada ${perfil?.puntos_meta ?? 8} recortes · ${premio || 'Corte gratis'}`
         : 'Desactivado' },
-    { k: 'recordatorios', t: 'Recordatorios', icono: 'notifications-outline', ver: true,
+    { k: 'recordatorios', g: 'como', t: 'Recordatorios', icono: 'notifications-outline', ver: true,
       v: `Por recuperar a los ${perfil?.revisita_dias ?? 30} días` },
-    { k: 'locales', t: 'Mis locales', icono: 'storefront-outline', ver: true,
+    { k: 'locales', g: 'donde', t: 'Mis locales', icono: 'storefront-outline', ver: true,
       v: locales.length > 1 ? `${localActivo?.nombre ?? 'Local'} y ${locales.length - 1} más` : (localActivo?.nombre ?? negocioNombre ?? 'Un local') },
     // Solo se enseña cuando la paga ÉL. Al empleado la cubre su barbería y una
     // fila que no decide nada solo estorba — la misma razón por la que el
     // sistema de puntos tampoco le sale.
-    { k: 'suscripcion', t: 'Mi suscripción', icono: 'card-outline',
+    { k: 'suscripcion', g: 'donde', t: 'Mi suscripción', icono: 'card-outline',
       ver: suscripcion?.quien === 'silla',
       v: suscripcion?.estado === 'cortesia' ? 'Cortesía'
         : suscripcion?.estado === 'vencida' ? 'Vencida'
         : suscripcion?.dias_restantes != null
           ? `${suscripcion.estado === 'prueba' ? 'Prueba' : 'Activa'} · ${suscripcion.dias_restantes} días`
           : '—' },
-    { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal', ver: true,
+    { k: 'otros', g: 'donde', t: 'Otros', icono: 'ellipsis-horizontal', ver: true,
       v: 'Cerrar sesión, dejar el local, eliminar cuenta' },
   ]
 
@@ -493,28 +500,42 @@ export default function Config() {
           debajo: el menú ya te cuenta cómo está el negocio sin entrar. */}
       {seccion === null ? (
         <>
-          <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
-          {MENU.filter(m => m.ver).map(m => (
-            <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
-              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color="#fff" /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.menuT}>{m.t}</Text>
-                <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+          <Encabezado titulo="Ajustes" sub={negocioNombre ? `Tu silla en ${negocioNombre}` : null} />
+          {/* TRES GRUPOS, ORDENADOS POR QUIÉN DECIDE (docs/TABLEROS-BARBERO).
+              Los bloques estaban en el orden en que se fueron añadiendo. Ahora:
+              lo tuyo, que viaja contigo a cualquier local; cómo trabajas, que
+              al empleado se lo pone su barbería y lo ve en lectura; y dónde y
+              con qué cuenta. */}
+          {GRUPOS.map(g => {
+            const filas = MENU.filter(m => m.ver && m.g === g.k)
+            if (!filas.length) return null
+            return (
+              <View key={g.k}>
+                <Rotulo>{g.l}</Rotulo>
+                {filas.map(m => (
+                  <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)} accessibilityRole="button">
+                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color="#fff" /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.menuT}>{m.t}</Text>
+                      <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                ))}
+                {/* Cambiar de panel es navegación, no configuración: va con la
+                    cuenta, no enterrado dentro de «Mis locales». */}
+                {g.k === 'donde' && <View style={{ marginTop: 14 }}><CambiarRol /></View>}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-            </TouchableOpacity>
-          ))}
-          {/* Cambiar de panel es navegación, no configuración: va en la raíz,
-              no enterrado dentro de "Mis locales". */}
-          <CambiarRol />
+            )
+          })}
         </>
       ) : (
         <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
           <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
-          <Text style={s.volverT}>Configuración</Text>
+          <Text style={s.volverT}>Ajustes</Text>
         </TouchableOpacity>
       )}
-      {seccion && <Display size={28} style={{ marginBottom: 16 }}>{TITULO[seccion]}</Display>}
+      {seccion && <View style={{ marginBottom: 14 }}><Encabezado titulo={TITULO[seccion]} /></View>}
 
       {seccion === 'cuenta' && (
         <>
@@ -1135,104 +1156,99 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 }
 
 const s = StyleSheet.create({
-  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderRadius: 6, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
-  menuIcono: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
-  menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  menuIcono: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  menuT: { fontFamily: FONTS.extrabold, color: COLORS.ink, fontSize: 15 },
+  menuV: { fontFamily: FONTS.medium, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { color: COLORS.textMid, fontSize: 14.5, fontWeight: '600' },
+  volverT: { fontFamily: FONTS.bold, color: COLORS.textMid, fontSize: 14.5 },
   bufNota: { color: COLORS.textMid, fontSize: 12.5, lineHeight: 17, marginTop: -4, marginBottom: 10 },
   aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
   aplicarTodosT: { color: COLORS.red, fontSize: 13.5, fontWeight: '700' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  sec: { fontFamily: FONTS.extrabold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  perfilCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginBottom: 18 },
+  perfilCard: { paddingBottom: 6, marginBottom: 18 },
   perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   perfilHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
   codigoBox: { backgroundColor: COLORS.carbon, borderRadius: 4, padding: 12, marginBottom: 10 },
   codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
   codigoVal: { fontFamily: FONTS.display, fontSize: 22, color: '#fff', letterSpacing: 3, marginTop: 2 },
   codigoHint: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
-  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
+  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg },
   fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
   multiline: { minHeight: 64, textAlignVertical: 'top' },
   dosCol: { flexDirection: 'row', gap: 10 },
-  domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.borderSoft },
-  domicilioL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border },
+  domicilioL: { fontFamily: FONTS.extrabold, fontSize: 14, color: COLORS.ink },
   domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 4, padding: 15, alignItems: 'center', marginTop: 14 },
-  guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  guardarBtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  guardarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.4 },
   susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 6, padding: 16, marginBottom: 8 },
   susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
   susMonto: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
-  regla: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginBottom: 8 },
+  regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   reglaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   reglaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
-  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 6, padding: 16 },
+  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: COLORS.border, padding: 15 },
   dot: { width: 12, height: 12, borderRadius: 6 },
   estadoD2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.textMid, flex: 1 },
   estadoActivo: { fontFamily: FONTS.bold, fontSize: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  servName: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
   nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
   deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
   vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
-  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: COLORS.dangerLight,
-    borderRadius: 4, padding: 12, marginTop: -4, marginBottom: 12 },
+  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 12, paddingVertical: 4, marginTop: -4, marginBottom: 12 },
   sembradaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
   cruza: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.red, marginTop: 6, marginBottom: 2, lineHeight: 17 },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginBottom: 8 },
-  diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  diaL: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  local: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  localOn: { borderColor: COLORS.success },
-  localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: 'transparent' },
+  localOn: { borderLeftColor: COLORS.red },
+  localN: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink, textTransform: 'uppercase' },
   localE: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 6, padding: 13, marginBottom: 8 },
-  otroLocalT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.red },
+  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 2, borderColor: COLORS.red, height: 48, marginTop: 12, marginBottom: 8 },
+  otroLocalT: { fontFamily: FONTS.extrabold, fontSize: 14, color: COLORS.red },
   otroLocalD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid,
     lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
-  miSusCard: { backgroundColor: COLORS.surface, borderRadius: 6, padding: 16,
-    borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+  miSusCard: { borderWidth: 2, borderColor: COLORS.ink, padding: 16, marginBottom: 12 },
   // Vencida se ve distinto porque ya no es un dato, es una consecuencia: la
   // silla está apagada y el barbero tiene que poder verlo sin leer el párrafo.
-  miSusCardOff: { backgroundColor: COLORS.dangerLight, borderColor: COLORS.danger },
+  miSusCardOff: { borderColor: COLORS.red, backgroundColor: COLORS.dangerLight },
   miSusEstado: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink },
   miSusD: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
   miSusNota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
-  rolChip: { flex: 1, paddingVertical: 12, borderRadius: 4, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center' },
-  rolChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  rolChip: { flex: 1, paddingVertical: 12, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center' },
+  rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   rolChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  cuentaIcono: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  cuentaIcono: { width: 32, height: 32, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
   cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
-    borderRadius: 6, padding: 14, marginBottom: 16 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, padding: 14, marginBottom: 16 },
   cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
   cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
   mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
-  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  mbtn: { backgroundColor: COLORS.red, borderRadius: 6, padding: 16, alignItems: 'center', marginTop: 18 },
-  mbtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  flabel: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
+  input: { backgroundColor: COLORS.surface, borderWidth: 2, borderColor: COLORS.ink, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  stepBtn: { width: 44, height: 44, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  stepT: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
+  stepVal: { fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
+  mbtn: { backgroundColor: COLORS.red, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
+  mbtnT: { fontFamily: FONTS.display, fontSize: 18, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.4 },
   mbtnGhost: { padding: 14, alignItems: 'center', marginTop: 6 },
   mbtnGhostT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 12 },

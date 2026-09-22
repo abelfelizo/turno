@@ -1,5 +1,13 @@
 # «Salgo un momento» — la pausa de fila
 
+> **Estado (22 sep): resuelto en la app, sin migración.** Mi silla pone la
+> pausa como descanso + un bloqueo corto con el motivo `Salgo un momento`
+> (la hora de vuelta), avisa por push a quien espera, y si pasa la hora la
+> fila no se reabre sola: la tarjeta pregunta «¿ya volviste?». El cliente ve
+> «EN PAUSA · VUELVE SOBRE 3:15». Ver `components/mi-silla.tsx` (`salir`,
+> `yaVolvi`) y `lib/silla.ts` (`pausaDe`). Lo de abajo es el análisis
+> original; las referencias a `agenda-trabajo.tsx` son de antes de Mi silla.
+
 ## Lo primero: esto ya existe a medias
 
 No hay que inventarlo. El botón de pausa **ya está en el panel del barbero** y
