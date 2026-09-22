@@ -29,21 +29,20 @@
 
 // ── lo que entra ────────────────────────────────────────────────────────────
 
-/** Cómo decide el servidor si se puede sentar a alguien sin cita. Ver
- *  REGLA_WALK_IN más abajo: cambia cuando se aplique la migración 118. */
+/** Cómo decide el servidor si se puede sentar a alguien sin cita. */
 export type ReglaWalkIn = 'nadie_esperando' | 'nadie_presente'
 
 /**
- * HOY EL SERVIDOR NO DEJA SENTAR A NADIE SIN CITA SI HAY ALGUIEN EN LA FILA,
- * esté o no en el local (turno_atender_sin_cita, migración 107: «hay N
- * esperando»). La regla decidida es otra —si los que esperan no han llegado,
- * sí— y necesita la migración 118, que está escrita y SIN APLICAR.
+ * EL QUE ENTRA SIN CITA RESPETA AL QUE ESTÁ, NO AL QUE VIENE (migración 118,
+ * aplicada el 22 sep). Frena el llamado o en camino, la fila física, el que
+ * dijo «ya llegué» y el segundo turno de un doble servicio; quien espera en
+ * la app sin haber llegado, no. Es la misma cuenta que hace el servidor, para
+ * que el botón y la puerta digan lo mismo.
  *
- * Mientras no se aplique, la pantalla sigue la regla del servidor. Ofrecer el
- * botón con la regla nueva sería enseñar algo que siempre falla. El día que
- * se aplique, esto pasa a 'nadie_presente' y es lo único que cambia.
+ * 'nadie_esperando' es la regla vieja (107): se queda solo para las pruebas y
+ * por si hubiera que volver atrás (supabase/rollback_118_…sql).
  */
-export const REGLA_WALK_IN: ReglaWalkIn = 'nadie_esperando'
+export const REGLA_WALK_IN: ReglaWalkIn = 'nadie_presente'
 
 /** El motivo con el que se marca una pausa con reloj. Es un bloqueo corto
  *  —la doctrina de la 88: los bloqueos solo quitan disponibilidad— y este

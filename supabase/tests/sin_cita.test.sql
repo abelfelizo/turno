@@ -269,6 +269,67 @@ begin
     else fallos:=fallos||E'\n  x '||c||' - quedó en '||coalesce(v_txt,'?'); end if;
   exception when others then fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end;
 
+  -- ══ 4 · EL QUE ENTRA SIN CITA RESPETA AL QUE ESTÁ (migración 118) ═══════════
+  --
+  -- La regla decidida: se respeta la fila, pero si los que esperan NO están en
+  -- el local, el barbero puede atender a quien entra. Bloquean: el llamado o en
+  -- camino, la fila física, el que dijo «ya llegué» y el segundo turno de un
+  -- doble servicio. No bloquea quien espera en la app sin haber llegado.
+  --
+  -- Cada caso cambia la fila DENTRO de su bloque y termina en excepción, así
+  -- que su cambio se revierte y el siguiente parte del mismo sitio: la fila de
+  -- arriba, con varios esperando en la app y ninguno en el local.
+  select id into q from turno_cola
+   where perfil_id = p_bar and estado = 'en_fila' order by posicion limit 1;
+
+  n:=n+1; c:='118 · esperan en la app y nadie ha llegado: SÍ se sienta';
+  begin
+    update turno_cola set estado = 'expirado' where perfil_id = p_bar and estado in ('llamado','en_camino');
+    select * into r from turno_atender_sin_cita(v_neg, p_bar, s_corte, 'De la calle', '');
+    if r.estado = 'atendiendo' then raise exception 'revertir_ok'; end if;
+    raise exception 'quedó en %', r.estado;
+  exception when others then
+    if sqlerrm = 'revertir_ok' then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='118 · uno dijo «ya llegué»: se niega';
+  begin
+    update turno_cola set llego_at = now() where id = q;
+    perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'Colado', '');
+    raise exception 'se_colo';
+  exception when others then
+    if sqlerrm like '%esperando aquí%' then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='118 · uno en la fila física: se niega';
+  begin
+    update turno_cola set tipo_cola = 'fisica' where id = q;
+    perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'Colado', '');
+    raise exception 'se_colo';
+  exception when others then
+    if sqlerrm like '%esperando aquí%' then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='118 · uno ya llamado (su ventana corre): se niega';
+  begin
+    update turno_cola set estado = 'llamado', llamado_at = now(), expira_at = now() + interval '5 min' where id = q;
+    perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'Colado', '');
+    raise exception 'se_colo';
+  exception when others then
+    if sqlerrm like '%esperando aquí%' then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
+  n:=n+1; c:='118 · un doble servicio que viene de la otra silla: se niega';
+  begin
+    update turno_cola set espera_a_id = (select id from turno_cola where negocio_id = v_neg and id <> q
+                                          and estado = 'en_fila' limit 1)
+     where id = q;
+    perform turno_atender_sin_cita(v_neg, p_bar, s_corte, 'Colado', '');
+    raise exception 'se_colo';
+  exception when others then
+    if sqlerrm like '%esperando aquí%' then ok:=ok+1; else fallos:=fallos||E'\n  x '||c||' - '||sqlerrm; end if;
+  end;
+
   raise exception E'\n=== SIN CITA · FILA · RELOJ · % / % casos OK% ===%',
     ok, n,
     case when omitidos = 0 then '' else ' · '||omitidos||' sin evaluar' end,

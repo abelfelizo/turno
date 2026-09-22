@@ -2,11 +2,11 @@
 -- 118 · EL QUE ENTRA SIN CITA RESPETA AL QUE ESTÁ, NO AL QUE VIENE
 -- ═══════════════════════════════════════════════════════════════════════════
 --
--- ⚠ ESCRITA Y SIN APLICAR. Toca la base de producción: se aplica solo con el
--- visto bueno explícito. Mientras no esté, la app sigue la regla vieja
--- (lib/silla.ts, REGLA_WALK_IN = 'nadie_esperando') para no ofrecer un botón
--- que el servidor rechaza. Aplicada, se cambia esa constante a
--- 'nadie_presente' y es lo único que hay que tocar en la app.
+-- APLICADA el 22 sep con el visto bueno del dueño del producto. Antes de
+-- aplicarla se copió la definición viva a supabase/rollback_118_…sql, por si
+-- hubiera que volver a la regla vieja. En la app, lib/silla.ts pasó a
+-- REGLA_WALK_IN = 'nadie_presente'. Pruebas: sin_cita.test.sql sección 4 y
+-- motor_cola.test.sql caso 20, corridas contra la base en verde (27/27, 34/34).
 --
 -- LA REGLA DECIDIDA (22 sep, por el dueño del producto):
 --

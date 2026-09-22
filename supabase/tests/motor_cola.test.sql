@@ -356,8 +356,15 @@ begin
   -- pasaría por la razón equivocada, así que se comprueba primero que hay a
   -- quien saltarse.
   perform set_config('request.jwt.claims', json_build_object('sub', a_bar::text)::text, true);
-  n:=n+1; c:='sin cita · con gente esperando, se niega';
+  --
+  -- Desde la 118 solo frena quien ESTÁ en el local (o ya fue llamado): un
+  -- turno pedido desde el teléfono que todavía no ha llegado deja pasar al
+  -- que entra por la puerta. Por eso aquí se marca que v_id2 llegó —dentro
+  -- del bloque, que se revierte al capturar—: sin eso el caso probaría la
+  -- regla vieja. La regla nueva entera está en sin_cita.test.sql, sección 4.
+  n:=n+1; c:='sin cita · con alguien esperando EN EL LOCAL, se niega';
   begin
+    update turno_cola set llego_at = now() where id = v_id2;
     select count(*) into v_int from turno_cola
      where negocio_id = v_neg and estado in ('en_fila','llamado','en_camino');
     if v_int = 0 then

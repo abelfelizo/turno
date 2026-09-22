@@ -16,7 +16,7 @@
  *     HOY y así se dice.
  *   · Citas y horas bloqueadas del día, cada una con su hoja.
  *
- * La lógica viene de components/agenda-trabajo, portada con sus reglas (R11:
+ * La lógica viene de la agenda de antes (agenda-trabajo, ya borrada), con sus reglas (R11:
  * alargar y adelantar son de quien pone el horario; el bloqueo se MODIFICA en
  * su sitio para no abrir un hueco a una reserva).
  */

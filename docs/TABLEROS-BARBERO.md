@@ -252,17 +252,16 @@ el descanso como `fila_abierta = false`. Ahora la tarjeta del cliente la
 cuenta como pausa: «EN PAUSA · VUELVE SOBRE 3:15», y el chip de la silla dice
 «vuelve ~3:15» en vez de «cerrado».
 
-### Lo que espera un visto bueno
+### Decidido el 22 sep
 
-- **Migración 118** (`supabase/migrations/20260922_118_…sql`), escrita y **sin
-  aplicar**. Es la regla que decidiste para el que entra sin cita: respetar la
-  fila solo de quien está en el local. Hasta aplicarla, la app sigue la regla
-  de hoy del servidor (con cualquiera esperando, no se sienta a nadie), para no
-  ofrecer un botón que el servidor rechaza. Aplicada, se cambia
-  `REGLA_WALK_IN` a `'nadie_presente'` en `lib/silla.ts` y ya.
-- **Precios en las hojas.** La tarjeta y la pantalla no enseñan dinero, como se
-  decidió. Las hojas de cobrar, sin cita y la ficha sí enseñan el precio,
-  porque así estaban en los tableros aprobados. Si tampoco ahí, se quitan.
+- **Migración 118 — aplicada.** El que entra sin cita respeta a quien ESTÁ en
+  el local (fila física, «ya llegué», llamado o en camino, doble servicio),
+  no a quien espera en la app sin haber llegado. Probada contra la base
+  antes y después (suites `sin_cita` 27/27 y `motor_cola` 34/34). La app
+  sigue la misma regla (`REGLA_WALK_IN = 'nadie_presente'`). Para volver
+  atrás: `supabase/rollback_118_turno_atender_sin_cita.sql`.
+- **Precios en las hojas — se quedan.** La tarjeta y la pantalla de Mi silla
+  siguen sin dinero; las hojas de cobrar, sin cita y la ficha lo enseñan.
 
 ## Las otras cuatro pestañas, en código (22 sep)
 
@@ -279,5 +278,5 @@ dice «En el local» y no «Sin cita»: afirmar lo segundo sería inventar un da
 Separarlos pide que la visita guarde la prioridad (3 = sin cita); es una
 migración pequeña, anotada aquí y sin hacer.
 
-**`components/agenda-trabajo.tsx` ya no lo usa ninguna pantalla.** No lo he
-borrado: son ~1.900 líneas y se borran solo con tu visto bueno.
+**`components/agenda-trabajo.tsx` — borrado** (22 sep, con visto bueno): ya
+no lo usaba ninguna pantalla. Sigue en la historia de git si hiciera falta.

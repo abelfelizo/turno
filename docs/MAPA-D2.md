@@ -125,7 +125,7 @@ No son pantallas pero mandan sobre varias:
 
 | Componente | Manda en | Tablero |
 |---|---|---|
-| `agenda-trabajo.tsx` (~1.900 líneas) | **ya no la usa ninguna pantalla** (la reemplazan Mi silla y `agenda-calendario.tsx`); se conserva hasta confirmar que se puede borrar | — |
+| ~~`agenda-trabajo.tsx`~~ | **borrado** (22 sep): lo reemplazan Mi silla y `agenda-calendario.tsx` | — |
 | `hoja-fila.tsx` | hoja de entrar a la fila | solo existe en C (descartada) |
 | `estado-local.tsx` | Inicio del cliente | dentro de `D2-Cliente-Inicio` |
 | `clientes-local.tsx` | barbero + dueño | `D2-Barbero-Clientes` |

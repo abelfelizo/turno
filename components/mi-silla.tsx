@@ -1,7 +1,7 @@
 /**
  * MI SILLA · la pestaña principal del barbero. SOLO HOY.
  *
- * La agenda de antes (components/agenda-trabajo) mezclaba AHORA con
+ * La agenda de antes (agenda-trabajo, ya borrada) mezclaba AHORA con
  * CALENDARIO en una sola pantalla con un selector de día arriba: tocabas un
  * jueves y la fila en vivo seguía siendo la de hoy. Esto es la mitad de AHORA,
  * sacada a su pestaña; el calendario se queda en Agenda.
