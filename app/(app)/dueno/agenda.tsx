@@ -68,7 +68,7 @@ export default function ColaLocal() {
   async function irAMiSilla() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, panel: 'silla' })
-    router.replace('/(app)/barbero/agenda')
+    router.replace('/(app)/barbero/silla')
   }
 
   async function op(fn: () => Promise<any>, err = 'No se pudo') {

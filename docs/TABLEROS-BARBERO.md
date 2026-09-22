@@ -220,3 +220,46 @@ cuatro son sobre todo diseño encima de una lógica que ya funciona.
 2. Los tableros, empezando por Mi silla, en el mismo lienzo del cliente.
 3. Los estados de la tarjeta de Mi silla, como las 20 del cliente.
 4. El código.
+
+---
+
+## En código (22 sep)
+
+Mi silla ya está en la app, en el panel del barbero, como primera de las
+cinco pestañas: **Mi silla · Agenda · Clientes · Estadísticas · Ajustes**.
+
+| Pieza | Qué hace |
+|---|---|
+| `lib/silla.ts` | Decide el modo de la tarjeta (los 20 del tablero), la regla del que entra sin cita, si un servicio cabe antes de la próxima cita, la pausa. Función pura, sin pantalla. |
+| `scripts/probar-silla.mjs` | Un caso por modo + las prioridades + la regla sin cita + «si tiene el tiempo». `TZ=America/Santo_Domingo node scripts/probar-silla.mjs`. Probado también contra una copia estropeada: falla como debe. |
+| `components/tarjeta-silla.tsx` | Dibuja el modo. No decide nada. |
+| `components/mi-silla.tsx` | La pantalla: carga, tiempo real, reloj, y todas las acciones de la agenda portadas una a una con sus reglas y sus avisos. |
+| `components/hojas-silla.tsx` | Las ocho hojas del tablero (cobrar, no está, sin cita, persona, cita, salgo, local, ficha) más sacar y cambiar servicio. |
+| `app/(app)/barbero/_layout.tsx` | Las cinco pestañas; se rehacen enteras al cambiar de local, como en el cliente. |
+
+**La agenda** (`AgendaTrabajo soloCalendario`) deja de enseñar el cuadro de
+AHORA —estado, fila, llamar, sin cita—, que vive en Mi silla. De hoy le queda
+una fila, «Tu jornada de hoy», porque abrir antes / alargar / cerrar por hoy
+solo se alcanzaban desde aquel cuadro y no se podían perder.
+
+**Salgo un momento** no necesita nada nuevo del servidor: es el descanso (que
+cierra la fila a los nuevos) más un bloqueo corto con el motivo
+`Salgo un momento` (que pone la hora de vuelta, y el servidor ya la devuelve
+como `hasta`). Si pasa la hora, la fila no se reabre sola: la tarjeta pregunta.
+
+**En el cliente**, una silla en pausa se veía como CERRADO: el servidor manda
+el descanso como `fila_abierta = false`. Ahora la tarjeta del cliente la
+cuenta como pausa: «EN PAUSA · VUELVE SOBRE 3:15», y el chip de la silla dice
+«vuelve ~3:15» en vez de «cerrado».
+
+### Lo que espera un visto bueno
+
+- **Migración 118** (`supabase/migrations/20260922_118_…sql`), escrita y **sin
+  aplicar**. Es la regla que decidiste para el que entra sin cita: respetar la
+  fila solo de quien está en el local. Hasta aplicarla, la app sigue la regla
+  de hoy del servidor (con cualquiera esperando, no se sienta a nadie), para no
+  ofrecer un botón que el servidor rechaza. Aplicada, se cambia
+  `REGLA_WALK_IN` a `'nadie_presente'` en `lib/silla.ts` y ya.
+- **Precios en las hojas.** La tarjeta y la pantalla no enseñan dinero, como se
+  decidió. Las hojas de cobrar, sin cita y la ficha sí enseñan el precio,
+  porque así estaban en los tableros aprobados. Si tampoco ahí, se quitan.

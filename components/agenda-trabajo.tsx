@@ -77,7 +77,12 @@ function horaAhora() {
 }
 
 /** Agenda de trabajo: la usa el barbero y el dueño-que-atiende. Opera sobre sesion.perfil_id. */
-export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
+export default function AgendaTrabajo({ titulo, soloCalendario }: {
+  titulo?: string
+  /** El AHORA (estado, fila, llamar, sin cita) vive en Mi silla. Aquí queda
+   *  el calendario, y de hoy solo lo que no es de la silla: la jornada. */
+  soloCalendario?: boolean
+}) {
   const [citas, setCitas] = useState<any[]>([])
   // Citas de días pasados que nadie cerró. Ver getCitasSinCerrar.
   const [sinCerrar, setSinCerrar] = useState<any[]>([])
@@ -132,6 +137,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
   /** La jornada VIVA, que puede haber empezado ayer (migración 113). */
   const [enJornada, setEnJornada] = useState(false)
   const esHoy = fecha === hoy
+  const enVivo = esHoy && !soloCalendario
 
   /**
    * ¿POR QUÉ PUNTA ESTÁ CERRADA LA FILA?
@@ -820,7 +826,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           "Libre · 2 esperando" y el botón "Llamar a Pedro", que son de hoy. Un
           cuadro que no cambia al cambiar de día hace creer que la pantalla
           entera se quedó en hoy. Para otro día manda la agenda de ese día. */}
-      {esHoy && estado && (
+      {enVivo && estado && (
         <View style={[s.panel, EST_FONDO[estado.estado] ? { backgroundColor: EST_FONDO[estado.estado] } : null]}>
           <View style={s.panelTop}>
             <PuntoVivo color="rgba(255,255,255,0.95)" vivo={estado.estado === 'libre' || estado.estado === 'atendiendo'} />
@@ -1123,6 +1129,23 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
           Su trabajo es otro y solo ese: recordarte que no estás en hoy, y
           devolverte con un toque. Lo que hay ese día lo cuenta "CITAS DEL DÍA",
           que es de quien es. */}
+      {/* LA JORNADA DE HOY, SIN LA SILLA. Abrir antes, alargar, cerrar por
+          hoy y volver a la norma vivían dentro del cuadro de estado, que ahora
+          es Mi silla. No se pueden perder por el camino: para el empleado este
+          es el único sitio desde donde cierra su día. */}
+      {esHoy && soloCalendario && (
+        <TouchableOpacity style={s.jornadaFila} onPress={() => setHoja({ tipo: 'jornada' })} accessibilityRole="button">
+          <Ionicons name="time-outline" size={20} color={COLORS.ink} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.jornadaT}>Tu jornada de hoy</Text>
+            <Text style={s.jornadaD}>
+              {jornada ? `${hora12(jornada.hora_inicio)} – ${hora12(jornada.hora_fin)}` : 'Hoy no trabajas'}
+              {mandoHorario ? ' · abrir antes, alargar o cerrar' : ' · cerrar por hoy'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+        </TouchableOpacity>
+      )}
       {!esHoy && (
         <View style={s.otroDia}>
           <Ionicons name="calendar-outline" size={16} color={COLORS.textMid} />
@@ -1133,7 +1156,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
         </View>
       )}
 
-      {esHoy && (
+      {enVivo && (
         <>
           {ocupado && (
             <View style={s.ocupado}>
@@ -1256,7 +1279,7 @@ export default function AgendaTrabajo({ titulo }: { titulo?: string }) {
       {/* Solo si el cuadro de arriba NO está ya ofreciendo esto: con gente en la
           fila la acción principal es "Llamar a…", y entonces sigue haciendo
           falta poder atender a alguien que llega caminando. */}
-      {esHoy && sillaLibre && captaSolo && accion?.texto !== 'Atender cliente sin cita' && (
+      {enVivo && sillaLibre && captaSolo && accion?.texto !== 'Atender cliente sin cita' && (
         <TouchableOpacity style={s.walkin} onPress={() => setHoja({ tipo: 'servicios', modo: 'ocupar' })}>
           <Ionicons name="cut" size={18} color="#fff" /><Text style={s.walkinT}>Atender cliente sin cita</Text>
         </TouchableOpacity>
@@ -1846,6 +1869,9 @@ const s = StyleSheet.create({
   localFijoT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight },
   localOpc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   localOpcT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  jornadaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8 },
+  jornadaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  jornadaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   cerrarHoja: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 18 },
   bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.red, borderRadius: 6, padding: 13, marginTop: 8 },
   bloquearT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.red },

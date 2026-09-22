@@ -17,7 +17,7 @@ import type { PanelActivo } from '../types'
 export const INICIO_DE_PANEL: Record<PanelActivo, string> = {
   cliente: '/(app)/cliente/turno',
   barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
+  silla: '/(app)/barbero/silla',
 }
 
 /** Cómo se llama cada panel cuando hay que nombrarlo en pantalla. */

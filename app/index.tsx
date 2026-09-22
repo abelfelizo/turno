@@ -55,7 +55,7 @@ export default function Index() {
 
       if (panel === 'cliente') router.replace('/(app)/cliente/turno')
       else if (panel === 'barberia') router.replace('/(app)/dueno/dashboard')
-      else router.replace('/(app)/barbero/agenda')
+      else router.replace('/(app)/barbero/silla')
     })().catch(() => router.replace('/(auth)/login'))
   }, [])
 

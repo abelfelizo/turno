@@ -272,7 +272,14 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
    * significa «vuelve en veinte minutos». La diferencia la marca que haya una
    * hora de vuelta; sin ella no se afirma, se dice que están en pausa y ya.
    */
-  const enFila = p.sillas.filter(x => (x.modo ?? 'ambos') !== 'solo_citas' && x.fila_abierta !== false)
+  //
+  // El servidor cuenta el descanso como fila cerrada (`fila_abierta` false,
+  // motivo «está en descanso»), y es verdad: en pausa no entra nadie nuevo.
+  // Pero para quien mira la tarjeta NO es un cierre: la silla en pausa sigue
+  // siendo de la fila. Sin contarla aquí, «todo en pausa» no salía nunca y el
+  // cliente leía CERRADO con el barbero a punto de volver.
+  const enFila = p.sillas.filter(x => (x.modo ?? 'ambos') !== 'solo_citas'
+    && (x.fila_abierta !== false || x.estado === 'descanso'))
   const pausados = enFila.filter(x => x.estado === 'descanso')
   const todoEnPausa = enFila.length > 0 && pausados.length === enFila.length
   const vuelta = pausados.map(x => x.hasta).filter(Boolean).sort()[0] as string | undefined
@@ -287,8 +294,8 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
     p.sinLocal ? { texto: 'NUEVA', color: COLORS.onCarbonMid }
     : p.desconectado ? { texto: 'SIN CONEXIÓN', color: COLORS.ambarNoche }
     : p.sinServicio ? { texto: 'SIN SERVICIO', color: COLORS.onCarbonMid }
-    : !p.abierto ? { texto: 'CERRADO', color: COLORS.onCarbonMid }
     : todoEnPausa ? { texto: 'EN PAUSA', color: COLORS.ambarNoche }
+    : !p.abierto ? { texto: 'CERRADO', color: COLORS.onCarbonMid }
     : soloCitas ? { texto: 'SOLO CITAS', color: COLORS.azulNoche }
     : !hayAgenda ? { texto: 'SOLO FILA', color: COLORS.okNoche }
     : { texto: 'ABIERTO AHORA', color: COLORS.okNoche }
@@ -300,7 +307,7 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
           <PuntoVivo color={rotulo.color} vivo={p.abierto && !p.desconectado} />
           <Text style={[s.estadoT, { color: rotulo.color }]}>{rotulo.texto}</Text>
         </View>
-        {p.abierto && !p.sinServicio && !p.sinLocal && (
+        {(p.abierto || todoEnPausa) && !p.sinServicio && !p.sinLocal && (
           <Text style={s.estadoDer} numberOfLines={1}>
             {p.desconectado
               ? (p.desdeMin != null ? `Datos de hace ${p.desdeMin} min` : 'Último dato conocido')
@@ -325,7 +332,7 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
           Todavía no atienden por la app. Puedes seguir yendo como siempre — y en
           cuanto la activen, aparecerá aquí.
         </Text>
-      ) : !p.abierto ? (
+      ) : !p.abierto && !todoEnPausa ? (
         <Text style={s.motivo}>
           {p.motivoComun
             ? p.motivoComun.charAt(0).toUpperCase() + p.motivoComun.slice(1)
@@ -375,9 +382,11 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
         <Pie
           // E2 · «Entrar a la fila» con la fila vacía nombra algo que no
           // existe. Si no hay nadie delante no se entra a una fila: se entra.
-          principal={p.abierto && !soloCitas && hayFila
+          // Con todo en pausa no se ofrece: el servidor no deja entrar hasta
+          // que alguien vuelva, y un botón que falla es peor que ninguno.
+          principal={p.abierto && !todoEnPausa && !soloCitas && hayFila
             ? { texto: nadie && !todoEnPausa ? 'Entrar ya' : 'Entrar a la fila', onPress: p.onFila } : null}
-          secundario={hayAgenda ? { texto: p.abierto ? 'Reservar cita' : 'Reservar otro día', onPress: p.onAgendar } : null}
+          secundario={hayAgenda ? { texto: p.abierto || todoEnPausa ? 'Reservar cita' : 'Reservar otro día', onPress: p.onAgendar } : null}
         />
       )}
     </>
@@ -503,14 +512,14 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
  * Y se dice así: nadie en una barbería dice «tercero grado», dice «el tercero».
  * Escribirlo con letras lo pone a la altura de las cifras, que es donde se lee.
  */
-function ordinal(n: number): string {
+export function ordinal(n: number): string {
   const SUF: Record<number, string> = { 1: 'ro', 2: 'do', 3: 'ro', 4: 'to', 7: 'mo', 8: 'vo', 9: 'no' }
   return `${n}${SUF[n] ?? 'to'}`
 }
 
 /* ─────────────────────────────── piezas ─────────────────────────────────── */
 
-function Cifra({ valor, rotulo, color, filete, latiendo }: {
+export function Cifra({ valor, rotulo, color, filete, latiendo }: {
   valor: string; rotulo: string; color: string; filete?: boolean; latiendo?: boolean
 }) {
   /**
@@ -563,7 +572,10 @@ function Sillas({ sillas }: { sillas: SillaEstado[] }) {
   return (
     <View style={s.sillas}>
       {sillas.map(x => {
-        const cerrada = x.fila_abierta === false
+        // El descanso llega como fila cerrada, pero se dice como lo que es:
+        // una pausa con hora de vuelta, no un «cerrado» de hasta mañana.
+        const pausa = x.estado === 'descanso'
+        const cerrada = x.fila_abierta === false && !pausa
         return (
           <View key={x.perfil_id} style={s.chip}>
             <View style={[s.punto, { backgroundColor: cerrada ? COLOR.inactivo : COLOR[x.estado] ?? COLOR.inactivo }]} />
@@ -571,6 +583,7 @@ function Sillas({ sillas }: { sillas: SillaEstado[] }) {
               {x.barbero?.split(' ')[0] ?? 'Barbero'}
               <Text style={s.chipD}>
                 {cerrada ? (x.modo === 'solo_citas' ? '  solo con cita' : '  cerrado')
+                  : pausa ? (x.hasta ? `  vuelve ~${hora12(x.hasta)}` : '  en pausa')
                   : x.estado === 'atendiendo' ? (() => {
                       const r = relojesDeSilla(x.desde, x.fin_estimado)
                       if (r?.fin && !r.tarde) return `  libre ~${r.fin}`

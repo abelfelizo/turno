@@ -186,7 +186,7 @@ export default function Dashboard() {
   async function irAMiSilla() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, panel: 'silla' })
-    router.replace('/(app)/barbero/agenda')
+    router.replace('/(app)/barbero/silla')
   }
 
   if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
