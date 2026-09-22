@@ -74,7 +74,18 @@ Debajo, en claro:
 - **SALGO UN MOMENTO** — la pausa con reloj: `10 min · 15 · 30 · sin hora`.
   Está decidida en `PAUSA-DE-FILA.md` y la mitad ya funciona (el interruptor
   de descanso); lo que falta es del servidor.
-- **ATENDER SIN CITA** — el que entra por la puerta.
+- **ATENDER SIN CITA** — el que entra por la puerta. **No entra a la fila:
+  se le atiende ahora o no se le atiende** (decidido 22 sep):
+  - Si **alguien espera EN el local** (fila física, o de la app que ya dijo
+    que llegó), el botón **se apaga** y dice a quién se está respetando. Un
+    botón que solo sirve para descubrir que no se puede es peor que ninguno.
+  - Si los que esperan **están en la app y aún no han llegado**, se enciende.
+  - **«Si tiene el tiempo»** depende del servicio, así que se decide dentro de
+    la hoja: los servicios que no caben antes de su próxima cita salen
+    apagados, con el motivo. A los de la app se les corre la espera, y se dice.
+  - No hace falta nada de servidor: `atenderSinCita` ya sienta directo. La
+    regla vive en la pantalla; el servidor sigue dejándolo, y eso es
+    deliberado — la silla es del barbero.
 
 **Lo que sale de aquí:** el selector de día, las horas bloqueadas, la jornada,
 las citas sin cerrar de otros días, el código de barbero y el distintivo de
