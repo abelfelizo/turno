@@ -39,21 +39,68 @@ function archivos(dir, out = []) {
   return out
 }
 
+/**
+ * DOS AGUJEROS QUE TENÍA ESTA COMPROBACIÓN, Y QUE LA HACÍAN PEOR QUE NADA.
+ *
+ * La primera versión buscaba `const algo = useLoQueSea(...)`. Eso deja pasar
+ * justo los dos casos más fáciles de escribir:
+ *
+ *   if (loading) return <Spinner />
+ *   useEffect(() => { ... }, [])        ← no asigna nada: invisible
+ *   if (a) { const y = useMemo(...) }   ← anidado: invisible
+ *
+ * Los dos rompen la pantalla igual que el que sí cazaba, y `useEffect` después
+ * de una guarda es probablemente el más común de todos. Una comprobación que
+ * da verde sobre el fallo que dice vigilar es peor que no tenerla, porque se
+ * confía en ella.
+ *
+ * Ahora se busca CUALQUIER llamada a algo con forma de hook por debajo de la
+ * guarda, asigne o no y esté a la profundidad que esté. Para no cazar de más:
+ * se quitan los comentarios antes de mirar (este mismo archivo y medio repo
+ * mencionan `useEffect` en prosa), y el ámbito se cierra al llegar a otra
+ * declaración de primer nivel, para que un ayudante declarado debajo del
+ * componente no herede su guarda.
+ */
+const RE_HOOK = /\buse[A-Z]\w*\s*\(/
+const RE_COMPONENTE = /^(export\s+)?(default\s+)?function\s+[A-Z]/
+const RE_OTRO_AMBITO = /^(const|let|var|type|interface|export)\s|^function\s|^\}/
+
 const fallos = []
 for (const f of [...archivos('app'), ...archivos('components')]) {
-  const lineas = readFileSync(f, 'utf8').split('\n')
+  const crudo = readFileSync(f, 'utf8').split('\n')
   let dentro = false
   let guarda = null
-  lineas.forEach((l, i) => {
-    // Cada componente exportado reinicia la cuenta.
-    if (/^export default function |^export function [A-Z]/.test(l)) {
-      dentro = true
-      guarda = null
+  let enBloque = false        // dentro de un /* ... */
+
+  crudo.forEach((cruda, i) => {
+    // Fuera comentarios ANTES de decidir nada: si no, una línea de prosa que
+    // diga "useEffect" cuenta como llamada y el informe se llena de ruido.
+    let l = cruda
+    if (enBloque) {
+      const cierre = l.indexOf('*/')
+      if (cierre === -1) return
+      l = l.slice(cierre + 2)
+      enBloque = false
+    }
+    const abre = l.indexOf('/*')
+    if (abre !== -1) {
+      const cierre = l.indexOf('*/', abre + 2)
+      if (cierre === -1) { enBloque = true; l = l.slice(0, abre) }
+      else l = l.slice(0, abre) + l.slice(cierre + 2)
+    }
+    l = l.replace(/\/\/.*$/, '')
+    if (!l.trim()) return
+
+    if (RE_COMPONENTE.test(l)) { dentro = true; guarda = null; return }
+    // Otra declaración de primer nivel cierra el componente anterior.
+    if (dentro && RE_OTRO_AMBITO.test(l) && !RE_COMPONENTE.test(l)) {
+      dentro = false; guarda = null; return
     }
     if (!dentro) return
-    if (guarda === null && /^ {2}if \(.*\) return/.test(l)) guarda = i + 1
-    if (guarda !== null && /^ {2}(const|let)\s+.*=\s*use[A-Z]/.test(l)) {
-      fallos.push({ f, guarda, linea: i + 1, txt: l.trim() })
+
+    if (guarda === null && /^ {2}if \(.*\)\s*return/.test(l)) guarda = i + 1
+    else if (guarda !== null && RE_HOOK.test(l)) {
+      fallos.push({ f, guarda, linea: i + 1, txt: cruda.trim() })
     }
   })
 }

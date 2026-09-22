@@ -33,7 +33,7 @@ import {
 import { dinero } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
 import { COLORS, FONTS } from '../../../constants'
-import { Avatar } from '../../../components/ui'
+import { Avatar, NoCargo } from '../../../components/ui'
 import Resenas from '../../../components/resenas'
 
 export default function MiBarberia() {
@@ -59,19 +59,33 @@ export default function MiBarberia() {
   const [ratings, setRatings] = useState<Record<string, { promedio: number; total: number }>>({})
   const [resenasDe, setResenasDe] = useState<{ id: string; nombre?: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  /** «La barbería no tiene barberos» y «no pude preguntar» no son lo mismo. */
+  const [fallo, setFallo] = useState(false)
   const [canjeando, setCanjeando] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
+  // EL LOCAL Y SU GENTE VAN SIN `.catch` (auditoría 4).
+  //
+  // Esta pantalla nació en la reestructuración con las ocho llamadas tapadas y
+  // un `try` sin `catch`, así que un tirón de red la pintaba entera: una
+  // barbería sin barberos, sin tarjetas y sin vales, en silencio. El cliente lo
+  // lee como «aquí no trabaja nadie» y se va — que es la mentira concreta que
+  // la auditoría 4 existía para matar.
+  //
+  // Sin destapar quedan las accesorias: sin el estado del local, sin los otros
+  // locales o sin las estrellas la pantalla enseña menos, pero lo que enseña es
+  // verdad.
   const cargar = useCallback(async () => {
     try {
+      setFallo(false)
       const ss = await getSesion()
       if (!ss?.negocio_id) { setLoading(false); return }
       setSesion(ss)
       const u = await getMiUsuario().catch(() => null)
       const [neg, locs, ps, est, tjs, vs, pref, rt] = await Promise.all([
-        getNegocioById(ss.negocio_id).catch(() => null),
+        getNegocioById(ss.negocio_id),
         u?.id ? getMisNegociosCliente(u.id).catch(() => []) : Promise.resolve([]),
-        getPerfilesNegocio(ss.negocio_id).catch(() => []),
+        getPerfilesNegocio(ss.negocio_id),
         getEstadoLocal(ss.negocio_id).catch(() => []),
         getMisTarjetas(ss.negocio_id).catch(() => []),
         u?.id ? getMisCanjesActivos(u.id, ss.negocio_id).catch(() => []) : Promise.resolve([]),
@@ -85,6 +99,8 @@ export default function MiBarberia() {
       // con su resumen, que es lo que decide si merece la pena abrirlos.
       const p = (pref as any)?.perfil_id ?? (pref as any) ?? null
       setAbierto(p ?? (ps as any[])[0]?.id ?? null)
+    } catch {
+      setFallo(true)
     } finally { setLoading(false); setRefreshing(false) }
   }, [])
 
@@ -122,6 +138,13 @@ export default function MiBarberia() {
 
   if (loading) {
     return <View style={s.centro}><ActivityIndicator color={COLORS.red} size="large" /></View>
+  }
+  if (fallo) {
+    return (
+      <View style={s.centro}>
+        <NoCargo que="tu barbería" onReintentar={() => { setLoading(true); cargar() }} />
+      </View>
+    )
   }
 
   const estadoDe = (perfil_id: string) => estado.find((x: any) => x.perfil_id === perfil_id)
