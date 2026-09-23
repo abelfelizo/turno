@@ -1,4 +1,5 @@
 import { Stack, useRouter } from 'expo-router'
+import { capaGlass } from '../components/fondo-glass'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { View, ActivityIndicator } from 'react-native'
@@ -121,7 +122,8 @@ export default function RootLayout() {
             terminar de bajarse en cualquier momento, y el aviso no sirve si
             solo aparece en una pantalla a la que hay que saber llegar. */}
         <AvisoActualizacion />
-        <Stack screenOptions={{ headerShown: false }} />
+        {/* Liquid glass: un solo fondo detrás de todo; las pantallas son transparentes. */}
+        <Stack screenLayout={capaGlass} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: 'transparent' } }} />
       </ErrorBoundary>
     </SafeAreaProvider>
   )

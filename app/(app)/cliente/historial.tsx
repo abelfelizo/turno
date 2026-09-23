@@ -17,7 +17,7 @@ import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { getSesion } from '../../../lib/storage'
 import { getHistorialCliente, getMisResenas, crearResena, getNegocioById } from '../../../lib/db'
 import { dinero, fechaDeISO } from '../../../lib/format'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -253,8 +253,8 @@ export default function Historial() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 20 },
-  pedir: { backgroundColor: COLORS.carbon, borderRadius: 8, overflow: 'hidden', marginBottom: 6 },
+  container: { flex: 1, backgroundColor: 'transparent', padding: 20 },
+  pedir: { backgroundColor: GLASS.ink, borderRadius: 26, overflow: 'hidden', marginBottom: 6 },
   pedirCuerpo: { paddingHorizontal: 18, paddingTop: 15, paddingBottom: 17 },
   pedirK: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.onCarbonMid },
   pedirT: { fontFamily: FONTS.semibold, fontSize: 16, lineHeight: 33, color: '#fff', marginTop: 5 },
@@ -263,15 +263,14 @@ const s = StyleSheet.create({
   pedirStar: { fontSize: 32, lineHeight: 36, color: COLORS.onCarbonMid },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 20, marginBottom: 2 },
   nums: { flexDirection: 'row', gap: 14 },
-  num: { flex: 1, paddingVertical: 13, paddingRight: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
+  num: { flex: 1, paddingVertical: 13, paddingRight: 10, borderTopWidth: 1, borderTopColor: GLASS.hairline },
   numN: { fontFamily: FONTS.monoBold, fontSize: 30, lineHeight: 32, color: COLORS.ink },
   numSm: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink, lineHeight: 32 },
   numL: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  dia: { width: 52, height: 52, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  dia: { width: 52, height: 52, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
   diaN: { fontFamily: FONTS.monoBold, fontSize: 21, lineHeight: 24, color: COLORS.ink },
   diaM: { fontFamily: FONTS.bold, fontSize: 9.5, color: COLORS.textLight, letterSpacing: 1.2 },
   servicio: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
@@ -281,7 +280,7 @@ const s = StyleSheet.create({
   calificar: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.blue, marginTop: 6, textTransform: 'uppercase' },
   calificado: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.textLight, marginTop: 6, textTransform: 'uppercase' },
   precio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   rIni: { width: 46, height: 46, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   rIniT: { fontFamily: FONTS.semibold, fontSize: 21, color: COLORS.blue },
   rServ: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
@@ -290,9 +289,9 @@ const s = StyleSheet.create({
   rStar: { fontFamily: FONTS.bold, fontSize: 46, lineHeight: 50, color: COLORS.border },
   rPalabra: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.2, color: COLORS.textMid, textAlign: 'center', marginTop: 8 },
   rSec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 22 },
-  rInput: { borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.regular, color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11, borderRadius: 8, overflow: 'hidden' },
-  rPie: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 18, paddingTop: 14 },
-  rCta: { backgroundColor: COLORS.ink, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  rInput: { borderWidth: 1, borderColor: GLASS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.regular, color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11, borderRadius: 16, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
+  rPie: { borderTopWidth: 1, borderTopColor: GLASS.hairline, marginTop: 18, paddingTop: 14 },
+  rCta: { backgroundColor: COLORS.ink, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28 },
   rCtaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   rLuego: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 12.5, marginTop: 11 },
 })

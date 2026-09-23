@@ -14,6 +14,7 @@
 import { useEffect, useState } from 'react'
 import { Tabs, usePathname } from 'expo-router'
 import { iconoTab as ic, useOpcionesTabs } from '../../../components/tabs'
+import { capaGlass } from '../../../components/fondo-glass'
 import GuardaPanel from '../../../components/guarda-panel'
 import { getSesion, alCambiarSesion } from '../../../lib/storage'
 
@@ -41,7 +42,7 @@ export default function DuenoLayout() {
 
   return (
     <GuardaPanel panel="barberia">
-      <Tabs key={local ?? 'sin-local'} initialRouteName={inicial} screenOptions={opciones}>
+      <Tabs screenLayout={capaGlass} key={local ?? 'sin-local'} initialRouteName={inicial} screenOptions={opciones}>
         <Tabs.Screen name="dashboard" options={{ tabBarLabel: 'Mi local', tabBarIcon: ic('storefront-outline') }} />
         <Tabs.Screen name="equipo" options={{ tabBarLabel: 'Equipo', tabBarIcon: ic('people-outline') }} />
         <Tabs.Screen name="clientes" options={{ tabBarLabel: 'Clientes', tabBarIcon: ic('person-outline') }} />

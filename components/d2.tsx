@@ -10,7 +10,7 @@
  */
 import { ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 
 export function Encabezado({ titulo, sub, derecha }: { titulo: string; sub?: string | null; derecha?: ReactNode }) {
   return (
@@ -84,12 +84,12 @@ const s = StyleSheet.create({
   rot: { flexShrink: 1, fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1, color: COLORS.textMid, textTransform: 'uppercase' },
   rotAccion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue },
   pest: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-  pestBtn: { minHeight: 36, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center' },
-  pestOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
+  pestBtn: { minHeight: 36, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: GLASS.border, justifyContent: 'center', backgroundColor: GLASS.fill },
+  pestOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   pestT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   pestTOn: { color: '#FFFFFF' },
   cifras: { flexDirection: 'row', gap: 8 },
-  cifra: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 12 },
+  cifra: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingVertical: 12, paddingHorizontal: 12, backgroundColor: GLASS.fill },
   cifraN: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 28, color: COLORS.ink, letterSpacing: -0.5 },
   cifraL: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
 })

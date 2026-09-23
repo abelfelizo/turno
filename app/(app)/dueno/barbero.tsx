@@ -6,7 +6,7 @@ import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServici
 import { getSesion } from '../../../lib/storage'
 import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { Display, NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import Resenas from '../../../components/resenas'
@@ -480,42 +480,42 @@ function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: ()
 }
 
 const s = StyleSheet.create({
-  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  accionFilaOn: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
+  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  accionFilaOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
   accionFilaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   accionFilaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   pantalla: { flex: 1 },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   volverT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   sub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
   flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
+  modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 11, alignItems: 'center', backgroundColor: 'transparent' },
+  modChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   accion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   diaL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   diaH: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40 },
+  modal: { backgroundColor: GLASS.fill, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 8 },
+  stepBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.ink, borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 20 },
+  btn: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 16, alignItems: 'center', marginTop: 20 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
   cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.redText, fontSize: 14, marginTop: 14 },

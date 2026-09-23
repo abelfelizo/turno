@@ -19,7 +19,7 @@ import { getSesion, limpiarSesion } from '../../../lib/storage'
 import { getMiUsuario, getPreferenciasCliente, guardarPreferencias, eliminarCuenta } from '../../../lib/db'
 import { cerrarSesion } from '../../../lib/auth'
 import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -210,20 +210,19 @@ function Campo({ label, ...props }: any) {
 const s = StyleSheet.create({
   prefNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
   campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMid },
-  campo: { marginTop: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 13, paddingVertical: 12, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, borderRadius: 8, overflow: 'hidden' },
-  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 8 },
+  campo: { marginTop: 6, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 13, paddingVertical: 12, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, borderRadius: 16, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
+  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
   nombre: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 28, lineHeight: 30, color: COLORS.ink },
   tel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: GLASS.fill },
   cuentaT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
   cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'transparent', padding: 14, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, padding: 14, marginBottom: 24, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
   cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.redText },
   cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
   // La misma sección que el resto de la app: rótulo con filete negro debajo.

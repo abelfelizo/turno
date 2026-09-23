@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
 import { getResenasDe, getResumenResenas, type ResumenResenas } from '../lib/db'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 import { Display } from './ui'
 import Hoja from './hoja'
 
@@ -107,11 +107,11 @@ const s = StyleSheet.create({
   total: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
   barraRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   barraK: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, width: 10 },
-  barraBg: { flex: 1, height: 7, backgroundColor: COLORS.surfaceAlt, overflow: 'hidden' },
+  barraBg: { flex: 1, height: 7, backgroundColor: GLASS.fillStrong, overflow: 'hidden' },
   barraFill: { height: 7, backgroundColor: COLORS.ink, borderRadius: 3 },
   barraN: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, width: 18, textAlign: 'right' },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginVertical: 18 },
-  item: { borderTopWidth: 1, borderTopColor: COLORS.borderSoft, paddingVertical: 12 },
+  item: { borderTopWidth: 1, borderTopColor: GLASS.hairline, paddingVertical: 12 },
   itemTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   itemEstrellas: { fontSize: 14, color: COLORS.red },
   itemMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight },

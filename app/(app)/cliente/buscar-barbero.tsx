@@ -22,7 +22,7 @@ import { useRouter, Stack } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import { getBarberoPorCodigo, getBarberoNegocios, seguirBarberoEnNegocio, getNegocioPorCodigo } from '../../../lib/db'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { Display, Avatar } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -137,23 +137,23 @@ export default function BuscarBarbero() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  back: { width: 36, height: 36, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: GLASS.fill },
   hint: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
   buscarRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
-  input: { flex: 1, height: 56, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, fontFamily: FONTS.monoBold, fontSize: 26, letterSpacing: 1.2, color: COLORS.ink },
-  buscarBtn: { width: 112, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  input: { flex: 1, height: 56, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 14, fontFamily: FONTS.monoBold, fontSize: 26, letterSpacing: 1.2, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16 },
+  buscarBtn: { width: 112, backgroundColor: GLASS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 26 },
   buscarBtnOff: { backgroundColor: COLORS.border, borderRadius: 8 },
   buscarBtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16, borderTopWidth: 1, borderTopColor: COLORS.divider, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14 },
   nombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 21, color: COLORS.ink },
   esp: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginTop: 2 },
   bio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   localT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.ink, borderRadius: 8 },
+  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: GLASS.ink, borderRadius: 26 },
   agregarT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
 })

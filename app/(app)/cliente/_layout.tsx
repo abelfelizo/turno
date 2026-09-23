@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react'
 import { Tabs, usePathname } from 'expo-router'
 import { iconoTab as ic, useOpcionesTabs } from '../../../components/tabs'
+import { capaGlass } from '../../../components/fondo-glass'
 import GuardaPanel from '../../../components/guarda-panel'
 import { getSesion, alCambiarSesion } from '../../../lib/storage'
 
@@ -65,7 +66,7 @@ export default function ClienteLayout() {
 
   return (
     <GuardaPanel panel="cliente">
-      <Tabs key={local ?? 'sin-local'} initialRouteName={inicial} screenOptions={opciones}>
+      <Tabs screenLayout={capaGlass} key={local ?? 'sin-local'} initialRouteName={inicial} screenOptions={opciones}>
         <Tabs.Screen name="turno" options={{ tabBarLabel: 'Mi turno', tabBarIcon: ic('time-outline') }} />
         <Tabs.Screen name="barberia" options={{ tabBarLabel: 'Mi barbería', tabBarIcon: ic('storefront-outline') }} />
         <Tabs.Screen name="historial" options={{ tabBarLabel: 'Historial', tabBarIcon: ic('receipt-outline') }} />

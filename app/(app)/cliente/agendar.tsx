@@ -7,7 +7,7 @@ import { getSesion } from '../../../lib/storage'
 import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas, getMiPreferido } from '../../../lib/db'
 import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
@@ -347,11 +347,11 @@ export default function Agendar() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  mini: { backgroundColor: COLORS.carbon, borderRadius: 8, marginBottom: 20, overflow: 'hidden' },
+  back: { width: 36, height: 36, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: GLASS.fill },
+  mini: { backgroundColor: GLASS.ink, borderRadius: 26, marginBottom: 20, overflow: 'hidden' },
   miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
   miniIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.inkPill, alignItems: 'center', justifyContent: 'center' },
   miniName: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
@@ -359,40 +359,40 @@ const s = StyleSheet.create({
   miniPrice: { fontFamily: FONTS.monoBold, fontSize: 20, color: '#fff' },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
-  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', gap: 6, borderRadius: 8 },
-  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', gap: 6, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  bChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   bChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
   bChipEsp: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
   bienvenida: { paddingVertical: 4, marginBottom: 20 },
   bienvenidaT: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
-  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  servOn: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
+  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
+  servOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
   servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrice: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink },
-  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 1, borderTopColor: GLASS.hairline },
   personasL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   personasD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 42, height: 42, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  stepBtn: { width: 42, height: 42, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: GLASS.fill },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
+  dia: { width: 58, height: 66, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  diaOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   diaOff: { opacity: 0.35 },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
-  ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.bg, borderRadius: 8 },
+  ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
   recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11, gap: 10 },
   recuentoT: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, textTransform: 'capitalize' },
   recuentoP: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28 },
   ctaOff: { backgroundColor: COLORS.border, borderRadius: 8 },
   ctaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   subtitulo: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  slot: { width: '31%', height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red, borderRadius: 8 },
+  slot: { width: '31%', height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 23, backgroundColor: GLASS.fill },
+  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red, borderRadius: 26 },
   slotT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
 })

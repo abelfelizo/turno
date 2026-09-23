@@ -9,7 +9,7 @@
 import { ReactNode } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 
 export function Titulo({ children }: { children: ReactNode }) {
   return <Text style={s.titulo}>{children}</Text>
@@ -89,19 +89,19 @@ const s = StyleSheet.create({
   titulo: { fontFamily: FONTS.bold, fontSize: 24, lineHeight: 30, color: COLORS.ink, letterSpacing: -0.5, marginTop: 4 },
   sub: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textMid, marginTop: 4, marginBottom: 8 },
   secT: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1, color: COLORS.textMid },
-  nota: { marginVertical: 10, backgroundColor: COLORS.surfaceAlt, borderRadius: 8, padding: 12 },
+  nota: { marginVertical: 10, backgroundColor: GLASS.fillStrong, borderRadius: 16, padding: 12 },
   notaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.ink },
-  dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
   datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   datoL: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
   datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  opc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  opc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   opcT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   opcD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textLight, marginTop: 2 },
-  pie: { borderTopWidth: 1, borderTopColor: COLORS.tabBorder, marginTop: 18, paddingTop: 16, gap: 8 },
-  rojo: { height: 54, borderRadius: 8, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  pie: { borderTopWidth: 1, borderTopColor: GLASS.hairline, marginTop: 18, paddingTop: 16, gap: 8 },
+  rojo: { height: 54, borderRadius: 27, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
   rojoT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
-  contorno: { height: 52, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  contorno: { height: 52, borderRadius: 26, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, backgroundColor: GLASS.fill },
   contornoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   ahoraNo: { alignItems: 'center', paddingVertical: 12 },
   ahoraNoT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },

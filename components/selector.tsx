@@ -16,7 +16,7 @@
 import { useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, ScrollView } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 import { Display } from './ui'
 import Hoja from './hoja'
 
@@ -84,11 +84,10 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
 
 const s = StyleSheet.create({
   label: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid, letterSpacing: 0.4, marginBottom: 6, marginTop: 12 },
-  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 13, paddingHorizontal: 13 },
+  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingVertical: 13, paddingHorizontal: 13 },
   valor: { flex: 1, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink },
-  busca: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },
+  busca: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   filaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   filaN: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 20 },

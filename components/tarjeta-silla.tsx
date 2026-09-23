@@ -120,14 +120,14 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
 
 const ESTILO_BTN = StyleSheet.create({
   claro: { backgroundColor: '#FFFFFF', borderRadius: 8 },
-  rojo: { backgroundColor: COLORS.red, borderRadius: 8 },
-  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 },
+  rojo: { backgroundColor: COLORS.red, borderRadius: 24 },
+  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 24 },
   apagado: { borderWidth: 1, borderColor: COLORS.carbonDash, borderRadius: 8 },
 })
 const TEXTO_BTN = { claro: COLORS.ink, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 8, overflow: 'hidden', marginBottom: 12 },
+  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12 },
   cuerpo: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   local: { flex: 1, fontFamily: FONTS.semibold, fontSize: 18, lineHeight: 23, color: '#fff' },
@@ -139,7 +139,7 @@ const s = StyleSheet.create({
   texto: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, marginTop: 12 },
   destacado: { fontFamily: FONTS.semibold, color: '#FFFFFF' },
   pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  btn: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  btn: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 15 },
   nota: { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 17, marginTop: 10 },
   mas: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, marginTop: 12, paddingVertical: 4 },

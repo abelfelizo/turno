@@ -44,7 +44,7 @@ import {
   modoDeSilla, partirCola, citaDeAhora, citasQueQuedan, pausaDe, bloqueoActual, enElLocal,
   nombreDe, primerNombre, hora12, sumarMinutos, MOTIVO_PAUSA, type Accion, type DatosSilla,
 } from '../lib/silla'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 import { NoCargo } from './ui'
 import TarjetaSilla from './tarjeta-silla'
 import { TarjetaEsqueleto } from './tarjeta-turno'
@@ -516,12 +516,12 @@ function Fila({ pos, q, ahoraMs, onMas }: { pos?: number; q: any; ahoraMs: numbe
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   sec: { marginTop: 24 },
   secT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.ink },
   secFilete: { height: 0, marginTop: 4 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   pos: { width: 18, textAlign: 'center', fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.textLight },
   ini: { width: 38, height: 38, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   iniT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.blue },
@@ -530,9 +530,9 @@ const s = StyleSheet.create({
   chip: { fontFamily: FONTS.semibold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
   meta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   mas: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
-  cita: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  citaHora: { width: 52, fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
+  cita: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  citaHora: { width: 58, fontFamily: FONTS.monoBold, fontSize: 15, color: COLORS.ink },
   salgo: { flexDirection: 'row', gap: 7, marginTop: 12 },
-  salgoBtn: { flex: 1, height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  salgoBtn: { flex: 1, height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fill, borderRadius: 23 },
   salgoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
 })

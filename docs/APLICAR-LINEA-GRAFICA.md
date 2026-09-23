@@ -188,3 +188,30 @@ sombra apagada de `tabs.tsx`. Vuelta atrás: publicar desde `1ca799f` (o
    la fase 5, cuando lo claro esté visto en el teléfono.
 3. **Rótulos bilingües** («TU POSICIÓN · YOUR SPOT»). El handoff los pide en
    los estados protagonistas. Es solo texto; se puede dejar en español.
+
+## En prueba (23 sep) — Liquid Glass (pide el APK 1.3.0)
+
+Pedido: «probemos con un liquid glass estilo Apple». Sigue la variante Glass
+del primer handoff (`docs/diseno-turno/README.md` § 6 y `Turno App -
+Glass.dc.html`). No cambia funciones, textos ni navegación.
+
+- **Fondo** (`components/fondo-glass.tsx`): gris `#F2F2F2` con tres manchas
+  (roja, azul, tinta) hechas con degradados radiales SVG. Cada pantalla lleva
+  el suyo vía `screenLayout` (si fuera uno solo, las pestañas montadas detrás
+  se transparentarían).
+- **Tokens** `GLASS` en `constants/index.ts`: vidrio `rgba(255,255,255,.45)`,
+  borde `rgba(255,255,255,.75)`, radios 22 (tarjetas), 18 (filas), 28
+  (botones); texto secundario a `#3D3D3D` como pide el README.
+- **Barra de pestañas flotante** con desenfoque real (`expo-blur`), 16 de los
+  lados, radio 36 y la pestaña activa en píldora de tinta.
+- **Hojas** con desenfoque real y radio 32.
+- **Pantallas**: contenedores transparentes; tarjetas, filas de lista,
+  entradas y chips en vidrio; botones en píldora; bloques de tinta con radio
+  26. Las dos tarjetas (Mi turno, Mi silla) conservan su color y pasan a radio
+  28.
+
+`expo-blur` y `react-native-svg` son nativas: **hace falta el APK 1.3.0**
+(`app.json` ya sube la versión, así que una actualización por aire de esta
+rama no llega a los teléfonos con el 1.2.0). Revisado con capturas reales de
+los tres perfiles (render web con datos simulados). Pendiente: entrada
+(bienvenida, entrar, registro) sigue oscura; modo oscuro del glass.

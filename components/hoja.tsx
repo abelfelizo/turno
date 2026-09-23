@@ -29,7 +29,8 @@ import {
   TouchableWithoutFeedback, useWindowDimensions, Animated,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { COLORS } from '../constants'
+import { BlurView } from 'expo-blur'
+import { GLASS } from '../constants'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
 
 export default function Hoja({ visible, onClose, children }: {
@@ -61,6 +62,8 @@ export default function Hoja({ visible, onClose, children }: {
           <View style={s.telon} />
         </TouchableWithoutFeedback>
         <Animated.View style={[s.hoja, { maxHeight: height * 0.88, paddingBottom: 26 + abajo, transform: [{ translateY: y }] }]}>
+          {/* Vidrio de verdad: lo de detrás se ve desenfocado. */}
+          <BlurView intensity={60} tint="light" style={[StyleSheet.absoluteFill, s.vidrio]} />
           <View {...panHandlers}><Agarre /></View>
           <ScrollView
             keyboardShouldPersistTaps="handled"
@@ -77,7 +80,8 @@ export default function Hoja({ visible, onClose, children }: {
 
 const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
-  telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
-  // Radio 8 arriba, como todo en la línea gráfica de Turno.
-  hoja: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  telon: { ...StyleSheet.absoluteFillObject, backgroundColor: GLASS.scrim },
+  // Liquid glass: radio 32 arriba, vidrio claro con borde blanco.
+  hoja: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26, borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', borderWidth: 1, borderColor: GLASS.border, borderBottomWidth: 0 },
+  vidrio: { backgroundColor: GLASS.fillStrong },
 })

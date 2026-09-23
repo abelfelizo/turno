@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador } from '../../lib/onboarding'
 import { getNegocioPorCodigo } from '../../lib/db'
-import { COLORS, FONTS } from '../../constants'
+import { COLORS, FONTS, GLASS } from '../../constants'
 
 /**
  * Alta del barbero en un local.
@@ -81,7 +81,7 @@ export default function BarberoCodigo() {
 
 const s = StyleSheet.create({
   error: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.redSoft, marginTop: 10 },
-  card: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 16, marginTop: 16 },
+  card: { backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 16, marginTop: 16 },
   cardKicker: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1 },
   cardNombre: { fontFamily: FONTS.bold, fontSize: 24, color: COLORS.ink, marginTop: 4 },
   modalidad: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 12 },

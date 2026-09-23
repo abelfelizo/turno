@@ -21,7 +21,7 @@ import { getSesion } from '../../../lib/storage'
 import { getNegocioById, getStatsPeriodoNegocio, getVisitasNegocio, type StatsPeriodo } from '../../../lib/db'
 import { dinero, fechaISOLocal } from '../../../lib/format'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo, Cifras } from '../../../components/d2'
 import PanelBadge from '../../../components/panel-badge'
@@ -234,15 +234,15 @@ export default function EstadisticasLocal() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   lbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
   grande: { fontFamily: FONTS.monoBold, fontSize: 44, lineHeight: 52, letterSpacing: -1, color: COLORS.ink, marginTop: 6 },
   sub: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 4 },
-  chip: { alignSelf: 'flex-start', backgroundColor: COLORS.ink, paddingHorizontal: 11, paddingVertical: 6, marginTop: 8, borderRadius: 8 },
+  chip: { alignSelf: 'flex-start', backgroundColor: GLASS.ink, paddingHorizontal: 11, paddingVertical: 6, marginTop: 8, borderRadius: 26 },
   chipT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: '#fff' },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 22 },
-  silla: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  silla: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
   sillaTop: { flexDirection: 'row', alignItems: 'baseline', gap: 10 },
   sillaN: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
   tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
@@ -255,7 +255,7 @@ const s = StyleSheet.create({
   leyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   leyCuadro: { width: 9, height: 9 },
   leyT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   filaN: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
   filaP: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 18, lineHeight: 18 },

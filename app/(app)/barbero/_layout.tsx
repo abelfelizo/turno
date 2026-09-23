@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react'
 import { Tabs, usePathname } from 'expo-router'
 import { iconoTab as ic, useOpcionesTabs } from '../../../components/tabs'
+import { capaGlass } from '../../../components/fondo-glass'
 import GuardaPanel from '../../../components/guarda-panel'
 import { getSesion, alCambiarSesion } from '../../../lib/storage'
 
@@ -45,7 +46,7 @@ export default function BarberoLayout() {
 
   return (
     <GuardaPanel panel="silla">
-      <Tabs key={silla ?? 'sin-silla'} initialRouteName={inicial} screenOptions={opciones}>
+      <Tabs screenLayout={capaGlass} key={silla ?? 'sin-silla'} initialRouteName={inicial} screenOptions={opciones}>
         <Tabs.Screen name="silla" options={{ tabBarLabel: 'Mi silla', tabBarIcon: ic('cut-outline') }} />
         <Tabs.Screen name="agenda" options={{ tabBarLabel: 'Agenda', tabBarIcon: ic('calendar-outline') }} />
         <Tabs.Screen name="clientes" options={{ tabBarLabel: 'Clientes', tabBarIcon: ic('people-outline') }} />

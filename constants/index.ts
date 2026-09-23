@@ -51,6 +51,27 @@ const dark: typeof light = {
 }
 
 export const THEME = { light, dark }
+
+/**
+ * LIQUID GLASS (docs/diseno-turno/README.md § 6). La app entera se pinta sobre
+ * un fondo con manchas de color (components/fondo-glass.tsx) y las superficies
+ * son vidrio: blanco translúcido, borde blanco y radios grandes. El desenfoque
+ * real (BlurView) va en la barra de pestañas y en las hojas; las tarjetas usan
+ * el blanco translúcido, que sobre un fondo liso se lee igual y no cuesta nada.
+ */
+export const GLASS = {
+  base: '#F2F2F2',
+  fill: 'rgba(255,255,255,0.45)',
+  fillStrong: 'rgba(255,255,255,0.72)',
+  fillSoft: 'rgba(255,255,255,0.30)',
+  border: 'rgba(255,255,255,0.75)',
+  hairline: 'rgba(11,11,12,0.07)',
+  ink: 'rgba(11,11,12,0.9)',
+  scrim: 'rgba(11,11,12,0.28)',
+  radioCard: 22,
+  radioFila: 18,
+  radioBoton: 28,
+}
 export type Theme = typeof light
 
 export const COLORS = {
@@ -74,8 +95,9 @@ export const COLORS = {
   purple: light.ink,
   purpleLight: light.surface,
   text: light.ink,
-  textMid: light.text2,
-  textLight: light.text3,
+  // En vidrio el texto secundario sube de contraste (README § 6).
+  textMid: '#3D3D3D',
+  textLight: '#555555',
   line: light.border,
   canvas: light.bg,
   surfaceAlt: light.surface,

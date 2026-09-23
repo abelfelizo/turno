@@ -662,7 +662,7 @@ function Pie({ principal, secundario, cancelar, nota }: {
 }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 8, overflow: 'hidden', marginBottom: 12 },
+  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12 },
   muesca: { position: 'absolute', top: '50%', marginTop: -9, width: 18, height: 18, borderRadius: 8, backgroundColor: COLORS.bg },
   hueso: { backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: 8, marginTop: 12 },
   cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
@@ -712,7 +712,7 @@ const s = StyleSheet.create({
   pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pieSolo: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
     borderTopWidth: 1, borderTopColor: COLORS.carbonDash, paddingTop: 14 },
-  btn: { flex: 1, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   btnRojo: { backgroundColor: COLORS.red, borderRadius: 8 },
   btnClaro: { backgroundColor: '#fff', borderRadius: 8 },
   btnContorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 },

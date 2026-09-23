@@ -26,7 +26,7 @@ import {
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
 import { relojesDeSilla, fechaLarga, hora12 } from '../../../lib/format'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Rotulo, Cifras } from '../../../components/d2'
 import { Titulo, Sub, Seccion, Nota, Opcion, AhoraNo } from '../../../components/hoja-piezas'
@@ -354,21 +354,21 @@ export default function MiLocal() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  codigo: { borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'flex-end', borderRadius: 8 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  codigo: { borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'flex-end', borderRadius: 999, backgroundColor: GLASS.fill },
   codigoL: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: COLORS.textLight },
   codigoV: { fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink, letterSpacing: 1 },
-  aviso: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: COLORS.ink, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 8 },
+  aviso: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: GLASS.ink, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 26 },
   avisoT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
   avisoA: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
-  apagado: { marginTop: 18, borderWidth: 1, borderColor: COLORS.border, padding: 14, borderRadius: 8 },
+  apagado: { marginTop: 18, borderWidth: 1, borderColor: GLASS.border, padding: 14, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
   apagadoT: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink },
   apagadoD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginTop: 6 },
-  apagadoBtn: { height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 8 },
+  apagadoBtn: { height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 23, backgroundColor: GLASS.fill },
   apagadoBtnT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, paddingVertical: 18 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   punto: { width: 10, height: 10, borderRadius: 5 },
   pos: { width: 32, fontFamily: FONTS.monoBold, fontSize: 14, color: COLORS.ink, textAlign: 'center' },
   nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
@@ -377,6 +377,6 @@ const s = StyleSheet.create({
   meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
   ir: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue },
   estado: { fontFamily: FONTS.semibold, fontSize: 13 },
-  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' },
+  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden' },
   nota: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 10 },
 })

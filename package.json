@@ -36,6 +36,7 @@
     "date-fns": "^3.0.0",
     "expo": "~55.0.0",
     "expo-asset": "~55.0.17",
+    "expo-blur": "~55.0.14",
     "expo-constants": "~55.0.16",
     "expo-font": "~55.0.8",
     "expo-image-picker": "~55.0.20",

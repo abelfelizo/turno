@@ -21,7 +21,7 @@ import { getClientesDelLocalAdmin, getHistorialCliente, getPreferenciasCliente, 
 import { dinero, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo } from '../../../components/d2'
 import { Titulo, Sub, Dato, Nota, AhoraNo } from '../../../components/hoja-piezas'
@@ -282,28 +282,28 @@ function Contacto({ icono, etiqueta, onPress }: { icono: any; etiqueta: string; 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   aviso: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 8 },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
-  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, marginTop: 16, backgroundColor: COLORS.surface, borderRadius: 8 },
+  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 12, marginTop: 16, backgroundColor: GLASS.fill, borderRadius: 23 },
   buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
-  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
-  ordenOn: { backgroundColor: COLORS.ink, borderRadius: 8 },
+  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
+  ordenOn: { backgroundColor: GLASS.ink, borderRadius: 26 },
   ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
   regla: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 14 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
   meta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  contacto: { width: 42, height: 42, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  contacto: { width: 42, height: 42, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: GLASS.fill },
   dias: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 30, color: COLORS.redText, marginRight: 4 },
   diasD: { fontSize: 13 },
-  visita: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  visita: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   visitaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
   visitaS: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
   contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  btn: { flex: 1, height: 48, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, height: 48, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fill, borderRadius: 24 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
 })

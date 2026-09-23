@@ -28,7 +28,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView, Animated }
 import { Ionicons } from '@expo/vector-icons'
 import { dinero } from '../lib/format'
 import { aceptaFila, aceptaCitas, filaAbierta, fraseFila, porQueNo } from '../lib/atencion'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 import { Display, Avatar } from './ui'
 import { useArrastrarParaCerrar, Agarre } from './gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -195,14 +195,14 @@ export default function HojaPedir({
 
 const s = StyleSheet.create({
   fondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  hoja: { backgroundColor: COLORS.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingBottom: 18 },
+  hoja: { backgroundColor: GLASS.fill, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingBottom: 18, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
   cab: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
   sub: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 4, lineHeight: 18 },
-  cerrar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
+  cerrar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: GLASS.border, borderRadius: 17, backgroundColor: GLASS.fill },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 20, paddingVertical: 14 },
 
-  cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.divider, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cualquieraIco: { width: 38, height: 38, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  cualquieraIco: { width: 38, height: 38, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: GLASS.fill },
   cualquieraT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   cualquieraD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
 
@@ -214,14 +214,13 @@ const s = StyleSheet.create({
   barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   barberoN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 8 },
+  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 999 },
   barberoMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   pausa: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
   pausaT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },
   sinServ: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 10 },
 
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, marginTop: 1,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, marginTop: 1, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   servN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   servD: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
   servP: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },

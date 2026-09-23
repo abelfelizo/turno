@@ -38,7 +38,7 @@ import { hora12, fechaLarga, fechaDeISO, fechaISOLocal, dinero } from '../../../
 import { avisos } from '../../../lib/notificaciones'
 import { filaAbierta, aceptaCitas } from '../../../lib/atencion'
 import { suscribirCola, suscribirMisCitas, suscribirEstadoPerfil, desuscribir } from '../../../lib/realtime'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import TarjetaTurno, { TarjetaEsqueleto, soloConCita, type TurnoVivo } from '../../../components/tarjeta-turno'
 import HojaPedir, { type Via } from '../../../components/hoja-pedir'
@@ -569,14 +569,14 @@ export default function MiTurno() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
 
-  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 16 },
+  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 16 },
   expT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
   expS: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
 
-  detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10, borderRadius: 8 },
+  detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13, borderWidth: 1, borderColor: GLASS.border, marginBottom: 10, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
   detrasT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   detrasM: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   detrasX: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.danger },
@@ -584,8 +584,8 @@ const s = StyleSheet.create({
   nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
 
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 12, marginBottom: 10, textTransform: 'uppercase' },
-  cita: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8 },
-  citaFecha: { width: 52, height: 52, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  cita: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 8 },
+  citaFecha: { width: 52, height: 52, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   citaDia: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink, lineHeight: 22 },
   citaMes: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMid, letterSpacing: 0.6 },
   citaServ: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },

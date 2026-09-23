@@ -37,7 +37,7 @@ import { suscribirCitas, suscribirBloqueos, desuscribir } from '../lib/realtime'
 import { getSesion } from '../lib/storage'
 import { useRecargaAlEnfocar } from '../lib/recarga'
 import { CITA_ABIERTA, MOTIVO_PAUSA } from '../lib/silla'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
 import { NoCargo } from './ui'
 import { Encabezado, Rotulo } from './d2'
 import Hoja from './hoja'
@@ -482,36 +482,36 @@ function Paso({ etiqueta, valor, menos, mas }: { etiqueta: string; valor: string
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  codigo: { marginTop: 16, borderRadius: 8, backgroundColor: COLORS.carbon, overflow: 'hidden' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  codigo: { marginTop: 16, borderRadius: 26, backgroundColor: GLASS.ink, overflow: 'hidden' },
   codigoFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
   codigoL: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
   codigoV: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 1.2, marginTop: 2 },
-  compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
+  compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: GLASS.fill, paddingHorizontal: 14, paddingVertical: 10, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
   compartirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
-  dia: { width: 52, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border },
-  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
+  dia: { width: 52, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border },
+  diaOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   diaSem: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMid, letterSpacing: 0.4 },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink, marginTop: 1 },
   diaPunto: { width: 5, height: 5, borderRadius: 3, marginTop: 3, backgroundColor: 'transparent' },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  filaDeuda: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
-  filaHora: { width: 52, fontFamily: FONTS.monoBold, fontSize: 21, color: COLORS.blue },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  filaDeuda: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
+  filaHora: { width: 58, fontFamily: FONTS.monoBold, fontSize: 15, color: COLORS.blue },
   filaN: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   filaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   vino: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.red },
-  jornada: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, marginTop: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  jornada: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, marginTop: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 16 },
   canceladas: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 10 },
-  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, height: 52, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, marginTop: 8 },
+  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, height: 52, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, marginTop: 8, backgroundColor: GLASS.fill },
   bloquearT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   cerradaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginVertical: 8 },
-  paso: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  paso: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   pasoL: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
-  pasoBtn: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  pasoBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fill },
   pasoBtnT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   pasoV: { width: 96, textAlign: 'center', fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   lbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.textLight, marginTop: 18 },
-  input: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginBottom: 12, marginTop: 8 },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginBottom: 12, marginTop: 8 },
 })

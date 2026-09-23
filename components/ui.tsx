@@ -14,7 +14,7 @@ import Svg, { Defs, Pattern, Rect } from 'react-native-svg'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, useColorScheme } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Updates from 'expo-updates'
-import { COLORS, THEME, Theme, RADIUS, FONTS, TYPE, ESTADO_COLOR } from '../constants'
+import { COLORS, THEME, Theme, RADIUS, FONTS, TYPE, ESTADO_COLOR, GLASS } from '../constants'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -313,7 +313,7 @@ const s = StyleSheet.create({
   noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
   noCargoT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
-  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.ink, borderRadius: 8, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: GLASS.ink, borderRadius: 26, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
   noCargoBtnT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
   version: { paddingVertical: 14, alignItems: 'center' },
   versionT: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
@@ -330,20 +330,20 @@ const s = StyleSheet.create({
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 },
   section: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase' },
   sectionAction: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight },
-  card: { backgroundColor: COLORS.bg, borderRadius: RADIUS.sm, padding: 14, borderWidth: 1, borderColor: COLORS.border },
-  cardDark: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  card: { backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, padding: 14, borderWidth: 1, borderColor: GLASS.border },
+  cardDark: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   btn: { height: 52, borderRadius: RADIUS.sm, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 16 },
   avatar: { alignItems: 'center', justifyContent: 'center' },
-  badge: { borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 7 },
+  badge: { borderRadius: 999, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: GLASS.fill },
   badgeT: { fontFamily: FONTS.semibold, fontSize: 13 },
   chip: { borderWidth: 1, borderRadius: RADIUS.sm, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center' },
   chipT: { fontFamily: FONTS.semibold, fontSize: 14 },
   slot: { height: 44, borderRadius: RADIUS.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flex: 1 },
   day: { flex: 1, height: 62, borderRadius: RADIUS.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
-  kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   kvK: { fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textMid },
   kvV: { fontFamily: FONTS.semibold, fontSize: 15 },
 })

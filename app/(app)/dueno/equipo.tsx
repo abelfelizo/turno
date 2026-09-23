@@ -25,7 +25,7 @@ import {
 } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS } from '../../../constants'
+import { COLORS, FONTS, GLASS } from '../../../constants'
 import { nombreOficio } from '../../../types'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Rotulo } from '../../../components/d2'
@@ -294,18 +294,18 @@ export default function Equipo() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, lineHeight: 19, color: COLORS.textMid, paddingVertical: 18 },
-  solicitudes: { marginTop: 18, backgroundColor: COLORS.carbon, padding: 14, borderRadius: 8 },
+  solicitudes: { marginTop: 18, backgroundColor: GLASS.ink, padding: 14, borderRadius: 26 },
   solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginBottom: 4 },
   sol: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
   solNombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: '#fff' },
   solMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid, marginTop: 2 },
-  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 8 },
+  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', borderRadius: 21 },
+  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 21, borderWidth: 0 },
   solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
   tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
@@ -314,9 +314,9 @@ const s = StyleSheet.create({
   chipAzul: { color: COLORS.blue, borderColor: COLORS.border },
   chipRojo: { color: COLORS.redText, borderColor: COLORS.border },
   meta: { flexShrink: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  icono: { width: 40, height: 40, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  icono: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fill },
+  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: GLASS.fill },
   reactivarT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink },
-  cuadro: { width: 36, height: 36, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
-  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 14, marginTop: 14, fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.2, borderRadius: 8, overflow: 'hidden' },
+  cuadro: { width: 36, height: 36, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 14, marginTop: 14, fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.2, borderRadius: 16, overflow: 'hidden' },
 })
