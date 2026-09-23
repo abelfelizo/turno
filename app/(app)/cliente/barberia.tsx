@@ -177,7 +177,7 @@ export default function MiBarberia() {
             return (
               <TouchableOpacity key={l.negocio_id} style={[s.chipLocal, on && s.chipLocalOn]}
                 onPress={() => !on && cambiarLocal(l.negocio_id)}>
-                <Text style={[s.chipLocalT, on && { color: '#fff' }]} numberOfLines={1}>{l.nombre}</Text>
+                <Text style={[s.chipLocalT, on && { color: COLORS.onInk }]} numberOfLines={1}>{l.nombre}</Text>
               </TouchableOpacity>
             )
           })}
@@ -415,7 +415,7 @@ const s = StyleSheet.create({
   marcaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
 
   chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
-  chipLocalOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   chipLocalT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid },
 
   fidel: { marginTop: 18, backgroundColor: GLASS.ink, borderRadius: 26, padding: 17 },
@@ -441,7 +441,7 @@ const s = StyleSheet.create({
   bHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bNombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   bNombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   bMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   bEstado: { fontFamily: FONTS.semibold, fontSize: 11.5 },
 
@@ -455,9 +455,9 @@ const s = StyleSheet.create({
 
   bAcciones: { flexDirection: 'row', gap: 9, marginTop: 13 },
   bBtn: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
-  bBtnRojo: { backgroundColor: GLASS.ink, borderRadius: 26 },
+  bBtnRojo: { backgroundColor: COLORS.ink, borderRadius: 26 },
   bBtnContorno: { borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
-  bBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  bBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
 
   plegado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: GLASS.hairline },
   plegadoT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid },

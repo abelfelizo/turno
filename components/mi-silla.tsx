@@ -503,7 +503,7 @@ function Fila({ pos, q, ahoraMs, onMas }: { pos?: number; q: any; ahoraMs: numbe
         <View style={s.nombreFila}>
           <Text style={s.nombre} numberOfLines={1}>{nombreDe(q)}</Text>
           {/* Quien está aquí es lo que decide si puedes sentar a otro. */}
-          {enElLocal(q) && <Text style={[s.chip, { backgroundColor: COLORS.ink }]}>EN EL LOCAL</Text>}
+          {enElLocal(q) && <Text style={[s.chip, { backgroundColor: COLORS.carbon }]}>EN EL LOCAL</Text>}
           {q.prioridad === 1 && <Text style={[s.chip, { backgroundColor: COLORS.blue }]}>TENÍA CITA</Text>}
         </View>
         <Text style={s.meta} numberOfLines={1}>{meta}</Text>

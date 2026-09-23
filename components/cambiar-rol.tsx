@@ -100,5 +100,5 @@ const s = StyleSheet.create({
   filaOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
   txt: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
   det: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  aqui: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
+  aqui: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
 })

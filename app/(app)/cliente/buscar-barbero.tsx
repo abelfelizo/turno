@@ -97,7 +97,7 @@ export default function BuscarBarbero() {
             onSubmitEditing={buscar} returnKeyType="go" />
           <TouchableOpacity style={[s.buscarBtn, (buscando || codigo.trim().length < 4) && s.buscarBtnOff]}
             onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
-            {buscando ? <ActivityIndicator color="#fff" /> : <Text style={s.buscarBtnT}>Entrar</Text>}
+            {buscando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.buscarBtnT}>Entrar</Text>}
           </TouchableOpacity>
         </View>
         <Text style={s.hint}>
@@ -143,9 +143,9 @@ const s = StyleSheet.create({
   hint: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
   buscarRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
   input: { flex: 1, height: 56, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 14, fontFamily: FONTS.monoBold, fontSize: 26, letterSpacing: 1.2, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16 },
-  buscarBtn: { width: 112, backgroundColor: GLASS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 26 },
+  buscarBtn: { width: 112, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 26 },
   buscarBtnOff: { backgroundColor: COLORS.border, borderRadius: 8 },
-  buscarBtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
+  buscarBtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14 },
   nombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 21, color: COLORS.ink },
   esp: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginTop: 2 },
@@ -154,6 +154,6 @@ const s = StyleSheet.create({
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   localT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: GLASS.ink, borderRadius: 26 },
-  agregarT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.ink, borderRadius: 26 },
+  agregarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.onInk },
 })

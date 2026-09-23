@@ -327,10 +327,10 @@ export default function BarberoDelLocal() {
         <>
           <View style={s.modRow}>
             <TouchableOpacity style={[s.modChip, puedoEditarle && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
-              <Text style={[s.modChipT, puedoEditarle && { color: '#fff' }]}>Empleado</Text>
+              <Text style={[s.modChipT, puedoEditarle && { color: COLORS.onInk }]}>Empleado</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
-              <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
+              <Text style={[s.modChipT, autonomo && { color: COLORS.onInk }]}>Renta su asiento</Text>
             </TouchableOpacity>
           </View>
           <Text style={s.sub}>
@@ -444,7 +444,7 @@ export default function BarberoDelLocal() {
             <Text style={s.flabel}>Precio</Text>
             <TextInput style={s.input} value={svPrecio} onChangeText={setSvPrecio} keyboardType="number-pad" />
             <TouchableOpacity style={s.btn} onPress={guardarServicio} disabled={svBusy}>
-              {svBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
+              {svBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.btnT}>Guardar</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
       </Hoja>
@@ -458,7 +458,7 @@ export default function BarberoDelLocal() {
             <Text style={s.flabel}>Minutos entre clientes</Text>
             <Paso valor={`${hrBuf} min`} menos={() => setHrBuf(Math.max(0, hrBuf - 5))} mas={() => setHrBuf(Math.min(60, hrBuf + 5))} />
             <TouchableOpacity style={s.btn} onPress={() => aplicarHorario(true)} disabled={hrBusy}>
-              {hrBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
+              {hrBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.btnT}>Guardar</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => aplicarHorario(false)} disabled={hrBusy}>
               <Text style={s.cerrarRojo}>Marcar cerrado este día</Text>
@@ -493,7 +493,7 @@ const s = StyleSheet.create({
   flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 11, alignItems: 'center', backgroundColor: 'transparent' },
-  modChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
@@ -515,8 +515,8 @@ const s = StyleSheet.create({
   stepBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
-  btn: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  btn: { backgroundColor: COLORS.ink, borderRadius: 26, padding: 16, alignItems: 'center', marginTop: 20 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
   cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.redText, fontSize: 14, marginTop: 14 },
 })

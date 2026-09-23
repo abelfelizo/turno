@@ -83,7 +83,7 @@ export function Campo({ label, ...props }: { label: string } & TextInputProps) {
 export function BotonPrimario({ texto, onPress, cargando, disabled }: { texto: string; onPress: () => void; cargando?: boolean; disabled?: boolean }) {
   return (
     <TouchableOpacity style={[s.btn, (disabled || cargando) && { opacity: 0.45 }]} onPress={onPress} disabled={disabled || cargando}>
-      {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>{texto}</Text>}
+      {cargando ? <ActivityIndicator color="#0B0B0C" /> : <Text style={s.btnT}>{texto}</Text>}
     </TouchableOpacity>
   )
 }
@@ -102,5 +102,5 @@ const s = StyleSheet.create({
   campoLabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onCarbonMid, marginBottom: 7 },
   input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.regular },
   btn: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 17, alignItems: 'center', marginTop: 8 },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#0B0B0C' },
 })

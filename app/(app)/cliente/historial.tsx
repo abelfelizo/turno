@@ -241,7 +241,7 @@ export default function Historial() {
 
             <View style={s.rPie}>
               <TouchableOpacity style={s.rCta} onPress={enviar} disabled={enviando}>
-                {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.rCtaT}>Enviar reseña</Text>}
+                {enviando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.rCtaT}>Enviar reseña</Text>}
               </TouchableOpacity>
               {/* «Cancelar» sonaba a deshacer algo. No se cancela nada: se deja
                   para luego, y la tarjeta seguirá arriba esperando. */}
@@ -292,6 +292,6 @@ const s = StyleSheet.create({
   rInput: { borderWidth: 1, borderColor: GLASS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.regular, color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11, borderRadius: 16, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
   rPie: { borderTopWidth: 1, borderTopColor: GLASS.hairline, marginTop: 18, paddingTop: 14 },
   rCta: { backgroundColor: COLORS.ink, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28 },
-  rCtaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  rCtaT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   rLuego: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 12.5, marginTop: 11 },
 })

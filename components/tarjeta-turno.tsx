@@ -40,6 +40,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native
 import { useEffect, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
 import { COLORS, FONTS } from '../constants'
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { Pole, PuntoVivo } from './ui'
 import { hora12, relojesDeSilla } from '../lib/format'
 import type { SillaEstado } from './estado-local'
@@ -166,6 +167,26 @@ export function soloConCita(sillas: SillaEstado[]): boolean {
   return localAbierto(sillas) && sillas.every(x => x.modo === 'solo_citas' || x.fila_abierta === false)
 }
 
+/**
+ * EL COLOR DE LA TARJETA DEL TURNO: rojo arriba a la izquierda, vino en el
+ * centro y azul abajo a la derecha, un poco translúcido para que la luz del
+ * fondo se note (muestra «Cristal propio», aprobada el 23 sep).
+ */
+function DegradadoTurno() {
+  return (
+    <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
+      <Defs>
+        <LinearGradient id="turno" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#B22820" stopOpacity={0.94} />
+          <Stop offset="0.48" stopColor="#782446" stopOpacity={0.9} />
+          <Stop offset="1" stopColor="#243EB2" stopOpacity={0.94} />
+        </LinearGradient>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#turno)" />
+    </Svg>
+  )
+}
+
 export default function TarjetaTurno(p: Props) {
   const conFila = p.sillas.filter(x => x.fila_abierta !== false)
   const abierto = localAbierto(p.sillas)
@@ -193,11 +214,14 @@ export default function TarjetaTurno(p: Props) {
    * ticket mientras esperas en la fila, y la franja de arriba cuando ya estás
    * en la silla. Sin turno, la tarjeta va lisa.
    */
-  const talon = !!p.turno && !llamado && !enSilla && !enCamino
-  const franja = !!p.turno && enSilla
+  // Cristal propio: mientras esperas o estás en la silla, la tarjeta lleva el
+  // degradado rojo → azul de la muestra aprobada y la barra de barbero fina
+  // DENTRO (no en el lateral). Llamado sigue en rojo entero; en camino, azul.
+  const degradado = !!p.turno && !llamado && !enCamino
+  const poste = !!p.turno && !llamado && !enCamino
 
   const cuerpo = (
-      <View style={[s.cuerpo, talon && { flex: 1, paddingLeft: 22 }]}>
+      <View style={s.cuerpo}>
         {/* EL NOMBRE DEL LOCAL ES LA CABECERA, y vive dentro del bloque.
             La tira de píldoras que había antes flotando encima no pesaba nada
             y encima repetía el nombre que la tarjeta ya decía debajo. */}
@@ -217,7 +241,9 @@ export default function TarjetaTurno(p: Props) {
           {p.variosLocales && <Ionicons name="chevron-down" size={18} color={tenue} />}
         </TouchableOpacity>
 
-        <View style={[s.filete, { backgroundColor: llamado ? 'rgba(255,255,255,0.28)' : COLORS.carbonDash }]} />
+        {poste
+          ? <Pole height={6} radius={3} ancho={5} style={s.posteFino} />
+          : <View style={[s.filete, { backgroundColor: llamado ? 'rgba(255,255,255,0.28)' : COLORS.carbonDash }]} />}
 
         {p.turno ? <ConTurno {...p} llamado={llamado} enSilla={enSilla} urgente={urgente} tenue={tenue} />
                  : <SinTurno {...p} abierto={abierto} libres={libres} sinServicio={sinServicio} motivoComun={motivoComun} />}
@@ -225,17 +251,9 @@ export default function TarjetaTurno(p: Props) {
   )
 
   return (
-    <View style={[s.card, { backgroundColor: fondo }]}>
-      {franja && <Pole height={14} animado={false} />}
-      {talon ? (
-        <View style={{ flexDirection: 'row' }}>
-          <Pole height="auto" animado={false} ancho={6} style={{ width: 14, alignSelf: 'stretch' }} />
-          {cuerpo}
-          {/* Las muescas del ticket: círculos del color de la pantalla. */}
-          <View style={[s.muesca, { left: -9 }]} />
-          <View style={[s.muesca, { right: -9 }]} />
-        </View>
-      ) : cuerpo}
+    <View style={[s.card, { backgroundColor: degradado ? 'transparent' : fondo }]}>
+      {degradado && <DegradadoTurno />}
+      {cuerpo}
     </View>
   )
 }
@@ -643,7 +661,7 @@ function Pie({ principal, secundario, cancelar, nota }: {
           <TouchableOpacity
             style={[s.btn, principal.claro ? s.btnClaro : s.btnRojo]}
             onPress={principal.onPress} activeOpacity={0.85}>
-            <Text style={[s.btnT, principal.claro && { color: COLORS.ink }]}>{principal.texto}</Text>
+            <Text style={[s.btnT, principal.claro && { color: '#0B0B0C' }]}>{principal.texto}</Text>
           </TouchableOpacity>
         )}
         {secundario && (
@@ -662,8 +680,7 @@ function Pie({ principal, secundario, cancelar, nota }: {
 }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12 },
-  muesca: { position: 'absolute', top: '50%', marginTop: -9, width: 18, height: 18, borderRadius: 8, backgroundColor: COLORS.bg },
+  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
   hueso: { backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: 8, marginTop: 12 },
   cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
 
@@ -672,6 +689,7 @@ const s = StyleSheet.create({
   localSub: { fontFamily: FONTS.regular, fontSize: 12, marginTop: 3 },
 
   filete: { height: 1, marginVertical: 14 },
+  posteFino: { marginVertical: 14 },
 
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7 },

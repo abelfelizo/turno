@@ -214,7 +214,7 @@ const s = StyleSheet.create({
   barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   barberoN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 999 },
+  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 999 },
   barberoMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   pausa: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
   pausaT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },

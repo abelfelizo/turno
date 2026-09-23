@@ -328,7 +328,7 @@ export default function Config() {
           <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85}>
             <Avatar name={negocio?.nombre} uri={negocio?.logo_url} size={72} bg={COLORS.carbon} />
             <View style={s.logoBadge}>
-              {subiendoLogo ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.logoBadgeT}>✎</Text>}
+              {subiendoLogo ? <ActivityIndicator color={COLORS.onInk} size="small" /> : <Text style={s.logoBadgeT}>✎</Text>}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
@@ -392,7 +392,7 @@ export default function Config() {
         </View>
 
         <TouchableOpacity style={s.guardarBtn} onPress={guardarMarca} disabled={guardandoMarca}>
-          {guardandoMarca ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar marca</Text>}
+          {guardandoMarca ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar marca</Text>}
         </TouchableOpacity>
       </View>
       </>)}
@@ -496,11 +496,11 @@ export default function Config() {
       <View style={s.modRow}>
         <TouchableOpacity style={[s.modChip, negocio?.tipo === 'espacios_rentados' && s.modChipOn]}
           onPress={() => pedirCambioTipo('espacios_rentados')} disabled={tipoBusy}>
-          <Text style={[s.modChipT, negocio?.tipo === 'espacios_rentados' && { color: '#fff' }]}>Alquilo asientos</Text>
+          <Text style={[s.modChipT, negocio?.tipo === 'espacios_rentados' && { color: COLORS.onInk }]}>Alquilo asientos</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.modChip, negocio?.tipo === 'empleados' && s.modChipOn]}
           onPress={() => pedirCambioTipo('empleados')} disabled={tipoBusy}>
-          <Text style={[s.modChipT, negocio?.tipo === 'empleados' && { color: '#fff' }]}>Tengo empleados</Text>
+          <Text style={[s.modChipT, negocio?.tipo === 'empleados' && { color: COLORS.onInk }]}>Tengo empleados</Text>
         </TouchableOpacity>
       </View>
       <Text style={s.modNota}>
@@ -639,22 +639,22 @@ const s = StyleSheet.create({
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12, marginTop: 14 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, alignItems: 'center', backgroundColor: 'transparent' },
-  modChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.carbon, borderRadius: 26 },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   modNota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 4 },
   marcaCard: { backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 16, marginBottom: 4 },
   marcaTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   marcaHint: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
   logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 16, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
-  logoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.semibold },
+  logoBadgeT: { color: COLORS.onInk, fontSize: 13, fontFamily: FONTS.semibold },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
   input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
   dosCol: { flexDirection: 'row', gap: 10 },
   pill: { borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: GLASS.fill },
-  pillOn: { backgroundColor: GLASS.ink, borderColor: COLORS.carbon, borderRadius: 26 },
+  pillOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   pillT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
-  guardarBtn: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 15, alignItems: 'center', marginTop: 16 },
-  guardarT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  guardarBtn: { backgroundColor: COLORS.ink, borderRadius: 26, padding: 15, alignItems: 'center', marginTop: 16 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
   susCard: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 18, marginBottom: 4 },
   susTop: { flexDirection: 'row', alignItems: 'flex-start' },
   susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },

@@ -12,7 +12,7 @@ import {
 } from '@expo-google-fonts/geist'
 import { GeistMono_500Medium, GeistMono_700Bold } from '@expo-google-fonts/geist-mono'
 import { Text } from 'react-native'
-import { COLORS } from '../constants'
+import { COLORS, NOCHE } from '../constants'
 import { ErrorBoundary } from '../components/error-boundary'
 import { AvisoActualizacion } from '../components/actualizacion'
 import { faltaConfiguracion } from '../lib/supabase'
@@ -117,7 +117,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ErrorBoundary>
-        <StatusBar style="dark" />
+        <StatusBar style={NOCHE ? 'light' : 'dark'} />
         {/* Encima de todo y en todas las pantallas: la actualización puede
             terminar de bajarse en cualquier momento, y el aviso no sirve si
             solo aparece en una pantalla a la que hay que saber llegar. */}

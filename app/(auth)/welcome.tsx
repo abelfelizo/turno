@@ -46,7 +46,7 @@ const s = StyleSheet.create({
   kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginBottom: 28 },
   btn: { width: '100%', padding: 17, backgroundColor: '#FFFFFF', borderRadius: 8, alignItems: 'center', marginBottom: 10 },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#0B0B0C' },
   btn2: { width: '100%', padding: 16, backgroundColor: COLORS.carbonEl, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.carbonBorder, marginBottom: 10 },
   btn2T: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
   salir: { marginTop: 22, padding: 8, alignItems: 'center' },

@@ -235,8 +235,8 @@ export default function Agendar() {
             return (
               <TouchableOpacity key={p.id} style={[s.bChip, on && s.bChipOn]} onPress={() => { setPerfil(p); setServicio(null); setFecha(''); setHora('') }}>
                 <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={48} bg={on ? '#fff' : COLORS.blueLight} color={on ? COLORS.red : COLORS.blue} />
-                <Text style={[s.bChipT, on && { color: '#fff' }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
-                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
+                <Text style={[s.bChipT, on && { color: COLORS.onInk }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: COLORS.onInk }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
               </TouchableOpacity>
             )
           })}
@@ -284,8 +284,8 @@ export default function Agendar() {
                 const cerrado = diasActivos != null && !diasActivos.has(d.wd)
                 return (
                   <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn, cerrado && s.diaOff]} disabled={cerrado} onPress={() => setFecha(d.fecha)}>
-                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
-                    <Text style={[s.diaNum, on && { color: '#fff' }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
+                    <Text style={[s.diaTxt, on && { color: COLORS.onInk }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
+                    <Text style={[s.diaNum, on && { color: COLORS.onInk }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -360,7 +360,7 @@ const s = StyleSheet.create({
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
   bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', gap: 6, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
-  bChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   bChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
   bChipEsp: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
   bienvenida: { paddingVertical: 4, marginBottom: 20 },
@@ -378,7 +378,7 @@ const s = StyleSheet.create({
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
   dia: { width: 58, height: 66, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
-  diaOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   diaOff: { opacity: 0.35 },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },

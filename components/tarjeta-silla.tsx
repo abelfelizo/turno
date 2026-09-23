@@ -51,9 +51,6 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
 
   return (
     <View style={[s.card, { backgroundColor: rojo ? COLORS.red : COLORS.carbon }]}>
-      {/* El poste solo marca «en la silla» (línea gráfica de Turno): arriba,
-          14 de alto. En los demás modos la tarjeta va lisa. */}
-      {modo.poste && modo.estado === 'EN LA SILLA' && <Pole height={14} animado={false} />}
       <View style={s.cuerpo}>
         <TouchableOpacity
           disabled={!variosLocales} onPress={onCambiarLocal} activeOpacity={0.75}
@@ -64,7 +61,11 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
           {variosLocales && <Ionicons name="chevron-down" size={18} color={tenue} />}
         </TouchableOpacity>
 
-        <View style={[s.filete, { backgroundColor: filete }]} />
+        {/* El poste solo marca «en la silla»: la barra de barbero fina, dentro
+            de la tarjeta, en el sitio del filete (muestra «Cristal propio»). */}
+        {modo.poste && modo.estado === 'EN LA SILLA'
+          ? <Pole height={6} radius={3} ancho={5} style={s.posteFino} />
+          : <View style={[s.filete, { backgroundColor: filete }]} />}
 
         <View style={s.estadoFila}>
           <View style={s.estadoIzq}>
@@ -124,14 +125,15 @@ const ESTILO_BTN = StyleSheet.create({
   contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 24 },
   apagado: { borderWidth: 1, borderColor: COLORS.carbonDash, borderRadius: 8 },
 })
-const TEXTO_BTN = { claro: COLORS.ink, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
+const TEXTO_BTN = { claro: '#0B0B0C', rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12 },
+  card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   cuerpo: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   local: { flex: 1, fontFamily: FONTS.semibold, fontSize: 18, lineHeight: 23, color: '#fff' },
   filete: { height: 1, marginVertical: 14 },
+  posteFino: { marginVertical: 14 },
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, flexShrink: 1 },

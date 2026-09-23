@@ -34,13 +34,13 @@ import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 
 const COLOR_SILLA: Record<string, string> = {
-  libre: '#1F9D55', atendiendo: '#E1251B', descanso: '#6B6B6B', inactivo: '#B5B5B5',
+  libre: COLORS.success, atendiendo: COLORS.red, descanso: COLORS.textLight, inactivo: COLORS.disabled,
 }
 const ESTADO_TURNO: Record<string, { l: string; c: string }> = {
-  en_fila: { l: 'En fila', c: '#6B6B6B' },
-  llamado: { l: 'Llamado', c: '#E1251B' },
-  en_camino: { l: 'En camino', c: '#1E4FD8' },
-  atendiendo: { l: 'En la silla', c: '#E1251B' },
+  en_fila: { l: 'En fila', c: COLORS.textLight },
+  llamado: { l: 'Llamado', c: COLORS.red },
+  en_camino: { l: 'En camino', c: COLORS.blue },
+  atendiendo: { l: 'En la silla', c: COLORS.red },
 }
 
 /** Una línea que diga lo que está pasando en esa silla ahora mismo. */
@@ -377,6 +377,6 @@ const s = StyleSheet.create({
   meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
   ir: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue },
   estado: { fontFamily: FONTS.semibold, fontSize: 13 },
-  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden' },
+  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden' },
   nota: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 10 },
 })

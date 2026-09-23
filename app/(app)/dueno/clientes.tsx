@@ -161,7 +161,7 @@ export default function ClientesDelLocal() {
               return (
                 <TouchableOpacity key={o.k} style={[s.orden, on && s.ordenOn]} onPress={() => setOrden(o.k)}
                   accessibilityRole="button" accessibilityState={{ selected: on }}>
-                  <Text style={[s.ordenT, on && { color: '#fff' }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
+                  <Text style={[s.ordenT, on && { color: COLORS.onInk }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -290,7 +290,7 @@ const s = StyleSheet.create({
   buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
   orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
-  ordenOn: { backgroundColor: GLASS.ink, borderRadius: 26 },
+  ordenOn: { backgroundColor: COLORS.ink, borderRadius: 26 },
   ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
   regla: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 14 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },

@@ -556,7 +556,7 @@ export default function Config() {
             <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
               <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} />
               <View style={s.fotoBadge}>
-                {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
+                {subiendoFoto ? <ActivityIndicator color={COLORS.onInk} size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
               </View>
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
@@ -598,7 +598,7 @@ export default function Config() {
           </View>
   
           <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
-            {guardandoPerfil ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar perfil</Text>}
+            {guardandoPerfil ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar perfil</Text>}
           </TouchableOpacity>
         </View>
   
@@ -1069,7 +1069,7 @@ export default function Config() {
           {/* Ya no se pregunta "¿empleado o rento silla?": la modalidad la pone
               el local y el servidor la deriva de su tipo. */}
           <Text style={s.nota}>Si el local alquila asientos entrarás como independiente; si trabaja con empleados, como empleado. Lo define la barbería.</Text>
-          <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
         </Hoja>
 
@@ -1086,7 +1086,7 @@ export default function Config() {
             <Text style={s.stepVal}>{svD} min</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setSvD(Math.min(180, svD + 5))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.mbtn} onPress={guardarSv} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Guardar</Text>}</TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={guardarSv} disabled={busy}>{busy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Guardar</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
         </Hoja>
 
@@ -1142,7 +1142,7 @@ export default function Config() {
             <Ionicons name="copy-outline" size={16} color={COLORS.ink} />
             <Text style={s.aplicarTodosT}>Usar este respiro todos los días</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
           <TouchableOpacity style={s.mbtnGhost} onPress={() => guardarHr(false)} disabled={busy}><Text style={s.mbtnGhostT}>Marcar cerrado</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
         </Hoja>
@@ -1188,14 +1188,14 @@ const s = StyleSheet.create({
   codigoVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff', letterSpacing: 1.2, marginTop: 2 },
   codigoHint: { fontFamily: FONTS.regular, fontSize: 10, color: COLORS.onCarbonMid, marginTop: 3 },
   fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg, borderRadius: 16 },
-  fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.semibold },
+  fotoBadgeT: { color: COLORS.onInk, fontSize: 13, fontFamily: FONTS.semibold },
   multiline: { minHeight: 64, textAlignVertical: 'top' },
   dosCol: { flexDirection: 'row', gap: 10 },
   domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: GLASS.hairline },
   domicilioL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   domicilioD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   guardarBtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
-  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: GLASS.ink, borderRadius: 26, padding: 16, marginBottom: 8 },
   susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
   susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 3 },
@@ -1240,7 +1240,7 @@ const s = StyleSheet.create({
   miSusNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
   rolChip: { flex: 1, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard },
-  rolChipOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   rolChipT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   cuentaIcono: { width: 32, height: 32, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fill },
@@ -1258,7 +1258,7 @@ const s = StyleSheet.create({
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
   mbtn: { backgroundColor: COLORS.ink, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 18, borderRadius: 27 },
-  mbtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  mbtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   mbtnGhost: { padding: 14, alignItems: 'center', marginTop: 6 },
   mbtnGhostT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 12 },

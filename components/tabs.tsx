@@ -27,9 +27,10 @@ export function useOpcionesTabs() {
   return {
     headerShown: false as const,
     sceneStyle: { backgroundColor: 'transparent', paddingBottom: ALTO + abajo + 6 },
-    tabBarActiveTintColor: '#FFFFFF',
+    // La pestaña activa es una píldora de color entero: tinta de día, blanco de noche.
+    tabBarActiveTintColor: COLORS.onInk,
     tabBarInactiveTintColor: COLORS.ink,
-    tabBarActiveBackgroundColor: GLASS.ink,
+    tabBarActiveBackgroundColor: COLORS.ink,
     tabBarStyle: {
       position: 'absolute' as const,
       left: 16, right: 16, bottom: abajo,
@@ -46,7 +47,7 @@ export function useOpcionesTabs() {
     tabBarItemStyle: { marginVertical: 5, borderRadius: 31, overflow: 'hidden' as const, paddingTop: 5, paddingBottom: 7, height: 62 },
     tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontFamily: FONTS.semibold, marginTop: 1 },
     tabBarBackground: () => (
-      <BlurView intensity={55} tint="light" style={[StyleSheet.absoluteFill, { backgroundColor: GLASS.fill }]} />
+      <BlurView intensity={55} tint={GLASS.tinte} style={[StyleSheet.absoluteFill, { backgroundColor: GLASS.fill }]} />
     ),
   }
 }

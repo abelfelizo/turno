@@ -194,7 +194,7 @@ export default function Equipo() {
                   <Ionicons name="close" size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={s.solSi} onPress={() => aprobar(p)} disabled={ocupado === p.id} accessibilityRole="button">
-                  {ocupado === p.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.solSiT}>APROBAR</Text>}
+                  {ocupado === p.id ? <ActivityIndicator color="#0B0B0C" size="small" /> : <Text style={s.solSiT}>APROBAR</Text>}
                 </TouchableOpacity>
               </View>
             ))}
@@ -304,7 +304,7 @@ const s = StyleSheet.create({
   solMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid, marginTop: 2 },
   solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', borderRadius: 21 },
   solSi: { height: 42, paddingHorizontal: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 21, borderWidth: 0 },
-  solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#0B0B0C' },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },

@@ -457,7 +457,7 @@ function Salgo({ min: inicial, datos, enFila, ocupado, acciones, setHoja }: Prop
           return (
             <TouchableOpacity key={String(m)} style={[s.chip, sel && s.chipSel]} onPress={() => setMin(m)}
               accessibilityRole="radio" accessibilityState={{ selected: sel }}>
-              <Text style={[s.chipT, sel && { color: '#fff' }]}>{m ? `${m} min` : 'Sin hora'}</Text>
+              <Text style={[s.chipT, sel && { color: COLORS.onInk }]}>{m ? `${m} min` : 'Sin hora'}</Text>
             </TouchableOpacity>
           )
         })}
@@ -623,12 +623,12 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderColor: GLASS.border, height: 50, paddingHorizontal: 14, marginTop: 12, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16, overflow: 'hidden' },
   chips: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 4 },
   chip: { flex: 1, height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fill, borderRadius: 23 },
-  chipSel: { backgroundColor: GLASS.ink, borderRadius: 26 },
+  chipSel: { backgroundColor: COLORS.ink, borderRadius: 26 },
   chipT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
   localAqui: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
   localN: { flex: 1, fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 20, color: COLORS.ink },
-  aqui: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden', borderRadius: 999 },
+  aqui: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden', borderRadius: 999 },
   visita: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   visitaF: { width: 62, fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
   todo: { paddingVertical: 14 },

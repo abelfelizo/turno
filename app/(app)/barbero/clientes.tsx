@@ -219,7 +219,7 @@ export default function Clientes() {
               return (
                 <TouchableOpacity key={o.k} style={[s.orden, on && s.ordenOn]} onPress={() => setOrden(o.k)}
                   accessibilityRole="button" accessibilityState={{ selected: on }}>
-                  <Text style={[s.ordenT, on && { color: '#fff' }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
+                  <Text style={[s.ordenT, on && { color: COLORS.onInk }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -371,7 +371,7 @@ export default function Clientes() {
             <TextInput style={s.input} placeholder="Cómo le gusta, qué hablaron, qué recordar…" placeholderTextColor={COLORS.textLight}
               value={nota} onChangeText={setNota} multiline />
             <TouchableOpacity style={s.guardar} onPress={guardar} disabled={guardando} accessibilityRole="button">
-              {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar nota</Text>}
+              {guardando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar nota</Text>}
             </TouchableOpacity>
           </>
         )}
@@ -422,7 +422,7 @@ const s = StyleSheet.create({
   buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
   orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
-  ordenOn: { backgroundColor: GLASS.ink, borderRadius: 26 },
+  ordenOn: { backgroundColor: COLORS.ink, borderRadius: 26 },
   ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
@@ -437,7 +437,7 @@ const s = StyleSheet.create({
   diasD: { fontSize: 14 },
   recupBtns: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
   btnRojo: { flex: 1, height: 44, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff' },
+  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.onInk },
   btnContorno: { width: 96, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fill },
   btnContornoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
   avisar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, borderRadius: 26, backgroundColor: GLASS.ink, padding: 15 },
@@ -457,7 +457,7 @@ const s = StyleSheet.create({
   visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
   input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 13, marginTop: 12, minHeight: 90, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, textAlignVertical: 'top', borderRadius: 16, overflow: 'hidden' },
   guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 26 },
-  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 14 },
 })

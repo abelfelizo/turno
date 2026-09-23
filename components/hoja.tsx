@@ -63,7 +63,7 @@ export default function Hoja({ visible, onClose, children }: {
         </TouchableWithoutFeedback>
         <Animated.View style={[s.hoja, { maxHeight: height * 0.88, paddingBottom: 26 + abajo, transform: [{ translateY: y }] }]}>
           {/* Vidrio de verdad: lo de detrás se ve desenfocado. */}
-          <BlurView intensity={60} tint="light" style={[StyleSheet.absoluteFill, s.vidrio]} />
+          <BlurView intensity={60} tint={GLASS.tinte} style={[StyleSheet.absoluteFill, s.vidrio]} />
           <View {...panHandlers}><Agarre /></View>
           <ScrollView
             keyboardShouldPersistTaps="handled"

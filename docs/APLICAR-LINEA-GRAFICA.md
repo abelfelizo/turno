@@ -189,7 +189,7 @@ sombra apagada de `tabs.tsx`. Vuelta atrás: publicar desde `1ca799f` (o
 3. **Rótulos bilingües** («TU POSICIÓN · YOUR SPOT»). El handoff los pide en
    los estados protagonistas. Es solo texto; se puede dejar en español.
 
-## En prueba (23 sep) — Liquid Glass (pide el APK 1.3.0)
+## ~~En prueba: Liquid Glass del handoff~~ (descartado; ver «Cristal propio»)
 
 Pedido: «probemos con un liquid glass estilo Apple». Sigue la variante Glass
 del primer handoff (`docs/diseno-turno/README.md` § 6 y `Turno App -
@@ -215,3 +215,12 @@ Glass.dc.html`). No cambia funciones, textos ni navegación.
 rama no llega a los teléfonos con el 1.2.0). Revisado con capturas reales de
 los tres perfiles (render web con datos simulados). Pendiente: entrada
 (bienvenida, entrar, registro) sigue oscura; modo oscuro del glass.
+
+## Hecho (23 sep) — Cristal propio (aprobado; pide el APK 1.3.0)
+
+El usuario descartó el Liquid Glass del handoff y aprobó una muestra propia
+(«Turno · Cristal propio»). Reglas y valores: `docs/diseno-turno/CRISTAL.md`.
+Aplicado en toda la app: día y noche según el teléfono, fondo con la luz del
+poste, cristal sin color propio, tarjeta del turno con el degradado rojo →
+azul y la barra de barbero fina dentro de las tarjetas. Revisado con capturas
+de los tres perfiles en los dos temas.

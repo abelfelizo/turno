@@ -63,8 +63,8 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
   icon?: IconName; iconRight?: IconName; loading?: boolean; disabled?: boolean; style?: StyleProp<ViewStyle>
 }) {
   const map = {
-    primary: { bg: COLORS.ink, fg: '#FFFFFF', bd: COLORS.ink },
-    dark: { bg: COLORS.ink, fg: '#FFFFFF', bd: COLORS.ink },
+    primary: { bg: COLORS.ink, fg: COLORS.onInk, bd: COLORS.ink },
+    dark: { bg: COLORS.ink, fg: COLORS.onInk, bd: COLORS.ink },
     accent: { bg: COLORS.red, fg: '#FFFFFF', bd: COLORS.red },
     secondary: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
     outline: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
@@ -120,7 +120,7 @@ export function Chip({ children, selected, disabled, onPress }: { children: Reac
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
       style={[s.chip, selected ? { backgroundColor: COLORS.ink, borderColor: COLORS.ink } : { borderColor: COLORS.border }]}>
-      <Text style={[s.chipT, { color: selected ? '#FFFFFF' : disabled ? COLORS.disabled : COLORS.textMid }]}>{children}</Text>
+      <Text style={[s.chipT, { color: selected ? COLORS.onInk : disabled ? COLORS.disabled : COLORS.textMid }]}>{children}</Text>
     </TouchableOpacity>
   )
 }
@@ -138,7 +138,7 @@ export function TimeSlot({ label, selected, disabled, onPress }: { label: string
 /** Chip de día. flex:1 dentro de una fila con gap 6. */
 export function DayChip({ day, num, selected, disabled, onPress }: { day: string; num: number | string; selected?: boolean; disabled?: boolean; onPress?: () => void }) {
   const bg = selected ? COLORS.ink : disabled ? COLORS.surfaceAlt : COLORS.bg
-  const fg = selected ? '#FFFFFF' : disabled ? COLORS.disabled : COLORS.ink
+  const fg = selected ? COLORS.onInk : disabled ? COLORS.disabled : COLORS.ink
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
       style={[s.day, { backgroundColor: bg, borderColor: selected ? COLORS.ink : disabled ? COLORS.surfaceAlt : COLORS.border }]}>
@@ -313,13 +313,13 @@ const s = StyleSheet.create({
   noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
   noCargoT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
-  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: GLASS.ink, borderRadius: 26, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
-  noCargoBtnT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.ink, borderRadius: 26, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtnT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.onInk },
   version: { paddingVertical: 14, alignItems: 'center' },
   versionT: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
   versionD: { fontFamily: FONTS.regular, fontSize: 10.5, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
   perfFila: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12 },
-  ticket: { backgroundColor: COLORS.ink, borderRadius: 8, overflow: 'hidden' },
+  ticket: { backgroundColor: COLORS.carbon, borderRadius: 8, overflow: 'hidden' },
   ticketCuerpo: { paddingVertical: 16, paddingLeft: 22, paddingRight: 18 },
   ticketPerf: { height: 18, justifyContent: 'center' },
   muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9 },
@@ -331,7 +331,7 @@ const s = StyleSheet.create({
   section: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase' },
   sectionAction: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight },
   card: { backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, padding: 14, borderWidth: 1, borderColor: GLASS.border },
-  cardDark: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  cardDark: { backgroundColor: GLASS.ink, borderColor: GLASS.border, borderRadius: 26 },
   btn: { height: 52, borderRadius: RADIUS.sm, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 16 },
@@ -373,7 +373,7 @@ export function NoCargo({ onReintentar, que }: { onReintentar: () => void; que?:
         Puede ser tu conexión. No es que no haya nada: es que no pudimos preguntar.
       </Text>
       <TouchableOpacity style={s.noCargoBtn} onPress={onReintentar} activeOpacity={0.85}>
-        <Ionicons name="refresh" size={16} color="#fff" />
+        <Ionicons name="refresh" size={16} color={COLORS.onInk} />
         <Text style={s.noCargoBtnT}>Reintentar</Text>
       </TouchableOpacity>
     </View>

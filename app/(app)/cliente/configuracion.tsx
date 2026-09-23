@@ -141,7 +141,7 @@ export default function Configuracion() {
       <Campo label="Alergias" placeholder="Productos que debes evitar" value={pAlergias} onChangeText={setPAlergias} />
       <Campo label="Notas" placeholder="Algo más que deba saber" value={pNotas} onChangeText={setPNotas} multiline />
       <TouchableOpacity style={s.guardar} onPress={guardarPrefs} disabled={guardando}>
-        {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar preferencias</Text>}
+        {guardando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar preferencias</Text>}
       </TouchableOpacity>
 
       <CambiarRol />
@@ -212,7 +212,7 @@ const s = StyleSheet.create({
   campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMid },
   campo: { marginTop: 6, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 13, paddingVertical: 12, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, borderRadius: 16, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
   guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
-  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },

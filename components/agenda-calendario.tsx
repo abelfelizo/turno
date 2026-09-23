@@ -58,12 +58,12 @@ const FRASE_CITA: Record<string, string> = {
 }
 /** El estado en la línea de la lista: corto, y con color solo si pide algo. */
 const CORTO: Record<string, { t: string; c: string }> = {
-  creada: { t: 'sin confirmar', c: '#6B6B6B' },
-  confirmada: { t: 'confirmada', c: '#0B0B0C' },
-  no_confirmada: { t: 'no confirmó', c: '#6B6B6B' },
-  en_camino: { t: 'en camino', c: '#1E4FD8' },
-  atendida: { t: 'atendida', c: '#6B6B6B' },
-  no_llego: { t: 'no llegó', c: '#C21D14' },
+  creada: { t: 'sin confirmar', c: COLORS.textLight },
+  confirmada: { t: 'confirmada', c: COLORS.ink },
+  no_confirmada: { t: 'no confirmó', c: COLORS.textLight },
+  en_camino: { t: 'en camino', c: COLORS.blue },
+  atendida: { t: 'atendida', c: COLORS.textLight },
+  no_llego: { t: 'no llegó', c: COLORS.redText },
 }
 
 function horaAhora() {
@@ -235,7 +235,7 @@ export default function AgendaCalendario() {
               </View>
               <TouchableOpacity style={s.compartir} activeOpacity={0.85} accessibilityRole="button"
                 onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-                <Ionicons name="share-outline" size={15} color={COLORS.ink} />
+                <Ionicons name="share-outline" size={15} color="#0B0B0C" />
                 <Text style={s.compartirT}>Compartir</Text>
               </TouchableOpacity>
             </View>
@@ -252,10 +252,10 @@ export default function AgendaCalendario() {
               <TouchableOpacity key={d} style={[s.dia, on && s.diaOn]} onPress={() => setFecha(d)}
                 accessibilityRole="button" accessibilityState={{ selected: on }}
                 accessibilityLabel={`${fechaLarga(dd)}${conteo[d] ? `, ${conteo[d]} citas` : ''}`}>
-                <Text style={[s.diaSem, on && { color: 'rgba(255,255,255,0.7)' }]}>
+                <Text style={[s.diaSem, on && { color: COLORS.onInk }]}>
                   {d === hoy ? 'HOY' : dd.toLocaleDateString('es', { weekday: 'short' }).slice(0, 3).toUpperCase()}
                 </Text>
-                <Text style={[s.diaNum, on && { color: '#fff' }]}>{dd.getDate()}</Text>
+                <Text style={[s.diaNum, on && { color: COLORS.onInk }]}>{dd.getDate()}</Text>
                 <View style={[s.diaPunto, !!conteo[d] && { backgroundColor: on ? '#fff' : COLORS.red }]} />
               </TouchableOpacity>
             )
@@ -489,9 +489,9 @@ const s = StyleSheet.create({
   codigoL: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
   codigoV: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 1.2, marginTop: 2 },
   compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: GLASS.fill, paddingHorizontal: 14, paddingVertical: 10, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
-  compartirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
+  compartirT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#0B0B0C' },
   dia: { width: 52, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border },
-  diaOn: { backgroundColor: GLASS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
   diaSem: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMid, letterSpacing: 0.4 },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink, marginTop: 1 },
   diaPunto: { width: 5, height: 5, borderRadius: 3, marginTop: 3, backgroundColor: 'transparent' },

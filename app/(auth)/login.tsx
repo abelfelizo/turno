@@ -62,7 +62,7 @@ export default function Login() {
           <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}
             autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={pedirCodigo} disabled={cargando}>
-            {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>Enviar código</Text>}
+            {cargando ? <ActivityIndicator color="#0B0B0C" /> : <Text style={s.btnT}>Enviar código</Text>}
           </TouchableOpacity>
         </>
       ) : (
@@ -72,7 +72,7 @@ export default function Login() {
             keyboardType="number-pad" maxLength={10} value={codigo}
             onChangeText={t => setCodigo(t.replace(/\D/g, ''))} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={confirmar} disabled={cargando}>
-            {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>Confirmar</Text>}
+            {cargando ? <ActivityIndicator color="#0B0B0C" /> : <Text style={s.btnT}>Confirmar</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setPaso('email')} disabled={cargando}><Text style={s.link}>Cambiar correo</Text></TouchableOpacity>
         </>
@@ -106,6 +106,6 @@ const s = StyleSheet.create({
   pruebas: { marginTop: 26, padding: 12, alignItems: 'center' },
   pruebasT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#6E7078', textDecorationLine: 'underline' },
   btn: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 17, alignItems: 'center' },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#0B0B0C' },
   link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },
 })

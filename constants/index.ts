@@ -1,3 +1,4 @@
+import { Appearance } from 'react-native'
 // Login de producción: alta por correo con código OTP. El antiguo "modo prueba"
 // (cuenta fija dev@turno.test) se eliminó por seguridad — daba acceso de dueño a
 // cualquiera con el APK. Para cambiar de panel se usa <CambiarRol />.
@@ -10,64 +11,88 @@
 // `THEME` es el sistema nuevo (claro y oscuro). `COLORS` conserva los nombres
 // de siempre como alias con los valores nuevos: la app los lee en más de mil
 // sitios y así no se rompe nada.
+/**
+ * CRISTAL PROPIO (docs/diseno-turno/CRISTAL.md; muestra aprobada el 23 sep).
+ *
+ * Dos temas, DÍA (cristal perla) y NOCHE (cristal ahumado), elegidos por el
+ * ajuste del teléfono AL ABRIR la app: los estilos son estáticos, así que un
+ * cambio de tema con la app abierta se ve al volver a abrirla.
+ *
+ * Regla del diseño: el cristal no tiene color propio. El color lo pone el
+ * fondo (la luz del poste, components/fondo-glass.tsx); solo se pintan
+ * enteros los botones principales y las tarjetas protagonistas (tu turno,
+ * «¡es tu turno!», las cajas oscuras de dato).
+ */
+export const NOCHE = Appearance.getColorScheme() === 'dark'
+
 const light = {
-  bg: '#FFFFFF',
-  surface: '#F4F4F4',
+  bg: '#ECEEF3',
+  surface: 'rgba(255,255,255,0.55)',
   ink: '#0B0B0C',
-  text2: '#5C5C5C',
-  text3: '#6B6B6B',
-  disabled: '#B5B5B5',
-  border: '#E6E6E6',
-  divider: '#F0F0F0',
-  tabBorder: '#EDEDED',
+  text2: '#3D3F46',
+  text3: '#5A5D66',
+  disabled: '#A5A8B0',
+  border: 'rgba(11,11,12,0.10)',
+  divider: 'rgba(11,11,12,0.07)',
+  tabBorder: 'rgba(255,255,255,0.75)',
   red: '#E1251B',
   redText: '#C21D14',
   blue: '#1E4FD8',
-  green: '#1F9D55',
+  green: '#157A41',
   onInk: '#FFFFFF',
-  onInkMuted: '#B5B5B5',
+  onInkMuted: '#B9BCC7',
   inkDivider: '#3A3A3A',
   inkPill: '#1F1F1F',
 }
 
 const dark: typeof light = {
-  bg: '#0B0B0C',
-  surface: '#1A1A1A',
-  ink: '#FFFFFF',
-  text2: '#A3A3A3',
-  text3: '#A3A3A3',
-  disabled: '#5C5C5C',
-  border: '#2A2A2A',
-  divider: '#1F1F1F',
-  tabBorder: '#1F1F1F',
-  red: '#FF5A4F',
-  redText: '#FF5A4F',
-  blue: '#6E93FF',
+  bg: '#0A0B0F',
+  surface: 'rgba(255,255,255,0.08)',
+  ink: '#F4F5F8',
+  text2: '#B9BCC7',
+  text3: '#9A9EAB',
+  disabled: '#5C5F68',
+  border: 'rgba(255,255,255,0.12)',
+  divider: 'rgba(255,255,255,0.08)',
+  tabBorder: 'rgba(255,255,255,0.09)',
+  red: '#E1251B',
+  redText: '#FF7A70',
+  blue: '#8FAEFF',
   green: '#34C77B',
-  onInk: '#0B0B0C',
-  onInkMuted: '#5C5C5C',
-  inkDivider: '#E6E6E6',
-  inkPill: '#F4F4F4',
+  onInk: '#0A0B0F',
+  onInkMuted: '#B9BCC7',
+  inkDivider: '#3A3A3A',
+  inkPill: '#1F1F1F',
 }
 
 export const THEME = { light, dark }
+const T = NOCHE ? dark : light
 
-/**
- * LIQUID GLASS (docs/diseno-turno/README.md § 6). La app entera se pinta sobre
- * un fondo con manchas de color (components/fondo-glass.tsx) y las superficies
- * son vidrio: blanco translúcido, borde blanco y radios grandes. El desenfoque
- * real (BlurView) va en la barra de pestañas y en las hojas; las tarjetas usan
- * el blanco translúcido, que sobre un fondo liso se lee igual y no cuesta nada.
- */
-export const GLASS = {
-  base: '#F2F2F2',
-  fill: 'rgba(255,255,255,0.45)',
-  fillStrong: 'rgba(255,255,255,0.72)',
-  fillSoft: 'rgba(255,255,255,0.30)',
+/** Las superficies de cristal del tema en uso. */
+export const GLASS = NOCHE ? {
+  base: '#0A0B0F',
+  fill: 'rgba(255,255,255,0.045)',
+  fillStrong: 'rgba(255,255,255,0.08)',
+  fillSoft: 'rgba(255,255,255,0.03)',
+  border: 'rgba(255,255,255,0.09)',
+  hairline: 'rgba(255,255,255,0.08)',
+  /** Caja oscura de dato: en la noche, cristal ahumado un poco más denso. */
+  ink: 'rgba(255,255,255,0.07)',
+  scrim: 'rgba(0,0,0,0.5)',
+  tinte: 'dark' as const,
+  radioCard: 22,
+  radioFila: 18,
+  radioBoton: 28,
+} : {
+  base: '#ECEEF3',
+  fill: 'rgba(255,255,255,0.34)',
+  fillStrong: 'rgba(255,255,255,0.62)',
+  fillSoft: 'rgba(255,255,255,0.22)',
   border: 'rgba(255,255,255,0.75)',
   hairline: 'rgba(11,11,12,0.07)',
-  ink: 'rgba(11,11,12,0.9)',
-  scrim: 'rgba(11,11,12,0.28)',
+  ink: 'rgba(11,11,12,0.88)',
+  scrim: 'rgba(11,11,12,0.22)',
+  tinte: 'light' as const,
   radioCard: 22,
   radioFila: 18,
   radioBoton: 28,
@@ -75,49 +100,45 @@ export const GLASS = {
 export type Theme = typeof light
 
 export const COLORS = {
-  ...light,
+  ...T,
   // ── compat NAVAJA → TURNO (no usar en código nuevo) ──
-  // Diferencia deliberada con el v3: aquí `surface` sigue siendo BLANCO. En
-  // las pantallas `COLORS.surface` siempre significó «fondo de tarjeta», y el
-  // v3 pide justo eso: tarjetas blancas con borde de 1 px. El gris del sistema
-  // nuevo es `surfaceAlt` (o `THEME.light.surface`).
-  surface: light.bg,
-  redDark: light.redText,
-  redLight: light.surface,
+  // `surface` es el fondo de tarjeta: aquí, el cristal.
+  surface: GLASS.fill,
+  redDark: T.redText,
+  redLight: T.surface,
   /** Rojo legible sobre la tinta. */
   redSoft: '#FF5A4F',
-  blueLight: light.surface,
-  carbon: light.ink,
-  carbonEl: '#1A1A1A',
-  carbonBorder: '#2A2A2A',
-  primary: light.ink,
-  gold: light.red,
-  purple: light.ink,
-  purpleLight: light.surface,
-  text: light.ink,
-  // En vidrio el texto secundario sube de contraste (README § 6).
-  textMid: '#3D3D3D',
-  textLight: '#555555',
-  line: light.border,
-  canvas: light.bg,
-  surfaceAlt: light.surface,
-  borderSoft: light.divider,
-  onCarbon: light.onInk,
-  onCarbonMid: light.onInkMuted,
-  carbonDash: light.inkDivider,
-  success: light.green,
-  successLight: light.surface,
+  blueLight: T.surface,
+  /** Superficie PINTADA oscura (tarjetas protagonistas, pantallas de marca): oscura en los dos temas. */
+  carbon: NOCHE ? '#15161C' : '#0B0B0C',
+  carbonEl: NOCHE ? '#1D1E25' : '#1A1A1A',
+  carbonBorder: NOCHE ? '#2C2E37' : '#2A2A2A',
+  primary: T.ink,
+  gold: T.red,
+  purple: T.ink,
+  purpleLight: T.surface,
+  text: T.ink,
+  textMid: T.text2,
+  textLight: T.text3,
+  line: T.border,
+  canvas: T.bg,
+  surfaceAlt: T.surface,
+  borderSoft: T.divider,
+  onCarbon: '#FFFFFF',
+  onCarbonMid: '#B9BCC7',
+  carbonDash: '#3A3A3A',
+  success: T.green,
+  successLight: T.surface,
   // Señales sobre la tinta, subidas para leerse en negro.
   okNoche: '#34C77B',
-  azulNoche: '#6E93FF',
-  // El v3 no tiene ámbar: la pausa se dice en el gris de «descanso» del oscuro.
+  azulNoche: '#8FAEFF',
   ambarNoche: '#A3A3A3',
-  danger: light.redText,
-  dangerLight: light.surface,
-  warning: light.text2,
-  warningLight: light.surface,
-  info: light.blue,
-  infoLight: light.surface,
+  danger: T.redText,
+  dangerLight: T.surface,
+  warning: T.text2,
+  warningLight: T.surface,
+  info: T.blue,
+  infoLight: T.surface,
 }
 
 // Tipografía PROVISIONAL (cargada en app/_layout.tsx). El cliente definirá la
