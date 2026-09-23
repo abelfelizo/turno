@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><meta name="design_doc_mode" content="canvas"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet"><style>body{margin:0;background:#EDEDED;font-family:Geist,system-ui,sans-serif;color:#0B0B0C;-webkit-font-smoothing:antialiased}a{color:#1E4FD8}a:hover{color:#E1251B}</style></helmet>
+<div style="padding:64px;display:flex;flex-direction:column;gap:72px;width:max-content">
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:28px;font-weight:700">Cliente</span><span style="font-size:15px;color:#5C5C5C">Inicio · Mi turno · Reservar</span></div>
+  <div style="display:flex;gap:48px;align-items:flex-start">
+
+    <!-- INICIO -->
+    <div data-screen-label="Cliente · Inicio" style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#5C5C5C">01 · Inicio</span>
+      <div style="padding:10px;background:#0B0B0C;border-radius:54px">
+        <div style="width:390px;height:844px;border-radius:44px;overflow:hidden;background:#fff;display:flex;flex-direction:column;position:relative">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600"><span>9:41</span><span style="display:flex;gap:5px"><span style="width:17px;height:10px;border-radius:2px;background:#0B0B0C"></span></span></div>
+          <div style="flex:1;overflow:hidden;padding:12px 20px 0;display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:8px">
+                <svg width="30" height="21" viewBox="0 0 110 76"><defs><pattern id="lg1" width="18" height="18" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="4.5" height="18" fill="#E1251B"></rect><rect x="4.5" width="4.5" height="18" fill="#fff"></rect><rect x="9" width="4.5" height="18" fill="#1E4FD8"></rect><rect x="13.5" width="4.5" height="18" fill="#fff"></rect></pattern><clipPath id="lc1"><path d="M6 2h98a4 4 0 0 1 4 4v24a8 8 0 0 0 0 16v24a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V46a8 8 0 0 0 0-16V6a4 4 0 0 1 4-4z"></path></clipPath></defs><g clip-path="url(#lc1)"><rect width="110" height="76" fill="#0B0B0C"></rect><rect width="28" height="76" fill="url(#lg1)"></rect></g><rect x="46" y="18" width="46" height="10" fill="#fff"></rect><rect x="64" y="28" width="10" height="32" fill="#fff"></rect></svg>
+                <span style="font-size:17px;font-weight:700;letter-spacing:-.2px">Turno</span>
+              </div>
+              <div style="width:36px;height:36px;border-radius:18px;background:#F4F4F4;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">MR</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:14px;color:#5C5C5C">Hola, Marcos</span>
+              <span style="font-size:28px;font-weight:700;letter-spacing:-.6px;line-height:1.1">Barbería La Esquina</span>
+              <span style="font-size:13px;color:#6B6B6B;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-6-6-6-11a6 6 0 0 1 12 0c0 5-6 11-6 11z"></path><circle cx="12" cy="10" r="2"></circle></svg>Av. Duarte 112</span>
+            </div>
+            <div style="display:flex;gap:8px">
+              <span style="padding:8px 14px;border-radius:8px;background:#0B0B0C;color:#fff;font-size:14px;font-weight:600">La Esquina</span>
+              <span style="padding:8px 14px;border-radius:8px;border:1px solid #E6E6E6;font-size:14px;font-weight:600;color:#5C5C5C">Studio 27</span>
+              <span style="width:38px;border-radius:8px;border:1px solid #E6E6E6;display:flex;align-items:center;justify-content:center;font-size:18px;color:#0B0B0C">+</span>
+            </div>
+            <!-- ticket activo -->
+            <div style="display:flex;border-radius:8px;overflow:hidden;background:#0B0B0C;color:#fff;-webkit-mask:radial-gradient(circle 9px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 9px at 0 50%,#0000 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 9px at 100% 50%,#0000 98%,#000) right/51% 100% no-repeat">
+              <div style="width:14px;flex:none;background:repeating-linear-gradient(-55deg,#E1251B 0 6px,#fff 6px 12px,#1E4FD8 12px 18px,#fff 18px 24px)"></div>
+              <div style="flex:1;padding:16px 18px 16px 22px;display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;font-weight:700;letter-spacing:1.2px;color:#FF5A4F">EN LA FILA</span>
+                <span style="font-size:18px;font-weight:600">Corte + barba</span>
+                <span style="font-size:13px;color:#B5B5B5">Con Andrés · ≈ 25 min</span>
+              </div>
+              <div style="border-left:2px dashed #3A3A3A;padding:0 20px;display:flex;flex-direction:column;justify-content:center;align-items:center">
+                <span style="font-size:11px;color:#B5B5B5;font-weight:600">POSICIÓN</span>
+                <span style="font-family:'Geist Mono',monospace;font-size:36px;font-weight:700;line-height:1">03</span>
+              </div>
+            </div>
+            <!-- cita -->
+            <div style="display:flex;gap:14px;align-items:center;padding:14px;border:1px solid #E6E6E6;border-radius:8px">
+              <div style="width:52px;height:52px;border-radius:8px;background:#F4F4F4;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none"><span style="font-family:'Geist Mono',monospace;font-size:20px;font-weight:700;line-height:1">26</span><span style="font-size:10px;font-weight:700;color:#5C5C5C;letter-spacing:.6px">SEP</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:15px;font-weight:600">Fade clásico</span>
+                <span style="font-size:13px;color:#6B6B6B">Sáb · 10:30 a. m. · Luis</span>
+              </div>
+              <span style="font-size:13px;font-weight:600;color:#1E4FD8">Confirmar</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">FILA DIGITAL · ENTRA AHORA</span></div>
+              <sc-for list="{{ barberos }}" as="b" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F0F0F0">
+                  <div style="width:42px;height:42px;border-radius:21px;background:#F4F4F4;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none">{{ b.ini }}</div>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:15px;font-weight:600">{{ b.nombre }}</span>
+                    <span style="font-size:13px;color:#6B6B6B">{{ b.meta }}</span>
+                  </div>
+                  <span style="font-size:13px;font-weight:600;color:{{ b.color }}">{{ b.estado }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:84px;flex:none;border-top:1px solid #EDEDED;display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px;background:#fff">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#E1251B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"></path></svg><span style="font-size:11px;font-weight:600">Inicio</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg><span style="font-size:11px;font-weight:600">Mi turno</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg><span style="font-size:11px;font-weight:600">Historial</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg><span style="font-size:11px;font-weight:600">Perfil</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MI TURNO -->
+    <div data-screen-label="Cliente · Mi turno" style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#5C5C5C">02 · Mi turno — estado: {{ estadoLabel }}</span>
+      <div style="padding:10px;background:#0B0B0C;border-radius:54px">
+        <div style="width:390px;height:844px;border-radius:44px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600"><span>9:41</span><span style="width:17px;height:10px;border-radius:2px;background:#0B0B0C"></span></div>
+          <div style="flex:1;padding:12px 20px 0;display:flex;flex-direction:column;gap:20px">
+            <span style="font-size:28px;font-weight:700;letter-spacing:-.6px">Mi turno</span>
+            <div style="display:flex;flex-direction:column;border-radius:8px;overflow:hidden;border:1px solid #E6E6E6">
+              <sc-if value="{{ esFila }}" hint-placeholder-val="{{ true }}">
+                <div style="background:#0B0B0C;color:#fff;padding:32px 24px 28px;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <span style="font-size:11px;font-weight:700;letter-spacing:1.4px;color:#B5B5B5">TU POSICIÓN · YOUR SPOT</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:112px;font-weight:700;line-height:1;letter-spacing:-4px">03</span>
+                  <span style="font-size:14px;color:#B5B5B5">de 5 personas en la fila</span>
+                  <span style="margin-top:10px;padding:7px 14px;border-radius:8px;background:#1F1F1F;font-size:14px;font-weight:600">≈ 25 min de espera</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ esLlamado }}">
+                <div style="background:#E1251B;color:#fff;padding:40px 24px;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <span style="font-size:11px;font-weight:700;letter-spacing:1.4px">LLAMADO · CALLED</span>
+                  <span style="font-size:40px;font-weight:700;letter-spacing:-1px">¡Es tu turno!</span>
+                  <span style="font-size:15px">Ve al local ahora. Te guardan la silla 10 min.</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ esCamino }}">
+                <div style="background:#1E4FD8;color:#fff;padding:40px 24px;display:flex;flex-direction:column;align-items:center;gap:8px">
+                  <span style="font-size:11px;font-weight:700;letter-spacing:1.4px">EN CAMINO · ON THE WAY</span>
+                  <span style="font-size:40px;font-weight:700;letter-spacing:-1px">Vas en camino</span>
+                  <span style="font-size:15px">Andrés ya sabe que vienes.</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ esSilla }}">
+                <div style="background:#0B0B0C;color:#fff;display:flex;flex-direction:column">
+                  <div style="height:18px;background:repeating-linear-gradient(-55deg,#E1251B 0 8px,#fff 8px 16px,#1E4FD8 16px 24px,#fff 24px 32px)"></div>
+                  <div style="padding:34px 24px;display:flex;flex-direction:column;align-items:center;gap:8px">
+                    <span style="font-size:11px;font-weight:700;letter-spacing:1.4px;color:#B5B5B5">EN LA SILLA · IN THE CHAIR</span>
+                    <span style="font-size:40px;font-weight:700;letter-spacing:-1px">Te están atendiendo</span>
+                    <span style="font-size:15px;color:#B5B5B5">Termina aprox. 11:20 a. m.</span>
+                  </div>
+                </div>
+              </sc-if>
+              <div style="height:0;border-top:2px dashed #E6E6E6"></div>
+              <div style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:600">Corte + barba</span><span style="font-size:13px;color:#6B6B6B">Andrés · 45 min</span></div>
+                <span style="font-family:'Geist Mono',monospace;font-size:13px;font-weight:700;color:#5C5C5C">Nº 07</span>
+              </div>
+            </div>
+            <sc-if value="{{ showAcciones }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:10px">
+                <div style="flex:1;height:52px;border-radius:8px;background:#0B0B0C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Voy en camino</div>
+                <div style="height:52px;padding:0 20px;border-radius:8px;border:1px solid #E6E6E6;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#C21D14">Salir</div>
+              </div>
+            </sc-if>
+            <div style="display:flex;flex-direction:column;gap:0">
+              <span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C;margin-bottom:6px">DELANTE DE TI</span>
+              <sc-for list="{{ delante }}" as="d" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F0F0F0">
+                  <span style="font-family:'Geist Mono',monospace;font-size:14px;font-weight:700;width:24px;color:#5C5C5C">{{ d.pos }}</span>
+                  <span style="flex:1;font-size:15px">{{ d.nombre }}</span>
+                  <span style="font-size:13px;font-weight:600;color:{{ d.color }}">{{ d.estado }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:84px;flex:none;border-top:1px solid #EDEDED;display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"></path></svg><span style="font-size:11px;font-weight:600">Inicio</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#E1251B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg><span style="font-size:11px;font-weight:600">Mi turno</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"></path><path d="M9 8h6M9 12h6"></path></svg><span style="font-size:11px;font-weight:600">Historial</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1-4 4-6 8-6s7 2 8 6"></path></svg><span style="font-size:11px;font-weight:600">Perfil</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESERVAR -->
+    <div data-screen-label="Cliente · Reservar" style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#5C5C5C">03 · Reservar</span>
+      <div style="padding:10px;background:#0B0B0C;border-radius:54px">
+        <div style="width:390px;height:844px;border-radius:44px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600"><span>9:41</span><span style="width:17px;height:10px;border-radius:2px;background:#0B0B0C"></span></div>
+          <div style="padding:8px 20px 14px;display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:8px;border:1px solid #E6E6E6;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"></path></svg></div>
+            <span style="font-size:24px;font-weight:700;letter-spacing:-.5px">Reservar</span>
+          </div>
+          <div style="flex:1;overflow:hidden;padding:0 20px;display:flex;flex-direction:column;gap:22px">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">1 · BARBERO</span>
+              <div style="display:flex;gap:8px">
+                <div style="flex:1;padding:12px 8px;border-radius:8px;background:#0B0B0C;color:#fff;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:40px;height:40px;border-radius:20px;background:#fff;color:#0B0B0C;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">AN</div><span style="font-size:13px;font-weight:600">Andrés</span></div>
+                <div style="flex:1;padding:12px 8px;border-radius:8px;border:1px solid #E6E6E6;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:40px;height:40px;border-radius:20px;background:#F4F4F4;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">LU</div><span style="font-size:13px;font-weight:600">Luis</span></div>
+                <div style="flex:1;padding:12px 8px;border-radius:8px;border:1px solid #E6E6E6;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="width:40px;height:40px;border-radius:20px;background:#F4F4F4;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">RA</div><span style="font-size:13px;font-weight:600">Rafa</span></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">2 · SERVICIO</span>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:8px;border:1.5px solid #0B0B0C"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Corte + barba</span><span style="font-size:13px;color:#6B6B6B">45 min</span></div><span style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:700">RD$ 700</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:14px;border-radius:8px;border:1px solid #E6E6E6"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Fade clásico</span><span style="font-size:13px;color:#6B6B6B">30 min</span></div><span style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:700">RD$ 450</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">3 · DÍA</span>
+              <div style="display:flex;gap:6px">
+                <sc-for list="{{ dias }}" as="d" hint-placeholder-count="6">
+                  <div style="flex:1;height:62px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:{{ d.bg }};color:{{ d.fg }};border:1px solid {{ d.bd }}"><span style="font-size:12px;font-weight:500">{{ d.dia }}</span><span style="font-family:'Geist Mono',monospace;font-size:18px;font-weight:700">{{ d.num }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">4 · HORA</span>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                <sc-for list="{{ horas }}" as="h" hint-placeholder-count="6">
+                  <div style="height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:14px;font-weight:500;background:{{ h.bg }};color:{{ h.fg }};border:1px solid {{ h.bd }};text-decoration:{{ h.td }}">{{ h.t }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="padding:14px 20px 34px;border-top:1px solid #EDEDED">
+            <div style="height:54px;border-radius:8px;background:#E1251B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Confirmar cita · Sáb 10:30</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:14px"><span style="font-size:28px;font-weight:700">Barbero</span><span style="font-size:15px;color:#5C5C5C">Mi silla · claro y oscuro</span></div>
+  <div style="display:flex;gap:48px;align-items:flex-start">
+
+    <div data-screen-label="Barbero · Mi silla" style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#5C5C5C">04 · Mi silla — claro</span>
+      <div style="padding:10px;background:#0B0B0C;border-radius:54px">
+        <div style="width:390px;height:844px;border-radius:44px;overflow:hidden;background:#fff;display:flex;flex-direction:column">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600"><span>9:41</span><span style="width:17px;height:10px;border-radius:2px;background:#0B0B0C"></span></div>
+          <div style="flex:1;overflow:hidden;padding:12px 20px 0;display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#5C5C5C">Miércoles 23 de septiembre</span><span style="font-size:28px;font-weight:700;letter-spacing:-.6px">Mi silla</span></div>
+              <span style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #E6E6E6;font-size:13px;font-weight:600"><span style="width:8px;height:8px;border-radius:4px;background:#1F9D55"></span>Disponible</span>
+            </div>
+            <div style="border-radius:8px;overflow:hidden;background:#0B0B0C;color:#fff">
+              <div style="height:14px;background:repeating-linear-gradient(-55deg,#E1251B 0 7px,#fff 7px 14px,#1E4FD8 14px 21px,#fff 21px 28px)"></div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:11px;font-weight:700;letter-spacing:1.2px;color:#B5B5B5">EN LA SILLA</span><span style="font-size:22px;font-weight:600">Carlos Méndez</span><span style="font-size:13px;color:#B5B5B5">Corte + barba · 45 min</span></div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end"><span style="font-family:'Geist Mono',monospace;font-size:30px;font-weight:700;line-height:1">18:42</span><span style="font-size:12px;color:#B5B5B5">transcurrido</span></div>
+                </div>
+                <div style="height:48px;border-radius:8px;background:#fff;color:#0B0B0C;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Terminar y llamar siguiente</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#5C5C5C">COLA · 4</span><span style="font-size:13px;color:#6B6B6B">≈ 1 h 40 min</span></div>
+              <sc-for list="{{ cola }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #F0F0F0">
+                  <span style="width:32px;height:32px;border-radius:8px;background:#F4F4F4;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:14px;font-weight:700;flex:none">{{ c.pos }}</span>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">{{ c.nombre }}</span><span style="font-size:13px;color:#6B6B6B">{{ c.serv }}</span></div>
+                  <span style="font-size:13px;font-weight:600;color:{{ c.color }}">{{ c.estado }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:84px;flex:none;border-top:1px solid #EDEDED;display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#E1251B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg><span style="font-size:11px;font-weight:600">Agenda</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span style="font-size:11px;font-weight:600">Stats</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M16 4.5a3.5 3.5 0 0 1 0 7M21 20c-.3-2.5-1.7-4.2-3.5-5"></path></svg><span style="font-size:11px;font-weight:600">Clientes</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#6B6B6B"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg><span style="font-size:11px;font-weight:600">Config</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div data-screen-label="Barbero · Mi silla oscuro" style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;font-weight:600;color:#5C5C5C">05 · Mi silla — oscuro</span>
+      <div style="padding:10px;background:#0B0B0C;border-radius:54px">
+        <div style="width:390px;height:844px;border-radius:44px;overflow:hidden;background:#0B0B0C;color:#fff;display:flex;flex-direction:column">
+          <div style="height:48px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600"><span>9:41</span><span style="width:17px;height:10px;border-radius:2px;background:#fff"></span></div>
+          <div style="flex:1;overflow:hidden;padding:12px 20px 0;display:flex;flex-direction:column;gap:20px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;color:#A3A3A3">Miércoles 23 de septiembre</span><span style="font-size:28px;font-weight:700;letter-spacing:-.6px">Mi silla</span></div>
+              <span style="display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:8px;border:1px solid #2A2A2A;font-size:13px;font-weight:600"><span style="width:8px;height:8px;border-radius:4px;background:#34C77B"></span>Disponible</span>
+            </div>
+            <div style="border-radius:8px;overflow:hidden;background:#fff;color:#0B0B0C">
+              <div style="height:14px;background:repeating-linear-gradient(-55deg,#E1251B 0 7px,#fff 7px 14px,#1E4FD8 14px 21px,#fff 21px 28px);border-bottom:1px solid #E6E6E6"></div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                  <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:11px;font-weight:700;letter-spacing:1.2px;color:#5C5C5C">EN LA SILLA</span><span style="font-size:22px;font-weight:600">Carlos Méndez</span><span style="font-size:13px;color:#5C5C5C">Corte + barba · 45 min</span></div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end"><span style="font-family:'Geist Mono',monospace;font-size:30px;font-weight:700;line-height:1">18:42</span><span style="font-size:12px;color:#5C5C5C">transcurrido</span></div>
+                </div>
+                <div style="height:48px;border-radius:8px;background:#0B0B0C;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600">Terminar y llamar siguiente</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#A3A3A3">COLA · 4</span><span style="font-size:13px;color:#A3A3A3">≈ 1 h 40 min</span></div>
+              <sc-for list="{{ colaDark }}" as="c" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #1F1F1F">
+                  <span style="width:32px;height:32px;border-radius:8px;background:#1A1A1A;display:flex;align-items:center;justify-content:center;font-family:'Geist Mono',monospace;font-size:14px;font-weight:700;flex:none">{{ c.pos }}</span>
+                  <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">{{ c.nombre }}</span><span style="font-size:13px;color:#A3A3A3">{{ c.serv }}</span></div>
+                  <span style="font-size:13px;font-weight:600;color:{{ c.color }}">{{ c.estado }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:84px;flex:none;border-top:1px solid #1F1F1F;display:grid;grid-template-columns:repeat(4,1fr);padding-top:10px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#FF5A4F"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M4 10h16M9 3v4M15 3v4"></path></svg><span style="font-size:11px;font-weight:600">Agenda</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#A3A3A3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"></path></svg><span style="font-size:11px;font-weight:600">Stats</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#A3A3A3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c.5-3.5 3-5.5 6-5.5s5.5 2 6 5.5M16 4.5a3.5 3.5 0 0 1 0 7M21 20c-.3-2.5-1.7-4.2-3.5-5"></path></svg><span style="font-size:11px;font-weight:600">Clientes</span></div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;color:#A3A3A3"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg><span style="font-size:11px;font-weight:600">Config</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;estadoTurno&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;en_fila&quot;,&quot;llamado&quot;,&quot;en_camino&quot;,&quot;en_silla&quot;],&quot;default&quot;:&quot;en_fila&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Mi turno&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const est = this.props.estadoTurno ?? 'en_fila';
+    const labels = { en_fila: 'en la fila', llamado: 'llamado', en_camino: 'en camino', en_silla: 'en la silla' };
+    const C = { ink: '#0B0B0C', red: '#E1251B', blue: '#1E4FD8', mute: '#6B6B6B', green: '#1F9D55' };
+    const dias = [['Mié', 23], ['Jue', 24], ['Vie', 25], ['Sáb', 26], ['Dom', 27], ['Lun', 28]].map(([dia, num], i) => {
+      const on = i === 3, off = i === 4;
+      return { dia, num, bg: on ? C.ink : off ? '#F4F4F4' : '#fff', fg: on ? '#fff' : off ? '#B5B5B5' : C.ink, bd: on ? C.ink : off ? '#F4F4F4' : '#E6E6E6' };
+    });
+    const horas = ['9:00', '9:45', '10:30', '11:15', '12:00', '2:30', '3:15', '4:00', '4:45'].map((t, i) => {
+      const on = i === 2, off = i === 1 || i === 4;
+      return { t, bg: on ? C.red : '#fff', fg: on ? '#fff' : off ? '#B5B5B5' : C.ink, bd: on ? C.red : off ? '#F0F0F0' : '#E6E6E6', td: off ? 'line-through' : 'none' };
+    });
+    const colaBase = [
+      ['1', 'Miguel Ortiz', 'Fade clásico', 'En camino', 'blue'],
+      ['2', 'Marcos Reyes', 'Corte + barba', 'En fila', 'mute'],
+      ['3', 'Julio Peña', 'Barba', 'En fila', 'mute'],
+      ['4', '10:30 · Cita', 'Kevin Díaz · Corte', 'Confirmada', 'ink']
+    ];
+    const cola = colaBase.map(([pos, nombre, serv, estado, k]) => ({ pos, nombre, serv, estado, color: C[k] }));
+    const dk = { blue: '#6E93FF', mute: '#A3A3A3', ink: '#fff' };
+    const colaDark = colaBase.map(([pos, nombre, serv, estado, k]) => ({ pos, nombre, serv, estado, color: dk[k] }));
+    return {
+      estadoLabel: labels[est],
+      esFila: est === 'en_fila', esLlamado: est === 'llamado', esCamino: est === 'en_camino', esSilla: est === 'en_silla',
+      showAcciones: est === 'en_fila' || est === 'llamado',
+      barberos: [
+        { ini: 'AN', nombre: 'Andrés', meta: 'Fades y barba · 2 en fila', estado: 'Disponible', color: C.green },
+        { ini: 'LU', nombre: 'Luis', meta: 'Clásicos · 0 en fila', estado: 'Disponible', color: C.green },
+        { ini: 'RA', nombre: 'Rafa', meta: 'Vuelve 3:00 p. m.', estado: 'Descanso', color: C.mute }
+      ],
+      delante: [
+        { pos: '01', nombre: 'Miguel O.', estado: 'En la silla', color: C.red },
+        { pos: '02', nombre: 'Julio P.', estado: 'En camino', color: C.blue },
+        { pos: '03', nombre: 'Tú', estado: 'En fila', color: C.ink }
+      ],
+      dias, horas, cola, colaDark
+    };
+  }
+}
+</script>
+</body>
+</html>
