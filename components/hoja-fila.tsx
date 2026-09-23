@@ -261,7 +261,7 @@ export default function HojaFila({ seleccion, visible, onClose, onEntrado, abier
 
 const s = StyleSheet.create({
   bg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 24 },
+  sheet: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 24, borderRadius: 8 },
   sub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, marginBottom: 18 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 10 },
   barbero: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
@@ -272,10 +272,10 @@ const s = StyleSheet.create({
   totalL: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   totalN: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   quitar: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight, paddingVertical: 8, marginBottom: 4 },
-  anadir: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.ink, padding: 13, marginBottom: 12 },
+  anadir: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: COLORS.border, padding: 13, marginBottom: 12, borderRadius: 8 },
   anadirT: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
   anadirD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  elegir: { borderWidth: 1, borderColor: COLORS.border, padding: 13, marginBottom: 12 },
+  elegir: { borderWidth: 1, borderColor: COLORS.border, padding: 13, marginBottom: 12, borderRadius: 8 },
   elegirHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   elegirT: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
   elegirX: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textLight },

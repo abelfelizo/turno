@@ -38,7 +38,7 @@ import { getSesion } from '../lib/storage'
 import { useRecargaAlEnfocar } from '../lib/recarga'
 import { CITA_ABIERTA, MOTIVO_PAUSA } from '../lib/silla'
 import { COLORS, FONTS } from '../constants'
-import { NoCargo, Pole } from './ui'
+import { NoCargo } from './ui'
 import { Encabezado, Rotulo } from './d2'
 import Hoja from './hoja'
 import { Titulo, Sub, Nota, Opcion, Pie, BotonRojo, AhoraNo } from './hoja-piezas'
@@ -228,7 +228,6 @@ export default function AgendaCalendario() {
             de la pantalla que hace crecer el negocio en vez de administrarlo. */}
         {!!usuario?.codigo_barbero && (
           <View style={s.codigo}>
-            <Pole height={6} radius={0} animado={false} />
             <View style={s.codigoFila}>
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.codigoL}>TU CÓDIGO DE BARBERO</Text>
@@ -487,12 +486,12 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   codigo: { marginTop: 16, borderRadius: 8, backgroundColor: COLORS.carbon, overflow: 'hidden' },
   codigoFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
-  codigoL: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 2, color: COLORS.textLight },
-  codigoV: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 2, marginTop: 2 },
+  codigoL: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
+  codigoV: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 1.2, marginTop: 2 },
   compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
   compartirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   dia: { width: 52, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border },
-  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
   diaSem: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMid, letterSpacing: 0.4 },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink, marginTop: 1 },
   diaPunto: { width: 5, height: 5, borderRadius: 3, marginTop: 3, backgroundColor: 'transparent' },
@@ -510,9 +509,9 @@ const s = StyleSheet.create({
   cerradaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginVertical: 8 },
   paso: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   pasoL: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
-  pasoBtn: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  pasoBtn: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   pasoBtnT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   pasoV: { width: 96, textAlign: 'center', fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  lbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.textLight, marginTop: 18 },
+  lbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.textLight, marginTop: 18 },
   input: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginBottom: 12, marginTop: 8 },
 })

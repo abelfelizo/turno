@@ -5,14 +5,13 @@
  * SectionLabel, Card, Button, Avatar, Badge, Chip, Pole, Dot, KV) y suma la
  * del v3 (StatusText, TimeSlot, DayChip, ListRow, QueueNumber, useTheme).
  *
- * DIFERENCIA DELIBERADA CON EL v3: el poste y el logo se dibujan con vistas,
- * no con `react-native-svg`. Esa librería es nativa y no viene en el APK
- * instalado; con `runtimeVersion: appVersion` una actualización por aire que
- * la importe llegaría a ese APK y cerraría la app al abrir. Se cambia a SVG
- * cuando se compile un APK nuevo (fase 6).
+ * El poste y el logo usan `react-native-svg`, que es NATIVA: este código
+ * pide el APK 1.3.0. Una actualización por aire no llega a un APK 1.2.0
+ * porque `runtimeVersion` sigue a la versión de la app (app.json).
  */
-import { ReactNode, useEffect, useRef, useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, AccessibilityInfo, useColorScheme } from 'react-native'
+import { ReactNode, useEffect, useId, useRef } from 'react'
+import Svg, { Defs, Pattern, Rect } from 'react-native-svg'
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, useColorScheme } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Updates from 'expo-updates'
 import { COLORS, THEME, Theme, RADIUS, FONTS, TYPE, ESTADO_COLOR } from '../constants'
@@ -170,74 +169,32 @@ export function QueueNumber({ n }: { n: number | string }) {
 }
 
 /**
- * EL POSTE DE BARBERO (línea gráfica de Turno).
+ * EL POSTE DE BARBERO: franjas diagonales a −55°, rojo · blanco · azul ·
+ * blanco (handoff v3). Solo va en tres sitios: el logo, el talón del ticket y
+ * la franja de «en la silla». No es decoración de fondo.
  *
- * Franjas literales a −55°, en cuatro bandas iguales: rojo · blanco · azul ·
- * blanco. Solo va en tres sitios —el logo, el talón del ticket activo y el
- * estado «en la silla»—; no es decoración de fondo.
- *
- * Sirve en horizontal (una franja arriba de una card) y en vertical (el talón
- * del ticket): se pinta UNA capa de barras verticales del tamaño de la
- * diagonal, girada 35° y centrada en la caja, y la caja recorta lo que sobra.
- *
- * Se mueve igual que antes —una sola capa con `translateX` en el hilo
- * nativo— y quien tiene «reducir movimiento» lo ve quieto.
+ * `height="auto"` deja que la dé el contenedor (el talón vertical). `ancho` es
+ * el ancho de cada banda; `animado` y `radius` se aceptan por compatibilidad.
  */
-const BANDAS_POSTE = [COLORS.red, '#FFFFFF', COLORS.blue, '#FFFFFF']
-export function Pole({ height = 8, radius = 0, style, animado = true, ancho = 7 }: {
-  /** 'auto' para que la dé el contenedor (el talón vertical del ticket). */
+export function Pole({ height = 14, radius = 0, style, ancho = 6 }: {
   height?: number | 'auto'; radius?: number; style?: StyleProp<ViewStyle>
-  /** Quieto cuando el poste acompaña a algo que ya se mueve. */
-  animado?: boolean
-  /** Ancho de cada banda, en px. El ciclo completo son cuatro. */
-  ancho?: number
+  animado?: boolean; ancho?: number
 }) {
-  const x = useRef(new Animated.Value(0)).current
-  const [mover, setMover] = useState(false)
-
-  // El ajuste del sistema manda sobre la prop, nunca al revés.
-  useEffect(() => {
-    let vivo = true
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then(reducir => { if (vivo) setMover(animado && !reducir) })
-      .catch(() => { if (vivo) setMover(animado) })
-    return () => { vivo = false }
-  }, [animado])
-
-  useEffect(() => {
-    if (!mover) { x.setValue(0); return }
-    const bucle = Animated.loop(
-      Animated.timing(x, { toValue: -ancho * 4, duration: 2400, easing: Easing.linear, useNativeDriver: true }),
-    )
-    bucle.start()
-    return () => bucle.stop()
-  }, [mover, ancho, x])
-
-  // La caja se MIDE: el mismo poste va en una franja de 390×14 y en un talón
-  // de 14×90. Hasta la primera medida se supone un ancho de teléfono.
-  const [caja, setCaja] = useState({ w: 430, h: typeof height === 'number' ? height : 90 })
-  const lado = Math.ceil(Math.hypot(caja.w, caja.h)) + ancho * 8
-  const barras = Math.ceil(lado / ancho)
-
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '')
+  const p = ancho * 4
   return (
-    <View
-      onLayout={e => {
-        const { width: w, height: h } = e.nativeEvent.layout
-        if (Math.abs(w - caja.w) > 1 || Math.abs(h - caja.h) > 1) setCaja({ w, h })
-      }}
-      style={[typeof height === 'number' ? { height } : null, { borderRadius: radius, overflow: 'hidden' }, style]}>
-      <Animated.View
-        pointerEvents="none"
-        style={{
-          position: 'absolute', width: lado, height: lado,
-          left: (caja.w - lado) / 2, top: (caja.h - lado) / 2,
-          flexDirection: 'row',
-          transform: [{ rotate: '35deg' }, { translateX: x }],
-        }}>
-        {Array.from({ length: barras }).map((_, i) => (
-          <View key={i} style={{ width: ancho, backgroundColor: BANDAS_POSTE[i % 4] }} />
-        ))}
-      </Animated.View>
+    <View pointerEvents="none" style={[typeof height === 'number' ? { height } : null, { overflow: 'hidden', borderRadius: radius }, style]}>
+      <Svg width="100%" height="100%">
+        <Defs>
+          <Pattern id={`poste${uid}`} width={p} height={p} patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
+            <Rect width={ancho} height={p} fill="#E1251B" />
+            <Rect x={ancho} width={ancho} height={p} fill="#FFFFFF" />
+            <Rect x={ancho * 2} width={ancho} height={p} fill="#1E4FD8" />
+            <Rect x={ancho * 3} width={ancho} height={p} fill="#FFFFFF" />
+          </Pattern>
+        </Defs>
+        <Rect width="100%" height="100%" fill={`url(#poste${uid})`} />
+      </Svg>
     </View>
   )
 }

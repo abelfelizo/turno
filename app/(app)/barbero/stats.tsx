@@ -25,7 +25,7 @@ import {
 import { dinero, fechaISOLocal, fechaDeISO } from '../../../lib/format'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { COLORS, FONTS } from '../../../constants'
-import { NoCargo, Pole } from '../../../components/ui'
+import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo, Cifras } from '../../../components/d2'
 import Resenas from '../../../components/resenas'
 import PanelBadge from '../../../components/panel-badge'
@@ -203,11 +203,10 @@ export default function Stats() {
       )}
 
       {/* LO QUE DICE LA GENTE. El único bloque oscuro de la pantalla: es la
-          cifra que no depende del periodo, y lleva el poste porque habla de
+          cifra que no depende del periodo, y va aparte porque habla de
           ti, no de la caja. */}
       <TouchableOpacity style={s.resenas} onPress={() => setVerResenas(true)} disabled={!perfilId} activeOpacity={0.85}
         accessibilityRole="button" accessibilityLabel="Ver tus reseñas">
-        <Pole height={6} radius={0} animado={false} />
         <View style={{ padding: 16 }}>
           <View style={s.resFila}>
             <Text style={s.resNota}>{resumen && resumen.total > 0 ? resumen.promedio.toFixed(1) : '—'}</Text>
@@ -261,9 +260,9 @@ export default function Stats() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  lbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 2.2, color: COLORS.textLight },
+  lbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
   grande: { fontFamily: FONTS.monoBold, fontSize: 44, lineHeight: 52, letterSpacing: -1, color: COLORS.ink, marginTop: 6 },
-  chip: { alignSelf: 'flex-start', backgroundColor: COLORS.ink, paddingHorizontal: 11, paddingVertical: 6, marginTop: 8 },
+  chip: { alignSelf: 'flex-start', backgroundColor: COLORS.ink, paddingHorizontal: 11, paddingVertical: 6, marginTop: 8, borderRadius: 8 },
   chipT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: '#fff' },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 22 },
   barra: { flexDirection: 'row', height: 14, marginTop: 10, overflow: 'hidden' },
@@ -274,7 +273,7 @@ const s = StyleSheet.create({
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   servN: { width: 104, fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   servBarra: { flex: 1, height: 10, backgroundColor: COLORS.border },
-  servLlena: { height: 10, backgroundColor: COLORS.ink },
+  servLlena: { height: 10, backgroundColor: COLORS.ink, borderRadius: 5 },
   servC: { width: 34, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
   resenas: { marginTop: 24, borderRadius: 8, backgroundColor: COLORS.carbon, overflow: 'hidden' },
   resFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },

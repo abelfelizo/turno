@@ -3,7 +3,8 @@ import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
 import { COLORS, FONTS } from '../../constants'
 import { cerrarSesion } from '../../lib/auth'
-import { Display, Pole } from '../../components/ui'
+import { Display } from '../../components/ui'
+import { TurnoLogo } from '../../components/TurnoLogo'
 
 export default function Welcome() {
   const router = useRouter()
@@ -11,10 +12,8 @@ export default function Welcome() {
   return (
     <View style={s.c}>
       <StatusBar style="light" />
-      <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
-        <View style={s.logo}><Text style={s.logoT}>N</Text></View>
-        <Text style={s.wordmark}>NAVAJA · BARBER CO.</Text>
+        <TurnoLogo negative size={34} />
       </View>
 
       <Text style={s.kicker}>Bienvenido</Text>
@@ -43,12 +42,8 @@ export default function Welcome() {
 
 const s = StyleSheet.create({
   c: { flex: 1, backgroundColor: COLORS.carbon, padding: 28, justifyContent: 'center' },
-  poleTop: { position: 'absolute', top: 0, left: 0, right: 0 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logo: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  logoT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 18 },
-  wordmark: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13, letterSpacing: 1 },
-  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginBottom: 28 },
   btn: { width: '100%', padding: 17, backgroundColor: '#FFFFFF', borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },

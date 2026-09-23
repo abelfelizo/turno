@@ -108,7 +108,7 @@ const s = StyleSheet.create({
   barraRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   barraK: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, width: 10 },
   barraBg: { flex: 1, height: 7, backgroundColor: COLORS.surfaceAlt, overflow: 'hidden' },
-  barraFill: { height: 7, backgroundColor: COLORS.ink },
+  barraFill: { height: 7, backgroundColor: COLORS.ink, borderRadius: 3 },
   barraN: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, width: 18, textAlign: 'right' },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginVertical: 18 },
   item: { borderTopWidth: 1, borderTopColor: COLORS.borderSoft, paddingVertical: 12 },

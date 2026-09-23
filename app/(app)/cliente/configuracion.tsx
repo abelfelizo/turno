@@ -209,10 +209,9 @@ function Campo({ label, ...props }: any) {
 
 const s = StyleSheet.create({
   prefNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
-  campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.5, color: COLORS.textMid },
-  campo: { marginTop: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 13, paddingVertical: 12,
-    fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMid },
+  campo: { marginTop: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 13, paddingVertical: 12, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, borderRadius: 8, overflow: 'hidden' },
+  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 8 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
@@ -221,10 +220,10 @@ const s = StyleSheet.create({
   tel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
     borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   cuentaT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
   cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'transparent', padding: 14, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'transparent', padding: 14, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
   cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.redText },
   cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
   // La misma sección que el resto de la app: rótulo con filete negro debajo.

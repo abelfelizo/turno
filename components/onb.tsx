@@ -93,10 +93,10 @@ const s = StyleSheet.create({
   // tienen que poder subir por encima de él. Con 28 el botón quedaba pegado.
   scroll: { padding: 28, paddingTop: 64, paddingBottom: 56, flexGrow: 1 },
   back: { width: 38, height: 38, borderRadius: 8, backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  paso: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.redSoft, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
+  paso: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.redSoft, letterSpacing: 1.2, marginBottom: 10, textTransform: 'uppercase' },
   subtitulo: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, lineHeight: 20, marginTop: 8 },
   opcion: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 18, marginBottom: 12 },
-  opcionSel: { backgroundColor: COLORS.carbonEl, borderColor: '#FFFFFF' },
+  opcionSel: { backgroundColor: COLORS.carbonEl, borderColor: '#FFFFFF', borderRadius: 8 },
   opcionLabel: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   opcionDesc: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 3, lineHeight: 18 },
   campoLabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onCarbonMid, marginBottom: 7 },

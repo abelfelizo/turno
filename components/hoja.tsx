@@ -77,7 +77,7 @@ export default function Hoja({ visible, onClose, children }: {
 
 const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
-  telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
   // Radio 8 arriba, como todo en la línea gráfica de Turno.
   hoja: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26, borderTopLeftRadius: 16, borderTopRightRadius: 16 },
 })

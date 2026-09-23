@@ -576,8 +576,7 @@ const s = StyleSheet.create({
   expT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
   expS: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
 
-  detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13,
-    borderWidth: 1, borderColor: COLORS.border, marginBottom: 10 },
+  detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13, borderWidth: 1, borderColor: COLORS.border, marginBottom: 10, borderRadius: 8 },
   detrasT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   detrasM: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   detrasX: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.danger },

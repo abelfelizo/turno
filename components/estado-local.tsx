@@ -21,7 +21,7 @@
 import { View, Text, StyleSheet } from 'react-native'
 import { COLORS, FONTS } from '../constants'
 import { relojesDeSilla, hora12 } from '../lib/format'
-import { PuntoVivo, Pole } from './ui'
+import { PuntoVivo } from './ui'
 
 export type SillaEstado = {
   perfil_id: string
@@ -94,9 +94,6 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
 
   return (
     <View style={s.card}>
-      {/* El poste, impreso arriba del bloque oscuro: es la misma firma que
-          lleva el ticket del turno, y lo que ata las dos pantallas. */}
-      <Pole height={6} radius={0} />
       <View style={s.cuerpo}>
       <View style={s.head}>
         {/* Baja con la línea del rótulo: la fila se alinea arriba por la cifra. */}

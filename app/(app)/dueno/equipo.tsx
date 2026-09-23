@@ -258,7 +258,7 @@ export default function Equipo() {
             el otro dé el paso; invitar con el suyo es darlo tú. */}
         <Rotulo>{esRentado ? 'Rentar una silla' : 'Agregar barbero'}</Rotulo>
         <TouchableOpacity style={s.fila} onPress={compartirCodigoLocal} accessibilityRole="button">
-          <View style={s.cuadro}><Ionicons name="share-social-outline" size={18} color="#fff" /></View>
+          <View style={s.cuadro}><Ionicons name="share-social-outline" size={18} color={COLORS.ink} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.nombre}>Compartir el código del local</Text>
             <Text style={s.meta}>{negocio?.codigo_acceso ?? '—'} · pide entrar y lo apruebas aquí</Text>
@@ -266,7 +266,7 @@ export default function Equipo() {
           <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
         </TouchableOpacity>
         <TouchableOpacity style={s.fila} onPress={() => { setCodigoInv(''); setInvitando(true) }} accessibilityRole="button">
-          <View style={s.cuadro}><Ionicons name="person-add-outline" size={18} color="#fff" /></View>
+          <View style={s.cuadro}><Ionicons name="person-add-outline" size={18} color={COLORS.ink} /></View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.nombre}>Invitar con su código</Text>
             <Text style={s.meta}>Si ya usa Turno, le llega la invitación y decide él</Text>
@@ -297,27 +297,26 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   vacio: { fontFamily: FONTS.regular, fontSize: 13.5, lineHeight: 19, color: COLORS.textMid, paddingVertical: 18 },
-  solicitudes: { marginTop: 18, backgroundColor: COLORS.carbon, padding: 14 },
-  solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.onCarbonMid, marginBottom: 4 },
+  solicitudes: { marginTop: 18, backgroundColor: COLORS.carbon, padding: 14, borderRadius: 8 },
+  solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginBottom: 4 },
   sol: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
   solNombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: '#fff' },
   solMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid, marginTop: 2 },
-  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
-  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', minWidth: 92 },
+  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 8 },
   solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
   tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
   chips: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
-  chip: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.ink, borderWidth: 1, borderColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2 },
+  chip: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.ink, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
   chipAzul: { color: COLORS.blue, borderColor: COLORS.border },
   chipRojo: { color: COLORS.redText, borderColor: COLORS.border },
   meta: { flexShrink: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  icono: { width: 40, height: 40, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  icono: { width: 40, height: 40, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   reactivarT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink },
-  cuadro: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 14, marginTop: 14,
-    fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.5 },
+  cuadro: { width: 36, height: 36, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 14, marginTop: 14, fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.2, borderRadius: 8, overflow: 'hidden' },
 })

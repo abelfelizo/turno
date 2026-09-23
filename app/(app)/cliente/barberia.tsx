@@ -414,16 +414,16 @@ const s = StyleSheet.create({
   marcaS: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   marcaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
 
-  chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1, borderColor: COLORS.line },
-  chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1, borderColor: COLORS.line, borderRadius: 8 },
+  chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
   chipLocalT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid },
 
   fidel: { marginTop: 18, backgroundColor: COLORS.carbon, borderRadius: 8, padding: 17 },
   fidelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
-  fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, color: COLORS.onCarbonMid },
+  fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.2, color: COLORS.onCarbonMid },
   fidelNum: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff' },
-  barra: { height: 10, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 12 },
-  barraFill: { height: 10, backgroundColor: COLORS.red },
+  barra: { height: 10, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 12, borderRadius: 5 },
+  barraFill: { height: 10, backgroundColor: COLORS.red, borderRadius: 5 },
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 11, gap: 10 },
   fidelPremio: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.onCarbonMid },
   fidelFaltan: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
@@ -433,7 +433,7 @@ const s = StyleSheet.create({
   valeD: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textMid },
 
   sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 10, marginBottom: 10 },
-  secRegla: { height: 2, backgroundColor: COLORS.ink, marginTop: 7 },
+  secRegla: { height: 0, marginTop: 4 },
   nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 11, lineHeight: 18 },
   vacio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 10 },
 
@@ -441,12 +441,12 @@ const s = StyleSheet.create({
   bHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bNombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   bNombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2 },
+  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
   bMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   bEstado: { fontFamily: FONTS.semibold, fontSize: 11.5 },
 
   contacto: { flexDirection: 'row', gap: 6, marginLeft: 3 },
-  ico: { width: 30, height: 30, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  ico: { width: 30, height: 30, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
 
   servicio: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderRadius: 8, padding: 14, marginTop: 8 },
   svN: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
@@ -455,19 +455,18 @@ const s = StyleSheet.create({
 
   bAcciones: { flexDirection: 'row', gap: 9, marginTop: 13 },
   bBtn: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
-  bBtnRojo: { backgroundColor: COLORS.ink },
-  bBtnContorno: { borderWidth: 1, borderColor: COLORS.border },
+  bBtnRojo: { backgroundColor: COLORS.ink, borderRadius: 8 },
+  bBtnContorno: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
   bBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
 
   plegado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: COLORS.line },
   plegadoT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid },
 
-  canjear: { backgroundColor: '#fff', padding: 14, alignItems: 'center', marginTop: 14 },
+  canjear: { backgroundColor: '#fff', padding: 14, alignItems: 'center', marginTop: 14, borderRadius: 8 },
   canjearT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.carbon, letterSpacing: 0 },
   salir: { marginTop: 26, paddingVertical: 13, alignItems: 'center' },
   salirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
-  agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24,
-    borderWidth: 1, borderColor: COLORS.border, padding: 15 },
+  agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 8 },
   agregarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
 })

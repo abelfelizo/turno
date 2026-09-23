@@ -85,7 +85,7 @@ const s = StyleSheet.create({
   rotAccion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue },
   pest: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   pestBtn: { minHeight: 36, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, justifyContent: 'center' },
-  pestOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  pestOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 8 },
   pestT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   pestTOn: { color: '#FFFFFF' },
   cifras: { flexDirection: 'row', gap: 8 },

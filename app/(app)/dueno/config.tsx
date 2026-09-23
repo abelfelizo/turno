@@ -283,7 +283,7 @@ export default function Config() {
                 <Rotulo>{g.l}</Rotulo>
                 {filas.map(m => (
                   <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)} accessibilityRole="button">
-                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color="#fff" /></View>
+                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color={COLORS.ink} /></View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={s.menuT}>{m.t}</Text>
                       <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
@@ -636,10 +636,10 @@ function Stepper({ label, desc, value, suf, onMinus, onPlus }: { label: string; 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, marginTop: 14 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12, marginTop: 14 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon, borderRadius: 8 },
   modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   modNota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 4 },
   marcaCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 16, marginBottom: 4 },
@@ -651,7 +651,7 @@ const s = StyleSheet.create({
   input: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
   dosCol: { flexDirection: 'row', gap: 10 },
   pill: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 999, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.surface },
-  pillOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  pillOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon, borderRadius: 8 },
   pillT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 8, padding: 15, alignItems: 'center', marginTop: 16 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
@@ -677,14 +677,14 @@ const s = StyleSheet.create({
   // pantalla para otra persona, y verse distinta solo confunde a quien lleva
   // los dos paneles — que es justo el caso del dueño que también atiende.
   menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  menuIcono: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  menuIcono: { width: 36, height: 36, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   menuT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
   menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
   volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 14.5 },
-  codeCard: { backgroundColor: COLORS.carbon, padding: 18, marginBottom: 12 },
-  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 2 },
-  codeVal: { fontFamily: FONTS.monoBold, fontSize: 44, color: '#fff', letterSpacing: 3, marginTop: 4 },
+  codeCard: { backgroundColor: COLORS.carbon, padding: 18, marginBottom: 12, borderRadius: 8 },
+  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 1.2 },
+  codeVal: { fontFamily: FONTS.monoBold, fontSize: 44, color: '#fff', letterSpacing: 1.2, marginTop: 4 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8 },
   cuentaIcono: { width: 34, height: 34, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },

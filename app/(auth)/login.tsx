@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router'
 import { enviarCodigo, verificarCodigo } from '../../lib/auth'
 import { ENCENDIDA as PUERTA_PRUEBAS } from '../../lib/pruebas'
 import { COLORS, FONTS } from '../../constants'
-import { Display, Pole, VersionBundle } from '../../components/ui'
+import { Display, VersionBundle } from '../../components/ui'
+import { TurnoLogo } from '../../components/TurnoLogo'
 
 export default function Login() {
   const router = useRouter()
@@ -46,10 +47,8 @@ export default function Login() {
       showsVerticalScrollIndicator={false}
     >
       <StatusBar style="light" />
-      <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
-        <View style={s.logo}><Text style={s.logoT}>N</Text></View>
-        <Text style={s.wordmark}>NAVAJA · BARBER CO.</Text>
+        <TurnoLogo negative size={34} />
       </View>
 
       <Text style={s.kicker}>App de reservas · Barbería</Text>
@@ -99,15 +98,11 @@ export default function Login() {
 
 const s = StyleSheet.create({
   c: { flexGrow: 1, padding: 28, paddingBottom: 56, justifyContent: 'center' },
-  poleTop: { position: 'absolute', top: 0, left: 0, right: 0 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logo: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  logoT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 18 },
-  wordmark: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13, letterSpacing: 1 },
-  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
+  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
   input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.regular, marginBottom: 12 },
-  code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
+  code: { textAlign: 'center', letterSpacing: 1.2, fontSize: 24, fontFamily: FONTS.bold },
   pruebas: { marginTop: 26, padding: 12, alignItems: 'center' },
   pruebasT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#6E7078', textDecorationLine: 'underline' },
   btn: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 17, alignItems: 'center' },

@@ -198,11 +198,11 @@ const s = StyleSheet.create({
   hoja: { backgroundColor: COLORS.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingBottom: 18 },
   cab: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
   sub: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 4, lineHeight: 18 },
-  cerrar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  cerrar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8 },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 20, paddingVertical: 14 },
 
   cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: COLORS.divider, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cualquieraIco: { width: 38, height: 38, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  cualquieraIco: { width: 38, height: 38, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
   cualquieraT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   cualquieraD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
 
@@ -214,7 +214,7 @@ const s = StyleSheet.create({
   barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   barberoN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
+  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 8 },
   barberoMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   pausa: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
   pausaT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },

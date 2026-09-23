@@ -119,10 +119,10 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
 }
 
 const ESTILO_BTN = StyleSheet.create({
-  claro: { backgroundColor: '#FFFFFF' },
-  rojo: { backgroundColor: COLORS.red },
-  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
-  apagado: { borderWidth: 1, borderColor: COLORS.carbonDash },
+  claro: { backgroundColor: '#FFFFFF', borderRadius: 8 },
+  rojo: { backgroundColor: COLORS.red, borderRadius: 8 },
+  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 },
+  apagado: { borderWidth: 1, borderColor: COLORS.carbonDash, borderRadius: 8 },
 })
 const TEXTO_BTN = { claro: COLORS.ink, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
 

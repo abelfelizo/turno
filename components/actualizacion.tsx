@@ -73,7 +73,7 @@ export function AvisoActualizacion() {
 const s = StyleSheet.create({
   barra: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 9, paddingHorizontal: 14 },
-  bajando: { backgroundColor: COLORS.carbonEl },
-  lista: { backgroundColor: COLORS.ink },
+  bajando: { backgroundColor: COLORS.carbonEl, borderRadius: 8 },
+  lista: { backgroundColor: COLORS.ink, borderRadius: 8 },
   texto: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
 })
