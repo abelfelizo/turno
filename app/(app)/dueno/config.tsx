@@ -1,4 +1,4 @@
-import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -12,9 +12,10 @@ import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
 import Selector from '../../../components/selector'
 import { fechaLarga, fechaDeISO } from '../../../lib/format'
 import { SUSCRIPCION, COLORS, FONTS } from '../../../constants'
-import { Display, Avatar, NoCargo } from '../../../components/ui'
+import { Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
+import { Encabezado, Rotulo } from '../../../components/d2'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function Config() {
@@ -220,27 +221,38 @@ export default function Config() {
   const plan = planDueno(asientos)
 
   const TITULO: Record<string, string> = {
-    marca: 'Marca y contacto', suscripcion: 'Suscripción', modalidad: 'Cómo trabaja tu local',
-    funciones: 'Funciones del local', tiempos: 'Tiempos', otros: 'Otros',
+    marca: 'Marca y contacto', codigo: 'Código del local', suscripcion: 'Suscripción', modalidad: 'Cómo trabaja tu local',
+    funciones: 'Funciones del local', tiempos: 'Tiempos', otros: 'Cuenta',
   }
+  // TRES GRUPOS, como en los Ajustes del barbero: lo que el local ES, cómo
+  // TRABAJA, y la cuenta de quien lo lleva.
+  const GRUPOS = [
+    { k: 'local', l: 'El local' },
+    { k: 'como', l: 'Cómo trabaja' },
+    { k: 'cuenta', l: 'Tu cuenta' },
+  ] as const
 
   // El valor de cada fila: es lo que convierte el menú en un resumen del local.
   const MENU = [
-    { k: 'marca', t: 'Marca y contacto', icono: 'storefront-outline',
+    { k: 'marca', g: 'local', t: 'Marca y contacto', icono: 'storefront-outline',
       v: [negocio?.nombre, negocio?.direccion].filter(Boolean).join(' · ') || 'Sin datos todavía' },
+    // El código salió de la portada de Mi local: se comparte una vez y ocupaba
+    // el primer sitio de la pantalla que se mira cincuenta veces al día.
+    { k: 'codigo', g: 'local', t: 'Código del local', icono: 'qr-code-outline',
+      v: `${negocio?.codigo_acceso ?? '—'} · para que entren clientes y barberos` },
     // EN ALQUILER NO SE ENSEÑA PRECIO. Este menú es el resumen del local —cada
     // fila lleva su valor debajo y se lee de un vistazo— así que poner aquí el
     // plan por asiento le cobraba de palabra al dueño que no paga nada, y
     // contradecía a su propia sección, que dice justo lo contrario.
-    { k: 'suscripcion', t: 'Suscripción', icono: 'card-outline',
+    { k: 'suscripcion', g: 'local', t: 'Suscripción', icono: 'card-outline',
       v: esRentado
         ? 'No pagas por el local · cada barbero paga su silla'
         : suscripcion?.estado === 'vencida'
           ? 'Vencida · la fila del local está apagada'
           : `${plan.montoTexto} · ${asientos} asiento${asientos === 1 ? '' : 's'}` },
-    { k: 'modalidad', t: 'Cómo trabaja tu local', icono: 'people-outline',
+    { k: 'modalidad', g: 'como', t: 'Cómo trabaja tu local', icono: 'people-outline',
       v: esRentado ? 'Alquilo asientos' : 'Tengo empleados' },
-    { k: 'funciones', t: 'Funciones del local', icono: 'options-outline',
+    { k: 'funciones', g: 'como', t: 'Funciones del local', icono: 'options-outline',
       v: esRentado
         ? (config?.doble_servicio_activo ? 'Doble servicio activo' : 'Doble servicio apagado')
         : [config?.puntos_activos ? `Puntos cada ${config?.visitas_para_gratis ?? 8}` : 'Sin puntos',
@@ -250,39 +262,65 @@ export default function Config() {
     // barbero es un negocio aparte y pone los suyos desde su configuración, así
     // que estos números no mandaban sobre nadie. Un ajuste que no decide nada
     // enseña al dueño a desconfiar de los que sí deciden.
-    ...(conEmpleados ? [{ k: 'tiempos', t: 'Tiempos', icono: 'time-outline',
+    ...(conEmpleados ? [{ k: 'tiempos', g: 'como', t: 'Tiempos', icono: 'time-outline',
       v: `${config?.anticipacion_minima_horas ?? 2} h para reservar · ${config?.ventana_llegada_min ?? 10} min para llegar` }] : []),
-    { k: 'otros', t: 'Otros', icono: 'ellipsis-horizontal',
-      v: 'Cerrar sesión, cerrar el local' },
+    { k: 'otros', g: 'cuenta', t: 'Cuenta', icono: 'person-circle-outline',
+      v: 'Avisos, cerrar sesión, cerrar el local' },
   ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 32 }}>
       <PanelBadge />
 
       {seccion === null ? (
         <>
-          <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
-          {MENU.map(m => (
-            <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)}>
-              <View style={s.menuIcono}><Ionicons name={m.icono as any} size={18} color="#fff" /></View>
-              <View style={{ flex: 1 }}>
-                <Text style={s.menuT}>{m.t}</Text>
-                <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+          <Encabezado titulo="Ajustes" sub={negocio?.nombre ?? null} />
+          {GRUPOS.map(g => {
+            const filas = MENU.filter(m => m.g === g.k)
+            if (!filas.length) return null
+            return (
+              <View key={g.k}>
+                <Rotulo>{g.l}</Rotulo>
+                {filas.map(m => (
+                  <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)} accessibilityRole="button">
+                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color="#fff" /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.menuT}>{m.t}</Text>
+                      <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                ))}
+                {/* Cambiar de panel es navegación, no configuración: va con la
+                    cuenta, igual que en los Ajustes del barbero. */}
+                {g.k === 'cuenta' && <View style={{ marginTop: 14 }}><CambiarRol /></View>}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-            </TouchableOpacity>
-          ))}
-          {/* Cambiar de panel es navegación, no configuración: va en la raíz. */}
-          <CambiarRol />
+            )
+          })}
         </>
       ) : (
         <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
           <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
-          <Text style={s.volverT}>Configuración</Text>
+          <Text style={s.volverT}>Ajustes</Text>
         </TouchableOpacity>
       )}
-      {seccion && <Display size={28} style={{ marginBottom: 16 }}>{TITULO[seccion]}</Display>}
+      {seccion && <View style={{ marginBottom: 14 }}><Encabezado titulo={TITULO[seccion]} /></View>}
+
+      {seccion === 'codigo' && (<>
+        <View style={s.codeCard}>
+          <Text style={s.codeLbl}>CÓDIGO DE ACCESO</Text>
+          <Text style={s.codeVal}>{negocio?.codigo_acceso ?? '—'}</Text>
+        </View>
+        <Text style={s.modNota}>
+          {esRentado
+            ? 'Con este código tus clientes se unen al local y los barberos piden rentar una silla. Nadie entra a trabajar sin que lo apruebes en Equipo.'
+            : 'Con este código tus clientes se unen al local y tus barberos piden entrar. Nadie entra a trabajar sin que lo apruebes en Equipo.'}
+        </Text>
+        <TouchableOpacity style={s.guardarBtn} accessibilityRole="button"
+          onPress={() => Share.share({ message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno con el código ${negocio?.codigo_acceso}` })}>
+          <Text style={s.guardarT}>Compartir el código</Text>
+        </TouchableOpacity>
+      </>)}
 
       {seccion === 'marca' && (<>
       <View style={s.marcaCard}>
@@ -639,13 +677,15 @@ const s = StyleSheet.create({
   // Menú y cuenta: LOS MISMOS valores que en barbero/config.tsx. Es la misma
   // pantalla para otra persona, y verse distinta solo confunde a quien lleva
   // los dos paneles — que es justo el caso del dueño que también atiende.
-  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderRadius: 6, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
-  menuIcono: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  menuT: { color: COLORS.ink, fontSize: 15, fontWeight: '700' },
-  menuV: { color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  menuIcono: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  menuT: { fontFamily: FONTS.extrabold, color: COLORS.ink, fontSize: 15 },
+  menuV: { fontFamily: FONTS.medium, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { color: COLORS.textMid, fontSize: 14.5, fontWeight: '600' },
+  volverT: { fontFamily: FONTS.bold, color: COLORS.textMid, fontSize: 14.5 },
+  codeCard: { backgroundColor: COLORS.carbon, padding: 18, marginBottom: 12 },
+  codeLbl: { fontFamily: FONTS.extrabold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 2 },
+  codeVal: { fontFamily: FONTS.display, fontSize: 44, color: '#fff', letterSpacing: 3, marginTop: 4 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
     borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
   cuentaIcono: { width: 34, height: 34, borderRadius: 4, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },

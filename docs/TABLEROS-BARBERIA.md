@@ -1,8 +1,14 @@
 # Tableros de la barbería (panel del dueño) — propuesta v1
 
+> **En código (23 sep).** Pedido: «vamos a terminar todo el panel de
+> administrador… luego evaluamos las opciones». Se hizo con las
+> recomendaciones de abajo (1, 2, 4, 5 y 6); la **3 (el independiente) queda
+> como está** —dos paneles— hasta evaluar el conjunto, porque toca el reparto
+> de paneles de toda la app. Ver «Lo que se hizo» al final.
+
 El mismo método que con el cliente y el barbero: primero qué va en cada
 pestaña y qué no, después los tableros, después los estados, y al final el
-código. Esto es solo lo primero. **No hay nada dibujado ni tocado todavía.**
+código.
 
 Ya existen tres tableros D2 del dueño en el lienzo (`D2-Barberia-Cola`,
 `D2-Barberia-Equipo`, `D2-Barberia-Stats`). Se dibujaron antes de rehacer el
@@ -214,3 +220,34 @@ tu visto bueno. Sin ella, Clientes del dueño no puede tener «Por recuperar».
 **6. Por dónde empezar.**
 *Recomiendo Mi local*, como con Mi silla: es la pantalla que más se abre y la
 que hoy está duplicada.
+
+---
+
+## Lo que se hizo (23 sep)
+
+| Pestaña | Archivo | Qué hay |
+|---|---|---|
+| Mi local | `dueno/dashboard.tsx` | Cabecera con el código en pequeño (toca → compartir) · aviso rojo de solicitudes · cifras sin dinero (en fila, atendidos hoy, sillas abiertas, espera máx.) · LAS SILLAS con su estado en vivo, la tuya marcada TÚ y que lleva a Mi silla · QUIÉN ESTÁ ESPERANDO con una hoja por turno: asignar / pasar a otra silla (si el local reparte), «No se presentó» (si ya le tocó), y el porqué de lo que no se puede · local apagado explicado · recarga al enfocar y en vivo |
+| Equipo | `dueno/equipo.tsx` (nueva) | Solicitudes en bloque oscuro (aprobar / rechazar con confirmación) · sillas con EMPLEADO / RENTA / ADMINISTRADOR y SUSPENDIDO, suspendidos al final con *Reactivar* · **Invitados** esperando respuesta (antes no se veían) · compartir el código del local · invitar con su código |
+| Clientes | `dueno/clientes.tsx` (nueva) | Todos / Por recuperar (más de 30 días sin volver), buscar, ordenar, WhatsApp y llamar · ficha: gastado, su barbero, lo que pide, alergias, últimas visitas; sin las notas privadas de los barberos |
+| Estadísticas | `dueno/stats.tsx` | Periodos hoy / 7 / 30 / todo · empleados: ingresos del local con % frente al periodo anterior, visitas, clientes, ticket, **quién mueve el local** (barra por silla), de dónde vinieron, y las visitas de sillas rentadas contadas aparte · alquiler: visitas (de alquiler + tu silla), tu dinero solo el de tu silla |
+| Ajustes | `dueno/config.tsx` | Menú en tres grupos (El local · Cómo trabaja · Tu cuenta) · sección nueva **Código del local** · cambiar de panel con la cuenta |
+| Ficha de silla | `dueno/barbero.tsx` | Pasada ligera: encabezado con su modalidad, rótulos, filas planas |
+
+**Quitado:** la pestaña Cola (`dueno/agenda.tsx`) y la hoja
+`components/clientes-local.tsx`, sustituidas por Mi local y Clientes (en el
+historial de git si hiciera falta). El aviso push de tipo `equipo` abre ahora
+la pestaña Equipo.
+
+**Migración 120 — PREPARADA, SIN APLICAR.** `turno_clientes_del_local_admin`:
+solo añade una función (visitas de las sillas que el dueño manda, con quién se
+corta cada cliente). Probada en seco dentro de una transacción revertida:
+`clientes_dueno` 9/9. Mientras no se aplique, la pestaña Clientes funciona con
+la función de siempre y **lo dice** («por ahora las visitas son solo las de tu
+silla») y no ofrece «Por recuperar». Vuelta atrás: `rollback_120_…sql`.
+
+**Límite conocido:** la API devuelve como mucho 1.000 filas por lista. Las
+cifras grandes de Estadísticas del dueño las suma el servidor (sin límite);
+el reparto por silla y por origen sale de la lista, y si llega al corte la
+pantalla lo avisa. En las Estadísticas del **barbero** todo sale de la lista:
+con más de 1.000 visitas en «Todo» el total se quedaría corto. Pendiente.

@@ -97,15 +97,21 @@ Piezas compartidas nuevas: `components/d2.tsx` (encabezado, rótulo, pestañas,
 cifras) y `components/hoja-piezas.tsx` (título, opción, dato, nota y botones
 de una hoja).
 
-### Barbería — 5 pantallas, 3 con tablero
+### Barbería — 6 pantallas, 3 con tablero · convertida el 23 sep
 
-| Pantalla | Tablero | Estado | Deuda |
-|---|---|---|---|
-| `dueno/dashboard` | `D2-Barberia-Equipo` | **Sin convertir** | tarjetas: 5 |
-| `dueno/agenda` | `D2-Barberia-Cola` | **Sin convertir** | tarjetas: 2 |
-| `dueno/stats` | `D2-Barberia-Stats` | **Sin convertir** | tarjetas: 4 |
-| `dueno/config` | **ninguno** | **Sin convertir** | tarjetas: 8 |
-| `dueno/barbero` | **ninguno** | **Sin convertir** | tarjetas: 6 |
+Cinco pestañas, como el barbero: Mi local · Equipo · Clientes · Estadísticas ·
+Ajustes (ver `TABLEROS-BARBERIA.md`). La pestaña Cola (`dueno/agenda`) se
+quitó —repetía la fila de Mi local— y `components/clientes-local.tsx` pasó a
+ser la pestaña Clientes.
+
+| Pantalla | Tablero | Estado |
+|---|---|---|
+| `dueno/dashboard` (Mi local) | `D2-Barberia-Cola` | **Convertida** · sin tarjetas, filas planas, hoja D2 por turno |
+| `dueno/equipo` | `D2-Barberia-Equipo` | **Nueva, D2** · solicitudes en bloque oscuro, chips EMPLEADO/RENTA |
+| `dueno/clientes` | (el de `Barbero-Clientes`) | **Nueva, D2** |
+| `dueno/stats` | `D2-Barberia-Stats` | **Convertida** |
+| `dueno/config` (Ajustes) | **ninguno** | **Menú convertido** (grupos con rótulo); las secciones de dentro conservan sus tarjetas |
+| `dueno/barbero` (ficha) | **ninguno** | **Pasada ligera**: encabezado, rótulos y filas planas |
 
 ### Entrada — 13 pantallas, 0 con tablero
 
@@ -165,8 +171,7 @@ Por daño visible, no por comodidad:
 
 1. **`agenda-trabajo.tsx`** — es la pantalla en la que un barbero vive todo el
    día, y la comparten dos paneles. Tiene tablero (`D2-Barbero-Agenda`).
-2. **`dueno/dashboard` + `dueno/agenda`** — lo primero que ve el dueño. Tienen
-   tablero.
+2. ~~**`dueno/dashboard` + `dueno/agenda`**~~ — hecho el 23 sep (5 pestañas).
 3. **Los dos `stats`** — tienen tablero, y son casi solo cifras: Anton hace la
    mayor parte del trabajo.
 4. **`barbero/clientes`** + `clientes-local.tsx` — tienen tablero.

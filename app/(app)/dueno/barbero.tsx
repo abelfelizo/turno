@@ -12,6 +12,7 @@ import Hoja from '../../../components/hoja'
 import Resenas from '../../../components/resenas'
 import { useGestoVolver } from '../../../components/gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Encabezado, Rotulo } from '../../../components/d2'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -293,11 +294,12 @@ export default function BarberoDelLocal() {
   const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
   return (
-    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 12, paddingBottom: 40 }}>
       <TouchableOpacity style={s.volver} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Equipo</Text>
+        <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Volver</Text>
       </TouchableOpacity>
-      <Display size={28} style={{ marginBottom: 6 }}>{nombre || 'Barbero'}</Display>
+      <Encabezado titulo={nombre || 'Barbero'}
+        sub={perfilRow?.suspendido ? 'Suspendido · no le entra trabajo' : autonomo ? 'Renta su silla' : puedoEditarle ? 'Empleado del local' : null} />
 
       {/* La modalidad la hereda del tipo del local, pero una barbería de
           EMPLEADOS puede alquilar un asiento suelto. Ese cambio es del dueño: el
@@ -309,7 +311,7 @@ export default function BarberoDelLocal() {
           aquí ni se ofrece, que es distinto de ofrecerlo y dar error. Para tener
           empleados de verdad, se cambia la modalidad DEL LOCAL, y entonces la
           barbería pasa a pagar por ellos. */}
-      <Text style={s.flabelTop}>CÓMO TRABAJA AQUÍ</Text>
+      <Rotulo style={{ marginBottom: 12 }}>Cómo trabaja aquí</Rotulo>
       {localDeAlquiler ? (
         <>
           <View style={s.modRow}>
@@ -318,7 +320,7 @@ export default function BarberoDelLocal() {
           <Text style={s.sub}>
             Aquí alquilas asientos, así que cada barbero es su propio negocio: paga su silla y
             decide sus servicios, precios y horario. Si quieres tener empleados, cámbialo en
-            Configuración → Cómo trabaja tu local; el local pasa a pagar por ellos.
+            Ajustes → Cómo trabaja tu local; el local pasa a pagar por ellos.
           </Text>
         </>
       ) : (
@@ -339,10 +341,7 @@ export default function BarberoDelLocal() {
         </>
       )}
 
-      <View style={s.secRow}>
-        <Text style={s.sec}>SERVICIOS</Text>
-        {puedoEditarle && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
-      </View>
+      <Rotulo accion={puedoEditarle ? '+ Agregar' : undefined} onAccion={() => abrirServicio()} style={{ marginTop: 8 }}>Servicios</Rotulo>
       {servicios.length === 0 && <Text style={s.empty}>Todavía no tiene servicios.</Text>}
       {servicios.map((sv: any) => (
         <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
@@ -357,7 +356,7 @@ export default function BarberoDelLocal() {
         </View>
       ))}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>HORARIO</Text>
+      <Rotulo>Horario</Rotulo>
       {DIAS.map(d => {
         const h = horarioDe(d.n); const abierto = h && h.activo
         return (
@@ -389,7 +388,7 @@ export default function BarberoDelLocal() {
           Las dos juntas y en este orden a propósito: suspender es lo que casi
           siempre se quiere —dos días, una semana— y desvincular es la que no
           tiene vuelta. Cada una dice lo que hace ANTES de tocarla. */}
-      <Text style={[s.sec, { marginTop: 26 }]}>SU SITIO EN EL LOCAL</Text>
+      <Rotulo style={{ marginBottom: 4 }}>Su sitio en el local</Rotulo>
 
       {/* QUIÉN LE DA EL TRABAJO (migración 107).
           Solo para el empleado: el autónomo manda en su silla y aquí no hay
@@ -481,9 +480,8 @@ function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: ()
 }
 
 const s = StyleSheet.create({
-  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
-  accionFilaOn: { borderColor: COLORS.success },
+  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  accionFilaOn: { borderLeftWidth: 3, borderLeftColor: COLORS.success, paddingLeft: 10 },
   accionFilaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   accionFilaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   pantalla: { flex: 1 },
@@ -494,19 +492,19 @@ const s = StyleSheet.create({
   sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
   flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 4, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
+  modChip: { flex: 1, borderWidth: 2, borderColor: COLORS.ink, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
   accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 12 },
   empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 6, padding: 14, marginBottom: 8 },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 4, padding: 14, marginBottom: 8 },
+  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   diaL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   diaH: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
   modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },

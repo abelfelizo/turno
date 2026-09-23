@@ -164,5 +164,6 @@ principal en un dato que no se puede usar sin abrir la agenda igual.
 | Servicio habitual guardado + favoritos en la fila | `TABLEROS-CLIENTE.md` |
 | Gestos que piden APK nuevo (gesture-handler, swipe entre pestañas, splash) | `CONTEXT.md` |
 | La guarda de panel, sin publicar | commit `5e42fe6` |
-| El panel de barbería, sin convertir: estructura propuesta, esperando decisiones | `TABLEROS-BARBERIA.md` |
-| Clientes del dueño cuenta solo las visitas de su propia silla (sería la 120) | `TABLEROS-BARBERIA.md` |
+| ~~El panel de barbería~~ — hecho el 23 sep (5 pestañas). Queda decidir el independiente (sin panel de barbería o con él) | `TABLEROS-BARBERIA.md` |
+| Migración 120 (clientes del dueño con las visitas del local): preparada y probada, **sin aplicar** | `TABLEROS-BARBERIA.md` |
+| Estadísticas del barbero en «Todo» con más de 1.000 visitas: el total sale corto (límite de la API) | `TABLEROS-BARBERIA.md` |

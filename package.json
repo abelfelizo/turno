@@ -6,7 +6,7 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
-    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad && npm run test:db:viaje && npm run test:db:obstaculos && npm run test:db:puertas && npm run test:db:horarios && npm run test:db:sincita && npm run test:db:modo && npm run test:db:confianza && npm run test:db:suscripcion && npm run test:db:jornada && npm run test:db:madrugada && npm run test:db:doble && npm run test:db:fila",
+    "test:db": "npm run test:db:cola && npm run test:db:autonomia && npm run test:db:fidelidad && npm run test:db:viaje && npm run test:db:obstaculos && npm run test:db:puertas && npm run test:db:horarios && npm run test:db:sincita && npm run test:db:modo && npm run test:db:confianza && npm run test:db:suscripcion && npm run test:db:jornada && npm run test:db:madrugada && npm run test:db:doble && npm run test:db:fila && npm run test:db:clientes",
     "test:db:cola": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/motor_cola.test.sql",
     "test:db:autonomia": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/autonomia.test.sql",
     "test:db:fidelidad": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/fidelidad.test.sql",
@@ -22,7 +22,8 @@
     "typecheck": "tsc --noEmit",
     "test:db:madrugada": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/madrugada.test.sql",
     "test:db:doble": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/doble_servicio.test.sql",
-    "test:db:fila": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/fila_a_mano.test.sql"
+    "test:db:fila": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/fila_a_mano.test.sql",
+    "test:db:clientes": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=0 -f supabase/tests/clientes_dueno.test.sql"
   },
   "dependencies": {
     "@expo-google-fonts/anton": "^0.4.2",

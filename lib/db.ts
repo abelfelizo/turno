@@ -67,6 +67,17 @@ export async function getSolicitudesPendientes(negocio_id: string) {
   return data || []
 }
 
+/** Las invitaciones que el local mandó y el barbero aún no contesta (110).
+ *  El otro lado de la bandeja: sin esto, quien invita no ve a nadie hasta que
+ *  el otro acepta, y no sabe si le llegó. */
+export async function getInvitacionesEnviadas(negocio_id: string) {
+  const { data, error } = await supabase.from(T('perfiles'))
+    .select('id, created_at, tipo_servicio, turno_usuarios(nombre)')
+    .eq('negocio_id', negocio_id).eq('pendiente_de', 'barbero').eq('activo', true)
+  if (error) throw error
+  return data || []
+}
+
 /**
  * LOS DOS SÍES (migración 110).
  *
@@ -1435,6 +1446,36 @@ export async function getClientesDelLocal(negocio_id: string) {
   }))
 }
 
+/**
+ * LA CARTERA DEL LOCAL VISTA POR QUIEN LO ADMINISTRA (migración 120).
+ *
+ * `turno_clientes_del_local` cuenta solo las visitas de la silla de quien
+ * pregunta —es la del barbero, «contigo»—, así que al dueño le salían a cero
+ * los clientes de sus empleados. La 120 añade la del administrador: visitas de
+ * las sillas que manda (la suya y sus empleados; no las que alquila) y con
+ * quién se corta cada uno.
+ *
+ * Mientras la 120 no esté aplicada se cae a la vieja, y se devuelve
+ * `delLocal: false` para que la pantalla diga que los números son solo de su
+ * silla en vez de enseñar ceros como si fueran ciertos.
+ */
+export async function getClientesDelLocalAdmin(negocio_id: string): Promise<{ lista: any[]; delLocal: boolean }> {
+  const { data, error } = await supabase.rpc('turno_clientes_del_local_admin', { p_negocio: negocio_id })
+  if (error) {
+    const falta = error.code === 'PGRST202' || error.code === '42883' || /could not find the function/i.test(error.message ?? '')
+    if (!falta) throw error
+    return { lista: await getClientesDelLocal(negocio_id), delLocal: false }
+  }
+  return {
+    delLocal: true,
+    lista: (data || []).map((c: any) => ({
+      cliente_id: c.cliente_id, nombre: c.nombre, telefono: c.telefono,
+      visitas: Number(c.visitas), total: Number(c.total), ultima: c.ultima, desde: c.desde,
+      barbero: c.barbero ?? null,
+    })),
+  }
+}
+
 // Notas privadas a nivel persona (siguen al barbero entre locales).
 export async function getNotaBarbero(usuario_barbero_id: string, cliente_id: string) {
   const { data } = await supabase.from(T('notas_barbero')).select('nota').eq('usuario_barbero_id', usuario_barbero_id).eq('cliente_id', cliente_id).maybeSingle()
@@ -1585,6 +1626,25 @@ export async function getVisitasPerfil(perfil_id: string, desde: string, hasta: 
     .eq('perfil_id', perfil_id).gte('fecha', desde).lte('fecha', hasta)
     .order('fecha', { ascending: false }).order('created_at', { ascending: false })
     .limit(5000)
+  if (error) throw error
+  return data || []
+}
+
+/**
+ * Las visitas del LOCAL entre dos fechas, para las estadísticas del dueño.
+ *
+ * No hace falta filtrar a mano qué sillas cuentan: la política de lectura
+ * (`turno_manda_en_la_silla`) ya le da al administrador exactamente las que
+ * manda —la suya y las de sus empleados— y le esconde las que alquila, cuyo
+ * dinero es del inquilino. Lo alquilado se cuenta aparte, en número de
+ * visitas, con `getStatsPeriodoNegocio`.
+ */
+export async function getVisitasNegocio(negocio_id: string, desde: string, hasta: string) {
+  const { data, error } = await supabase.from(T('historial_visitas'))
+    .select('id, fecha, origen, precio_cobrado, cliente_id, perfil_id, turno_servicios(nombre), turno_perfiles(usuario_id, turno_usuarios(nombre))')
+    .eq('negocio_id', negocio_id).gte('fecha', desde).lte('fecha', hasta)
+    .order('fecha', { ascending: false })
+    .limit(10000)
   if (error) throw error
   return data || []
 }

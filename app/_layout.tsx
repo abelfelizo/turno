@@ -53,7 +53,7 @@ const DESTINO_PUSH: Record<string, { panel: PanelActivo; ruta: string }> = {
   cita:   { panel: 'cliente',  ruta: INICIO_DE_PANEL.cliente },
   premio: { panel: 'cliente',  ruta: '/(app)/cliente/barberia' },
   agenda: { panel: 'silla',    ruta: '/(app)/barbero/agenda' },
-  equipo: { panel: 'barberia', ruta: INICIO_DE_PANEL.barberia },
+  equipo: { panel: 'barberia', ruta: '/(app)/dueno/equipo' },
 }
 
 export default function RootLayout() {
