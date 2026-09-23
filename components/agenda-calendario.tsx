@@ -58,12 +58,12 @@ const FRASE_CITA: Record<string, string> = {
 }
 /** El estado en la línea de la lista: corto, y con color solo si pide algo. */
 const CORTO: Record<string, { t: string; c: string }> = {
-  creada: { t: 'sin confirmar', c: COLORS.warning },
-  confirmada: { t: 'confirmada', c: COLORS.textMid },
-  no_confirmada: { t: 'no confirmó', c: COLORS.warning },
-  en_camino: { t: 'en camino', c: COLORS.blue },
-  atendida: { t: 'atendida', c: COLORS.success },
-  no_llego: { t: 'no llegó', c: COLORS.redDark },
+  creada: { t: 'sin confirmar', c: '#6B6B6B' },
+  confirmada: { t: 'confirmada', c: '#0B0B0C' },
+  no_confirmada: { t: 'no confirmó', c: '#6B6B6B' },
+  en_camino: { t: 'en camino', c: '#1E4FD8' },
+  atendida: { t: 'atendida', c: '#6B6B6B' },
+  no_llego: { t: 'no llegó', c: '#C21D14' },
 }
 
 function horaAhora() {
@@ -207,7 +207,7 @@ export default function AgendaCalendario() {
     setHoja({ tipo: 'bloqueo', item: b })
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator color={COLORS.red} size="large" /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator color={COLORS.ink} size="large" /></View>
   if (fallo) return <View style={s.center}><NoCargo que="tu agenda" onReintentar={() => { setLoading(true); void correr() }} /></View>
 
   const dias = Array.from({ length: DIAS_ADELANTE + 2 }, (_, i) => sumarDias(hoy, i - 1))
@@ -219,7 +219,7 @@ export default function AgendaCalendario() {
 
   return (
     <View style={s.container}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 32 }}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void correr() }} />}>
         <PanelBadge />
         <Encabezado titulo="Mi agenda" sub={[fechaLarga(fechaDeISO(fecha)), negocio?.nombre].filter(Boolean).join(' · ')} />
@@ -236,7 +236,7 @@ export default function AgendaCalendario() {
               </View>
               <TouchableOpacity style={s.compartir} activeOpacity={0.85} accessibilityRole="button"
                 onPress={() => Share.share({ message: `Reserva conmigo en Turno con mi código de barbero ${usuario.codigo_barbero}` })}>
-                <Ionicons name="share-outline" size={15} color="#fff" />
+                <Ionicons name="share-outline" size={15} color={COLORS.ink} />
                 <Text style={s.compartirT}>Compartir</Text>
               </TouchableOpacity>
             </View>
@@ -244,8 +244,8 @@ export default function AgendaCalendario() {
         )}
 
         {/* ── EL DÍA. Arriba, porque manda: lo que eliges es lo que ves. ── */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18, marginHorizontal: -18 }}
-          contentContainerStyle={{ gap: 7, paddingHorizontal: 18 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 18, marginHorizontal: -20 }}
+          contentContainerStyle={{ gap: 7, paddingHorizontal: 20 }}>
           {dias.map(d => {
             const on = d === fecha
             const dd = fechaDeISO(d)
@@ -348,7 +348,7 @@ export default function AgendaCalendario() {
           {/* Bloquear cierra horas al público: deja de entrar trabajo. Por
               eso va en rojo y en contorno, lejos de lo que trae clientes. */}
           <TouchableOpacity style={s.bloquear} onPress={() => abrirBloqueo()} accessibilityRole="button">
-            <Ionicons name="lock-closed-outline" size={16} color={COLORS.red} />
+            <Ionicons name="lock-closed-outline" size={16} color={COLORS.ink} />
             <Text style={s.bloquearT}>Bloquear una hora{esHoy ? '' : ' de este día'}</Text>
           </TouchableOpacity>
         </View>
@@ -487,33 +487,32 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   codigo: { marginTop: 16, borderRadius: 8, backgroundColor: COLORS.carbon, overflow: 'hidden' },
   codigoFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
-  codigoL: { fontFamily: FONTS.extrabold, fontSize: 10, letterSpacing: 2, color: COLORS.textLight },
-  codigoV: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 2, marginTop: 2 },
-  compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
-  compartirT: { fontFamily: FONTS.extrabold, fontSize: 13, color: '#fff' },
-  dia: { width: 52, paddingVertical: 9, alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+  codigoL: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 2, color: COLORS.textLight },
+  codigoV: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 31, color: '#fff', letterSpacing: 2, marginTop: 2 },
+  compartir: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
+  compartirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
+  dia: { width: 52, height: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border },
   diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
-  diaSem: { fontFamily: FONTS.extrabold, fontSize: 9.5, letterSpacing: 1, color: COLORS.textLight },
-  diaNum: { fontFamily: FONTS.display, fontSize: 21, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
+  diaSem: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textMid, letterSpacing: 0.4 },
+  diaNum: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink, marginTop: 1 },
   diaPunto: { width: 5, height: 5, borderRadius: 3, marginTop: 3, backgroundColor: 'transparent' },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  filaDeuda: { borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 10 },
-  filaHora: { width: 52, fontFamily: FONTS.display, fontSize: 21, color: COLORS.blue },
-  filaN: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
-  filaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  vino: { fontFamily: FONTS.extrabold, fontSize: 12.5, color: COLORS.red },
+  filaDeuda: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
+  filaHora: { width: 52, fontFamily: FONTS.monoBold, fontSize: 21, color: COLORS.blue },
+  filaN: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  filaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  vino: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.red },
   jornada: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, marginTop: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  vacio: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, paddingVertical: 16 },
-  canceladas: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, marginTop: 10 },
-  bloquear: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, marginTop: 24, borderWidth: 2, borderColor: COLORS.red },
-  bloquearT: { fontFamily: FONTS.extrabold, fontSize: 14, color: COLORS.red },
-  cerradaT: { fontFamily: FONTS.medium, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginVertical: 8 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 16 },
+  canceladas: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 10 },
+  bloquear: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, height: 52, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, marginTop: 8 },
+  bloquearT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  cerradaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginVertical: 8 },
   paso: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  pasoL: { flex: 1, fontFamily: FONTS.bold, fontSize: 14, color: COLORS.textMid },
+  pasoL: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   pasoBtn: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  pasoBtnT: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  pasoV: { width: 96, textAlign: 'center', fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  lbl: { fontFamily: FONTS.extrabold, fontSize: 11, letterSpacing: 2, color: COLORS.textLight, marginTop: 18 },
-  input: { borderWidth: 1, borderColor: COLORS.border, height: 50, paddingHorizontal: 14, marginTop: 8,
-    fontFamily: FONTS.medium, fontSize: 15, color: COLORS.ink, backgroundColor: COLORS.surface },
+  pasoBtnT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
+  pasoV: { width: 96, textAlign: 'center', fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  lbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.textLight, marginTop: 18 },
+  input: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginBottom: 12, marginTop: 8 },
 })

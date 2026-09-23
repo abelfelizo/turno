@@ -417,7 +417,7 @@ export default function Config() {
     return () => sub.remove()
   }, [seccion])
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return (
     <View style={s.center}>
       <NoCargo que="tu configuración" onReintentar={() => { setLoading(true); cargar() }} />
@@ -502,7 +502,7 @@ export default function Config() {
   ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 32 }}>
       <PanelBadge />
       {/* ── MENÚ ─────────────────────────────────────────────────────────────
           La pantalla era una tira de once secciones seguidas: para saber cada
@@ -723,7 +723,7 @@ export default function Config() {
             cartel que pide algo imposible es peor que ningún cartel. */}
         {perfil?.jornada_sembrada && (
           <View style={s.sembrada}>
-            <Ionicons name="information-circle" size={18} color={COLORS.red} />
+            <Ionicons name="information-circle" size={18} color={COLORS.ink} />
             <Text style={s.sembradaT}>
               {empleado
                 ? `Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día. Si no es el tuyo, díselo a ${negocioNombre ?? 'tu barbería'}: el horario lo cambia el local.`
@@ -974,7 +974,7 @@ export default function Config() {
           )
         })}
         <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
-          <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
+          <Ionicons name="add" size={18} color={COLORS.ink} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
         </TouchableOpacity>
 
         {/* LA SALIDA.
@@ -986,7 +986,7 @@ export default function Config() {
             y a welcome solo se llega con CERO membresías. El que trabaja en dos
             sitios y lo sacan de uno se quedaba sin puerta. */}
         <TouchableOpacity style={s.otroLocal} onPress={() => router.push('/(auth)/barbero-tipo')}>
-          <Ionicons name="storefront-outline" size={17} color={COLORS.red} />
+          <Ionicons name="storefront-outline" size={17} color={COLORS.ink} />
           <Text style={s.otroLocalT}>Montar mi propio espacio</Text>
         </TouchableOpacity>
         <Text style={s.otroLocalD}>
@@ -1052,7 +1052,7 @@ export default function Config() {
 
       <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
         <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
-          <Ionicons name="trash-outline" size={18} color="#fff" />
+          <Ionicons name="trash-outline" size={18} color={COLORS.redText} />
           <View style={{ flex: 1 }}>
             <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
             <Text style={s.cuentaBorrarD}>Borra tus datos, cancela todo lo que tengas abierto y no se puede deshacer.</Text>
@@ -1139,7 +1139,7 @@ export default function Config() {
               : `Se dejan ${hrBuf} minutos libres entre un cliente y el siguiente. En una jornada de 9 horas son casi ${Math.round(hrBuf * 9 * 60 / 45 / 60)} h de silla vacía.`}
           </Text>
           <TouchableOpacity style={s.aplicarTodos} onPress={aplicarRespiroATodos} disabled={busy}>
-            <Ionicons name="copy-outline" size={16} color={COLORS.red} />
+            <Ionicons name="copy-outline" size={16} color={COLORS.ink} />
             <Text style={s.aplicarTodosT}>Usar este respiro todos los días</Text>
           </TouchableOpacity>
           <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
@@ -1169,97 +1169,96 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 const s = StyleSheet.create({
   menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   menuIcono: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  menuT: { fontFamily: FONTS.extrabold, color: COLORS.ink, fontSize: 15 },
-  menuV: { fontFamily: FONTS.medium, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  menuT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
+  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { fontFamily: FONTS.bold, color: COLORS.textMid, fontSize: 14.5 },
+  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 14.5 },
   bufNota: { color: COLORS.textMid, fontSize: 12.5, lineHeight: 17, marginTop: -4, marginBottom: 10 },
   aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
-  aplicarTodosT: { color: COLORS.red, fontSize: 13.5, fontWeight: '700' },
+  aplicarTodosT: { color: COLORS.blue, fontSize: 13.5, fontWeight: '700' },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  sec: { fontFamily: FONTS.extrabold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, paddingBottom: 8, borderBottomWidth: 2, borderBottomColor: COLORS.ink },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   perfilCard: { paddingBottom: 6, marginBottom: 18 },
   perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
-  perfilHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
+  perfilHint: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
   codigoBox: { backgroundColor: COLORS.carbon, borderRadius: 8, padding: 12, marginBottom: 10 },
-  codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
-  codigoVal: { fontFamily: FONTS.display, fontSize: 22, color: '#fff', letterSpacing: 3, marginTop: 2 },
-  codigoHint: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
-  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg },
-  fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
+  codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: COLORS.onCarbonMid, letterSpacing: 1 },
+  codigoVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff', letterSpacing: 3, marginTop: 2 },
+  codigoHint: { fontFamily: FONTS.regular, fontSize: 10, color: COLORS.onCarbonMid, marginTop: 3 },
+  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg },
+  fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.semibold },
   multiline: { minHeight: 64, textAlignVertical: 'top' },
   dosCol: { flexDirection: 'row', gap: 10 },
   domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: COLORS.border },
-  domicilioL: { fontFamily: FONTS.extrabold, fontSize: 14, color: COLORS.ink },
-  domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  domicilioL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  domicilioD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   guardarBtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-  guardarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', letterSpacing: 0 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
   susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 8, padding: 16, marginBottom: 8 },
-  susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
-  susMonto: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
+  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 3 },
+  susMonto: { fontFamily: FONTS.monoBold, fontSize: 20, color: '#fff' },
   regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  reglaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  reglaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  reglaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  reglaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
-  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: COLORS.border, padding: 15 },
+  accion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
+  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: COLORS.border, padding: 15, borderRadius: 8 },
   dot: { width: 12, height: 12, borderRadius: 6 },
-  estadoD2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  estadoT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.textMid, flex: 1 },
-  estadoActivo: { fontFamily: FONTS.bold, fontSize: 12 },
+  estadoD2: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  estadoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textMid, flex: 1 },
+  estadoActivo: { fontFamily: FONTS.semibold, fontSize: 12 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  servName: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
+  servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
-  deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
-  vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
-  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 12, paddingVertical: 4, marginTop: -4, marginBottom: 12 },
-  sembradaT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
-  cruza: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.red, marginTop: 6, marginBottom: 2, lineHeight: 17 },
+  nota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
+  deLocal: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
+  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 4, marginTop: -4, marginBottom: 12 },
+  sembradaT: { flex: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
+  cruza: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.redText, marginTop: 6, marginBottom: 2, lineHeight: 17 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  diaL: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
+  diaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingLeft: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-  localOn: { borderLeftColor: COLORS.red },
-  localN: { fontFamily: FONTS.display, letterSpacing: -0.3, fontSize: 18, color: COLORS.ink },
-  localE: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 2, borderColor: COLORS.red, height: 48, marginTop: 12, marginBottom: 8 },
-  otroLocalT: { fontFamily: FONTS.extrabold, fontSize: 14, color: COLORS.red },
-  otroLocalD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid,
-    lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
+  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  localOn: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
+  localN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 18, color: COLORS.ink },
+  localE: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, height: 48, marginTop: 12, marginBottom: 8 },
+  otroLocalT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  otroLocalD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
   miSusCard: { borderWidth: 1, borderColor: COLORS.border, padding: 16, marginBottom: 12 },
   // Vencida se ve distinto porque ya no es un dato, es una consecuencia: la
   // silla está apagada y el barbero tiene que poder verlo sin leer el párrafo.
-  miSusCardOff: { borderColor: COLORS.red, backgroundColor: COLORS.dangerLight },
-  miSusEstado: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink },
-  miSusD: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
-  miSusNota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
+  miSusCardOff: { borderColor: COLORS.border, backgroundColor: COLORS.dangerLight },
+  miSusEstado: { fontFamily: FONTS.semibold, fontSize: 20, color: COLORS.ink },
+  miSusD: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
+  miSusNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
   rolChip: { flex: 1, paddingVertical: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
-  rolChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
+  rolChipT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cuentaIcono: { width: 32, height: 32, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  cuentaT: { fontFamily: FONTS.extrabold, fontSize: 15, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red, padding: 14, marginBottom: 16 },
-  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
+  cuentaIcono: { width: 32, height: 32, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'transparent', padding: 14, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
+  cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
   mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
-  flabel: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
+  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40 },
+  flabel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
+  input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  stepT: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
-  mbtn: { backgroundColor: COLORS.red, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
-  mbtnT: { fontFamily: FONTS.display, fontSize: 18, color: '#fff', letterSpacing: -0.3 },
+  stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
+  stepVal: { fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
+  mbtn: { backgroundColor: COLORS.ink, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
+  mbtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   mbtnGhost: { padding: 14, alignItems: 'center', marginTop: 6 },
   mbtnGhostT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 12 },

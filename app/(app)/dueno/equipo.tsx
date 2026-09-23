@@ -30,13 +30,12 @@ import { nombreOficio } from '../../../types'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Rotulo } from '../../../components/d2'
 import { Titulo, Sub, BotonRojo, AhoraNo } from '../../../components/hoja-piezas'
-import { Fila, Iniciales, Punto, Estado, Flecha, Tarjeta, Boton, BotonIcono, Nota } from '../../../components/turno-ui'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 
 /** El rol se llama ADMINISTRADOR, no dueño: puede ser quien montó el local o
  *  alguien designado. El valor `dueno` de la base se queda como está. */
-const ROL: Record<string, string> = { empleado: 'Empleado', barbero_renta: 'Renta', dueno: 'Administrador' }
+const ROL: Record<string, string> = { empleado: 'EMPLEADO', barbero_renta: 'RENTA', dueno: 'ADMINISTRADOR' }
 
 export default function Equipo() {
   const insets = useSafeAreaInsets()
@@ -160,13 +159,12 @@ export default function Equipo() {
     } as any)
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="tu equipo" onReintentar={() => { setLoading(true); void correr() }} /></View>
 
   // Los suspendidos al final: siguen siendo del local, pero no trabajan hoy.
   const activos = equipo.filter(p => !p.suspendido)
   const suspendidos = equipo.filter(p => p.suspendido)
-  const lista = [...activos, ...suspendidos]
 
   return (
     <View style={s.container}>
@@ -181,75 +179,77 @@ export default function Equipo() {
 
         {/* SOLICITUDES: quien espera una respuesta va primero. */}
         {solicitudes.length > 0 && (
-          <Tarjeta style={s.solicitudes}>
-            <View style={s.solCab}>
-              <Punto color={COLORS.red} />
-              <Text style={s.overline}>
-                {solicitudes.length === 1 ? 'Una solicitud' : `${solicitudes.length} solicitudes`}
-              </Text>
-            </View>
-            {solicitudes.map((p: any, i: number) => (
-              <Fila key={p.id} ultima={i === solicitudes.length - 1}
-                inicio={<Iniciales nombre={p.turno_usuarios?.nombre} size={38} />}
-                titulo={p.turno_usuarios?.nombre ?? 'Profesional'}
-                meta={`${nombreOficio(p.tipo_servicio)} · quiere ${esRentado ? 'rentar una silla' : 'unirse'}`}
-                fin={
-                  <View style={s.solAcc}>
-                    <BotonIcono icono="close" etiqueta={`Rechazar a ${p.turno_usuarios?.nombre ?? ''}`}
-                      onPress={() => { if (ocupado !== p.id) rechazar(p) }} color={COLORS.redText} />
-                    <Boton texto="Aprobar" onPress={() => aprobar(p)} ocupado={ocupado === p.id} style={s.solSi} />
-                  </View>
-                } />
+          <View style={s.solicitudes}>
+            <Text style={s.solT}>
+              {solicitudes.length === 1 ? 'UNA SOLICITUD' : `${solicitudes.length} SOLICITUDES`}
+            </Text>
+            {solicitudes.map((p: any) => (
+              <View key={p.id} style={s.sol}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.solNombre} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                  <Text style={s.solMeta}>{nombreOficio(p.tipo_servicio)} · quiere {esRentado ? 'rentar una silla' : 'unirse'}</Text>
+                </View>
+                <TouchableOpacity style={s.solNo} onPress={() => rechazar(p)} disabled={ocupado === p.id}
+                  accessibilityRole="button" accessibilityLabel={`Rechazar a ${p.turno_usuarios?.nombre ?? ''}`}>
+                  <Ionicons name="close" size={20} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={s.solSi} onPress={() => aprobar(p)} disabled={ocupado === p.id} accessibilityRole="button">
+                  {ocupado === p.id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.solSiT}>APROBAR</Text>}
+                </TouchableOpacity>
+              </View>
             ))}
-          </Tarjeta>
+          </View>
         )}
 
         <Rotulo>{esRentado ? 'Sillas rentadas' : 'Sillas'}{equipo.length ? ` · ${equipo.length}` : ''}</Rotulo>
         {equipo.length === 0 && (
-          <Nota style={{ marginTop: 0 }}>Todavía no trabaja nadie aquí. Comparte el código del local o invita a alguien con el suyo.</Nota>
+          <Text style={s.vacio}>Todavía no trabaja nadie aquí. Comparte el código del local o invita a alguien con el suyo.</Text>
         )}
-        {lista.map((p: any, i: number) => {
+        {[...activos, ...suspendidos].map((p: any) => {
           const tu = p.id === perfilPropio
           const cod = p.turno_usuarios?.codigo_barbero
-          const meta = [ROL[p.rol], nombreOficio(p.tipo_servicio)].filter(Boolean).join(' · ')
           return (
-            <Fila key={p.id} ultima={i === lista.length - 1} onPress={() => abrir(p)} apagada={p.suspendido}
-              inicio={<Iniciales nombre={p.turno_usuarios?.nombre} oscuro={tu} />}
-              titulo={p.turno_usuarios?.nombre ?? 'Profesional'}
-              tituloExtra={tu ? <Text style={s.tu}>  Tú</Text> : null}
-              meta={meta}
-              fin={
-                <View style={s.finFila}>
-                  {p.suspendido ? (
-                    <>
-                      <Estado texto="Suspendido" color={COLORS.redText} />
-                      <TouchableOpacity style={s.reactivar} onPress={() => reactivar(p)} disabled={ocupado === p.id} accessibilityRole="button">
-                        {ocupado === p.id ? <ActivityIndicator size="small" color={COLORS.ink} /> : <Text style={s.reactivarT}>Reactivar</Text>}
-                      </TouchableOpacity>
-                    </>
-                  ) : cod ? (
-                    // El código del barbero es como sus clientes lo encuentran; el
-                    // dueño es quien lo tiene a mano cuando alguien pregunta por él.
-                    <BotonIcono icono="share-outline" etiqueta={`Compartir el código de ${p.turno_usuarios?.nombre ?? ''}`}
-                      onPress={() => Share.share({
-                        message: `Reserva con ${p.turno_usuarios?.nombre ?? 'nuestro barbero'} en ${negocio?.nombre ?? 'la barbería'}.\n\nDescarga Turno y búscalo con su código de barbero:\n\n${cod}`,
-                      })} />
-                  ) : null}
-                  <Flecha />
+            <View key={p.id} style={[s.fila, p.suspendido && { opacity: 0.75 }]}>
+              <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => abrir(p)} activeOpacity={0.7} accessibilityRole="button">
+                <View style={s.nombreFila}>
+                  <Text style={s.nombre} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                  {tu && <Text style={s.tu}>TÚ</Text>}
                 </View>
-              } />
+                <View style={s.chips}>
+                  {!!ROL[p.rol] && <Text style={[s.chip, p.rol === 'barbero_renta' && s.chipAzul]}>{ROL[p.rol]}</Text>}
+                  {p.suspendido && <Text style={[s.chip, s.chipRojo]}>SUSPENDIDO</Text>}
+                  <Text style={s.meta} numberOfLines={1}>{nombreOficio(p.tipo_servicio)}</Text>
+                </View>
+              </TouchableOpacity>
+              {p.suspendido ? (
+                <TouchableOpacity style={s.reactivar} onPress={() => reactivar(p)} disabled={ocupado === p.id} accessibilityRole="button">
+                  <Text style={s.reactivarT}>Reactivar</Text>
+                </TouchableOpacity>
+              ) : cod ? (
+                // El código del barbero es como sus clientes lo encuentran; el
+                // dueño es quien lo tiene a mano cuando alguien pregunta por él.
+                <TouchableOpacity style={s.icono} accessibilityRole="button" accessibilityLabel={`Compartir el código de ${p.turno_usuarios?.nombre ?? ''}`}
+                  onPress={() => Share.share({
+                    message: `Reserva con ${p.turno_usuarios?.nombre ?? 'nuestro barbero'} en ${negocio?.nombre ?? 'la barbería'}.\n\nDescarga Turno y búscalo con su código de barbero:\n\n${cod}`,
+                  })}>
+                  <Ionicons name="share-outline" size={18} color={COLORS.ink} />
+                </TouchableOpacity>
+              ) : null}
+              <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+            </View>
           )
         })}
 
         {invitados.length > 0 && (
           <>
             <Rotulo>Invitados · esperando su respuesta</Rotulo>
-            {invitados.map((p: any, i: number) => (
-              <Fila key={p.id} ultima={i === invitados.length - 1} apagada
-                inicio={<Iniciales nombre={p.turno_usuarios?.nombre} />}
-                titulo={p.turno_usuarios?.nombre ?? 'Profesional'}
-                meta={`${nombreOficio(p.tipo_servicio)} · le llegó la invitación`}
-                fin={<Estado texto="Pendiente" />} />
+            {invitados.map((p: any) => (
+              <View key={p.id} style={s.fila}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[s.nombre, { color: COLORS.textMid }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
+                  <Text style={s.meta}>{nombreOficio(p.tipo_servicio)} · le llegó la invitación</Text>
+                </View>
+              </View>
             ))}
           </>
         )}
@@ -257,16 +257,22 @@ export default function Equipo() {
         {/* TRAER A ALGUIEN: dos caminos. Compartir el código es esperar a que
             el otro dé el paso; invitar con el suyo es darlo tú. */}
         <Rotulo>{esRentado ? 'Rentar una silla' : 'Agregar barbero'}</Rotulo>
-        <Fila onPress={compartirCodigoLocal}
-          inicio={<View style={s.cuadro}><Ionicons name="share-social-outline" size={18} color={COLORS.ink} /></View>}
-          titulo="Compartir el código del local"
-          meta="Pide entrar y lo apruebas aquí"
-          fin={<View style={s.finFila}><Text style={s.codigo}>{negocio?.codigo_acceso ?? '—'}</Text><Flecha /></View>} />
-        <Fila ultima onPress={() => { setCodigoInv(''); setInvitando(true) }}
-          inicio={<View style={s.cuadro}><Ionicons name="person-add-outline" size={18} color={COLORS.ink} /></View>}
-          titulo="Invitar con su código"
-          meta="Si ya usa Turno, le llega la invitación y decide él"
-          fin={<Flecha />} />
+        <TouchableOpacity style={s.fila} onPress={compartirCodigoLocal} accessibilityRole="button">
+          <View style={s.cuadro}><Ionicons name="share-social-outline" size={18} color="#fff" /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.nombre}>Compartir el código del local</Text>
+            <Text style={s.meta}>{negocio?.codigo_acceso ?? '—'} · pide entrar y lo apruebas aquí</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+        </TouchableOpacity>
+        <TouchableOpacity style={s.fila} onPress={() => { setCodigoInv(''); setInvitando(true) }} accessibilityRole="button">
+          <View style={s.cuadro}><Ionicons name="person-add-outline" size={18} color="#fff" /></View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={s.nombre}>Invitar con su código</Text>
+            <Text style={s.meta}>Si ya usa Turno, le llega la invitación y decide él</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+        </TouchableOpacity>
       </ScrollView>
 
       <Hoja visible={invitando} onClose={() => setInvitando(false)}>
@@ -290,17 +296,28 @@ export default function Equipo() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  solicitudes: { marginTop: 20, paddingVertical: 6 },
-  solCab: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 8, paddingBottom: 2 },
-  overline: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: COLORS.textMid },
-  solAcc: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  solSi: { height: 40, minWidth: 96 },
-  finFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  tu: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red },
-  reactivar: { height: 36, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  reactivarT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
-  cuadro: { width: 42, height: 42, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  codigo: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.ink, letterSpacing: 0.5 },
-  input: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, backgroundColor: COLORS.bg, paddingHorizontal: 14, height: 52, marginTop: 14,
-    fontSize: 17, fontFamily: FONTS.mono, color: COLORS.ink, letterSpacing: 1.5 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, lineHeight: 19, color: COLORS.textMid, paddingVertical: 18 },
+  solicitudes: { marginTop: 18, backgroundColor: COLORS.carbon, padding: 14 },
+  solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.onCarbonMid, marginBottom: 4 },
+  sol: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
+  solNombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: '#fff' },
+  solMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid, marginTop: 2 },
+  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' },
+  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', minWidth: 92 },
+  solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
+  tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
+  chips: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
+  chip: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.ink, borderWidth: 1, borderColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2 },
+  chipAzul: { color: COLORS.blue, borderColor: COLORS.border },
+  chipRojo: { color: COLORS.redText, borderColor: COLORS.border },
+  meta: { flexShrink: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  icono: { width: 40, height: 40, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  reactivarT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink },
+  cuadro: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 14, marginTop: 14,
+    fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.5 },
 })

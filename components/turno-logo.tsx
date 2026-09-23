@@ -59,6 +59,6 @@ export default function TurnoLogo({ variante = 'positive', ancho = 30, fondo = C
 
 const st = StyleSheet.create({
   fila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  palabra: { fontFamily: FONTS.bold, letterSpacing: -0.2 },
+  palabra: { fontFamily: FONTS.semibold, letterSpacing: -0.2 },
   muesca: { position: 'absolute' },
 })

@@ -53,5 +53,5 @@ export default function ClientePrefs() {
 
 const s = StyleSheet.create({
   link: { alignItems: 'center', padding: 16, marginTop: 4 },
-  linkT: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' },
+  linkT: { color: COLORS.onCarbonMid, fontSize: 14, fontWeight: '600' },
 })

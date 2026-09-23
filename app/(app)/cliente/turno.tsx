@@ -448,12 +448,12 @@ export default function MiTurno() {
   }
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12, paddingBottom: 32 }}
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 12, paddingBottom: 32 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
 
       {expirado && (
         <View style={s.expirado}>
-          <Ionicons name="time-outline" size={20} color={COLORS.red} />
+          <Ionicons name="time-outline" size={20} color={COLORS.ink} />
           <View style={{ flex: 1 }}>
             <Text style={s.expT}>Tu turno expiró</Text>
             <Text style={s.expS}>No alcanzaste a llegar en la ventana. Puedes entrar de nuevo desde la tarjeta.</Text>
@@ -572,25 +572,24 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
 
-  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 2, borderColor: COLORS.red, padding: 13, marginBottom: 14 },
-  expT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.red },
-  expS: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2, lineHeight: 17 },
+  expirado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 16 },
+  expT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
+  expS: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
 
   detras: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 13, paddingHorizontal: 13,
     borderWidth: 1, borderColor: COLORS.border, marginBottom: 10 },
-  detrasT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  detrasM: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  detrasX: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.danger },
+  detrasT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  detrasM: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  detrasX: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.danger },
 
-  nota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
+  nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
 
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 20, marginBottom: 4 },
-  cita: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  citaFecha: { width: 52, height: 52, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  citaDia: { fontFamily: FONTS.display, fontSize: 21, color: COLORS.ink },
-  citaMes: { fontFamily: FONTS.bold, fontSize: 9.5, color: COLORS.textLight, letterSpacing: 1.2 },
-  citaServ: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  citaMeta: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red, marginTop: 2 },
-  citaDia2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 12, marginBottom: 10, textTransform: 'uppercase' },
+  cita: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8 },
+  citaFecha: { width: 52, height: 52, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  citaDia: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink, lineHeight: 22 },
+  citaMes: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMid, letterSpacing: 0.6 },
+  citaServ: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  citaMeta: { fontFamily: FONTS.mono, fontSize: 13, color: COLORS.ink, marginTop: 2 },
+  citaDia2: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
 })

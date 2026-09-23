@@ -147,7 +147,7 @@ export default function BarberoPendiente() {
 }
 
 const s = StyleSheet.create({
-  aviso: { color: 'rgba(255,255,255,0.85)', fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 14 },
+  aviso: { color: COLORS.onCarbonMid, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 14 },
   link: { alignItems: 'center', padding: 16, marginTop: 4 },
-  linkT: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' },
+  linkT: { color: COLORS.onCarbonMid, fontSize: 14, fontWeight: '600' },
 })

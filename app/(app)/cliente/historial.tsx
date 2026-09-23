@@ -95,7 +95,7 @@ export default function Historial() {
     finally { setEnviando(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return (
     <View style={s.center}>
       <NoCargo que="tu historial" onReintentar={() => { setLoading(true); cargar() }} />
@@ -174,7 +174,7 @@ export default function Historial() {
           const ya = resenadas.includes(item.id)
           return (
             /* LA VISITA SE LEE COMO LA CITA DE «MI TURNO»: la fecha en un
-               bloque a la izquierda —día grande en Anton, mes debajo—,
+               bloque a la izquierda —día grande en cifra, mes debajo—,
                servicio y barbero en medio, precio a la derecha. Antes era la
                fecha en ISO dentro de una línea gris, y la fecha es justo lo
                que se busca al bajar por el historial. */
@@ -254,51 +254,47 @@ export default function Historial() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
+  container: { flex: 1, backgroundColor: COLORS.bg, padding: 20 },
   pedir: { backgroundColor: COLORS.carbon, borderRadius: 8, overflow: 'hidden', marginBottom: 6 },
   pedirCuerpo: { paddingHorizontal: 18, paddingTop: 15, paddingBottom: 17 },
   pedirK: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.6, color: COLORS.onCarbonMid },
-  pedirT: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 30, lineHeight: 33, color: '#fff', marginTop: 5 },
-  pedirM: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 3 },
+  pedirT: { fontFamily: FONTS.semibold, fontSize: 16, lineHeight: 33, color: '#fff', marginTop: 5 },
+  pedirM: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 3 },
   pedirStars: { flexDirection: 'row', gap: 12, marginTop: 13 },
-  pedirStar: { fontSize: 32, lineHeight: 36, color: 'rgba(255,255,255,0.4)' },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2,
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 20, marginBottom: 2 },
+  pedirStar: { fontSize: 32, lineHeight: 36, color: COLORS.onCarbonMid },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 20, marginBottom: 2 },
   nums: { flexDirection: 'row', gap: 14 },
   num: { flex: 1, paddingVertical: 13, paddingRight: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
-  numN: { fontFamily: FONTS.display, fontSize: 30, lineHeight: 32, color: COLORS.ink },
-  numSm: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink, lineHeight: 32 },
-  numL: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
+  numN: { fontFamily: FONTS.monoBold, fontSize: 30, lineHeight: 32, color: COLORS.ink },
+  numSm: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink, lineHeight: 32 },
+  numL: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 3 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
+  empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 14,
     borderBottomWidth: 1, borderBottomColor: COLORS.border },
   dia: { width: 52, height: 52, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  diaN: { fontFamily: FONTS.display, fontSize: 21, lineHeight: 24, color: COLORS.ink },
+  diaN: { fontFamily: FONTS.monoBold, fontSize: 21, lineHeight: 24, color: COLORS.ink },
   diaM: { fontFamily: FONTS.bold, fontSize: 9.5, color: COLORS.textLight, letterSpacing: 1.2 },
-  servicio: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  fecha: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  servicio: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  fecha: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   // Una acción en rojo con mayúsculas espaciadas, no un «★ Calificar» con
   // emoji: la estrella ya es de la hoja que se abre.
-  calificar: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.red, marginTop: 6, textTransform: 'uppercase' },
+  calificar: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.blue, marginTop: 6, textTransform: 'uppercase' },
   calificado: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.4, color: COLORS.textLight, marginTop: 6, textTransform: 'uppercase' },
-  precio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15,
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink },
+  precio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  rVisita: { flexDirection: 'row', alignItems: 'center', gap: 13, marginTop: 14, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
   rIni: { width: 46, height: 46, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center' },
-  rIniT: { fontFamily: FONTS.display, fontSize: 21, color: COLORS.blue },
-  rServ: { fontFamily: FONTS.bold, fontSize: 15.5, color: COLORS.ink },
-  rMeta: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  rIniT: { fontFamily: FONTS.semibold, fontSize: 21, color: COLORS.blue },
+  rServ: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
+  rMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   rStars: { flexDirection: 'row', justifyContent: 'center', gap: 10, marginTop: 22 },
-  rStar: { fontFamily: FONTS.display, fontSize: 46, lineHeight: 50, color: COLORS.border },
+  rStar: { fontFamily: FONTS.bold, fontSize: 46, lineHeight: 50, color: COLORS.border },
   rPalabra: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1.6, color: COLORS.textMid,
     textAlign: 'center', marginTop: 8 },
-  rSec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2,
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22 },
-  rInput: { borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.medium,
-    color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11 },
+  rSec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 22 },
+  rInput: { borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.regular, color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11 },
   rPie: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 18, paddingTop: 14 },
-  rCta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
-  rCtaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', letterSpacing: -0.3 },
+  rCta: { backgroundColor: COLORS.ink, height: 56, alignItems: 'center', justifyContent: 'center' },
+  rCtaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
   rLuego: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 12.5, marginTop: 11 },
 })

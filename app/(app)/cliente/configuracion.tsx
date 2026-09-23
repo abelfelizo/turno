@@ -114,7 +114,7 @@ export default function Configuracion() {
     }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return (
     <View style={s.center}>
       <NoCargo que="tus ajustes" onReintentar={() => { setLoading(true); cargar() }} />
@@ -122,7 +122,7 @@ export default function Configuracion() {
   )
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: insets.top + 12 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 12 }} showsVerticalScrollIndicator={false}>
       {/* Alineada a la izquierda, como la cabecera de «Mi barbería». La foto
           centrada con el nombre debajo era la ficha de perfil de antes: aquí
           no se presenta a nadie, se ajustan cosas. */}
@@ -185,7 +185,7 @@ export default function Configuracion() {
 
       <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
       <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
-        <Ionicons name="trash-outline" size={18} color="#fff" />
+        <Ionicons name="trash-outline" size={18} color={COLORS.redText} />
         <View style={{ flex: 1 }}>
           <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
           <Text style={s.cuentaBorrarD}>Borra tus datos, cancela tus turnos y citas, y pierdes los recortes acumulados en cada local. No se puede deshacer.</Text>
@@ -208,27 +208,25 @@ function Campo({ label, ...props }: any) {
 }
 
 const s = StyleSheet.create({
-  prefNota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
+  prefNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
   campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.5, color: COLORS.textMid },
   campo: { marginTop: 6, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 13, paddingVertical: 12,
     fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  guardar: { height: 52, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-  guardarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', letterSpacing: 0 },
+  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
-  nombre: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 28, lineHeight: 30, color: COLORS.ink },
+  nombre: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 28, lineHeight: 30, color: COLORS.ink },
   tel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
     borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  cuentaIcono: { width: 34, height: 34, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  cuentaT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
-    padding: 14, marginBottom: 24 },
-  cuentaBorrarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff' },
-  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
+  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  cuentaT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'transparent', padding: 14, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+  cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.redText },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
   // La misma sección que el resto de la app: rótulo con filete negro debajo.
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22, marginBottom: 2 },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginTop: 22, marginBottom: 2 },
 })

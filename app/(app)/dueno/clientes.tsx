@@ -12,7 +12,8 @@
  * barbero apunta ahí lo que el cliente le contó a él. Si el dueño lo lee, el
  * barbero deja de escribirlo.
  */
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Linking } from 'react-native'
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Linking } from 'react-native'
+import { Ionicons } from '@expo/vector-icons'
 import { useState, useCallback } from 'react'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getSesion } from '../../../lib/storage'
@@ -23,8 +24,7 @@ import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { COLORS, FONTS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo } from '../../../components/d2'
-import { Titulo, Sub, Dato, AhoraNo } from '../../../components/hoja-piezas'
-import { Fila, Iniciales, Chip, Buscar, BotonIcono, Boton, Sobre, Nota as NotaLista } from '../../../components/turno-ui'
+import { Titulo, Sub, Dato, Nota, AhoraNo } from '../../../components/hoja-piezas'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 
@@ -121,19 +121,20 @@ export default function ClientesDelLocal() {
     return Object.entries(cuenta).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="los clientes del local" onReintentar={() => { setLoading(true); void correr() }} /></View>
 
   const linea = (c: any) => c.visitas === 0
     ? `Nunca ha venido${c.desde ? ` · se unió el ${fechaCorta(c.desde)}` : ''}`
     : [`${c.visitas} ${c.visitas === 1 ? 'visita' : 'visitas'}`, `última el ${fechaCorta(c.ultima)}`, c.barbero ? `con ${c.barbero.split(' ')[0]}` : null]
         .filter(Boolean).join(' · ')
+
   const cabecera = (
     <View>
       <PanelBadge />
       <Encabezado titulo="Clientes" />
       {!delLocal && (
-        <NotaLista style={{ marginTop: 0, marginBottom: 6 }}>Por ahora las visitas que ves son solo las de tu silla, no las de todo el local.</NotaLista>
+        <Text style={s.aviso}>Por ahora las visitas que ves son solo las de tu silla, no las de todo el local.</Text>
       )}
       <Pestanas
         opciones={[
@@ -144,18 +145,30 @@ export default function ClientesDelLocal() {
 
       {seg === 'todos' ? (
         <>
-          <View style={{ marginTop: 16 }}>
-            <Buscar valor={buscar} onCambio={setBuscar} />
+          <View style={s.buscar}>
+            <Ionicons name="search" size={17} color={COLORS.textLight} />
+            <TextInput style={s.buscarT} value={buscar} onChangeText={setBuscar} placeholder="Buscar por nombre"
+              placeholderTextColor={COLORS.textLight} autoCorrect={false} returnKeyType="search" />
+            {!!buscar && (
+              <TouchableOpacity onPress={() => setBuscar('')} hitSlop={10} accessibilityLabel="Borrar búsqueda">
+                <Ionicons name="close" size={17} color={COLORS.textMid} />
+              </TouchableOpacity>
+            )}
           </View>
           <View style={s.ordenes}>
-            {ORDENES.map(o => (
-              <Chip key={o.k} activo={orden === o.k} onPress={() => setOrden(o.k)}
-                texto={`${o.l}${o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}`} />
-            ))}
+            {ORDENES.map(o => {
+              const on = orden === o.k
+              return (
+                <TouchableOpacity key={o.k} style={[s.orden, on && s.ordenOn]} onPress={() => setOrden(o.k)}
+                  accessibilityRole="button" accessibilityState={{ selected: on }}>
+                  <Text style={[s.ordenT, on && { color: '#fff' }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
         </>
       ) : delLocal && recuperar.length > 0 && (
-        <NotaLista style={{ marginTop: 14 }}>Vinieron alguna vez y llevan más de {DIAS_RECUPERAR} días sin volver.</NotaLista>
+        <Text style={s.regla}>Vinieron alguna vez y llevan más de {DIAS_RECUPERAR} días sin volver.</Text>
       )}
     </View>
   )
@@ -165,8 +178,8 @@ export default function ClientesDelLocal() {
     if (!tel) return null
     return (
       <>
-        <BotonIcono icono="logo-whatsapp" etiqueta={`Escribir a ${c.nombre}`} onPress={() => escribirCliente(tel, c.nombre)} />
-        <BotonIcono icono="call-outline" etiqueta={`Llamar a ${c.nombre}`} onPress={() => llamar(tel)} />
+        <Contacto icono="logo-whatsapp" etiqueta={`Escribir a ${c.nombre}`} onPress={() => escribirCliente(tel, c.nombre)} />
+        <Contacto icono="call-outline" etiqueta={`Llamar a ${c.nombre}`} onPress={() => llamar(tel)} />
       </>
     )
   }
@@ -189,66 +202,69 @@ export default function ClientesDelLocal() {
           </Text>
         }
         renderItem={({ item }) => seg === 'todos' ? (
-          <Fila onPress={() => abrir(item)}
-            inicio={<Iniciales nombre={item.nombre} size={40} />}
-            titulo={item.nombre} meta={linea(item)}
-            fin={<View style={s.finFila}>{contacto(item)}</View>} />
+          <View style={s.fila}>
+            <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => abrir(item)} activeOpacity={0.7}
+              accessibilityRole="button" accessibilityLabel={`Ficha de ${item.nombre}`}>
+              <Text style={s.nombre} numberOfLines={1}>{item.nombre}</Text>
+              <Text style={s.meta} numberOfLines={1}>{linea(item)}</Text>
+            </TouchableOpacity>
+            {contacto(item)}
+          </View>
         ) : (
-          <Fila onPress={() => abrir(item)}
-            inicio={<Iniciales nombre={item.nombre} size={40} />}
-            titulo={item.nombre}
-            meta={`Última el ${fechaCorta(item.ultima)}${item.barbero ? ` · con ${item.barbero.split(' ')[0]}` : ''}`}
-            fin={
-              <View style={s.finFila}>
-                <Text style={s.dias}>{item.dias}<Text style={s.diasD}> d</Text></Text>
-                {contacto(item)}
-              </View>
-            } />
+          <View style={s.fila}>
+            <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => abrir(item)} activeOpacity={0.7} accessibilityRole="button">
+              <Text style={s.nombre} numberOfLines={1}>{item.nombre}</Text>
+              <Text style={s.meta} numberOfLines={1}>
+                Última el {fechaCorta(item.ultima)}{item.barbero ? ` · con ${item.barbero.split(' ')[0]}` : ''}
+              </Text>
+            </TouchableOpacity>
+            <Text style={s.dias}>{item.dias}<Text style={s.diasD}>d</Text></Text>
+            {contacto(item)}
+          </View>
         )}
       />
 
       <Hoja visible={!!activo} onClose={() => setActivo(null)}>
-        <View style={s.fichaCab}>
-          <Iniciales nombre={activo?.nombre} size={52} />
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Titulo>{activo?.nombre}</Titulo>
-          </View>
-        </View>
+        <Titulo>{activo?.nombre}</Titulo>
         <Sub>{activo ? linea(activo) : ''}</Sub>
 
         {!ficha ? <ActivityIndicator color={COLORS.ink} style={{ marginVertical: 26 }} /> : (
           <>
-            <View style={s.gasto}>
-              <Sobre>Gastado en el local</Sobre>
-              <Text style={s.gastoV}>{dinero(activo?.total ?? 0, moneda)}</Text>
-            </View>
+            <Dato l="Gastado en el local" v={dinero(activo?.total ?? 0, moneda)} />
             <Dato l="Su barbero" v={activo?.barbero ?? masRepetido(h => h.turno_perfiles?.turno_usuarios?.nombre) ?? '—'} />
             <Dato l="Lo que pide" v={masRepetido(h => h.turno_servicios?.nombre) ?? '—'} />
             {!!ficha.prefs?.tipo_corte && <Dato l="Corte" v={ficha.prefs.tipo_corte} />}
-            {!!ficha.prefs?.alergias && <Dato l="Alergias" v={ficha.prefs.alergias} color={COLORS.redText} />}
+            {!!ficha.prefs?.alergias && <Dato l="Alergias" v={ficha.prefs.alergias} color={COLORS.redDark} />}
 
             {ficha.historial.length > 0 && (
               <>
                 <Rotulo>Últimas visitas</Rotulo>
-                {ficha.historial.slice(0, 6).map((h: any, i: number, arr: any[]) => (
-                  <Fila key={h.id} ultima={i === arr.length - 1}
-                    inicio={<Text style={s.visitaF}>{fechaCorta(h.fecha)}</Text>}
-                    titulo={h.turno_servicios?.nombre ?? 'Servicio'}
-                    meta={h.turno_perfiles?.turno_usuarios?.nombre ? `con ${h.turno_perfiles.turno_usuarios.nombre}` : null}
-                    fin={<Text style={s.visitaP}>{dinero(h.precio_cobrado, moneda)}</Text>} />
+                {ficha.historial.slice(0, 6).map((h: any) => (
+                  <View key={h.id} style={s.visita}>
+                    <Text style={s.visitaF}>{fechaCorta(h.fecha)}</Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.visitaS} numberOfLines={1}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                      {!!h.turno_perfiles?.turno_usuarios?.nombre && (
+                        <Text style={s.meta} numberOfLines={1}>con {h.turno_perfiles.turno_usuarios.nombre}</Text>
+                      )}
+                    </View>
+                    <Text style={s.visitaP}>{dinero(h.precio_cobrado, moneda)}</Text>
+                  </View>
                 ))}
               </>
             )}
-            <NotaLista>Las notas que cada barbero escribe de sus clientes son suyas y no se muestran aquí.</NotaLista>
+            <Nota tono="gris">Las notas que cada barbero escribe de sus clientes son suyas y no se muestran aquí.</Nota>
           </>
         )}
 
         {!!telDe(activo?.telefono) && (
           <View style={s.contactoFila}>
-            <Boton tipo="secondary" icono="logo-whatsapp" texto="WhatsApp" style={{ flex: 1 }}
-              onPress={() => escribirCliente(telDe(activo.telefono)!, activo.nombre)} />
-            <Boton tipo="secondary" icono="call-outline" texto="Llamar" style={{ flex: 1 }}
-              onPress={() => llamar(telDe(activo.telefono)!)} />
+            <TouchableOpacity style={s.btn} onPress={() => escribirCliente(telDe(activo.telefono)!, activo.nombre)} accessibilityRole="button">
+              <Text style={s.btnT}>WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.btn} onPress={() => llamar(telDe(activo.telefono)!)} accessibilityRole="button">
+              <Text style={s.btnT}>Llamar</Text>
+            </TouchableOpacity>
           </View>
         )}
         <AhoraNo texto="Cerrar" onPress={() => setActivo(null)} />
@@ -257,18 +273,38 @@ export default function ClientesDelLocal() {
   )
 }
 
+function Contacto({ icono, etiqueta, onPress }: { icono: any; etiqueta: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={s.contacto} onPress={onPress} accessibilityRole="button" accessibilityLabel={etiqueta} hitSlop={4}>
+      <Ionicons name={icono} size={19} color={COLORS.ink} />
+    </TouchableOpacity>
+  )
+}
+
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  vacio: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textLight, paddingVertical: 36, textAlign: 'center' },
-  ordenes: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 6, flexWrap: 'wrap' },
-  finFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dias: { fontFamily: FONTS.mono, fontSize: 18, color: COLORS.redText, marginRight: 2 },
-  diasD: { fontFamily: FONTS.monoMedium, fontSize: 12, color: COLORS.textLight },
-  fichaCab: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  gasto: { marginTop: 10, marginBottom: 4, padding: 14, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, gap: 6 },
-  gastoV: { fontFamily: FONTS.mono, fontSize: 26, letterSpacing: -0.5, color: COLORS.ink },
-  visitaF: { width: 58, fontFamily: FONTS.monoMedium, fontSize: 13, color: COLORS.textMid },
-  visitaP: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.ink },
-  contactoFila: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  aviso: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 8 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
+  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: COLORS.border,
+    paddingHorizontal: 12, marginTop: 16, backgroundColor: COLORS.surface },
+  buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
+  ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
+  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.ink },
+  ordenOn: { backgroundColor: COLORS.ink },
+  ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
+  regla: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 14 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
+  meta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  contacto: { width: 42, height: 42, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  dias: { fontFamily: FONTS.monoBold, fontSize: 26, lineHeight: 30, color: COLORS.redText, marginRight: 4 },
+  diasD: { fontSize: 13 },
+  visita: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  visitaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
+  visitaS: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
+  contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  btn: { flex: 1, height: 48, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
 })

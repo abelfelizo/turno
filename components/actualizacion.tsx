@@ -74,6 +74,6 @@ const s = StyleSheet.create({
   barra: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 9, paddingHorizontal: 14 },
   bajando: { backgroundColor: COLORS.carbonEl },
-  lista: { backgroundColor: COLORS.blue },
-  texto: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff' },
+  lista: { backgroundColor: COLORS.ink },
+  texto: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
 })

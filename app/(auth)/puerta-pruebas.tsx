@@ -72,7 +72,7 @@ export default function PuertaPruebas() {
                 <Text style={s.para}>{p.para}</Text>
               </View>
               {entrando === p.email
-                ? <ActivityIndicator color={COLORS.red} />
+                ? <ActivityIndicator color="#FFFFFF" />
                 : <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />}
             </TouchableOpacity>
           ))}
@@ -101,8 +101,8 @@ const s = StyleSheet.create({
     backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder,
     borderRadius: 8, padding: 14, marginBottom: 8,
   },
-  nombre: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  papel: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.red, marginTop: 2 },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  papel: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.redSoft, marginTop: 2 },
   para: { fontFamily: FONTS.regular, fontSize: 12, color: '#9A9CA6', marginTop: 4, lineHeight: 17 },
   apagada: { fontFamily: FONTS.semibold, fontSize: 15, color: '#C7C8CF', textAlign: 'center' },
   volver: { marginTop: 28, padding: 12, alignItems: 'center' },

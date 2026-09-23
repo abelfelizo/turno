@@ -16,6 +16,7 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
+import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getSesion, guardarSesion } from '../../../lib/storage'
 import {
@@ -28,18 +29,18 @@ import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { COLORS, FONTS } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Rotulo, Cifras } from '../../../components/d2'
-import { Fila, Iniciales, Puesto, Estado, Flecha, Aviso, Tarjeta, Boton, Nota as NotaLista } from '../../../components/turno-ui'
 import { Titulo, Sub, Seccion, Nota, Opcion, AhoraNo } from '../../../components/hoja-piezas'
 import PanelBadge from '../../../components/panel-badge'
 import Hoja from '../../../components/hoja'
 
-// Colores de estado de la línea gráfica (handoff § 4): llamado y en la silla
-// en rojo, en camino en azul, en fila en gris.
+const COLOR_SILLA: Record<string, string> = {
+  libre: '#1F9D55', atendiendo: '#E1251B', descanso: '#6B6B6B', inactivo: '#B5B5B5',
+}
 const ESTADO_TURNO: Record<string, { l: string; c: string }> = {
-  en_fila: { l: 'En fila', c: COLORS.textLight },
-  llamado: { l: 'Llamado', c: COLORS.red },
-  en_camino: { l: 'En camino', c: COLORS.blue },
-  atendiendo: { l: 'En la silla', c: COLORS.red },
+  en_fila: { l: 'En fila', c: '#6B6B6B' },
+  llamado: { l: 'Llamado', c: '#E1251B' },
+  en_camino: { l: 'En camino', c: '#1E4FD8' },
+  atendiendo: { l: 'En la silla', c: '#E1251B' },
 }
 
 /** Una línea que diga lo que está pasando en esa silla ahora mismo. */
@@ -147,7 +148,7 @@ export default function MiLocal() {
     finally { setOcupado(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="tu local" onReintentar={() => { setLoading(true); void correr() }} /></View>
 
   const conEmpleados = negocio?.tipo !== 'espacios_rentados'
@@ -158,19 +159,12 @@ export default function MiLocal() {
     const e = estados[p.id]
     const r = e?.estado === 'atendiendo' ? relojesDeSilla(e.desde, e.fin_estimado) : null
     const alDia = !estadosOk || !!e
-    const cerrada = e?.fila_abierta === false
-    // Lo que se lee a la derecha de la fila: una palabra y su color.
-    const estado = p.suspendido ? { texto: 'Suspendido', color: COLORS.textLight }
-      : !alDia ? { texto: 'No al día', color: COLORS.redText }
-      : e?.estado === 'atendiendo' ? { texto: 'En la silla', color: COLORS.red }
-      : e?.estado === 'descanso' ? { texto: 'Descanso', color: COLORS.textLight }
-      : e?.estado === 'inactivo' || !e ? { texto: 'Inactivo', color: COLORS.textLight }
-      : cerrada ? { texto: 'Fila cerrada', color: COLORS.textLight }
-      : { texto: 'Disponible', color: COLORS.success }
     return {
-      p, e, alDia, cerrada, estado,
+      p, e, alDia,
       tu: p.id === perfilPropio,
       nombre: p.turno_usuarios?.nombre ?? 'Profesional',
+      color: p.suspendido || !alDia ? COLORS.textLight : COLOR_SILLA[e?.estado ?? 'inactivo'] ?? COLORS.textLight,
+      cerrada: e?.fila_abierta === false,
       motivo: e?.fila_motivo ?? null,
       libreA: r?.fin ? (r.tarde ? `pasado ${Math.abs(r.faltan ?? 0)} min` : `libre ~${r.fin}`) : null,
       esperan: e?.en_cola ?? 0,
@@ -192,7 +186,7 @@ export default function MiLocal() {
 
   return (
     <View style={s.container}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 32 }}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 32 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void correr() }} />}>
         <PanelBadge />
         <Encabezado
@@ -201,7 +195,7 @@ export default function MiLocal() {
           derecha={codigo ? (
             <TouchableOpacity style={s.codigo} accessibilityRole="button" accessibilityLabel="Compartir el código del local"
               onPress={() => Share.share({ message: `Únete a ${negocio?.nombre} en Turno con el código ${codigo}` })}>
-              <Text style={s.codigoL}>Código</Text>
+              <Text style={s.codigoL}>CÓDIGO</Text>
               <Text style={s.codigoV}>{codigo}</Text>
             </TouchableOpacity>
           ) : null} />
@@ -209,69 +203,76 @@ export default function MiLocal() {
         {/* LO QUE PIDE ATENCIÓN va antes que las cifras: es lo único de la
             pantalla que espera una respuesta del dueño. */}
         {solicitudes > 0 && (
-          <View style={{ marginTop: 20 }}>
-            <Aviso texto={solicitudes === 1 ? 'Un barbero quiere entrar' : `${solicitudes} barberos quieren entrar`}
-              accion="Ver" onPress={() => router.push('/(app)/dueno/equipo')} />
-          </View>
+          <TouchableOpacity style={s.aviso} onPress={() => router.push('/(app)/dueno/equipo')} accessibilityRole="button">
+            <Text style={s.avisoT}>
+              {solicitudes === 1 ? 'Un barbero quiere entrar' : `${solicitudes} barberos quieren entrar`}
+            </Text>
+            <Text style={s.avisoA}>Ver</Text>
+          </TouchableOpacity>
         )}
 
         {apagado ? (
-          <Tarjeta style={{ marginTop: 20 }}>
-            <Text style={s.overline}>LA FILA ESTÁ APAGADA</Text>
+          <View style={s.apagado}>
+            <Text style={s.apagadoT}>La fila está apagada</Text>
             <Text style={s.apagadoD}>
               {conEmpleados
                 ? 'Ninguna silla de tu local está al día, así que por la app no entra nadie. Lo reservado sigue en pie y quien llegue al local se atiende igual.'
                 : 'Ningún barbero de tu local tiene su silla al día, así que ninguno aparece en la app. Aquí cada uno paga la suya.'}
             </Text>
-            <Boton tipo="secondary" texto={conEmpleados ? 'Ver la suscripción' : 'Ver la cuenta del local'}
-              onPress={() => router.push('/(app)/dueno/config')} style={{ marginTop: 14 }} />
-          </Tarjeta>
+            <TouchableOpacity style={s.apagadoBtn} onPress={() => router.push('/(app)/dueno/config')} accessibilityRole="button">
+              <Text style={s.apagadoBtnT}>{conEmpleados ? 'Ver la suscripción' : 'Ver la cuenta del local'}</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
-          <View style={{ marginTop: 20 }}>
+          <View style={{ marginTop: 18 }}>
             <Cifras items={[
               { n: enFila.length, l: 'En fila', color: enFila.length ? COLORS.red : undefined },
-              { n: atendidosHoy, l: 'Atendidos' },
-              { n: `${abiertas}/${sillas.length}`, l: 'Sillas' },
-              { n: masEspera ? `${masEspera}′` : '—', l: 'Espera' },
+              { n: atendidosHoy, l: 'Atendidos hoy' },
+              { n: `${abiertas}/${sillas.length}`, l: 'Sillas abiertas' },
+              { n: masEspera ? `${masEspera}′` : '—', l: 'Espera máx.' },
             ]} />
           </View>
         )}
 
-        {/* LAS SILLAS. La del dueño va marcada «Tú» y lleva a su panel: es la
-            única puerta a su silla. */}
+        {/* LAS SILLAS. La del dueño va marcada «tú» y lleva a su panel: es la
+            única puerta a su silla, en vez de dos filas sueltas que no decían
+            cómo estaba. */}
         <Rotulo>{conEmpleados ? 'Las sillas' : 'Quienes rentan'}{sillas.length ? ` · ${sillas.length}` : ''}</Rotulo>
         {sillas.length === 0 && (
-          <NotaLista>Todavía no trabaja nadie aquí. Invita a alguien desde Equipo.</NotaLista>
+          <Text style={s.vacio}>Todavía no trabaja nadie aquí. Invita a alguien desde Equipo.</Text>
         )}
-        {sillas.map((x, i) => (
-          <Fila key={x.p.id}
-            titulo={x.nombre}
-            tituloExtra={x.tu ? <Text style={s.tu}>  · Tú</Text> : null}
-            meta={x.p.suspendido ? 'No le entra trabajo hasta que lo reactives'
-              : !x.alDia ? 'No aparece en la app'
-              : [x.e?.estado === 'atendiendo' ? estadoTexto(x.e) : null,
-                 x.e?.estado === 'descanso' ? estadoTexto(x.e) : null,
-                 x.libreA,
-                 x.esperan ? `${x.esperan} ${x.esperan === 1 ? 'espera' : 'esperan'}` : 'Nadie esperando'].filter(Boolean).join(' · ')}
-            inicio={<Iniciales nombre={x.nombre} oscuro={x.tu} />}
-            fin={<View style={s.finFila}><Estado texto={x.estado.texto} color={x.estado.color} /><Flecha /></View>}
-            onPress={() => abrirSilla(x.p)}
-            ultima={i === sillas.length - 1} />
+        {sillas.map(x => (
+          <TouchableOpacity key={x.p.id} style={s.fila} onPress={() => abrirSilla(x.p)} activeOpacity={0.7} accessibilityRole="button">
+            <View style={[s.punto, { backgroundColor: x.color }]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.nombre} numberOfLines={1}>
+                {x.nombre}{x.tu ? <Text style={s.tu}>  TÚ</Text> : null}
+              </Text>
+              <Text style={s.meta} numberOfLines={1}>
+                {x.p.suspendido ? 'Suspendido'
+                  : !x.alDia ? 'No está al día · no aparece en la app'
+                  : [estadoTexto(x.e), x.libreA, x.cerrada ? 'fila cerrada' : null,
+                     x.esperan ? `${x.esperan} ${x.esperan === 1 ? 'espera' : 'esperan'}` : null].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+            <Text style={s.ir}>{x.tu ? 'Mi silla' : ''}</Text>
+            <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+          </TouchableOpacity>
         ))}
         {cerradas.length > 0 && !apagado && (
-          <NotaLista>
+          <Text style={s.nota}>
             {cerradas.length === sillas.length
               ? `Nadie puede entrar a la fila por la app ahora${cerradas[0].motivo && cerradas.every(c => c.motivo === cerradas[0].motivo) ? `: ${cerradas[0].motivo}` : ''}.`
               : `${cerradas.length} de ${sillas.length} sillas tienen la fila cerrada.`}
             {' '}Quien llegue al local se atiende igual.
-          </NotaLista>
+          </Text>
         )}
         {sinPagar.length > 0 && !apagado && (
-          <NotaLista>
+          <Text style={s.nota}>
             {sinPagar.length === 1 ? 'Una silla no está al día' : `${sinPagar.length} sillas no están al día`}: no
             {sinPagar.length === 1 ? ' aparece' : ' aparecen'} en la app.
             {conEmpleados ? ' La suscripción cubre las más antiguas primero.' : ' Aquí cada barbero paga la suya.'}
-          </NotaLista>
+          </Text>
         )}
 
         {/* QUIÉN ESTÁ ESPERANDO, en el orden en que se atiende. Todo lo que el
@@ -279,28 +280,33 @@ export default function MiLocal() {
             local reparte) o marcar que no se presentó (si ya le tocó). */}
         {!apagado && (
           <>
-            <Rotulo>Fila del local{cola.length ? ` · ${cola.length}` : ''}</Rotulo>
+            <Rotulo>Quién está esperando{cola.length ? ` · ${cola.length}` : ''}</Rotulo>
             {cola.length === 0 && (
-              <NotaLista>Nadie en la fila ahora mismo.</NotaLista>
+              <Text style={s.vacio}>Nadie en la fila ahora mismo.</Text>
             )}
             {cola.map((c: any, i: number) => {
               const e = ESTADO_TURNO[c.estado] ?? ESTADO_TURNO.en_fila
               const sinAsignar = c.estado === 'en_fila' && !c.perfil_id
               const min = esperaDe(c)
               return (
-                <Fila key={c.id}
-                  titulo={c.turno_usuarios?.nombre ?? 'Cliente'}
-                  tituloExtra={c.prioridad === 1 ? <Text style={s.cita}>  · Cita</Text> : null}
-                  meta={[c.turno_servicios?.nombre ?? 'Servicio',
-                    c.turno_perfiles?.turno_usuarios?.nombre ?? null,
-                    c.espera_a_id ? 'espera su otro servicio' : null,
-                    min && c.estado === 'en_fila' ? `lleva ${min} min` : null].filter(Boolean).join(' · ')}
-                  inicio={<Puesto n={i + 1} />}
-                  fin={sinAsignar && config?.asignacion_por_dueno
-                    ? <Estado texto="Asignar" color={COLORS.blue} />
-                    : <Estado texto={sinAsignar ? 'Sin asignar' : e.l} color={sinAsignar ? COLORS.redText : e.c} />}
-                  onPress={() => setSel(c)}
-                  ultima={i === cola.length - 1} />
+                <TouchableOpacity key={c.id} style={s.fila} onPress={() => setSel(c)} activeOpacity={0.7} accessibilityRole="button">
+                  <Text style={s.pos}>{i + 1}</Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.nombre} numberOfLines={1}>
+                      {c.turno_usuarios?.nombre ?? 'Cliente'}
+                      {c.prioridad === 1 ? <Text style={s.cita}>  CITA</Text> : null}
+                    </Text>
+                    <Text style={s.meta} numberOfLines={1}>
+                      {[c.turno_servicios?.nombre ?? 'Servicio',
+                        c.turno_perfiles?.turno_usuarios?.nombre ?? null,
+                        c.espera_a_id ? 'espera su otro servicio' : null,
+                        min && c.estado === 'en_fila' ? `lleva ${min} min` : null].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {sinAsignar && config?.asignacion_por_dueno
+                    ? <Text style={s.asignar}>ASIGNAR</Text>
+                    : <Text style={[s.estado, { color: sinAsignar ? COLORS.red : e.c }]}>{sinAsignar ? 'Sin asignar' : e.l}</Text>}
+                </TouchableOpacity>
               )
             })}
           </>
@@ -350,12 +356,27 @@ export default function MiLocal() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  codigo: { borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6, alignItems: 'flex-end' },
-  codigoL: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight },
-  codigoV: { fontFamily: FONTS.mono, fontSize: 15, color: COLORS.ink },
-  overline: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.redText },
-  apagadoD: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textMid, marginTop: 6 },
-  finFila: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tu: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red },
-  cita: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue },
+  codigo: { borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'flex-end' },
+  codigoL: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.5, color: COLORS.textLight },
+  codigoV: { fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink, letterSpacing: 1 },
+  aviso: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: COLORS.ink, paddingHorizontal: 14, paddingVertical: 13 },
+  avisoT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  avisoA: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  apagado: { marginTop: 18, borderWidth: 1, borderColor: COLORS.border, padding: 14, borderRadius: 8 },
+  apagadoT: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink },
+  apagadoD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginTop: 6 },
+  apagadoBtn: { height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  apagadoBtnT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
+  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, paddingVertical: 18 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  punto: { width: 10, height: 10, borderRadius: 5 },
+  pos: { width: 32, fontFamily: FONTS.monoBold, fontSize: 14, color: COLORS.ink, textAlign: 'center' },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
+  tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
+  cita: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.blue, letterSpacing: 1 },
+  meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+  ir: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue },
+  estado: { fontFamily: FONTS.semibold, fontSize: 13 },
+  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' },
+  nota: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 10 },
 })

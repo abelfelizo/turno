@@ -10,8 +10,11 @@ import type { PanelActivo } from '../types'
 
 
 
+const ICONO: Record<string, keyof typeof Ionicons.glyphMap> = {
+  cliente: 'person', barberia: 'storefront', silla: 'cut',
+}
 // Color distinto por panel: la señal más rápida de "dónde estoy".
-const FONDO: Record<string, string> = { cliente: COLORS.blue, barberia: COLORS.carbon, silla: COLORS.red }
+const FONDO: Record<string, string> = { cliente: '#1E4FD8', barberia: '#0B0B0C', silla: '#E1251B' }
 
 /**
  * Distintivo del panel activo. Nace de una confusión real en el piloto: con
@@ -53,19 +56,15 @@ export default function PanelBadge() {
   }
 
   return (
-    <TouchableOpacity style={s.pill} onPress={abrir} activeOpacity={0.85}>
-      <View style={[s.punto, { backgroundColor: FONDO[actual.panel] }]} />
+    <TouchableOpacity style={[s.pill, { backgroundColor: FONDO[actual.panel] }]} onPress={abrir} activeOpacity={0.85}>
+      <Ionicons name={ICONO[actual.panel]} size={13} color="#fff" />
       <Text style={s.txt} numberOfLines={1}>{NOMBRE_DE_PANEL[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
-      <Ionicons name="swap-horizontal" size={14} color={COLORS.textLight} />
+      <Ionicons name="swap-horizontal" size={14} color="rgba(255,255,255,0.7)" />
     </TouchableOpacity>
   )
 }
 
 const s = StyleSheet.create({
-  // Chip neutro con un punto del color del panel: en la línea gráfica de
-  // Turno el color macizo se reserva a los estados, no a la navegación.
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
-  punto: { width: 8, height: 8, borderRadius: 4 },
-  txt: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink, maxWidth: 220 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 12 },
+  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF', letterSpacing: 1, maxWidth: 220 },
 })

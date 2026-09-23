@@ -189,7 +189,7 @@ export default function Agendar() {
   // «Rendered more hooks than during the previous render» y pantalla muerta.
   const volver = useGestoVolver()
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return <View style={s.center}><NoCargo que="los horarios" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   return (
@@ -203,7 +203,7 @@ export default function Agendar() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         {/* resumen del servicio elegido (carbón) */}
         {servicio && (
           <View style={s.mini}>
@@ -297,7 +297,7 @@ export default function Agendar() {
         {fecha && (
           <>
             <Text style={[s.sec, { marginTop: 22 }]}>4 · HORA</Text>
-            {cargandoSlots ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 16 }} /> :
+            {cargandoSlots ? <ActivityIndicator color={COLORS.ink} style={{ marginVertical: 16 }} /> :
               slots.length === 0 ? <Text style={s.empty}>No hay horarios disponibles ese día.</Text> :
                 <View style={s.slots}>
                   {/* Cuadradas y sin la píldora azul de antes: es el último
@@ -352,50 +352,48 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
   back: { width: 36, height: 36, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  mini: { backgroundColor: COLORS.carbon, marginBottom: 20, overflow: 'hidden' },
+  mini: { backgroundColor: COLORS.carbon, borderRadius: 8, marginBottom: 20, overflow: 'hidden' },
   miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  miniIcon: { width: 40, height: 40, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 2 },
-  miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
-  vacio: { fontFamily: FONTS.medium, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginBottom: 12 },
-  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', gap: 6 },
-  bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
-  bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
-  bienvenida: { borderLeftWidth: 3, borderLeftColor: COLORS.ink, paddingLeft: 13, paddingVertical: 4, marginBottom: 20 },
-  bienvenidaT: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
-  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border, borderLeftWidth: 3, borderLeftColor: 'transparent' },
-  servOn: { borderLeftColor: COLORS.red, paddingLeft: 11 },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrice: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 2, borderTopColor: COLORS.ink },
-  personasL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  personasD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
+  miniIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.inkPill, alignItems: 'center', justifyContent: 'center' },
+  miniName: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  miniMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 2 },
+  miniPrice: { fontFamily: FONTS.monoBold, fontSize: 20, color: '#fff' },
+  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', gap: 6 },
+  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  bChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
+  bChipEsp: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
+  bienvenida: { paddingVertical: 4, marginBottom: 20 },
+  bienvenidaT: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
+  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  servOn: { backgroundColor: COLORS.surfaceAlt, borderRadius: 8, paddingHorizontal: 12 },
+  servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  servPrice: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink },
+  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 1, borderTopColor: COLORS.divider },
+  personasL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  personasD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 42, height: 42, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 42, height: 42, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  stepVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
+  dia: { width: 58, height: 66, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   diaOff: { opacity: 0.35 },
   diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
-  diaNum: { fontFamily: FONTS.display, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
+  diaNum: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
+  empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
   ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.bg },
   recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11, gap: 10 },
-  recuentoT: { flexShrink: 1, fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, textTransform: 'capitalize' },
-  recuentoP: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
+  recuentoT: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, textTransform: 'capitalize' },
+  recuentoP: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
   ctaOff: { backgroundColor: COLORS.border },
-  ctaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', letterSpacing: -0.3 },
-  subtitulo: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  slot: { width: '31%', height: 46, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  slotOn: { backgroundColor: COLORS.blue, borderColor: COLORS.blue },
-  slotT: { fontFamily: FONTS.bold, fontSize: 13.5, color: COLORS.ink },
+  ctaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  subtitulo: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  slot: { width: '31%', height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  slotT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
 })

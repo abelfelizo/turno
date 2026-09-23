@@ -581,8 +581,8 @@ export function Cifra({ valor, rotulo, color, filete, latiendo }: {
 function Sillas({ sillas }: { sillas: SillaEstado[] }) {
   const COLOR: Record<string, string> = {
     libre: COLORS.okNoche,
-    atendiendo: COLORS.azulNoche,
-    descanso: COLORS.ambarNoche,
+    atendiendo: COLORS.redSoft,
+    descanso: '#A3A3A3',
     inactivo: 'rgba(255,255,255,0.35)',
   }
   return (
@@ -669,35 +669,34 @@ const s = StyleSheet.create({
 
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   local: { fontFamily: FONTS.semibold, fontSize: 20, lineHeight: 25, color: '#fff', letterSpacing: -0.3 },
-  localSub: { fontFamily: FONTS.medium, fontSize: 12, marginTop: 3 },
+  localSub: { fontFamily: FONTS.regular, fontSize: 12, marginTop: 3 },
 
   filete: { height: 1, marginVertical: 14 },
 
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2 },
-  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.onCarbonMid },
-  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.mono, fontSize: 13, color: '#fff' },
+  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid },
+  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 13, color: '#fff' },
 
   cifraCaja: { marginTop: 6 },
-  cifraFilete: { borderLeftWidth: 3, borderLeftColor: COLORS.redSoft, paddingLeft: 12, marginLeft: -15 },
+  cifraFilete: {  },
   /**
    * `lineHeight` NUNCA por debajo de `fontSize`. Estaba en 64 con letra de 76:
    * doce píxeles menos que la letra, así que la caja recortaba por arriba y
    * el remate del ordinal —lo que más sube de toda la cifra— quedaba cortado
    * por el filo de la línea. Se veía como un fallo de pintado y era una resta.
-   * Anton sube bastante sobre la altura de la x; 1.06 le deja sitio.
+   * La cifra sube bastante sobre la altura de la x; 1.06 le deja sitio.
    */
-  cifra: { fontFamily: FONTS.mono, fontSize: 76, lineHeight: 82, letterSpacing: -3 },
-  cifraSufijo: { fontFamily: FONTS.mono, fontSize: 34 },
+  cifra: { fontFamily: FONTS.monoBold, fontSize: 76, lineHeight: 82, letterSpacing: -3 },
+  cifraSufijo: { fontFamily: FONTS.monoBold, fontSize: 34 },
   cifraRot: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginTop: 6 },
 
   motivo: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 12, lineHeight: 20 },
   servicio: { fontFamily: FONTS.semibold, fontSize: 18, color: '#fff', marginTop: 14 },
   servicioMeta: { fontFamily: FONTS.regular, fontSize: 13, marginTop: 2 },
   consecuencia: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff', marginTop: 10 },
-  pausa: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13,
-    borderLeftWidth: 3, borderLeftColor: COLORS.ambarNoche, paddingLeft: 11 },
+  pausa: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13 },
   pausaT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', lineHeight: 18 },
 
   eta: { alignSelf: 'flex-start', marginTop: 12, backgroundColor: '#1F1F1F', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14 },

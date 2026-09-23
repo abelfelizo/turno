@@ -71,7 +71,7 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
                   <Text style={[s.filaT, activa && { color: COLORS.red }]}>{o.etiqueta}</Text>
                   {o.nota ? <Text style={s.filaN}>{o.nota}</Text> : null}
                 </View>
-                {activa && <Ionicons name="checkmark" size={19} color={COLORS.red} />}
+                {activa && <Ionicons name="checkmark" size={19} color={COLORS.ink} />}
               </TouchableOpacity>
             )
           })}
@@ -83,16 +83,14 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
 }
 
 const s = StyleSheet.create({
-  label: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
-  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.bg,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, height: 52, paddingHorizontal: 14 },
+  label: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid, letterSpacing: 0.4, marginBottom: 6, marginTop: 12 },
+  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 13, paddingHorizontal: 13 },
   valor: { flex: 1, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink },
-  busca: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8,
-    height: 44, paddingHorizontal: 12, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
+  busca: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+    borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },
   filaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  filaN: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
-  vacio: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, paddingVertical: 20 },
-  cerrar: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid, textAlign: 'center', paddingVertical: 14 },
+  filaN: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 20 },
+  cerrar: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textMid, textAlign: 'center', paddingVertical: 14 },
 })

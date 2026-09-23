@@ -83,7 +83,7 @@ export function Campo({ label, ...props }: { label: string } & TextInputProps) {
 export function BotonPrimario({ texto, onPress, cargando, disabled }: { texto: string; onPress: () => void; cargando?: boolean; disabled?: boolean }) {
   return (
     <TouchableOpacity style={[s.btn, (disabled || cargando) && { opacity: 0.45 }]} onPress={onPress} disabled={disabled || cargando}>
-      {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>{texto}</Text>}
+      {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>{texto}</Text>}
     </TouchableOpacity>
   )
 }
@@ -93,14 +93,14 @@ const s = StyleSheet.create({
   // tienen que poder subir por encima de él. Con 28 el botón quedaba pegado.
   scroll: { padding: 28, paddingTop: 64, paddingBottom: 56, flexGrow: 1 },
   back: { width: 38, height: 38, borderRadius: 8, backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  paso: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.red, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
-  subtitulo: { fontFamily: FONTS.regular, fontSize: 14, color: 'rgba(255,255,255,0.55)', lineHeight: 20, marginTop: 8 },
-  opcion: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.carbonEl, borderWidth: 1.5, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 18, marginBottom: 12 },
-  opcionSel: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  opcionLabel: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  opcionDesc: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.5)', marginTop: 3, lineHeight: 18 },
-  campoLabel: { fontFamily: FONTS.semibold, fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 7 },
-  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium },
-  btn: { backgroundColor: COLORS.red, borderRadius: 8, padding: 17, alignItems: 'center', marginTop: 8 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  paso: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.redSoft, letterSpacing: 1.5, marginBottom: 10, textTransform: 'uppercase' },
+  subtitulo: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, lineHeight: 20, marginTop: 8 },
+  opcion: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 18, marginBottom: 12 },
+  opcionSel: { backgroundColor: COLORS.carbonEl, borderColor: '#FFFFFF' },
+  opcionLabel: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  opcionDesc: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 3, lineHeight: 18 },
+  campoLabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onCarbonMid, marginBottom: 7 },
+  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.regular },
+  btn: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 17, alignItems: 'center', marginTop: 8 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
 })

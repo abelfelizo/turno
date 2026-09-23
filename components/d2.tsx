@@ -90,6 +90,6 @@ const s = StyleSheet.create({
   pestTOn: { color: '#FFFFFF' },
   cifras: { flexDirection: 'row', gap: 8 },
   cifra: { flex: 1, minWidth: 0, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 12 },
-  cifraN: { fontFamily: FONTS.mono, fontSize: 24, lineHeight: 28, color: COLORS.ink, letterSpacing: -0.5 },
-  cifraL: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
+  cifraN: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 28, color: COLORS.ink, letterSpacing: -0.5 },
+  cifraL: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
 })

@@ -78,7 +78,11 @@ de titular en vez de mono, botones cuadrados, y los postes que aún decoran
 cabeceras (bienvenida, entrar, historial, agenda, estadísticas, estado del
 local): el handoff los quiere solo en tres sitios.
 
-## Hecho (23 sep) — segunda entrega: el panel del administrador completo
+## ~~Segunda entrega: el panel del administrador completo~~ (deshecha por el v3)
+
+> Se revirtió al llegar el handoff v3: rehacía el JSX del administrador con
+> piezas nuevas, y el v3 prohíbe tocar JSX. Queda como historia (commit
+> `1ca799f`).
 
 Pedido: «todavía hay una mezcla de estilos, construye la versión de
 administrador completa». Las seis pantallas del dueño se rehicieron con **un
@@ -121,6 +125,59 @@ nuevas: va por actualización. Vuelta atrás: publicar desde `4cde52b`.
 Pendiente (fase 3): las pantallas del barbero y del cliente con estas mismas
 piezas; las hojas de la fila y de Mi silla (`hoja-fila`, `hoja-pedir`,
 `hojas-silla`) aún llevan cifras en letra de titular.
+
+## Hecho (23 sep) — handoff v3: solo estilos, en toda la app
+
+El v3 (`docs/diseno-turno-v3/README.md`) **reemplaza a v1 y v2** y cambia el
+método: *solo se tocan estilos*. Nada de JSX, textos, lógica ni componentes
+nuevos en las pantallas. Así se aplicó:
+
+1. **El administrador vuelve a su estructura** (la de `4cde52b`), igual que
+   `cambiar-rol`, `selector` y `resenas`; `components/turno-ui.tsx` se retira.
+   El distintivo de panel vuelve a la píldora de color del v3.
+2. **Base**: `constants/index.ts` con `THEME` (claro y oscuro), `TYPE`,
+   `ESTADO_COLOR`, `FONTS.mono` (500) y `FONTS.monoBold` (700) y los nombres
+   viejos como alias con los valores del v3. `components/ui.tsx` con la API
+   del v3 (`useTheme`, `StatusText`, `TimeSlot`, `DayChip`, `ListRow`,
+   `QueueNumber`, `Button` con `accent` y `destructive`, `Avatar` de dos
+   iniciales, `Chip` activo en negro).
+3. **Bloques exactos del v3** en las claves que existen hoy: `hoja-fila`,
+   `cliente/turno`, `cliente/barberia` (lo que era Inicio), el calendario del
+   barbero (lo que era `agenda-trabajo`) y Mi local (lo que era la cola del
+   dueño). El resto del paquete describe archivos que ya no existen.
+4. **Reglas mecánicas del paso 3** en los 47 archivos, solo dentro de
+   `StyleSheet.create` y en props de color: números en Geist Mono, títulos en
+   Geist, `extrabold`/`bold`/`medium` según la tabla, bordes de 1,5 y 2 px a 1,
+   radios a 8 (hojas a 16), fuera filetes laterales y sombras, rojo solo en el
+   CTA final (reservar, entrar a la fila, confirmar en una hoja) y en el hueco
+   de hora elegido, botones de borrar como destructivos (borde gris, texto
+   rojo), selección en negro, colores de estado del v3, cargadores en negro y
+   márgenes de pantalla a 20.
+
+Criterios propios, dentro de la regla:
+- **Pantallas oscuras** (bienvenida, entrar, registro, error): el botón
+  principal en negro sobre fondo negro no se vería; ahí va **invertido**
+  (blanco con texto negro), como el logo en negativo del splash del v3.
+- **`COLORS.surface` sigue siendo blanco**: en las pantallas siempre quiso
+  decir «fondo de tarjeta», que es lo que el v3 pide (blanco con borde). El
+  gris es `surfaceAlt`.
+- **Sin `react-native-svg`**: es nativa y no está en el APK; con
+  `runtimeVersion: appVersion` una actualización que la importe cerraría la
+  app al abrir. Poste y logo siguen hechos con vistas. Se cambia con el APK.
+- `tabs.tsx` conserva `elevation: 0` y `shadowOpacity: 0`: apagan la sombra
+  por defecto (el `useTabOptions` del v3 hace lo mismo).
+
+Pendiente de decidir (tocan JSX; el v3 dice «anótalo y pregunta»):
+- **Postes decorativos** que el v3 quiere solo en logo, talón y «en la
+  silla»: bienvenida, entrar, agendar, historial, estadísticas del barbero,
+  agenda del barbero y estado del local.
+- Los botones rojos **dentro de las tarjetas** de Mi turno y Mi silla se
+  quedaron rojos (sobre la tarjeta negra un botón negro no se vería).
+
+Verificado: `tsc` 0, babel 78 archivos 0 errores, hooks OK, `probar-silla`
+OK, `expo export` Android OK, grep de verificación del v3 limpio salvo la
+sombra apagada de `tabs.tsx`. Vuelta atrás: publicar desde `1ca799f` (o
+`4cde52b`).
 
 ## Decisiones abiertas (ya resueltas arriba)
 

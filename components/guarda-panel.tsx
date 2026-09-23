@@ -91,7 +91,7 @@ export default function GuardaPanel({ panel, children }: { panel: PanelActivo; c
   if (correcto !== true) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={COLORS.red} size="large" />
+        <ActivityIndicator color={COLORS.ink} size="large" />
       </View>
     )
   }

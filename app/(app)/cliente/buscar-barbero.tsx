@@ -85,7 +85,7 @@ export default function BuscarBarbero() {
         <Display size={24}>Agregar con un código</Display>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         <Text style={s.sec}>EL CÓDIGO</Text>
         {/* El campo es GRANDE y las letras van separadas porque un código se
             copia de un papel mirando una letra cada vez. Apretado y en
@@ -122,7 +122,7 @@ export default function BuscarBarbero() {
             {negocios.length === 0 && <Text style={s.empty}>Este barbero no está activo en ningún local ahora.</Text>}
             {negocios.map((n) => (
               <TouchableOpacity key={n.negocio_id} style={s.local} onPress={() => irAlLocal(n)} disabled={yendo}>
-                <Ionicons name="storefront-outline" size={20} color={COLORS.red} />
+                <Ionicons name="storefront-outline" size={20} color={COLORS.ink} />
                 <Text style={s.localT} numberOfLines={1}>{n.nombre}</Text>
                 {/* Una flecha no dice qué pasa al tocar. Esto sí, y es lo que
                     el cliente vino a hacer: sumarse a ese local. */}
@@ -140,23 +140,20 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
   back: { width: 36, height: 36, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  hint: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
+  hint: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
   buscarRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
-  input: { flex: 1, height: 56, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14,
-    fontFamily: FONTS.display, fontSize: 26, letterSpacing: 5, color: COLORS.ink },
-  buscarBtn: { width: 112, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, height: 56, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 14, fontFamily: FONTS.monoBold, fontSize: 26, letterSpacing: 5, color: COLORS.ink },
+  buscarBtn: { width: 112, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
   buscarBtnOff: { backgroundColor: COLORS.border },
-  buscarBtnT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', letterSpacing: 0 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16,
-    borderTopWidth: 2, borderTopColor: COLORS.ink, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  nombre: { fontFamily: FONTS.display, letterSpacing: -0.3, fontSize: 21, color: COLORS.ink },
+  buscarBtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16, borderTopWidth: 1, borderTopColor: COLORS.divider, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  nombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 21, color: COLORS.ink },
   esp: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginTop: 2 },
-  bio: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginBottom: 4 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
+  bio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+  empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  localT: { flex: 1, fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.red },
-  agregarT: { fontFamily: FONTS.display, fontSize: 14, color: '#fff' },
+  localT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.ink },
+  agregarT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
 })

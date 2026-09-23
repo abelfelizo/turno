@@ -378,7 +378,7 @@ export default function MiSilla() {
 
   // ── la pantalla ───────────────────────────────────────────────────────────
   if (loading) return (
-    <View style={[s.container, { paddingTop: insets.top + 12, paddingHorizontal: 18 }]}><TarjetaEsqueleto /></View>
+    <View style={[s.container, { paddingTop: insets.top + 12, paddingHorizontal: 20 }]}><TarjetaEsqueleto /></View>
   )
   if (fallo) return (
     <View style={s.center}><NoCargo que="tu silla" onReintentar={() => { setLoading(true); cargar() }} /></View>
@@ -388,7 +388,7 @@ export default function MiSilla() {
 
   return (
     <View style={s.container}>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 12, paddingBottom: 28 }}
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 28 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}
         showsVerticalScrollIndicator={false}>
 
@@ -503,7 +503,7 @@ function Fila({ pos, q, ahoraMs, onMas }: { pos?: number; q: any; ahoraMs: numbe
         <View style={s.nombreFila}>
           <Text style={s.nombre} numberOfLines={1}>{nombreDe(q)}</Text>
           {/* Quien está aquí es lo que decide si puedes sentar a otro. */}
-          {enElLocal(q) && <Text style={[s.chip, { backgroundColor: COLORS.success }]}>EN EL LOCAL</Text>}
+          {enElLocal(q) && <Text style={[s.chip, { backgroundColor: COLORS.ink }]}>EN EL LOCAL</Text>}
           {q.prioridad === 1 && <Text style={[s.chip, { backgroundColor: COLORS.blue }]}>TENÍA CITA</Text>}
         </View>
         <Text style={s.meta} numberOfLines={1}>{meta}</Text>
@@ -522,17 +522,17 @@ const s = StyleSheet.create({
   secT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.ink },
   secFilete: { height: 2, backgroundColor: COLORS.ink, marginTop: 7 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  pos: { width: 18, textAlign: 'center', fontFamily: FONTS.display, fontSize: 17, color: COLORS.textLight },
+  pos: { width: 18, textAlign: 'center', fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.textLight },
   ini: { width: 38, height: 38, backgroundColor: COLORS.blueLight, alignItems: 'center', justifyContent: 'center' },
-  iniT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.blue },
+  iniT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.blue },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  nombre: { fontFamily: FONTS.extrabold, fontSize: 14.5, color: COLORS.ink, flexShrink: 1 },
-  chip: { fontFamily: FONTS.extrabold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
-  meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink, flexShrink: 1 },
+  chip: { fontFamily: FONTS.semibold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden' },
+  meta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   mas: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: -8 },
   cita: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  citaHora: { width: 52, fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
+  citaHora: { width: 52, fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
   salgo: { flexDirection: 'row', gap: 7, marginTop: 12 },
   salgoBtn: { flex: 1, height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  salgoT: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.ink },
+  salgoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
 })

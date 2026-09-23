@@ -138,7 +138,7 @@ export default function MiBarberia() {
   }
 
   if (loading) {
-    return <View style={s.centro}><ActivityIndicator color={COLORS.red} size="large" /></View>
+    return <View style={s.centro}><ActivityIndicator color={COLORS.ink} size="large" /></View>
   }
   if (fallo) {
     return (
@@ -153,7 +153,7 @@ export default function MiBarberia() {
   return (
     <ScrollView
       style={s.pagina}
-      contentContainerStyle={{ padding: 18, paddingTop: insets.top + 20, paddingBottom: 36 }}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 20, paddingBottom: 36 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
 
       {/* La marca del local, con la dirección entera: sector, ciudad y el punto
@@ -382,7 +382,7 @@ function Contacto({ whatsapp, telefono, instagram, nombre }: any) {
         <TouchableOpacity style={[s.ico, { borderColor: COLORS.red }]}
           accessibilityRole="button" accessibilityLabel="Ver su Instagram"
           onPress={() => abrir(`instagram://user?username=${ig}`, `https://instagram.com/${ig}`)}>
-          <Ionicons name="logo-instagram" size={15} color={COLORS.red} />
+          <Ionicons name="logo-instagram" size={15} color={COLORS.ink} />
         </TouchableOpacity>
       )}
       {!!tel && (
@@ -410,66 +410,64 @@ const s = StyleSheet.create({
   centro: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
 
   marca: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  marcaN: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 28, lineHeight: 29, color: COLORS.ink },
+  marcaN: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 28, lineHeight: 29, color: COLORS.ink },
   marcaS: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  marcaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
+  marcaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
 
-  chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1.5, borderColor: COLORS.line },
+  chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1, borderColor: COLORS.line },
   chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
-  chipLocalT: { fontFamily: FONTS.bold, fontSize: 11.5, color: COLORS.textMid },
+  chipLocalT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid },
 
   fidel: { marginTop: 18, backgroundColor: COLORS.carbon, borderRadius: 8, padding: 17 },
   fidelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
   fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, color: COLORS.onCarbonMid },
-  fidelNum: { fontFamily: FONTS.display, fontSize: 22, color: '#fff' },
+  fidelNum: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff' },
   barra: { height: 10, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 12 },
   barraFill: { height: 10, backgroundColor: COLORS.red },
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 11, gap: 10 },
   fidelPremio: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.onCarbonMid },
-  fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff' },
+  fidelFaltan: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
 
-  vale: { marginTop: 10, borderWidth: 2, borderColor: COLORS.red, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  valeN: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.red },
+  vale: { marginTop: 10, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  valeN: { fontFamily: FONTS.monoBold, fontSize: 15, color: COLORS.ink },
   valeD: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textMid },
 
-  sec: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.ink },
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 10, marginBottom: 10 },
   secRegla: { height: 2, backgroundColor: COLORS.ink, marginTop: 7 },
-  nota: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 11, lineHeight: 18 },
-  vacio: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginTop: 10 },
+  nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 11, lineHeight: 18 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 10 },
 
-  barbero: { marginTop: 16, borderLeftWidth: 3, borderLeftColor: COLORS.line, paddingLeft: 13 },
+  barbero: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8, marginTop: 16 },
   bHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bNombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  bNombre: { fontFamily: FONTS.display, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff',
-    backgroundColor: COLORS.red, paddingHorizontal: 6, paddingVertical: 2 },
-  bMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  bEstado: { fontFamily: FONTS.bold, fontSize: 11.5 },
+  bNombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
+  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff', backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2 },
+  bMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
+  bEstado: { fontFamily: FONTS.semibold, fontSize: 11.5 },
 
   contacto: { flexDirection: 'row', gap: 6, marginLeft: 3 },
-  ico: { width: 30, height: 30, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  ico: { width: 30, height: 30, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
-  servicio: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11,
-    borderBottomWidth: 1, borderBottomColor: COLORS.line },
-  svN: { fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
-  svD: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
-  svP: { fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink },
+  servicio: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, backgroundColor: COLORS.surfaceAlt, borderRadius: 8, padding: 14, marginTop: 8 },
+  svN: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
+  svD: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
+  svP: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
 
   bAcciones: { flexDirection: 'row', gap: 9, marginTop: 13 },
   bBtn: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
-  bBtnRojo: { backgroundColor: COLORS.red },
+  bBtnRojo: { backgroundColor: COLORS.ink },
   bBtnContorno: { borderWidth: 1, borderColor: COLORS.border },
-  bBtnT: { fontFamily: FONTS.display, fontSize: 15, color: '#fff' },
+  bBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
 
   plegado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: COLORS.line },
-  plegadoT: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid },
+  plegadoT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid },
 
   canjear: { backgroundColor: '#fff', padding: 14, alignItems: 'center', marginTop: 14 },
-  canjearT: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.carbon, letterSpacing: 0 },
+  canjearT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.carbon, letterSpacing: 0 },
   salir: { marginTop: 26, paddingVertical: 13, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid },
+  salirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24,
     borderWidth: 1, borderColor: COLORS.border, padding: 15 },
-  agregarT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
+  agregarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
 })

@@ -108,7 +108,7 @@ export default function RootLayout() {
     </View>
   )
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={COLORS.red} size="large" /></View>
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FFFFFF" size="large" /></View>
   // SafeAreaProvider envuelve TODO: es de donde salen las medidas reales del
   // teléfono (la barra de gestos, los botones de Android, la muesca). Sin él,
   // useSafeAreaInsets devuelve ceros y las barras de abajo vuelven a quedar

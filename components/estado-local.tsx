@@ -48,9 +48,9 @@ export type SillaEstado = {
 }
 
 const COLOR: Record<string, string> = {
-  libre: COLORS.success,
-  atendiendo: '#8AB4FF',
-  descanso: COLORS.warning,
+  libre: COLORS.okNoche,
+  atendiendo: COLORS.redSoft,
+  descanso: '#A3A3A3',
   inactivo: 'rgba(255,255,255,0.35)',
 }
 
@@ -182,19 +182,19 @@ const s = StyleSheet.create({
   card: { backgroundColor: COLORS.carbon, borderRadius: 8, marginBottom: 16, overflow: 'hidden' },
   cuerpo: { padding: 18 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  lbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
-  titulo: { fontFamily: FONTS.bold, fontSize: 17, color: '#fff', marginTop: 3 },
-  detalle: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 8, lineHeight: 18 },
+  lbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 1 },
+  titulo: { fontFamily: FONTS.semibold, fontSize: 17, color: '#fff', marginTop: 3 },
+  detalle: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 8, lineHeight: 18 },
   figura: { alignItems: 'flex-end' },
-  figuraN: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 42, color: COLORS.redSoft },
-  figuraL: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 1.4, color: 'rgba(255,255,255,0.5)', marginTop: 1 },
+  figuraN: { fontFamily: FONTS.monoBold, fontSize: 40, lineHeight: 42, color: COLORS.redSoft },
+  figuraL: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 1.4, color: COLORS.onCarbonMid, marginTop: 1 },
   sillas: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },
   punto: { width: 7, height: 7, borderRadius: 4 },
-  chipT: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
-  chipD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
+  chipD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid },
   porques: { marginTop: 12, gap: 5 },
-  porque: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 17 },
-  porqueQuien: { fontFamily: FONTS.bold, color: 'rgba(255,255,255,0.85)' },
+  porque: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, lineHeight: 17 },
+  porqueQuien: { fontFamily: FONTS.semibold, color: COLORS.onCarbonMid },
 })

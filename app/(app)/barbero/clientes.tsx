@@ -185,7 +185,7 @@ export default function Clientes() {
     })
   const sinVenir = clientes.filter((c: any) => c.visitas === 0).length
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
   if (fallo) return (
     <View style={s.center}><NoCargo que="tus clientes" onReintentar={() => { setLoading(true); void correr() }} /></View>
   )
@@ -241,7 +241,7 @@ export default function Clientes() {
         <FlatList
           data={ordenados} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 28 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 28 }}
           ListHeaderComponent={cabecera}
           ListEmptyComponent={<Text style={s.vacio}>{q ? 'Nadie con ese nombre.' : 'Todavía no se ha unido nadie al local.'}</Text>}
           renderItem={({ item }) => {
@@ -276,7 +276,7 @@ export default function Clientes() {
       ) : (
         <FlatList
           data={recuperar} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 28 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 28 }}
           ListHeaderComponent={cabecera}
           ListEmptyComponent={<Text style={s.vacio}>Nadie por recuperar: tus clientes vuelven a tiempo.</Text>}
           renderItem={({ item }) => {
@@ -416,50 +416,49 @@ function Dato({ l, v, rojo }: { l: string; v: string; rojo?: boolean }) {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  vacio: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
-  b: { fontFamily: FONTS.extrabold, color: COLORS.ink },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
+  b: { fontFamily: FONTS.semibold, color: COLORS.ink },
   buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: COLORS.border,
     paddingHorizontal: 12, marginTop: 16, backgroundColor: COLORS.surface },
-  buscarT: { flex: 1, fontFamily: FONTS.medium, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
+  buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
-  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1.5, borderColor: COLORS.ink },
+  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: COLORS.ink },
   ordenOn: { backgroundColor: COLORS.ink },
-  ordenT: { fontFamily: FONTS.extrabold, fontSize: 12, color: COLORS.ink },
+  ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  nombre: { fontFamily: FONTS.extrabold, fontSize: 15.5, color: COLORS.ink },
-  meta: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
+  meta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   notaPrev: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 3 },
-  contacto: { width: 42, height: 42, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  regla: { marginTop: 16, borderWidth: 2, borderColor: COLORS.red, paddingHorizontal: 13, paddingVertical: 11 },
-  reglaT: { fontFamily: FONTS.medium, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid },
+  contacto: { width: 42, height: 42, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  regla: { marginTop: 16, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingHorizontal: 13, paddingVertical: 11 },
+  reglaT: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid },
   recup: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   recupFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dias: { fontFamily: FONTS.display, fontSize: 28, lineHeight: 32, color: COLORS.red },
+  dias: { fontFamily: FONTS.monoBold, fontSize: 28, lineHeight: 32, color: COLORS.redText },
   diasD: { fontSize: 14 },
   recupBtns: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
-  btnRojo: { flex: 1, height: 44, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  btnRojoT: { fontFamily: FONTS.extrabold, fontSize: 13.5, color: '#fff' },
+  btnRojo: { flex: 1, height: 44, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff' },
   btnContorno: { width: 96, height: 44, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  btnContornoT: { fontFamily: FONTS.extrabold, fontSize: 13.5, color: COLORS.ink },
+  btnContornoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
   avisar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, borderRadius: 8, backgroundColor: COLORS.carbon, padding: 15 },
-  avisarT: { flex: 1, fontFamily: FONTS.extrabold, fontSize: 14, color: '#fff' },
-  fTitulo: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 26, lineHeight: 31, color: COLORS.ink, marginTop: 4 },
-  fSub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, marginTop: 3, marginBottom: 6 },
+  avisarT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  fTitulo: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 26, lineHeight: 31, color: COLORS.ink, marginTop: 4 },
+  fSub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, marginBottom: 6 },
   dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  datoL: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
-  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
-  datoN: { flex: 1, textAlign: 'right', fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
+  datoL: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
+  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
+  datoN: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
   barra: { height: 8, backgroundColor: COLORS.surfaceAlt, marginTop: 10 },
-  barraLlena: { height: 8, backgroundColor: COLORS.red },
+  barraLlena: { height: 8, backgroundColor: COLORS.ink },
   visita: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  visitaF: { width: 58, fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
-  visitaS: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  visitaP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
-  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 13, marginTop: 12, minHeight: 90,
-    fontFamily: FONTS.medium, fontSize: 14.5, color: COLORS.ink, textAlignVertical: 'top' },
+  visitaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
+  visitaS: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
+  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 13, marginTop: 12, minHeight: 90, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, textAlignVertical: 'top' },
   guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
-  guardarT: { fontFamily: FONTS.display, fontSize: 17, color: '#fff', letterSpacing: 0 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff', letterSpacing: 0 },
   contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 14 },
 })

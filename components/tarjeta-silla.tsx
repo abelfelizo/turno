@@ -2,7 +2,7 @@
  * LA TARJETA DE MI SILLA — el único objeto oscuro de la pantalla del barbero.
  *
  * Es la hermana de la tarjeta del cliente (components/tarjeta-turno) y tiene
- * su misma anatomía, a propósito: poste, el local en Anton como cabecera,
+ * su misma anatomía, a propósito: poste, el local en letra de titular como cabecera,
  * filete, un rótulo de estado, la cifra, el cuerpo y el pie con sus botones.
  * Un barbero que también es cliente de otra barbería reconoce la pieza.
  *
@@ -135,13 +135,13 @@ const s = StyleSheet.create({
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, flexShrink: 1 },
-  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.medium, fontSize: 12.5 },
+  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 12.5 },
   texto: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, marginTop: 12 },
   destacado: { fontFamily: FONTS.semibold, color: '#FFFFFF' },
   pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   btn: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 15 },
-  nota: { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 17, marginTop: 10 },
+  nota: { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 17, marginTop: 10 },
   mas: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, marginTop: 12, paddingVertical: 4 },
-  masT: { fontFamily: FONTS.bold, fontSize: 12.5, textDecorationLine: 'underline' },
+  masT: { fontFamily: FONTS.semibold, fontSize: 12.5, textDecorationLine: 'underline' },
 })

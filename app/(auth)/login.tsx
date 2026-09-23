@@ -53,7 +53,7 @@ export default function Login() {
       </View>
 
       <Text style={s.kicker}>App de reservas · Barbería</Text>
-      {/* Sin override de lineHeight: Display ya usa size×1.18, que Anton necesita
+      {/* Sin override de lineHeight: Display ya usa size×1.18, que la letra de titular necesita
           para no recortar los ascendentes (un 64 sobre fuente 68 cortaba "RESERVA"). */}
       <Display size={68} color="#fff">Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
 
@@ -63,7 +63,7 @@ export default function Login() {
           <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}
             autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={pedirCodigo} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Enviar código</Text>}
+            {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>Enviar código</Text>}
           </TouchableOpacity>
         </>
       ) : (
@@ -73,7 +73,7 @@ export default function Login() {
             keyboardType="number-pad" maxLength={10} value={codigo}
             onChangeText={t => setCodigo(t.replace(/\D/g, ''))} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={confirmar} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Confirmar</Text>}
+            {cargando ? <ActivityIndicator color={COLORS.ink} /> : <Text style={s.btnT}>Confirmar</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setPaso('email')} disabled={cargando}><Text style={s.link}>Cambiar correo</Text></TouchableOpacity>
         </>
@@ -101,16 +101,16 @@ const s = StyleSheet.create({
   c: { flexGrow: 1, padding: 28, paddingBottom: 56, justifyContent: 'center' },
   poleTop: { position: 'absolute', top: 0, left: 0, right: 0 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logo: { width: 34, height: 34, borderRadius: 8, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  logoT: { fontFamily: FONTS.extrabold, color: '#fff', fontSize: 18 },
+  logo: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  logoT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 18 },
   wordmark: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13, letterSpacing: 1 },
   kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
   sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
-  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
+  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.regular, marginBottom: 12 },
   code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
   pruebas: { marginTop: 26, padding: 12, alignItems: 'center' },
   pruebasT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#6E7078', textDecorationLine: 'underline' },
-  btn: { backgroundColor: COLORS.red, borderRadius: 8, padding: 17, alignItems: 'center' },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  btn: { backgroundColor: '#FFFFFF', borderRadius: 8, padding: 17, alignItems: 'center' },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
   link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },
 })

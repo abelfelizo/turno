@@ -43,8 +43,8 @@ export class ErrorBoundary extends Component<Props, State> {
 const s = StyleSheet.create({
   c: { flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emoji: { fontSize: 44, marginBottom: 12 },
-  title: { fontFamily: FONTS.extrabold, fontSize: 22, color: '#fff', marginBottom: 8 },
-  sub: { fontFamily: FONTS.medium, fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: 28 },
-  btn: { backgroundColor: COLORS.red, borderRadius: 8, paddingVertical: 15, paddingHorizontal: 32 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  title: { fontFamily: FONTS.bold, fontSize: 22, color: '#fff', marginBottom: 8 },
+  sub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, textAlign: 'center', marginBottom: 28 },
+  btn: { backgroundColor: '#FFFFFF', borderRadius: 8, paddingVertical: 15, paddingHorizontal: 32 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
 })

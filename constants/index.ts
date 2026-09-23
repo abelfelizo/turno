@@ -2,111 +2,143 @@
 // (cuenta fija dev@turno.test) se eliminó por seguridad — daba acceso de dueño a
 // cualquiera con el APK. Para cambiar de panel se usa <CambiarRol />.
 
-// LÍNEA GRÁFICA DE TURNO (handoff del 23 sep, docs/diseno-turno/README.md).
+// SISTEMA VISUAL TURNO — handoff v3 (docs/diseno-turno-v3/README.md).
 //
-// Dominan los neutros puros —blanco y negro—; el rojo y el azul son SOLO
-// acentos. Reemplaza a NAVAJA (Anton, Plus Jakarta, carbón #0B0C10, rojo
-// #E5202B, azul #1646E0).
+// Regla: neutros puros (blanco/negro) dominan; rojo y azul SOLO como acento.
+// Radio 8, sin sombras, todos los números en mono. Reemplaza a NAVAJA.
 //
-// LOS NOMBRES DE SIEMPRE, CON LOS VALORES NUEVOS. La app lee estos nombres en
-// más de mil sitios; cambiar los valores aquí cambia la app entera de una vez
-// sin tocar la lógica de ninguna pantalla. Los nombres que el handoff añade
-// (disabled, divider, tabBorder, redText) van al final.
-const CLARO = {
-  red: '#E1251B',          // acento: tab activa, CTA final, «llamado», «en la silla»
-  redDark: '#C21D14',
-  redLight: '#FDECEB',
-  /** Rojo legible sobre la tinta: el de marca no llega al contraste en oscuro. */
-  redSoft: '#FF5A4F',
-  blue: '#1E4FD8',         // acento: «en camino», enlaces, acciones secundarias
-  blueLight: '#EEF2FD',
-  carbon: '#0B0B0C',       // la tinta: texto, botón principal, ticket activo
-  carbonEl: '#1A1A1A',
-  carbonBorder: '#2A2A2A',
-  primary: '#0B0B0C',
-  gold: '#E1251B',         // compat
-  purple: '#1E4FD8',       // compat
-  purpleLight: '#EEF2FD',
-  ink: '#0B0B0C',
-  text: '#0B0B0C',
-  textMid: '#5C5C5C',      // text2: etiquetas de sección, subtítulos
-  textLight: '#6B6B6B',    // text3: metadatos, tabs inactivas
-  line: '#E6E6E6',
-  canvas: '#F4F4F4',
+// `THEME` es el sistema nuevo (claro y oscuro). `COLORS` conserva los nombres
+// de siempre como alias con los valores nuevos: la app los lee en más de mil
+// sitios y así no se rompe nada.
+const light = {
   bg: '#FFFFFF',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F4F4F4',   // surface del handoff: avatares, chips de fecha
-  border: '#E6E6E6',
-  borderSoft: '#F0F0F0',
-  /** Texto y filete sobre la tinta (el ticket). */
-  onCarbon: '#FFFFFF',
-  onCarbonMid: '#B5B5B5',
-  carbonDash: '#3A3A3A',
-  success: '#1F9D55',
-  successLight: '#E8F6EE',
-  // SEÑALES SOBRE LA TINTA: las mismas cuatro, subidas para leerse en negro.
-  okNoche: '#34C77B',
-  azulNoche: '#6E93FF',
-  ambarNoche: '#E8901A',
-  danger: '#C21D14',
-  dangerLight: '#FDECEB',
-  warning: '#B45309',
-  warningLight: '#FDF1E3',
-  info: '#1E4FD8',
-  infoLight: '#EEF2FD',
-  // Nuevos del handoff.
+  surface: '#F4F4F4',
+  ink: '#0B0B0C',
+  text2: '#5C5C5C',
+  text3: '#6B6B6B',
   disabled: '#B5B5B5',
+  border: '#E6E6E6',
   divider: '#F0F0F0',
   tabBorder: '#EDEDED',
-  redText: '#C21D14',      // rojo para texto sobre blanco («Salir»)
+  red: '#E1251B',
+  redText: '#C21D14',
+  blue: '#1E4FD8',
+  green: '#1F9D55',
+  onInk: '#FFFFFF',
+  onInkMuted: '#B5B5B5',
+  inkDivider: '#3A3A3A',
+  inkPill: '#1F1F1F',
 }
 
-/**
- * EL OSCURO, PREPARADO Y SIN ACTIVAR. Se enciende en la fase 5
- * (docs/APLICAR-LINEA-GRAFICA.md), cuando lo claro esté visto en el teléfono.
- * En oscuro la card protagonista se invierte: fondo blanco y texto tinta.
- */
-export const COLORS_OSCURO: typeof CLARO = {
-  ...CLARO,
-  red: '#FF5A4F', redSoft: '#FF5A4F', redText: '#FF5A4F',
-  blue: '#6E93FF', info: '#6E93FF',
-  ink: '#FFFFFF', text: '#FFFFFF', primary: '#FFFFFF',
-  textMid: '#A3A3A3', textLight: '#A3A3A3',
-  bg: '#0B0B0C', surface: '#0B0B0C', surfaceAlt: '#1A1A1A', canvas: '#1A1A1A',
-  border: '#2A2A2A', line: '#2A2A2A', borderSoft: '#1F1F1F', divider: '#1F1F1F', tabBorder: '#1F1F1F',
-  success: '#34C77B', okNoche: '#34C77B',
+const dark: typeof light = {
+  bg: '#0B0B0C',
+  surface: '#1A1A1A',
+  ink: '#FFFFFF',
+  text2: '#A3A3A3',
+  text3: '#A3A3A3',
+  disabled: '#5C5C5C',
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
+  tabBorder: '#1F1F1F',
+  red: '#FF5A4F',
+  redText: '#FF5A4F',
+  blue: '#6E93FF',
+  green: '#34C77B',
+  onInk: '#0B0B0C',
+  onInkMuted: '#5C5C5C',
+  inkDivider: '#E6E6E6',
+  inkPill: '#F4F4F4',
 }
 
-export const COLORS = CLARO
+export const THEME = { light, dark }
+export type Theme = typeof light
 
-// FAMILIAS DE FUENTE (cargadas en app/_layout.tsx).
-// La tipografía del handoff es PROVISIONAL: el cliente definirá la familia
-// final. Por eso vive aquí en un solo sitio —cambiarla es cambiar estas
-// líneas—. `display` era Anton; ahora es Geist en negrita, sin mayúsculas.
-// Todos los números van en mono (`mono`, `monoMedium`).
+export const COLORS = {
+  ...light,
+  // ── compat NAVAJA → TURNO (no usar en código nuevo) ──
+  // Diferencia deliberada con el v3: aquí `surface` sigue siendo BLANCO. En
+  // las pantallas `COLORS.surface` siempre significó «fondo de tarjeta», y el
+  // v3 pide justo eso: tarjetas blancas con borde de 1 px. El gris del sistema
+  // nuevo es `surfaceAlt` (o `THEME.light.surface`).
+  surface: light.bg,
+  redDark: light.redText,
+  redLight: light.surface,
+  /** Rojo legible sobre la tinta. */
+  redSoft: '#FF5A4F',
+  blueLight: light.surface,
+  carbon: light.ink,
+  carbonEl: '#1A1A1A',
+  carbonBorder: '#2A2A2A',
+  primary: light.ink,
+  gold: light.red,
+  purple: light.ink,
+  purpleLight: light.surface,
+  text: light.ink,
+  textMid: light.text2,
+  textLight: light.text3,
+  line: light.border,
+  canvas: light.bg,
+  surfaceAlt: light.surface,
+  borderSoft: light.divider,
+  onCarbon: light.onInk,
+  onCarbonMid: light.onInkMuted,
+  carbonDash: light.inkDivider,
+  success: light.green,
+  successLight: light.surface,
+  // Señales sobre la tinta, subidas para leerse en negro.
+  okNoche: '#34C77B',
+  azulNoche: '#6E93FF',
+  // El v3 no tiene ámbar: la pausa se dice en el gris de «descanso» del oscuro.
+  ambarNoche: '#A3A3A3',
+  danger: light.redText,
+  dangerLight: light.surface,
+  warning: light.text2,
+  warningLight: light.surface,
+  info: light.blue,
+  infoLight: light.surface,
+}
+
+// Tipografía PROVISIONAL (cargada en app/_layout.tsx). El cliente definirá la
+// familia final: cambia SOLO estas líneas. No uses Anton ni Plus Jakarta Sans.
 export const FONTS = {
-  display: 'Geist_700Bold',
   regular: 'Geist_400Regular',
   medium: 'Geist_500Medium',
   semibold: 'Geist_600SemiBold',
   bold: 'Geist_700Bold',
-  extrabold: 'Geist_700Bold',   // el handoff no pasa de 700
-  mono: 'GeistMono_700Bold',
-  monoMedium: 'GeistMono_500Medium',
+  mono: 'GeistMono_500Medium',
+  monoBold: 'GeistMono_700Bold',
+  // compat
+  display: 'Geist_700Bold',
+  extrabold: 'Geist_700Bold',
 } as const
 
-// ── Tokens del sistema de diseño ──────────────────────────────────
-export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const
-// Radio 8 por defecto en todo (botones, cards, chips, inputs, tickets). El
-// estilo estándar no usa radios mayores; solo la variante Glass.
+export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 } as const
+export const SCREEN_PADDING = 20
+export const SECTION_GAP = 22
+
+// Radio por defecto = 8 para TODO (botones, cards, chips, inputs, tickets).
 export const RADIUS = { sm: 8, md: 8, lg: 8, xl: 8, pill: 999 } as const
+
+export const TYPE = {
+  number: { fontFamily: FONTS.monoBold, fontSize: 112, letterSpacing: -4, lineHeight: 112 },
+  h1: { fontFamily: FONTS.bold, fontSize: 28, letterSpacing: -0.6 },
+  h2: { fontFamily: FONTS.bold, fontSize: 40, letterSpacing: -1 },
+  title: { fontFamily: FONTS.semibold, fontSize: 18 },
+  body: { fontFamily: FONTS.regular, fontSize: 15 },
+  bodyStrong: { fontFamily: FONTS.semibold, fontSize: 15 },
+  meta: { fontFamily: FONTS.regular, fontSize: 13 },
+  overline: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase' },
+  tab: { fontFamily: FONTS.semibold, fontSize: 11 },
+} as const
+
+// compat
 export const FONT = {
-  display: { fontSize: 26, fontWeight: '800' },
-  title: { fontSize: 19, fontWeight: '800' },
-  subtitle: { fontSize: 16, fontWeight: '700' },
-  body: { fontSize: 15, fontWeight: '500' },
-  caption: { fontSize: 13, fontWeight: '500' },
-  label: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  display: TYPE.h1,
+  title: TYPE.title,
+  subtitle: TYPE.bodyStrong,
+  body: TYPE.body,
+  caption: TYPE.meta,
+  label: TYPE.overline,
 } as const
 
 export const KEYS = {
@@ -136,6 +168,28 @@ export const ESTADOS_COLA = {
   reinsertado: 'reinsertado',
   abandonado: 'abandonado',
 } as const
+
+// Color de texto por estado (listas).
+export const ESTADO_COLOR: Record<string, keyof Theme> = {
+  en_fila: 'text3',
+  llamado: 'red',
+  en_camino: 'blue',
+  en_silla: 'red',
+  atendiendo: 'red',
+  atendido: 'text3',
+  atendida: 'text3',
+  expirado: 'disabled',
+  abandonado: 'disabled',
+  reinsertado: 'text3',
+  creada: 'text3',
+  confirmada: 'ink',
+  no_confirmada: 'text3',
+  no_llego: 'redText',
+  cola_prioritaria: 'ink',
+  cancelada: 'disabled',
+  disponible: 'green',
+  descanso: 'text3',
+}
 
 export const PRIORIDAD_COLA = {
   cita_prioritaria: 1,
