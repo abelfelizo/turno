@@ -280,3 +280,22 @@ migración pequeña, anotada aquí y sin hacer.
 
 **`components/agenda-trabajo.tsx` — borrado** (22 sep, con visto bueno): ya
 no lo usaba ninguna pantalla. Sigue en la historia de git si hiciera falta.
+
+## Empleado frente a independiente, comprobado (23 sep)
+
+Cinco sillas de prueba (empleado sin permiso, empleado con permiso, dueño que
+atiende, alquila silla, independiente) × 25 acciones, contra la base y dentro
+de una transacción que se revierte. En el día a día la pantalla ofrece
+exactamente lo que el servidor acepta a cada una. Lo que no cuadraba:
+
+1. **El independiente no veía sus puntos** en ningún panel — arreglado en
+   Ajustes (`puntosPropios`: alquila, o es dueño de un local de alquiler).
+2. **Su suscripción decía «va dentro del plan del local»**, y en un local de
+   alquiler cada silla paga la suya — arreglado en `lib/pricing.ts`.
+3. **🔴 La tabla de la fila estaba abierta por detrás**: un cliente podía
+   insertarse con prioridad 1 o marcar su turno como atendido (visita y
+   puntos regalados). Migración **119** escrita, probada en seco (14/14) y
+   **sin aplicar**; suite `supabase/tests/fila_a_mano.test.sql`, vuelta atrás
+   en `supabase/rollback_119_…sql`.
+4. El empleado podía encender su propia tarjeta de puntos (sin efecto). Lo
+   cierra la misma 119.

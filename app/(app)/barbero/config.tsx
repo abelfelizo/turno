@@ -286,6 +286,17 @@ export default function Config() {
    * funcione»—, aquí del lado de la interfaz.
    */
   const empleado = rolMembresia !== 'barbero_renta' && rolMembresia !== 'dueno'
+  /**
+   * ¿LLEVA SU PROPIA TARJETA DE PUNTOS? Quien alquila, y también el dueño de
+   * un local de asientos alquilados —el barbero independiente, dueño de su
+   * local de una silla—: ahí el panel del local esconde los puntos a
+   * propósito («los lleva cada barbero»), y turno_fidelidad lee los de su
+   * perfil. Solo miraba `barbero_renta`, así que el independiente no los veía
+   * en ningún panel. El dueño de un local de EMPLEADOS no: su programa es el
+   * del local, y se pone desde el panel de la barbería.
+   */
+  const puntosPropios = rolMembresia === 'barbero_renta'
+    || (rolMembresia === 'dueno' && cfgLocalTipo === 'espacios_rentados')
 
   function horarioDe(n: number) { return horarios.find(h => h.dia_semana === n) }
   function abrirHorario(n: number) {
@@ -468,7 +479,7 @@ export default function Config() {
         : tiemposPropios ? 'Uso mis propios tiempos' : `Sigo los de ${negocioNombre ?? 'la barbería'}` },
     // Solo quien alquila su asiento lleva tarjeta propia; al empleado se la
     // pone el local, y una fila que no decide nada solo estorba.
-    { k: 'puntos', g: 'como', t: 'Sistema de puntos', icono: 'gift-outline', ver: rolMembresia === 'barbero_renta',
+    { k: 'puntos', g: 'como', t: 'Sistema de puntos', icono: 'gift-outline', ver: puntosPropios,
       v: perfil?.puntos_activos
         ? `Cada ${perfil?.puntos_meta ?? 8} recortes · ${premio || 'Corte gratis'}`
         : 'Desactivado' },
@@ -848,13 +859,13 @@ export default function Config() {
 
       {seccion === 'puntos' && (
         <>
-        {rolMembresia === 'barbero_renta' && (
+        {puntosPropios && (
           <>
             <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
             <View style={s.regla}>
               <View style={{ flex: 1, paddingRight: 12 }}>
                 <Text style={s.reglaL}>Premiar a mis clientes</Text>
-                <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
+                <Text style={s.reglaD}>Tu propia tarjeta: cuenta las visitas contigo, y viaja contigo.</Text>
               </View>
               <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
             </View>
