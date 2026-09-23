@@ -10,9 +10,6 @@ import type { PanelActivo } from '../types'
 
 
 
-const ICONO: Record<string, keyof typeof Ionicons.glyphMap> = {
-  cliente: 'person', barberia: 'storefront', silla: 'cut',
-}
 // Color distinto por panel: la señal más rápida de "dónde estoy".
 const FONDO: Record<string, string> = { cliente: COLORS.blue, barberia: COLORS.carbon, silla: COLORS.red }
 
@@ -56,15 +53,19 @@ export default function PanelBadge() {
   }
 
   return (
-    <TouchableOpacity style={[s.pill, { backgroundColor: FONDO[actual.panel] }]} onPress={abrir} activeOpacity={0.85}>
-      <Ionicons name={ICONO[actual.panel]} size={13} color="#fff" />
+    <TouchableOpacity style={s.pill} onPress={abrir} activeOpacity={0.85}>
+      <View style={[s.punto, { backgroundColor: FONDO[actual.panel] }]} />
       <Text style={s.txt} numberOfLines={1}>{NOMBRE_DE_PANEL[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
-      <Ionicons name="swap-horizontal" size={14} color="rgba(255,255,255,0.7)" />
+      <Ionicons name="swap-horizontal" size={14} color={COLORS.textLight} />
     </TouchableOpacity>
   )
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 6, marginBottom: 12 },
-  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', letterSpacing: 0.8, maxWidth: 220 },
+  // Chip neutro con un punto del color del panel: en la línea gráfica de
+  // Turno el color macizo se reserva a los estados, no a la navegación.
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginBottom: 12 },
+  punto: { width: 8, height: 8, borderRadius: 4 },
+  txt: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink, maxWidth: 220 },
 })

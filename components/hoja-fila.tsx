@@ -291,7 +291,7 @@ const s = StyleSheet.create({
     paddingLeft: 11, paddingVertical: 8, marginBottom: 14 },
   avisoT: { flex: 1, fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid },
   cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
-  ctaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  ctaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', letterSpacing: -0.3 },
   pie: { borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 14, marginTop: 4 },
   recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11 },
   recuentoT: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },

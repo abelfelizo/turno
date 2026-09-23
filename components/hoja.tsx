@@ -78,8 +78,7 @@ export default function Hoja({ visible, onClose, children }: {
 const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
   telon: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
-  // Cuadrada, como el resto. Era el último sitio con las esquinas
-  // redondeadas de antes, y como esta hoja la usan cinco pantallas, era la
-  // costura que se veía en las cinco.
-  hoja: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26 },
+  // Radio 8 arriba, como todo en la línea gráfica de Turno.
+  hoja: { backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26,
+    borderTopLeftRadius: 8, borderTopRightRadius: 8 },
 })

@@ -533,6 +533,6 @@ const s = StyleSheet.create({
   cita: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   citaHora: { width: 52, fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink },
   salgo: { flexDirection: 'row', gap: 7, marginTop: 12 },
-  salgoBtn: { flex: 1, height: 46, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  salgoT: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.ink, textTransform: 'uppercase' },
+  salgoBtn: { flex: 1, height: 46, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  salgoT: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.ink },
 })

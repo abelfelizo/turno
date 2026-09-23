@@ -2,79 +2,104 @@
 // (cuenta fija dev@turno.test) se eliminó por seguridad — daba acceso de dueño a
 // cualquiera con el APK. Para cambiar de panel se usa <CambiarRol />.
 
-// Sistema visual NAVAJA · Barber Co. — rojo primario, azul secundario,
-// blanco y negro carbón. Tokens del handoff "Sistema Barbería".
+// LÍNEA GRÁFICA DE TURNO (handoff del 23 sep, docs/diseno-turno/README.md).
 //
-// EL FONDO ES CLARO Y FRÍO, Y EL PESO LO LLEVA EL NEGRO.
-// El beige de antes (#F6F5F2) apagaba la pantalla entera: sobre él ni el
-// blanco de las tarjetas ni el rojo de marca levantaban, y todo se leía
-// descolorido. El fondo pasa a un gris casi blanco y la tinta baja a un negro
-// más profundo, así que el único objeto oscuro de cada pantalla —el ticket del
-// turno— es lo que pesa. Cambiar `bg` aquí cambia la app entera: es un token,
-// no un color escrito en cada pantalla.
-export const COLORS = {
-  red: '#E5202B',          // PRIMARIO · CTA · marca
-  redDark: '#C2161F',
-  redLight: '#FFF0F1',
-  /** Rojo legible SOBRE carbón: el de marca no llega al contraste en oscuro. */
-  redSoft: '#FF4438',
-  blue: '#1646E0',         // secundario
-  blueLight: '#EDF1FE',
-  carbon: '#0B0C10',       // negro carbón (oscuro)
-  carbonEl: '#16181F',     // superficie oscura elevada
-  carbonBorder: '#262A34',
-  primary: '#0B0C10',      // compat: superficies/texto oscuros
-  gold: '#E5202B',         // compat: acento → rojo
-  purple: '#1646E0',       // compat: avatares → azul
-  purpleLight: '#EDF1FE',
-  ink: '#0B0C10',
-  text: '#0B0C10',
-  textMid: '#5C6270',
-  textLight: '#8A90A0',
-  line: '#DDE0E6',
-  canvas: '#EEF0F4',
-  bg: '#FAFBFC',           // fondo de pantalla
-  surface: '#FFFFFF',      // tarjetas
-  surfaceAlt: '#F1F3F8',
-  border: '#E6E8EC',
-  borderSoft: '#F0F1F4',
-  /** Texto y filete sobre carbón (el ticket). */
+// Dominan los neutros puros —blanco y negro—; el rojo y el azul son SOLO
+// acentos. Reemplaza a NAVAJA (Anton, Plus Jakarta, carbón #0B0C10, rojo
+// #E5202B, azul #1646E0).
+//
+// LOS NOMBRES DE SIEMPRE, CON LOS VALORES NUEVOS. La app lee estos nombres en
+// más de mil sitios; cambiar los valores aquí cambia la app entera de una vez
+// sin tocar la lógica de ninguna pantalla. Los nombres que el handoff añade
+// (disabled, divider, tabBorder, redText) van al final.
+const CLARO = {
+  red: '#E1251B',          // acento: tab activa, CTA final, «llamado», «en la silla»
+  redDark: '#C21D14',
+  redLight: '#FDECEB',
+  /** Rojo legible sobre la tinta: el de marca no llega al contraste en oscuro. */
+  redSoft: '#FF5A4F',
+  blue: '#1E4FD8',         // acento: «en camino», enlaces, acciones secundarias
+  blueLight: '#EEF2FD',
+  carbon: '#0B0B0C',       // la tinta: texto, botón principal, ticket activo
+  carbonEl: '#1A1A1A',
+  carbonBorder: '#2A2A2A',
+  primary: '#0B0B0C',
+  gold: '#E1251B',         // compat
+  purple: '#1E4FD8',       // compat
+  purpleLight: '#EEF2FD',
+  ink: '#0B0B0C',
+  text: '#0B0B0C',
+  textMid: '#5C5C5C',      // text2: etiquetas de sección, subtítulos
+  textLight: '#6B6B6B',    // text3: metadatos, tabs inactivas
+  line: '#E6E6E6',
+  canvas: '#F4F4F4',
+  bg: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F4F4F4',   // surface del handoff: avatares, chips de fecha
+  border: '#E6E6E6',
+  borderSoft: '#F0F0F0',
+  /** Texto y filete sobre la tinta (el ticket). */
   onCarbon: '#FFFFFF',
-  onCarbonMid: '#9BA1AF',
-  carbonDash: '#3A3F4C',
-  success: '#0E7C46',
-  successLight: '#E9F8F0',
-
-  // SEÑALES SOBRE CARBÓN. No son las de marca aclaradas con blanco: mezclar
-  // con blanco desatura y empuja al pastel — el azul llegó a tener la MITAD
-  // de la saturación de su marca (0.46 frente a 0.90) y por eso se veía
-  // lavado aunque el contraste sobrara. Están bajadas de luminosidad
-  // manteniendo el chroma, así que las cuatro —con redSoft— caen en el mismo
-  // rango: 5,3 a 7,9 de contraste sobre #0B0C10.
-  okNoche: '#1FA85C',      // libre, abierto, confirmado
-  azulNoche: '#4D7DFF',    // atendiendo, informativo
-  ambarNoche: '#E8901A',   // en pausa, sin conexión: ni roto ni normal
-  danger: '#C2161F',
-  dangerLight: '#FFF0F1',
+  onCarbonMid: '#B5B5B5',
+  carbonDash: '#3A3A3A',
+  success: '#1F9D55',
+  successLight: '#E8F6EE',
+  // SEÑALES SOBRE LA TINTA: las mismas cuatro, subidas para leerse en negro.
+  okNoche: '#34C77B',
+  azulNoche: '#6E93FF',
+  ambarNoche: '#E8901A',
+  danger: '#C21D14',
+  dangerLight: '#FDECEB',
   warning: '#B45309',
   warningLight: '#FDF1E3',
-  info: '#1646E0',
-  infoLight: '#EDF1FE',
+  info: '#1E4FD8',
+  infoLight: '#EEF2FD',
+  // Nuevos del handoff.
+  disabled: '#B5B5B5',
+  divider: '#F0F0F0',
+  tabBorder: '#EDEDED',
+  redText: '#C21D14',      // rojo para texto sobre blanco («Salir»)
 }
 
-// Familias de fuente (cargadas en app/_layout.tsx)
+/**
+ * EL OSCURO, PREPARADO Y SIN ACTIVAR. Se enciende en la fase 5
+ * (docs/APLICAR-LINEA-GRAFICA.md), cuando lo claro esté visto en el teléfono.
+ * En oscuro la card protagonista se invierte: fondo blanco y texto tinta.
+ */
+export const COLORS_OSCURO: typeof CLARO = {
+  ...CLARO,
+  red: '#FF5A4F', redSoft: '#FF5A4F', redText: '#FF5A4F',
+  blue: '#6E93FF', info: '#6E93FF',
+  ink: '#FFFFFF', text: '#FFFFFF', primary: '#FFFFFF',
+  textMid: '#A3A3A3', textLight: '#A3A3A3',
+  bg: '#0B0B0C', surface: '#0B0B0C', surfaceAlt: '#1A1A1A', canvas: '#1A1A1A',
+  border: '#2A2A2A', line: '#2A2A2A', borderSoft: '#1F1F1F', divider: '#1F1F1F', tabBorder: '#1F1F1F',
+  success: '#34C77B', okNoche: '#34C77B',
+}
+
+export const COLORS = CLARO
+
+// FAMILIAS DE FUENTE (cargadas en app/_layout.tsx).
+// La tipografía del handoff es PROVISIONAL: el cliente definirá la familia
+// final. Por eso vive aquí en un solo sitio —cambiarla es cambiar estas
+// líneas—. `display` era Anton; ahora es Geist en negrita, sin mayúsculas.
+// Todos los números van en mono (`mono`, `monoMedium`).
 export const FONTS = {
-  display: 'Anton_400Regular',        // titulares, números grandes, cabeceras
-  regular: 'PlusJakartaSans_400Regular',
-  medium: 'PlusJakartaSans_500Medium',
-  semibold: 'PlusJakartaSans_600SemiBold',
-  bold: 'PlusJakartaSans_700Bold',
-  extrabold: 'PlusJakartaSans_800ExtraBold',
+  display: 'Geist_700Bold',
+  regular: 'Geist_400Regular',
+  medium: 'Geist_500Medium',
+  semibold: 'Geist_600SemiBold',
+  bold: 'Geist_700Bold',
+  extrabold: 'Geist_700Bold',   // el handoff no pasa de 700
+  mono: 'GeistMono_700Bold',
+  monoMedium: 'GeistMono_500Medium',
 } as const
 
 // ── Tokens del sistema de diseño ──────────────────────────────────
 export const SPACING = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const
-export const RADIUS = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 } as const
+// Radio 8 por defecto en todo (botones, cards, chips, inputs, tickets). El
+// estilo estándar no usa radios mayores; solo la variante Glass.
+export const RADIUS = { sm: 8, md: 8, lg: 8, xl: 8, pill: 999 } as const
 export const FONT = {
   display: { fontSize: 26, fontWeight: '800' },
   title: { fontSize: 19, fontWeight: '800' },

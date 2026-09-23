@@ -315,9 +315,9 @@ const s = StyleSheet.create({
   chipRojo: { color: COLORS.red, borderColor: COLORS.red },
   meta: { flexShrink: 1, fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   icono: { width: 40, height: 40, borderWidth: 1.5, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   reactivarT: { fontFamily: FONTS.extrabold, fontSize: 12.5, color: COLORS.ink },
   cuadro: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  input: { borderWidth: 2, borderColor: COLORS.ink, backgroundColor: COLORS.surface, padding: 14, marginTop: 14,
+  input: { borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, padding: 14, marginTop: 14,
     fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.5 },
 })

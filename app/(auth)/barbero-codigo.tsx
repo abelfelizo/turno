@@ -81,7 +81,7 @@ export default function BarberoCodigo() {
 
 const s = StyleSheet.create({
   error: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 10 },
-  card: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 6, padding: 16, marginTop: 16 },
+  card: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, padding: 16, marginTop: 16 },
   cardKicker: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1 },
   cardNombre: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.ink, marginTop: 4 },
   modalidad: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 12 },

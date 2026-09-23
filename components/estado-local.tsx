@@ -179,7 +179,7 @@ const s = StyleSheet.create({
   // Fondo carbón, como el cuadro del barbero y la cola del dueño: es la misma
   // información y por eso tiene el mismo peso visual en las tres pantallas.
   // El relleno se va al cuerpo: el poste tiene que llegar a los dos cantos.
-  card: { backgroundColor: COLORS.carbon, borderRadius: 6, marginBottom: 16, overflow: 'hidden' },
+  card: { backgroundColor: COLORS.carbon, borderRadius: 8, marginBottom: 16, overflow: 'hidden' },
   cuerpo: { padding: 18 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   lbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },

@@ -1,5 +1,5 @@
 /**
- * LAS PIEZAS DE UNA HOJA D2 — título, opción, dato, nota, pie y botones.
+ * LAS PIEZAS DE UNA HOJA (línea gráfica de Turno) — título, opción, dato, nota, pie y botones.
  *
  * Nacieron con las hojas de Mi silla (components/hojas-silla) y las usa
  * también la agenda: una hoja que sube desde abajo se lee igual en cualquier
@@ -21,7 +21,6 @@ export function Seccion({ children }: { children: ReactNode }) {
   return (
     <View style={{ marginTop: 18 }}>
       <Text style={s.secT}>{String(children).toUpperCase()}</Text>
-      <View style={s.secFilete} />
     </View>
   )
 }
@@ -87,24 +86,23 @@ export function AhoraNo({ texto = 'Ahora no', onPress }: { texto?: string; onPre
 
 
 const s = StyleSheet.create({
-  titulo: { fontFamily: FONTS.display, fontSize: 26, lineHeight: 30, color: COLORS.ink, textTransform: 'uppercase', marginTop: 4 },
-  sub: { fontFamily: FONTS.medium, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginTop: 4, marginBottom: 8 },
-  secT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.ink },
-  secFilete: { height: 2, backgroundColor: COLORS.ink, marginTop: 7 },
+  titulo: { fontFamily: FONTS.bold, fontSize: 24, lineHeight: 30, color: COLORS.ink, letterSpacing: -0.5, marginTop: 4 },
+  sub: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, color: COLORS.textMid, marginTop: 4, marginBottom: 8 },
+  secT: { fontFamily: FONTS.bold, fontSize: 12, letterSpacing: 1, color: COLORS.textMid },
   nota: { borderLeftWidth: 3, paddingLeft: 12, paddingVertical: 4, marginVertical: 10 },
   notaT: { fontFamily: FONTS.medium, fontSize: 13, lineHeight: 19, color: COLORS.ink },
-  dato: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
   datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   datoL: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
-  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 14.5, color: COLORS.ink },
-  opc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  opcT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  opcD: { fontFamily: FONTS.medium, fontSize: 12.5, lineHeight: 17, color: COLORS.textMid, marginTop: 2 },
-  pie: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 18, paddingTop: 16, gap: 4 },
-  rojo: { height: 56, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  rojoT: { fontFamily: FONTS.display, fontSize: 19, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.4 },
-  contorno: { height: 54, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
-  contornoT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink, textTransform: 'uppercase', letterSpacing: 0.4 },
+  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  opc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  opcT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  opcD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textLight, marginTop: 2 },
+  pie: { borderTopWidth: 1, borderTopColor: COLORS.tabBorder, marginTop: 18, paddingTop: 16, gap: 8 },
+  rojo: { height: 54, borderRadius: 8, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  rojoT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
+  contorno: { height: 52, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  contornoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   ahoraNo: { alignItems: 'center', paddingVertical: 12 },
   ahoraNoT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
 })

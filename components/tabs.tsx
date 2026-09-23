@@ -16,7 +16,7 @@
  */
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { COLORS } from '../constants'
+import { COLORS, FONTS } from '../constants'
 
 export const iconoTab = (name: keyof typeof Ionicons.glyphMap) =>
   ({ color, size }: { color: string; size: number }) => <Ionicons name={name} color={color} size={size} />
@@ -26,16 +26,22 @@ export function useOpcionesTabs() {
   // 12 es el aire que la barra necesita por debajo del texto cuando el sistema
   // no reserva nada; con gestos o botones, manda el sistema.
   const abajo = Math.max(insets.bottom, 12)
+  // Línea gráfica de Turno (handoff § 3): borde superior de 1px, activa en
+  // rojo, inactivas en gris, etiqueta 11/600.
   return {
     headerShown: false as const,
     tabBarActiveTintColor: COLORS.red,
     tabBarInactiveTintColor: COLORS.textLight,
     tabBarStyle: {
-      height: 58 + abajo,
+      height: 62 + abajo,
       paddingBottom: abajo,
-      paddingTop: 8,
-      borderTopColor: COLORS.border,
+      paddingTop: 10,
+      backgroundColor: COLORS.bg,
+      borderTopWidth: 1,
+      borderTopColor: COLORS.tabBorder,
+      elevation: 0,
+      shadowOpacity: 0,
     },
-    tabBarLabelStyle: { fontSize: 11, fontWeight: '700' as const },
+    tabBarLabelStyle: { fontSize: 11, fontFamily: FONTS.semibold },
   }
 }

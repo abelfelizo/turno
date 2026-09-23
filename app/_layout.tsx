@@ -4,11 +4,12 @@ import { StatusBar } from 'expo-status-bar'
 import { View, ActivityIndicator } from 'react-native'
 import { useEffect } from 'react'
 import * as Notifications from 'expo-notifications'
-import { useFonts, Anton_400Regular } from '@expo-google-fonts/anton'
+// La línea gráfica de Turno usa Geist y Geist Mono (provisional hasta que se
+// elija la familia final; los nombres viven en FONTS, constants/index.ts).
 import {
-  PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans'
+  useFonts, Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold,
+} from '@expo-google-fonts/geist'
+import { GeistMono_500Medium, GeistMono_700Bold } from '@expo-google-fonts/geist-mono'
 import { Text } from 'react-native'
 import { COLORS } from '../constants'
 import { ErrorBoundary } from '../components/error-boundary'
@@ -59,9 +60,8 @@ const DESTINO_PUSH: Record<string, { panel: PanelActivo; ruta: string }> = {
 export default function RootLayout() {
   const router = useRouter()
   const [loaded] = useFonts({
-    Anton_400Regular,
-    PlusJakartaSans_400Regular, PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold,
+    Geist_400Regular, Geist_500Medium, Geist_600SemiBold, Geist_700Bold,
+    GeistMono_500Medium, GeistMono_700Bold,
   })
 
   // Tocar una notificación abre la pantalla pertinente, EN SU PANEL.

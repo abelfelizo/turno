@@ -255,10 +255,10 @@ export default function Historial() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg, padding: 16 },
-  pedir: { backgroundColor: COLORS.carbon, borderRadius: 6, overflow: 'hidden', marginBottom: 6 },
+  pedir: { backgroundColor: COLORS.carbon, borderRadius: 8, overflow: 'hidden', marginBottom: 6 },
   pedirCuerpo: { paddingHorizontal: 18, paddingTop: 15, paddingBottom: 17 },
   pedirK: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.6, color: COLORS.onCarbonMid },
-  pedirT: { fontFamily: FONTS.display, fontSize: 30, lineHeight: 33, color: '#fff', textTransform: 'uppercase', marginTop: 5 },
+  pedirT: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 30, lineHeight: 33, color: '#fff', marginTop: 5 },
   pedirM: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 3 },
   pedirStars: { flexDirection: 'row', gap: 12, marginTop: 13 },
   pedirStar: { fontSize: 32, lineHeight: 36, color: 'rgba(255,255,255,0.4)' },
@@ -295,10 +295,10 @@ const s = StyleSheet.create({
     textAlign: 'center', marginTop: 8 },
   rSec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2,
     borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22 },
-  rInput: { borderWidth: 2, borderColor: COLORS.ink, padding: 13, fontSize: 13.5, fontFamily: FONTS.medium,
+  rInput: { borderWidth: 1, borderColor: COLORS.border, padding: 13, fontSize: 13.5, fontFamily: FONTS.medium,
     color: COLORS.ink, minHeight: 104, textAlignVertical: 'top', marginTop: 11 },
   rPie: { borderTopWidth: 1, borderTopColor: COLORS.border, marginTop: 18, paddingTop: 14 },
   rCta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center' },
-  rCtaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.6 },
+  rCtaT: { fontFamily: FONTS.display, fontSize: 20, color: '#fff', letterSpacing: -0.3 },
   rLuego: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 12.5, marginTop: 11 },
 })

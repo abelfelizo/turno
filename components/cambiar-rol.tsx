@@ -100,7 +100,7 @@ const s = StyleSheet.create({
   // El panel en el que estás: filete rojo a la izquierda, como «tu barbero»
   // en Mi barbería. Una marca, no un recuadro verde.
   filaOn: { borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 11 },
-  txt: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink, textTransform: 'uppercase' },
+  txt: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
   det: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
   aqui: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: '#fff', backgroundColor: COLORS.red,
     paddingHorizontal: 7, paddingVertical: 3 },

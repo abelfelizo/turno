@@ -410,7 +410,7 @@ const s = StyleSheet.create({
   centro: { flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
 
   marca: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  marcaN: { fontFamily: FONTS.display, fontSize: 28, lineHeight: 29, color: COLORS.ink, textTransform: 'uppercase' },
+  marcaN: { fontFamily: FONTS.display, letterSpacing: -0.6, fontSize: 28, lineHeight: 29, color: COLORS.ink },
   marcaS: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
   marcaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
 
@@ -418,7 +418,7 @@ const s = StyleSheet.create({
   chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   chipLocalT: { fontFamily: FONTS.bold, fontSize: 11.5, color: COLORS.textMid },
 
-  fidel: { marginTop: 18, backgroundColor: COLORS.carbon, borderRadius: 6, padding: 17 },
+  fidel: { marginTop: 18, backgroundColor: COLORS.carbon, borderRadius: 8, padding: 17 },
   fidelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
   fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, color: COLORS.onCarbonMid },
   fidelNum: { fontFamily: FONTS.display, fontSize: 22, color: '#fff' },
@@ -429,7 +429,7 @@ const s = StyleSheet.create({
   fidelFaltan: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff' },
 
   vale: { marginTop: 10, borderWidth: 2, borderColor: COLORS.red, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11 },
-  valeN: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.red, textTransform: 'uppercase' },
+  valeN: { fontFamily: FONTS.display, fontSize: 15, color: COLORS.red },
   valeD: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textMid },
 
   sec: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 2, color: COLORS.ink },
@@ -440,7 +440,7 @@ const s = StyleSheet.create({
   barbero: { marginTop: 16, borderLeftWidth: 3, borderLeftColor: COLORS.line, paddingLeft: 13 },
   bHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bNombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  bNombre: { fontFamily: FONTS.display, fontSize: 19, color: COLORS.ink, textTransform: 'uppercase', flexShrink: 1 },
+  bNombre: { fontFamily: FONTS.display, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
   bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: '#fff',
     backgroundColor: COLORS.red, paddingHorizontal: 6, paddingVertical: 2 },
   bMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
@@ -458,18 +458,18 @@ const s = StyleSheet.create({
   bAcciones: { flexDirection: 'row', gap: 9, marginTop: 13 },
   bBtn: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
   bBtnRojo: { backgroundColor: COLORS.red },
-  bBtnContorno: { borderWidth: 2, borderColor: COLORS.ink },
-  bBtnT: { fontFamily: FONTS.display, fontSize: 15, color: '#fff', textTransform: 'uppercase' },
+  bBtnContorno: { borderWidth: 1, borderColor: COLORS.border },
+  bBtnT: { fontFamily: FONTS.display, fontSize: 15, color: '#fff' },
 
   plegado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: COLORS.line },
   plegadoT: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.textMid },
 
   canjear: { backgroundColor: '#fff', padding: 14, alignItems: 'center', marginTop: 14 },
-  canjearT: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.carbon, textTransform: 'uppercase', letterSpacing: 0.4 },
+  canjearT: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.carbon, letterSpacing: 0 },
   salir: { marginTop: 26, paddingVertical: 13, alignItems: 'center' },
   salirT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid },
   agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24,
-    borderWidth: 2, borderColor: COLORS.ink, padding: 15 },
-  agregarT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink, textTransform: 'uppercase' },
+    borderWidth: 1, borderColor: COLORS.border, padding: 15 },
+  agregarT: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
 })

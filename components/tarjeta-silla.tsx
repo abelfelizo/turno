@@ -51,7 +51,9 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
 
   return (
     <View style={[s.card, { backgroundColor: rojo ? COLORS.red : COLORS.carbon }]}>
-      {modo.poste && <Pole height={7} radius={0} animado={!rojo} />}
+      {/* El poste solo marca «en la silla» (línea gráfica de Turno): arriba,
+          14 de alto. En los demás modos la tarjeta va lisa. */}
+      {modo.poste && modo.estado === 'EN LA SILLA' && <Pole height={14} animado={false} />}
       <View style={s.cuerpo}>
         <TouchableOpacity
           disabled={!variosLocales} onPress={onCambiarLocal} activeOpacity={0.75}
@@ -119,28 +121,27 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
 const ESTILO_BTN = StyleSheet.create({
   claro: { backgroundColor: '#FFFFFF' },
   rojo: { backgroundColor: COLORS.red },
-  contorno: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)' },
-  apagado: { borderWidth: 1.5, borderColor: COLORS.carbonDash },
+  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+  apagado: { borderWidth: 1, borderColor: COLORS.carbonDash },
 })
-const TEXTO_BTN = { claro: COLORS.ink, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#5A5F6C' }
+const TEXTO_BTN = { claro: COLORS.ink, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 6, overflow: 'hidden', marginBottom: 12 },
-  cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
+  card: { borderRadius: 8, overflow: 'hidden', marginBottom: 12 },
+  cuerpo: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  local: { flex: 1, fontFamily: FONTS.display, fontSize: 30, lineHeight: 32, color: '#fff',
-    textTransform: 'uppercase', letterSpacing: 0.3 },
-  filete: { height: 1, marginVertical: 15 },
+  local: { flex: 1, fontFamily: FONTS.semibold, fontSize: 18, lineHeight: 23, color: '#fff' },
+  filete: { height: 1, marginVertical: 14 },
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
-  estadoT: { fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, flexShrink: 1 },
-  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 12 },
-  texto: { fontFamily: FONTS.medium, fontSize: 13.5, lineHeight: 20, marginTop: 12 },
-  destacado: { fontFamily: FONTS.bold, color: '#FFFFFF' },
-  pie: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  btn: { height: 50, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
-  btnT: { fontFamily: FONTS.display, fontSize: 16.5, textTransform: 'uppercase', letterSpacing: 0.4 },
-  nota: { fontFamily: FONTS.semibold, fontSize: 11.5, lineHeight: 16, marginTop: 10 },
+  estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, flexShrink: 1 },
+  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.medium, fontSize: 12.5 },
+  texto: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, marginTop: 12 },
+  destacado: { fontFamily: FONTS.semibold, color: '#FFFFFF' },
+  pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  btn: { height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 15 },
+  nota: { fontFamily: FONTS.medium, fontSize: 12, lineHeight: 17, marginTop: 10 },
   mas: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, marginTop: 12, paddingVertical: 4 },
   masT: { fontFamily: FONTS.bold, fontSize: 12.5, textDecorationLine: 'underline' },
 })

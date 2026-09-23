@@ -1,6 +1,6 @@
 /**
- * Sistema visual NAVAJA · Barber Co. — primitivos reutilizables.
- * Rojo primario, azul secundario, blanco, negro carbón. Display = Anton.
+ * Línea gráfica de Turno — primitivos reutilizables (docs/diseno-turno).
+ * Neutros puros, rojo y azul de acento, radio 8, Geist y Geist Mono.
  */
 import { ReactNode, useEffect, useRef, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, AccessibilityInfo } from 'react-native'
@@ -14,10 +14,9 @@ export function Icon({ name, size = 20, color = COLORS.ink }: { name: IconName; 
   return <Ionicons name={name} size={size} color={color} />
 }
 
-/** Titular display en Anton (mayúsculas). */
+/** Titular: Geist en negrita, en frase normal (h1 = 28/700, −0.6). */
 export function Display({ children, size = 26, color = COLORS.ink, style }: { children: ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle> }) {
-  // Anton tiene mayúsculas altas: lineHeight holgado + includeFontPadding evitan que se corte arriba.
-  return <Text style={[{ fontFamily: FONTS.display, fontSize: size, color, textTransform: 'uppercase', letterSpacing: 0.3, lineHeight: Math.round(size * 1.18), includeFontPadding: false }, style]}>{children}</Text>
+  return <Text style={[{ fontFamily: FONTS.display, fontSize: size, color, letterSpacing: size >= 22 ? -0.6 : -0.2, lineHeight: Math.round(size * 1.2), includeFontPadding: false }, style]}>{children}</Text>
 }
 
 export function SectionLabel({ children, action, onAction }: { children: ReactNode; action?: string; onAction?: () => void }) {
@@ -42,15 +41,16 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
   label: string; onPress: () => void; variant?: 'primary' | 'secondary' | 'dark' | 'outline'
   icon?: IconName; iconRight?: IconName; loading?: boolean; disabled?: boolean; style?: StyleProp<ViewStyle>
 }) {
+  // primary = tinta (el handoff); el rojo queda para el CTA final de un flujo.
   const map = {
-    primary: { bg: COLORS.red, fg: '#fff', bd: COLORS.red },
-    secondary: { bg: COLORS.blue, fg: '#fff', bd: COLORS.blue },
-    dark: { bg: COLORS.carbon, fg: '#fff', bd: COLORS.carbon },
-    outline: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.ink },
+    primary: { bg: COLORS.ink, fg: '#fff', bd: COLORS.ink },
+    secondary: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
+    dark: { bg: COLORS.ink, fg: '#fff', bd: COLORS.ink },
+    outline: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
   }[variant]
   return (
     <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.85}
-      style={[s.btn, { backgroundColor: map.bg, borderColor: map.bd, borderWidth: variant === 'outline' ? 1.5 : 0 }, (disabled || loading) && { opacity: 0.45 }, style]}>
+      style={[s.btn, { backgroundColor: map.bg, borderColor: map.bd, borderWidth: map.bg === 'transparent' ? 1 : 0 }, (disabled || loading) && { opacity: 0.45 }, style]}>
       {loading ? <ActivityIndicator color={map.fg} /> : (
         <View style={s.btnInner}>
           {icon && <Ionicons name={icon} size={18} color={map.fg} />}
@@ -75,31 +75,34 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
  * letra blanca. Pasarla explícita sigue funcionando y gana.
  */
 /**
- * La foto y la inicial van CUADRADAS, como todo lo demás. Eran la última
- * esquina redondeada que salía en cada lista de barberos, y al estar al lado
- * del nombre en Anton era lo primero que delataba el diseño viejo.
+ * Avatar CIRCULAR (el único radio que no es 8 en el estilo estándar), fondo
+ * gris claro y la inicial en tinta. Quien pasa un fondo oscuro recibe letra
+ * blanca; pasar `color` explícito sigue funcionando y gana.
  */
-export function Avatar({ name, size = 48, color, bg = COLORS.blueLight, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
-  const letra = color ?? (bg === COLORS.blueLight ? COLORS.blue : '#fff')
+export function Avatar({ name, size = 48, color, bg = COLORS.surfaceAlt, uri }: { name?: string; size?: number; color?: string; bg?: string; uri?: string | null }) {
+  const claro = [COLORS.surfaceAlt, COLORS.surface, COLORS.blueLight, COLORS.bg, '#fff', '#FFFFFF'].includes(bg)
+  const letra = color ?? (claro ? COLORS.ink : '#fff')
+  const redondo = { width: size, height: size, borderRadius: size / 2, backgroundColor: claro ? COLORS.surfaceAlt : bg }
   if (uri) {
-    return <Image source={{ uri }} style={[s.avatar, { width: size, height: size, backgroundColor: bg }]} />
+    return <Image source={{ uri }} style={[s.avatar, redondo]} />
   }
   return (
-    <View style={[s.avatar, { width: size, height: size, backgroundColor: bg }]}>
-      <Text style={{ fontFamily: FONTS.display, fontSize: size * 0.42, color: letra }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
+    <View style={[s.avatar, redondo]}>
+      <Text style={{ fontFamily: FONTS.semibold, fontSize: Math.round(size * 0.34), color: letra }}>{(name || 'U').slice(0, 1).toUpperCase()}</Text>
     </View>
   )
 }
 
 /** Badge de estado tipo pill con punto. */
 export function Badge({ children, tone = 'blue' }: { children: ReactNode; tone?: 'blue' | 'red' | 'gray' | 'success' }) {
-  const map = {
-    blue: { bg: 'rgba(22,70,224,0.10)', fg: COLORS.blue },
-    red: { bg: 'rgba(229,32,43,0.10)', fg: COLORS.red },
-    gray: { bg: COLORS.surfaceAlt, fg: COLORS.textLight },
-    success: { bg: COLORS.successLight, fg: COLORS.success },
-  }[tone]
-  return <View style={[s.badge, { backgroundColor: map.bg }]}><Text style={[s.badgeT, { color: map.fg }]}>● {children}</Text></View>
+  // Badge del handoff: borde fino, radio 8, punto de color y texto 13/600.
+  const fg = { blue: COLORS.blue, red: COLORS.red, gray: COLORS.textLight, success: COLORS.success }[tone]
+  return (
+    <View style={[s.badge, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: fg }} />
+      <Text style={[s.badgeT, { color: COLORS.ink }]}>{children}</Text>
+    </View>
+  )
 }
 
 /** Chip de horario / selección. */
@@ -107,33 +110,33 @@ export function Chip({ children, selected, disabled, tone = 'red', onPress }: { 
   const sel = selected ? (tone === 'blue' ? COLORS.blue : COLORS.red) : null
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
-      style={[s.chip, sel ? { backgroundColor: sel, borderColor: sel } : { borderColor: COLORS.border }, disabled && { borderColor: COLORS.borderSoft }]}>
-      <Text style={[s.chipT, { color: sel ? '#fff' : disabled ? '#C7C5C0' : COLORS.ink }, disabled && { textDecorationLine: 'line-through' }]}>{children}</Text>
+      style={[s.chip, sel ? { backgroundColor: sel, borderColor: sel } : { borderColor: COLORS.border }, disabled && { borderColor: COLORS.divider }]}>
+      <Text style={[s.chipT, { color: sel ? '#fff' : disabled ? COLORS.disabled : COLORS.ink }, disabled && { textDecorationLine: 'line-through' }]}>{children}</Text>
     </TouchableOpacity>
   )
 }
 
 /**
- * EL POSTE DE BARBERO, GIRANDO.
+ * EL POSTE DE BARBERO (línea gráfica de Turno).
  *
- * Las franjas son diagonales y se deslizan en bucle, como el cilindro de la
- * puerta de una barbería: es el único adorno del sistema y hace de firma en
- * todas las cabeceras y encima del ticket del turno.
+ * Franjas literales a −55°, en cuatro bandas iguales: rojo · blanco · azul ·
+ * blanco. Solo va en tres sitios —el logo, el talón del ticket activo y el
+ * estado «en la silla»—; no es decoración de fondo.
  *
- * Cómo se mueve sin gastar batería: no se anima el color ni el layout, se
- * desplaza UNA sola capa con `translateX` sobre el hilo nativo
- * (`useNativeDriver`), y solo un ciclo de tres franjas — al terminar vuelve a
- * cero y el patrón encaja consigo mismo, así que el bucle no se ve.
+ * Sirve en horizontal (una franja arriba de una card) y en vertical (el talón
+ * del ticket): se pinta UNA capa de barras verticales del tamaño de la
+ * diagonal, girada 35° y centrada en la caja, y la caja recorta lo que sobra.
  *
- * Quien tenga "reducir movimiento" puesto en el teléfono lo ve quieto: es
- * decoración, y una decoración que no se puede parar es un problema de
- * accesibilidad, no un detalle de marca.
+ * Se mueve igual que antes —una sola capa con `translateX` en el hilo
+ * nativo— y quien tiene «reducir movimiento» lo ve quieto.
  */
-export function Pole({ height = 8, radius = 4, style, animado = true, ancho = 14 }: {
-  height?: number; radius?: number; style?: StyleProp<ViewStyle>
+const BANDAS_POSTE = [COLORS.red, '#FFFFFF', COLORS.blue, '#FFFFFF']
+export function Pole({ height = 8, radius = 0, style, animado = true, ancho = 7 }: {
+  /** 'auto' para que la dé el contenedor (el talón vertical del ticket). */
+  height?: number | 'auto'; radius?: number; style?: StyleProp<ViewStyle>
   /** Quieto cuando el poste acompaña a algo que ya se mueve. */
   animado?: boolean
-  /** Ancho de cada franja, en px. El ciclo completo son tres. */
+  /** Ancho de cada banda, en px. El ciclo completo son cuatro. */
   ancho?: number
 }) {
   const x = useRef(new Animated.Value(0)).current
@@ -150,36 +153,36 @@ export function Pole({ height = 8, radius = 4, style, animado = true, ancho = 14
 
   useEffect(() => {
     if (!mover) { x.setValue(0); return }
-    const ciclo = ancho * 3
     const bucle = Animated.loop(
-      Animated.timing(x, { toValue: -ciclo, duration: 2200, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(x, { toValue: -ancho * 4, duration: 2400, easing: Easing.linear, useNativeDriver: true }),
     )
     bucle.start()
     return () => bucle.stop()
   }, [mover, ancho, x])
 
-  // Cuántas franjas hacen falta se MIDE, no se adivina: un número fijo cubre
-  // el teléfono de turno y se queda corto en cualquier pantalla más ancha.
-  // Hasta la primera medida se pinta un ancho de teléfono, que es lo común.
-  const [anchoCaja, setAnchoCaja] = useState(430)
-  const franjas = Math.ceil((anchoCaja + ancho * 6) / ancho)
+  // La caja se MIDE: el mismo poste va en una franja de 390×14 y en un talón
+  // de 14×90. Hasta la primera medida se supone un ancho de teléfono.
+  const [caja, setCaja] = useState({ w: 430, h: typeof height === 'number' ? height : 90 })
+  const lado = Math.ceil(Math.hypot(caja.w, caja.h)) + ancho * 8
+  const barras = Math.ceil(lado / ancho)
 
   return (
     <View
       onLayout={e => {
-        const w = e.nativeEvent.layout.width
-        if (Math.abs(w - anchoCaja) > 1) setAnchoCaja(w)
+        const { width: w, height: h } = e.nativeEvent.layout
+        if (Math.abs(w - caja.w) > 1 || Math.abs(h - caja.h) > 1) setCaja({ w, h })
       }}
-      style={[{ height, borderRadius: radius, overflow: 'hidden' }, style]}>
+      style={[typeof height === 'number' ? { height } : null, { borderRadius: radius, overflow: 'hidden' }, style]}>
       <Animated.View
         pointerEvents="none"
         style={{
-          position: 'absolute', left: -ancho * 3, top: -height,
-          height: height * 3, flexDirection: 'row',
-          transform: [{ translateX: x }, { skewX: '-22deg' }],
+          position: 'absolute', width: lado, height: lado,
+          left: (caja.w - lado) / 2, top: (caja.h - lado) / 2,
+          flexDirection: 'row',
+          transform: [{ rotate: '35deg' }, { translateX: x }],
         }}>
-        {Array.from({ length: franjas }).map((_, i) => (
-          <View key={i} style={{ width: ancho, backgroundColor: i % 3 === 0 ? COLORS.red : i % 3 === 1 ? '#fff' : COLORS.blue }} />
+        {Array.from({ length: barras }).map((_, i) => (
+          <View key={i} style={{ width: ancho, backgroundColor: BANDAS_POSTE[i % 4] }} />
         ))}
       </Animated.View>
     </View>
@@ -219,8 +222,11 @@ export function Ticket({ children, pie, fondo = COLORS.bg, style }: {
 }) {
   return (
     <View style={[s.ticket, style]}>
-      <Pole height={7} radius={0} />
-      <View style={s.ticketCuerpo}>{children}</View>
+      <View style={{ flexDirection: 'row' }}>
+        {/* El talón del poste, 14 de ancho, a la izquierda (handoff § 3). */}
+        <Pole height="auto" style={{ width: 14, alignSelf: 'stretch' }} ancho={6} />
+        <View style={[s.ticketCuerpo, { flex: 1 }]}>{children}</View>
+      </View>
       {pie != null && (
         <>
           <View style={s.ticketPerf}>
@@ -297,34 +303,34 @@ const s = StyleSheet.create({
   noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
   noCargoT: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
-  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.red, borderRadius: 4, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.ink, borderRadius: 8, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
   noCargoBtnT: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
   version: { paddingVertical: 14, alignItems: 'center' },
   versionT: { fontFamily: FONTS.medium, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
   versionD: { fontFamily: FONTS.regular, fontSize: 10.5, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
   perfFila: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12 },
-  ticket: { backgroundColor: COLORS.carbon, borderRadius: 6, overflow: 'hidden' },
-  ticketCuerpo: { padding: 16 },
+  ticket: { backgroundColor: COLORS.ink, borderRadius: 8, overflow: 'hidden' },
+  ticketCuerpo: { paddingVertical: 16, paddingLeft: 22, paddingRight: 18 },
   ticketPerf: { height: 18, justifyContent: 'center' },
-  muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9 },
+  muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 8 },
   ticketPie: { paddingHorizontal: 16, paddingBottom: 14, paddingTop: 2 },
   puntoWrap: { width: 10, height: 10, alignItems: 'center', justifyContent: 'center' },
   puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  section: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid, letterSpacing: 0.3 },
-  sectionAction: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue },
-  card: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, borderWidth: 1, borderColor: COLORS.border },
+  section: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase' },
+  sectionAction: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue },
+  card: { backgroundColor: COLORS.bg, borderRadius: RADIUS.sm, padding: 14, borderWidth: 1, borderColor: COLORS.border },
   cardDark: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
   cardDarkEl: { backgroundColor: COLORS.carbonEl, borderColor: COLORS.carbonBorder },
-  btn: { borderRadius: 6, paddingVertical: 15, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 52, borderRadius: 8, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 15 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16 },
   avatar: { alignItems: 'center', justifyContent: 'center' },
-  badge: { borderRadius: RADIUS.pill, paddingHorizontal: 11, paddingVertical: 6 },
-  badgeT: { fontFamily: FONTS.bold, fontSize: 12 },
-  chip: { borderWidth: 1.5, borderRadius: 4, paddingVertical: 10, paddingHorizontal: 15, alignItems: 'center' },
-  chipT: { fontFamily: FONTS.bold, fontSize: 14 },
+  badge: { borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 7 },
+  badgeT: { fontFamily: FONTS.semibold, fontSize: 13 },
+  chip: { borderWidth: 1, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14, minHeight: 36, alignItems: 'center', justifyContent: 'center' },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 14 },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.borderSoft },
   kvK: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid },
   kvV: { fontFamily: FONTS.bold, fontSize: 14 },

@@ -181,22 +181,23 @@ export default function TarjetaTurno(p: Props) {
   const enSilla = p.turno?.estado === 'atendiendo'
   const urgente = llamado && (p.quedanMin ?? 99) <= 2
 
-  const fondo = llamado ? (urgente ? COLORS.redDark : COLORS.red) : COLORS.carbon
-  const tenue = llamado ? 'rgba(255,255,255,0.72)' : COLORS.onCarbonMid
+  const enCamino = p.turno?.estado === 'en_camino'
+  // Colores de estado de la línea gráfica de Turno (handoff § 4): llamado en
+  // rojo, en camino en azul; lo demás, la tinta. Solo el color: los textos y
+  // los botones siguen siendo los de siempre.
+  const fondo = llamado ? (urgente ? COLORS.redDark : COLORS.red) : enCamino ? COLORS.blue : COLORS.carbon
+  const tenue = llamado || enCamino ? 'rgba(255,255,255,0.72)' : COLORS.onCarbonMid
 
   /**
-   * EL POSTE ES LA SEÑAL DE QUE LA BARBERÍA ESTÁ ABIERTA, no un adorno de la
-   * tarjeta. Girando sobre un local cerrado, sobre uno que todavía no atiende
-   * por la app o sobre una cuenta que aún no tiene barbería, dice lo
-   * contrario de lo que dice el texto que tiene debajo. Se apaga.
+   * EL POSTE SOLO EN DOS SITIOS DE ESTA TARJETA (handoff § 1): el talón del
+   * ticket mientras esperas en la fila, y la franja de arriba cuando ya estás
+   * en la silla. Sin turno, la tarjeta va lisa.
    */
-  const conPoste = !p.sinLocal && p.sillas.length > 0 && (abierto || !!p.turno)
+  const talon = !!p.turno && !llamado && !enSilla && !enCamino
+  const franja = !!p.turno && enSilla
 
-  return (
-    <View style={[s.card, { backgroundColor: fondo }]}>
-      {conPoste && <Pole height={7} radius={0} animado={!llamado} />}
-
-      <View style={s.cuerpo}>
+  const cuerpo = (
+      <View style={[s.cuerpo, talon && { flex: 1, paddingLeft: 22 }]}>
         {/* EL NOMBRE DEL LOCAL ES LA CABECERA, y vive dentro del bloque.
             La tira de píldoras que había antes flotando encima no pesaba nada
             y encima repetía el nombre que la tarjeta ya decía debajo. */}
@@ -221,6 +222,20 @@ export default function TarjetaTurno(p: Props) {
         {p.turno ? <ConTurno {...p} llamado={llamado} enSilla={enSilla} urgente={urgente} tenue={tenue} />
                  : <SinTurno {...p} abierto={abierto} libres={libres} sinServicio={sinServicio} motivoComun={motivoComun} />}
       </View>
+  )
+
+  return (
+    <View style={[s.card, { backgroundColor: fondo }]}>
+      {franja && <Pole height={14} animado={false} />}
+      {talon ? (
+        <View style={{ flexDirection: 'row' }}>
+          <Pole height="auto" animado={false} ancho={6} style={{ width: 14, alignSelf: 'stretch' }} />
+          {cuerpo}
+          {/* Las muescas del ticket: círculos del color de la pantalla. */}
+          <View style={[s.muesca, { left: -9 }]} />
+          <View style={[s.muesca, { right: -9 }]} />
+        </View>
+      ) : cuerpo}
     </View>
   )
 }
@@ -239,7 +254,6 @@ export default function TarjetaTurno(p: Props) {
 export function TarjetaEsqueleto() {
   return (
     <View style={[s.card, { backgroundColor: COLORS.carbon }]} accessibilityLabel="Cargando tu turno">
-      <View style={s.huesoPoste} />
       <View style={s.cuerpo}>
         <View style={[s.hueso, { height: 26, width: '62%' }]} />
         <View style={[s.filete, { backgroundColor: COLORS.carbonDash }]} />
@@ -541,9 +555,11 @@ export function Cifra({ valor, rotulo, color, filete, latiendo }: {
 
   // El sufijo del ordinal se separa para poder empequeñecerlo. Lo demás
   // —«25′», «AHORA», «3:15»— no tiene sufijo y sale entero.
+  // El puesto se escribe como número de turno, con dos cifras en mono
+  // («03»), como en el ticket de la línea gráfica. Lo demás sale entero.
   const m = /^(\d+)(ro|do|to|mo|vo|no)$/.exec(valor)
-  const num = m ? m[1] : valor
-  const suf = m ? m[2] : ''
+  const num = m ? m[1].padStart(2, '0') : valor
+  const suf = ''
   // Se mide lo que se pinta: con el sufijo aparte, «10mo» son dos caracteres
   // de número, no cuatro, y no tiene por qué encogerse como «AHORA».
   const largo = num.length > 3
@@ -646,23 +662,22 @@ function Pie({ principal, secundario, cancelar, nota }: {
 }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 6, overflow: 'hidden', marginBottom: 12 },
-  hueso: { backgroundColor: 'rgba(255,255,255,0.11)', marginTop: 12 },
-  huesoPoste: { height: 7, backgroundColor: COLORS.carbonDash },
+  card: { borderRadius: 8, overflow: 'hidden', marginBottom: 12 },
+  muesca: { position: 'absolute', top: '50%', marginTop: -9, width: 18, height: 18, borderRadius: 8, backgroundColor: COLORS.bg },
+  hueso: { backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: 8, marginTop: 12 },
   cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
 
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  local: { fontFamily: FONTS.display, fontSize: 30, lineHeight: 32, color: '#fff',
-    textTransform: 'uppercase', letterSpacing: 0.3 },
-  localSub: { fontFamily: FONTS.bold, fontSize: 11, marginTop: 4, letterSpacing: 0.3 },
+  local: { fontFamily: FONTS.semibold, fontSize: 20, lineHeight: 25, color: '#fff', letterSpacing: -0.3 },
+  localSub: { fontFamily: FONTS.medium, fontSize: 12, marginTop: 3 },
 
-  filete: { height: 1, marginVertical: 15 },
+  filete: { height: 1, marginVertical: 14 },
 
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  estadoT: { fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6 },
-  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 12, color: COLORS.onCarbonMid },
-  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.6, color: '#fff' },
+  estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2 },
+  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.onCarbonMid },
+  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.mono, fontSize: 13, color: '#fff' },
 
   cifraCaja: { marginTop: 6 },
   cifraFilete: { borderLeftWidth: 3, borderLeftColor: COLORS.redSoft, paddingLeft: 12, marginLeft: -15 },
@@ -673,42 +688,42 @@ const s = StyleSheet.create({
    * por el filo de la línea. Se veía como un fallo de pintado y era una resta.
    * Anton sube bastante sobre la altura de la x; 1.06 le deja sitio.
    */
-  cifra: { fontFamily: FONTS.display, fontSize: 76, lineHeight: 81 },
-  cifraSufijo: { fontFamily: FONTS.display, fontSize: 34 },
-  cifraRot: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.6, color: COLORS.onCarbonMid, marginTop: 6 },
+  cifra: { fontFamily: FONTS.mono, fontSize: 76, lineHeight: 82, letterSpacing: -3 },
+  cifraSufijo: { fontFamily: FONTS.mono, fontSize: 34 },
+  cifraRot: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginTop: 6 },
 
-  motivo: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 12, lineHeight: 20 },
-  servicio: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff', marginTop: 14 },
-  servicioMeta: { fontFamily: FONTS.medium, fontSize: 12.5, marginTop: 2 },
-  consecuencia: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff', marginTop: 10 },
+  motivo: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 12, lineHeight: 20 },
+  servicio: { fontFamily: FONTS.semibold, fontSize: 18, color: '#fff', marginTop: 14 },
+  servicioMeta: { fontFamily: FONTS.regular, fontSize: 13, marginTop: 2 },
+  consecuencia: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff', marginTop: 10 },
   pausa: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13,
     borderLeftWidth: 3, borderLeftColor: COLORS.ambarNoche, paddingLeft: 11 },
-  pausaT: { flex: 1, fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff', lineHeight: 18 },
+  pausaT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', lineHeight: 18 },
 
-  eta: { alignSelf: 'flex-start', marginTop: 12, backgroundColor: COLORS.red, paddingVertical: 7, paddingHorizontal: 12 },
-  etaT: { fontFamily: FONTS.bold, fontSize: 12.5, color: '#fff' },
+  eta: { alignSelf: 'flex-start', marginTop: 12, backgroundColor: '#1F1F1F', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14 },
+  etaT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
 
   sillas: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 15 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.10)',
-    paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },
   punto: { width: 7, height: 7, borderRadius: 4 },
-  chipT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff', flexShrink: 1 },
-  chipD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.onCarbonMid },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
+  chipD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid },
 
-  pie: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pieSolo: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
     borderTopWidth: 1, borderTopColor: COLORS.carbonDash, paddingTop: 14 },
-  btn: { flex: 1, height: 50, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   btnRojo: { backgroundColor: COLORS.red },
   btnClaro: { backgroundColor: '#fff' },
-  btnContorno: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.55)' },
-  btnT: { fontFamily: FONTS.display, fontSize: 16.5, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.4 },
+  btnContorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
   nota: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    height: 50, backgroundColor: 'rgba(255,255,255,0.10)' },
-  notaT: { fontFamily: FONTS.bold, fontSize: 12.5, color: COLORS.onCarbonMid },
+    height: 48, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' },
+  notaT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onCarbonMid },
   btnCancelar: { paddingHorizontal: 4 },
-  cancelar: { fontFamily: FONTS.bold, fontSize: 13 },
+  cancelar: { fontFamily: FONTS.semibold, fontSize: 14 },
 
   enCamino: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  enCaminoT: { fontFamily: FONTS.bold, fontSize: 13.5, color: '#fff' },
+  enCaminoT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
 })

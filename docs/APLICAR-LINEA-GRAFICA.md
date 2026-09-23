@@ -48,7 +48,37 @@ con vistas (como el poste de hoy), los íconos siguen siendo Ionicons
 (equivalentes de los del mock), y las fuentes Geist viajan en la
 actualización como cualquier recurso.
 
-## Decisiones abiertas
+## Hecho (23 sep) — primera entrega: fases 0, 1 y 2
+
+Decidido: **estándar primero, Liquid Glass después**; oscuro preparado pero
+sin activar; rótulos solo en español.
+
+- **Tokens** (`constants/index.ts`): los nombres de siempre con la paleta
+  nueva (tinta `#0B0B0C`, rojo `#E1251B`, azul `#1E4FD8`, grises del
+  handoff), `COLORS_OSCURO` listo, `FONTS` en Geist + Geist Mono (`mono`,
+  `monoMedium`), `RADIUS` a 8.
+- **Fuentes**: `@expo-google-fonts/geist` y `geist-mono` (van en la
+  actualización como recursos; comprobado con `expo export`). Anton y Plus
+  Jakarta ya no se cargan.
+- **Piezas**: `Display`, `Avatar` (circular), botones, chips, badge, poste
+  (−55°, 4 bandas, horizontal o vertical), `Ticket` con talón,
+  `components/turno-logo.tsx` (logo ticket con vistas, sin SVG), `d2.tsx`
+  (encabezado, rótulo sin raya, segmento de chips, cifras en mono),
+  `hoja-piezas.tsx`, hoja con radio 8, barra de pestañas, distintivo de panel.
+- **Tarjetas**: cliente — talón del poste y muescas mientras esperas, franja
+  arriba en la silla, rojo si te llaman, azul si vas en camino, puesto en mono
+  con dos cifras («03»); silla — franja solo en «EN LA SILLA». La lógica de
+  los modos no se tocó (`lib/silla.ts`, `probar-silla` en verde).
+- **Barrido mecánico**, solo estilos: 32 titulares que eran Anton en
+  mayúsculas pasan a frase normal; 44 radios a 8; 27 bordes negros de 2 px a
+  borde fino gris.
+
+Pendiente de la fase 3, pantalla por pantalla: cifras que siguen en la letra
+de titular en vez de mono, botones cuadrados, y los postes que aún decoran
+cabeceras (bienvenida, entrar, historial, agenda, estadísticas, estado del
+local): el handoff los quiere solo en tres sitios.
+
+## Decisiones abiertas (ya resueltas arriba)
 
 1. **Estándar o Glass.** El handoff dice que Glass es opcional y no reemplaza
    al estándar. Recomendación: estándar ahora (va por actualización), Glass

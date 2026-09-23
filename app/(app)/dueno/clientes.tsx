@@ -286,7 +286,7 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
   aviso: { fontFamily: FONTS.medium, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid, marginTop: 8 },
   vacio: { fontFamily: FONTS.medium, fontSize: 14, lineHeight: 20, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
-  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 2, borderColor: COLORS.ink,
+  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: COLORS.border,
     paddingHorizontal: 12, marginTop: 16, backgroundColor: COLORS.surface },
   buscarT: { flex: 1, fontFamily: FONTS.medium, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
@@ -305,6 +305,6 @@ const s = StyleSheet.create({
   visitaS: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
   visitaP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
   contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  btn: { flex: 1, height: 48, borderWidth: 2, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  btn: { flex: 1, height: 48, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   btnT: { fontFamily: FONTS.extrabold, fontSize: 13.5, color: COLORS.ink },
 })

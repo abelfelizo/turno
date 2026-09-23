@@ -276,7 +276,7 @@ const s = StyleSheet.create({
   servBarra: { flex: 1, height: 10, backgroundColor: COLORS.border },
   servLlena: { height: 10, backgroundColor: COLORS.red },
   servC: { width: 34, textAlign: 'right', fontFamily: FONTS.display, fontSize: 18, color: COLORS.ink },
-  resenas: { marginTop: 24, borderRadius: 6, backgroundColor: COLORS.carbon, overflow: 'hidden' },
+  resenas: { marginTop: 24, borderRadius: 8, backgroundColor: COLORS.carbon, overflow: 'hidden' },
   resFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   resNota: { fontFamily: FONTS.display, fontSize: 40, lineHeight: 46, color: '#fff' },
   resT: { fontFamily: FONTS.extrabold, fontSize: 13.5, color: '#fff' },

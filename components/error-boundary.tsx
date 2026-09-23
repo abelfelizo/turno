@@ -45,6 +45,6 @@ const s = StyleSheet.create({
   emoji: { fontSize: 44, marginBottom: 12 },
   title: { fontFamily: FONTS.extrabold, fontSize: 22, color: '#fff', marginBottom: 8 },
   sub: { fontFamily: FONTS.medium, fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: 28 },
-  btn: { backgroundColor: COLORS.red, borderRadius: 6, paddingVertical: 15, paddingHorizontal: 32 },
+  btn: { backgroundColor: COLORS.red, borderRadius: 8, paddingVertical: 15, paddingHorizontal: 32 },
   btnT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
 })
