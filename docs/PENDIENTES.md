@@ -164,4 +164,5 @@ principal en un dato que no se puede usar sin abrir la agenda igual.
 | Servicio habitual guardado + favoritos en la fila | `TABLEROS-CLIENTE.md` |
 | Gestos que piden APK nuevo (gesture-handler, swipe entre pestañas, splash) | `CONTEXT.md` |
 | La guarda de panel, sin publicar | commit `5e42fe6` |
-| El panel de barbería, sin convertir (el de barbero ya está) | `MAPA-D2.md` |
+| El panel de barbería, sin convertir: estructura propuesta, esperando decisiones | `TABLEROS-BARBERIA.md` |
+| Clientes del dueño cuenta solo las visitas de su propia silla (sería la 120) | `TABLEROS-BARBERIA.md` |
