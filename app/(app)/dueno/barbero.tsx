@@ -1,18 +1,20 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Switch, Alert } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero, getNegocioById, permitirCaptarSolo } from '../../../lib/db'
 import { getSesion } from '../../../lib/storage'
 import { enviarPush } from '../../../lib/notificaciones'
-import { hora12 } from '../../../lib/format'
+import { hora12, dinero } from '../../../lib/format'
 import { COLORS, FONTS } from '../../../constants'
-import { Display, NoCargo } from '../../../components/ui'
+import { NoCargo } from '../../../components/ui'
 import Hoja from '../../../components/hoja'
 import Resenas from '../../../components/resenas'
 import { useGestoVolver } from '../../../components/gestos'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Encabezado, Rotulo } from '../../../components/d2'
+import { Rotulo } from '../../../components/d2'
+import { Titulo, AhoraNo } from '../../../components/hoja-piezas'
+import { Fila, Iniciales, Estado, Flecha, Boton, Chip, Nota, Interruptor, Etiqueta, Campo, Paso, IconoFila, t } from '../../../components/turno-ui'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -294,12 +296,19 @@ export default function BarberoDelLocal() {
   const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
   return (
-    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 12, paddingBottom: 40 }}>
-      <TouchableOpacity style={s.volver} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Volver</Text>
+    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 40 }}>
+      <TouchableOpacity style={s.volver} onPress={() => router.back()} accessibilityRole="button">
+        <Ionicons name="chevron-back" size={20} color={COLORS.ink} /><Text style={s.volverT}>Equipo</Text>
       </TouchableOpacity>
-      <Encabezado titulo={nombre || 'Barbero'}
-        sub={perfilRow?.suspendido ? 'Suspendido · no le entra trabajo' : autonomo ? 'Renta su silla' : puedoEditarle ? 'Empleado del local' : null} />
+      <View style={s.cabeza}>
+        <Iniciales nombre={nombre || 'Barbero'} size={56} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.nombre} numberOfLines={2}>{nombre || 'Barbero'}</Text>
+          {perfilRow?.suspendido
+            ? <Estado texto="Suspendido · no le entra trabajo" color={COLORS.redText} />
+            : <Text style={s.cabezaSub}>{autonomo ? 'Renta su silla' : puedoEditarle ? 'Empleado del local' : ' '}</Text>}
+        </View>
+      </View>
 
       {/* La modalidad la hereda del tipo del local, pero una barbería de
           EMPLEADOS puede alquilar un asiento suelto. Ese cambio es del dueño: el
@@ -315,57 +324,59 @@ export default function BarberoDelLocal() {
       {localDeAlquiler ? (
         <>
           <View style={s.modRow}>
-            <View style={[s.modChip, s.modChipOn]}><Text style={[s.modChipT, { color: '#fff' }]}>Renta su asiento</Text></View>
+            <View style={[t.chip, t.chipOn]}><Text style={[t.chipT, { color: '#fff' }]}>Renta su asiento</Text></View>
           </View>
-          <Text style={s.sub}>
+          <Nota>
             Aquí alquilas asientos, así que cada barbero es su propio negocio: paga su silla y
             decide sus servicios, precios y horario. Si quieres tener empleados, cámbialo en
             Ajustes → Cómo trabaja tu local; el local pasa a pagar por ellos.
-          </Text>
+          </Nota>
         </>
       ) : (
         <>
           <View style={s.modRow}>
-            <TouchableOpacity style={[s.modChip, puedoEditarle && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
-              <Text style={[s.modChipT, puedoEditarle && { color: '#fff' }]}>Empleado</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
-              <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
-            </TouchableOpacity>
+            <Chip texto="Empleado" activo={puedoEditarle} onPress={() => { if (!modBusy) aplicarModalidad('empleado') }} />
+            <Chip texto="Renta su asiento" activo={autonomo} onPress={() => { if (!modBusy) aplicarModalidad('barbero_renta') }} />
+            {modBusy && <ActivityIndicator size="small" color={COLORS.textMid} />}
           </View>
-          <Text style={s.sub}>
+          <Nota>
             {autonomo
               ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
               : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
-          </Text>
+          </Nota>
         </>
       )}
 
-      <Rotulo accion={puedoEditarle ? '+ Agregar' : undefined} onAccion={() => abrirServicio()} style={{ marginTop: 8 }}>Servicios</Rotulo>
-      {servicios.length === 0 && <Text style={s.empty}>Todavía no tiene servicios.</Text>}
-      {servicios.map((sv: any) => (
-        <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={!puedoEditarle}>
-            <Text style={s.servName}>{sv.nombre}</Text>
-            <Text style={s.servMeta}>{sv.duracion_min} min</Text>
-          </TouchableOpacity>
-          <Text style={s.servPrecio}>{sv.precio}</Text>
-          {autonomo
-            ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
-        </View>
+      <Rotulo accion={puedoEditarle ? '+ Agregar' : undefined} onAccion={() => abrirServicio()}>Servicios</Rotulo>
+      {servicios.length === 0 && <Nota style={{ marginTop: 0 }}>Todavía no tiene servicios.</Nota>}
+      {servicios.map((sv: any, i: number) => (
+        <Fila key={sv.id} ultima={i === servicios.length - 1} apagada={!sv.activo}
+          onPress={puedoEditarle ? () => abrirServicio(sv) : undefined}
+          titulo={sv.nombre} meta={`${sv.duracion_min} min`}
+          fin={
+            <View style={s.finFila}>
+              <Text style={[s.precio, !sv.activo && { color: COLORS.textLight }]}>{dinero(sv.precio)}</Text>
+              {autonomo
+                ? <Estado texto={sv.activo ? 'Activo' : 'Inactivo'} />
+                : <Interruptor valor={!!sv.activo} onCambio={() => toggleSv(sv)} />}
+            </View>
+          } />
       ))}
 
       <Rotulo>Horario</Rotulo>
-      {DIAS.map(d => {
+      {DIAS.map((d, i) => {
         const h = horarioDe(d.n); const abierto = h && h.activo
         return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={!puedoEditarle}>
-            <Text style={s.diaL}>{d.l}</Text>
-            <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>
-              {abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}
-            </Text>
-          </TouchableOpacity>
+          <Fila key={d.n} ultima={i === DIAS.length - 1} titulo={d.l}
+            onPress={puedoEditarle ? () => abrirHorario(d.n) : undefined}
+            fin={
+              <View style={s.finFila}>
+                <Text style={[s.hora, !abierto && { color: COLORS.textLight, fontFamily: FONTS.regular }]}>
+                  {abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}
+                </Text>
+                {puedoEditarle && <Flecha />}
+              </View>
+            } />
         )
       })}
 
@@ -373,14 +384,12 @@ export default function BarberoDelLocal() {
           sube el precio o a quién manda a formarse: sin leer esto lo hace a
           ciegas, y las reseñas llevaban desde el principio guardándose para
           nadie. */}
-      <TouchableOpacity style={[s.accionFila, { marginTop: 22 }]} onPress={() => setVerResenas(true)}>
-        <Ionicons name="star-outline" size={20} color={COLORS.ink} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.accionFilaT}>Reseñas de sus clientes</Text>
-          <Text style={s.accionFilaD}>Promedio, reparto de estrellas y lo que escribieron.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-      </TouchableOpacity>
+      <Rotulo>Sus clientes</Rotulo>
+      <Fila ultima onPress={() => setVerResenas(true)}
+        inicio={<IconoFila icono="star-outline" />}
+        titulo="Reseñas de sus clientes"
+        meta="Promedio, reparto de estrellas y lo que escribieron."
+        fin={<Flecha />} />
 
       <Resenas perfilId={perfil} nombre={nombre} visible={verResenas} onClose={() => setVerResenas(false)} />
 
@@ -388,135 +397,81 @@ export default function BarberoDelLocal() {
           Las dos juntas y en este orden a propósito: suspender es lo que casi
           siempre se quiere —dos días, una semana— y desvincular es la que no
           tiene vuelta. Cada una dice lo que hace ANTES de tocarla. */}
-      <Rotulo style={{ marginBottom: 4 }}>Su sitio en el local</Rotulo>
+      <Rotulo>Su sitio en el local</Rotulo>
 
       {/* QUIÉN LE DA EL TRABAJO (migración 107).
           Solo para el empleado: el autónomo manda en su silla y aquí no hay
           nada que conceder. Va antes que suspender porque es la decisión del
           día a día; las otras dos son las de "esta persona se va". */}
       {puedoEditarle && (
-        <TouchableOpacity style={[s.accionFila, perfilRow?.acepta_por_su_cuenta && s.accionFilaOn]}
-          onPress={cambiarCaptacion} disabled={captaBusy}>
-          <Ionicons name={perfilRow?.acepta_por_su_cuenta ? 'megaphone' : 'megaphone-outline'} size={20}
-            color={perfilRow?.acepta_por_su_cuenta ? COLORS.success : COLORS.ink} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.accionFilaT}>
-              {perfilRow?.acepta_por_su_cuenta ? 'Se sirve de la fila él mismo' : 'Le asignas tú el trabajo'}
-            </Text>
-            <Text style={s.accionFilaD}>
-              {perfilRow?.acepta_por_su_cuenta
-                ? 'Puede llamar al siguiente y atender a quien llegue sin cita. Toca para quitárselo.'
-                : 'Atiende al cliente que tenga delante, pero no llama ni sienta a nadie por su cuenta. Toca para dejarle.'}
-            </Text>
-          </View>
-          {captaBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
-        </TouchableOpacity>
+        <Fila onPress={captaBusy ? undefined : cambiarCaptacion}
+          inicio={<IconoFila icono={perfilRow?.acepta_por_su_cuenta ? 'megaphone' : 'megaphone-outline'}
+            color={perfilRow?.acepta_por_su_cuenta ? COLORS.success : COLORS.ink} />}
+          titulo={perfilRow?.acepta_por_su_cuenta ? 'Se sirve de la fila él mismo' : 'Le asignas tú el trabajo'}
+          meta={perfilRow?.acepta_por_su_cuenta
+            ? 'Puede llamar al siguiente y atender a quien llegue sin cita. Toca para quitárselo.'
+            : 'Atiende al cliente que tenga delante, pero no llama ni sienta a nadie por su cuenta. Toca para dejarle.'}
+          fin={captaBusy ? <ActivityIndicator color={COLORS.textMid} /> : <Flecha />} />
       )}
 
-      <TouchableOpacity style={[s.accionFila, perfilRow?.suspendido && s.accionFilaOn]} onPress={cambiarSuspension} disabled={suspBusy}>
-        <Ionicons name={perfilRow?.suspendido ? 'play-circle-outline' : 'pause-circle-outline'} size={20}
-          color={perfilRow?.suspendido ? COLORS.success : COLORS.ink} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.accionFilaT}>{perfilRow?.suspendido ? 'Reanudar' : 'Suspender temporalmente'}</Text>
-          <Text style={s.accionFilaD}>
-            {perfilRow?.suspendido
-              ? 'Ahora mismo no le entra trabajo. Toca para que vuelva a recibir turnos y citas.'
-              : 'Deja de entrarle trabajo sin sacarlo del local. Sus citas y su fila no se tocan.'}
-          </Text>
-        </View>
-        {suspBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
-      </TouchableOpacity>
+      <Fila ultima onPress={suspBusy ? undefined : cambiarSuspension}
+        inicio={<IconoFila icono={perfilRow?.suspendido ? 'play-circle-outline' : 'pause-circle-outline'}
+          color={perfilRow?.suspendido ? COLORS.success : COLORS.ink} />}
+        titulo={perfilRow?.suspendido ? 'Reanudar' : 'Suspender temporalmente'}
+        meta={perfilRow?.suspendido
+          ? 'Ahora mismo no le entra trabajo. Toca para que vuelva a recibir turnos y citas.'
+          : 'Deja de entrarle trabajo sin sacarlo del local. Sus citas y su fila no se tocan.'}
+        fin={suspBusy ? <ActivityIndicator color={COLORS.textMid} /> : <Flecha />} />
 
-      <TouchableOpacity style={s.accionFila} onPress={desvincular}>
-        <Ionicons name="person-remove-outline" size={20} color={COLORS.danger} />
-        <View style={{ flex: 1 }}>
-          <Text style={[s.accionFilaT, { color: COLORS.danger }]}>Desvincular del local</Text>
-          <Text style={s.accionFilaD}>Se cancelan sus citas futuras y sale de la fila. No tiene vuelta atrás.</Text>
-        </View>
-      </TouchableOpacity>
+      <Boton tipo="destructive" icono="person-remove-outline" texto="Desvincular del local" onPress={desvincular} style={{ marginTop: 22 }} />
+      <Nota>Se cancelan sus citas futuras y sale de la fila. No tiene vuelta atrás.</Nota>
 
       <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
-            <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
-            <Text style={s.flabel}>Nombre</Text>
-            <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} />
-            <Text style={s.flabel}>Duración (min)</Text>
-            <TextInput style={s.input} value={svDur} onChangeText={setSvDur} keyboardType="number-pad" />
-            <Text style={s.flabel}>Precio</Text>
-            <TextInput style={s.input} value={svPrecio} onChangeText={setSvPrecio} keyboardType="number-pad" />
-            <TouchableOpacity style={s.btn} onPress={guardarServicio} disabled={svBusy}>
-              {svBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
+            <Titulo>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Titulo>
+            <Etiqueta>Nombre</Etiqueta>
+            <Campo value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" />
+            <View style={s.dos}>
+              <View style={{ flex: 1 }}>
+                <Etiqueta>Duración (min)</Etiqueta>
+                <Campo mono value={svDur} onChangeText={setSvDur} keyboardType="number-pad" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Etiqueta>Precio</Etiqueta>
+                <Campo mono value={svPrecio} onChangeText={setSvPrecio} keyboardType="number-pad" />
+              </View>
+            </View>
+            <Boton texto="Guardar" onPress={guardarServicio} ocupado={svBusy} style={{ marginTop: 20 }} />
+            <AhoraNo texto="Cancelar" onPress={() => setSvModal(null)} />
       </Hoja>
 
       <Hoja visible={!!hrModal} onClose={() => setHrModal(null)}>
-            <Display size={22}>{DIAS.find(d => d.n === hrModal?.n)?.l}</Display>
-            <Text style={s.flabel}>Abre</Text>
+            <Titulo>{DIAS.find(d => d.n === hrModal?.n)?.l ?? ''}</Titulo>
+            <Etiqueta>Abre</Etiqueta>
             <Paso valor={hora12(`${String(hrIni).padStart(2, '0')}:00`)} menos={() => setHrIni(Math.max(0, hrIni - 1))} mas={() => setHrIni(Math.min(23, hrIni + 1))} />
-            <Text style={s.flabel}>Cierra</Text>
+            <Etiqueta>Cierra</Etiqueta>
             <Paso valor={hora12(`${String(hrFin).padStart(2, '0')}:00`)} menos={() => setHrFin(Math.max(hrIni + 1, hrFin - 1))} mas={() => setHrFin(Math.min(24, hrFin + 1))} />
-            <Text style={s.flabel}>Minutos entre clientes</Text>
+            <Etiqueta>Minutos entre clientes</Etiqueta>
             <Paso valor={`${hrBuf} min`} menos={() => setHrBuf(Math.max(0, hrBuf - 5))} mas={() => setHrBuf(Math.min(60, hrBuf + 5))} />
-            <TouchableOpacity style={s.btn} onPress={() => aplicarHorario(true)} disabled={hrBusy}>
-              {hrBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => aplicarHorario(false)} disabled={hrBusy}>
-              <Text style={s.cerrarRojo}>Marcar cerrado este día</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
+            <Boton texto="Guardar" onPress={() => aplicarHorario(true)} ocupado={hrBusy} style={{ marginTop: 20 }} />
+            <Boton tipo="destructive" texto="Marcar cerrado este día" onPress={() => aplicarHorario(false)} disabled={hrBusy} style={{ marginTop: 10 }} />
+            <AhoraNo texto="Cancelar" onPress={() => setHrModal(null)} />
       </Hoja>
     </ScrollView></View>
   )
 }
 
-function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: () => void }) {
-  return (
-    <View style={s.stepRow}>
-      <TouchableOpacity style={s.stepBtn} onPress={menos}><Text style={s.stepT}>−</Text></TouchableOpacity>
-      <Text style={s.stepVal}>{valor}</Text>
-      <TouchableOpacity style={s.stepBtn} onPress={mas}><Text style={s.stepT}>+</Text></TouchableOpacity>
-    </View>
-  )
-}
-
 const s = StyleSheet.create({
-  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  accionFilaOn: { borderLeftWidth: 3, borderLeftColor: COLORS.success, paddingLeft: 10 },
-  accionFilaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  accionFilaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   pantalla: { flex: 1 },
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  volverT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
-  sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
-  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
-  modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
-  modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
-  secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
-  accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 12 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  diaL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  diaH: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 10, borderTopRightRadius: 10, padding: 24, paddingBottom: 40 },
-  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.red, borderRadius: 8, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
-  cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.red, fontSize: 14, marginTop: 14 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 14, alignSelf: 'flex-start' },
+  volverT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  cabeza: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 4 },
+  nombre: { fontFamily: FONTS.bold, fontSize: 28, letterSpacing: -0.6, color: COLORS.ink },
+  cabezaSub: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, marginTop: 2 },
+  modRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  finFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  precio: { fontFamily: FONTS.mono, fontSize: 15, color: COLORS.ink },
+  hora: { fontFamily: FONTS.monoMedium, fontSize: 13, color: COLORS.ink },
+  dos: { flexDirection: 'row', gap: 12 },
 })

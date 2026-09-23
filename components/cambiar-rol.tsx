@@ -61,13 +61,15 @@ export default function CambiarRol() {
 
   return (
     <>
-      <Text style={s.sec}>CAMBIAR DE PANEL</Text>
+      <Text style={s.sec}>Cambiar de panel</Text>
       {opciones.map(o => {
         const esActual = o.panel === actual.panel && o.negocio_id === actual.negocio_id
         return (
           <TouchableOpacity key={`${o.panel}-${o.negocio_id}`} style={[s.fila, esActual && s.filaOn]}
             onPress={() => cambiar(o)} disabled={esActual}>
-            <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.red : COLORS.textMid} />
+            <View style={[s.ico, esActual && { backgroundColor: COLORS.ink }]}>
+              <Ionicons name={icono(o.panel)} size={19} color={esActual ? '#fff' : COLORS.ink} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={s.txt}>{etiqueta(o)}</Text>
               {/* «Pendiente de aprobación» era la única espera posible hasta la
@@ -81,7 +83,7 @@ export default function CambiarRol() {
               </Text>
             </View>
             {esActual
-              ? <Text style={s.aqui}>AQUÍ</Text>
+              ? <Text style={s.aqui}>Aquí</Text>
               : <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
           </TouchableOpacity>
         )
@@ -91,17 +93,14 @@ export default function CambiarRol() {
 }
 
 const s = StyleSheet.create({
-  // Filas con filete, no tarjetas blancas con borde: en D2 una lista es una
-  // lista, y las cajas sueltas son para lo que se lee aparte.
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase',
-    borderBottomWidth: 2, borderBottomColor: COLORS.ink, paddingBottom: 8, marginTop: 22 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  // El panel en el que estás: filete rojo a la izquierda, como «tu barbero»
-  // en Mi barbería. Una marca, no un recuadro verde.
-  filaOn: { borderLeftWidth: 3, borderLeftColor: COLORS.red, paddingLeft: 11 },
-  txt: { fontFamily: FONTS.display, fontSize: 17, color: COLORS.ink },
-  det: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  aqui: { fontFamily: FONTS.bold, fontSize: 9.5, letterSpacing: 1.2, color: '#fff', backgroundColor: COLORS.red,
-    paddingHorizontal: 7, paddingVertical: 3 },
+  // Filas con separador de 1 px, como toda lista de la línea gráfica.
+  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 22, marginBottom: 4 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12,
+    borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  // El panel en el que estás: avatar en tinta y la marca «Aquí».
+  filaOn: {},
+  ico: { width: 42, height: 42, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  txt: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  det: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+  aqui: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.red },
 })

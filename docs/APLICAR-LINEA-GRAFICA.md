@@ -78,6 +78,50 @@ de titular en vez de mono, botones cuadrados, y los postes que aún decoran
 cabeceras (bienvenida, entrar, historial, agenda, estadísticas, estado del
 local): el handoff los quiere solo en tres sitios.
 
+## Hecho (23 sep) — segunda entrega: el panel del administrador completo
+
+Pedido: «todavía hay una mezcla de estilos, construye la versión de
+administrador completa». Las seis pantallas del dueño se rehicieron con **un
+solo juego de piezas**, así que ya no queda nada del estilo D2 (cajas de
+carbón, bordes de 1,5–2 px, rótulos en mayúsculas espaciadas, cifras en letra
+de titular). **La lógica no cambió**: mismas consultas, mismas acciones, mismos
+avisos y textos de confirmación (comprobado que cada acción de antes sigue
+conectada en su pantalla).
+
+- **`components/turno-ui.tsx`** (nuevo): fila de lista con separador de 1 px,
+  avatar de iniciales, número de puesto en mono, estado en color, tarjeta
+  (borde 1, radio 8, sin sombra), aviso, botones del handoff (primario tinta,
+  acento rojo, secundario y destructivo con borde), chip, badge, buscador,
+  botón de icono, nota, interruptor (encendido en tinta), etiqueta + campo
+  (alto 52), paso a paso, icono de fila y overline.
+- **Mi local**: aviso de solicitudes como tarjeta, sillas y fila como listas
+  con avatar y estado a la derecha, cifras en mono.
+- **Equipo**: solicitudes en tarjeta clara (Rechazar con borde, Aprobar en
+  tinta), equipo con avatar, rol en la meta y estado; código del local en mono.
+- **Ficha de la silla**: cabecera con avatar, modalidad con chips, servicios
+  con precio en mono e interruptor, horario en mono, acciones como filas con
+  icono y **Desvincular** como botón destructivo con su consecuencia debajo;
+  hojas con campos y pasos nuevos.
+- **Clientes**: buscador y chips del handoff, avatar por cliente, WhatsApp y
+  llamar como botones de icono, días sin venir en mono; la ficha con el gasto
+  en un bloque en mono.
+- **Estadísticas**: cifra grande en tarjeta y en mono, variación en verde o
+  rojo, barras finas redondeadas (tu silla en rojo, el resto en tinta),
+  origen como lista con porcentaje en mono.
+- **Ajustes**: menú con icono gris, secciones con campos, interruptores y
+  pasos nuevos; suscripción en tarjeta clara con estado por punto de color;
+  «Cerrar este local» como botón destructivo (antes, caja roja).
+- Compartidas que usa el panel: `cambiar-rol`, `selector` y `resenas`
+  (también se ven así en el panel del barbero).
+
+Verificado: `tsc` 0 errores, babel 79 archivos 0 errores, hooks antes de las
+guardas OK, `probar-silla` OK, `expo export` Android OK. Sin librerías nativas
+nuevas: va por actualización. Vuelta atrás: publicar desde `4cde52b`.
+
+Pendiente (fase 3): las pantallas del barbero y del cliente con estas mismas
+piezas; las hojas de la fila y de Mi silla (`hoja-fila`, `hoja-pedir`,
+`hojas-silla`) aún llevan cifras en letra de titular.
+
 ## Decisiones abiertas (ya resueltas arriba)
 
 1. **Estándar o Glass.** El handoff dice que Glass es opcional y no reemplaza

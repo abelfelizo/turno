@@ -1,4 +1,4 @@
-import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert, Share } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Alert, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
@@ -16,6 +16,7 @@ import { Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
 import { Encabezado, Rotulo } from '../../../components/d2'
+import { Fila, Flecha, Tarjeta, Boton, Chip, Nota, Estado, Punto, Interruptor, Etiqueta, Campo, IconoFila, Sobre } from '../../../components/turno-ui'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function Config() {
@@ -269,7 +270,7 @@ export default function Config() {
   ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 32 }}>
       <PanelBadge />
 
       {seccion === null ? (
@@ -281,93 +282,85 @@ export default function Config() {
             return (
               <View key={g.k}>
                 <Rotulo>{g.l}</Rotulo>
-                {filas.map(m => (
-                  <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)} accessibilityRole="button">
-                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color="#fff" /></View>
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={s.menuT}>{m.t}</Text>
-                      <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
-                  </TouchableOpacity>
+                {filas.map((m, i) => (
+                  <Fila key={m.k} ultima={i === filas.length - 1} onPress={() => setSeccion(m.k)}
+                    inicio={<IconoFila icono={m.icono as any} />}
+                    titulo={m.t} meta={m.v} fin={<Flecha />} />
                 ))}
                 {/* Cambiar de panel es navegación, no configuración: va con la
                     cuenta, igual que en los Ajustes del barbero. */}
-                {g.k === 'cuenta' && <View style={{ marginTop: 14 }}><CambiarRol /></View>}
+                {g.k === 'cuenta' && <CambiarRol />}
               </View>
             )
           })}
         </>
       ) : (
-        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
-          <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
+        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)} accessibilityRole="button">
+          <Ionicons name="chevron-back" size={20} color={COLORS.ink} />
           <Text style={s.volverT}>Ajustes</Text>
         </TouchableOpacity>
       )}
       {seccion && <View style={{ marginBottom: 14 }}><Encabezado titulo={TITULO[seccion]} /></View>}
 
       {seccion === 'codigo' && (<>
-        <View style={s.codeCard}>
-          <Text style={s.codeLbl}>CÓDIGO DE ACCESO</Text>
+        <Tarjeta style={s.codeCard}>
+          <Sobre>Código de acceso</Sobre>
           <Text style={s.codeVal}>{negocio?.codigo_acceso ?? '—'}</Text>
-        </View>
-        <Text style={s.modNota}>
+        </Tarjeta>
+        <Nota>
           {esRentado
             ? 'Con este código tus clientes se unen al local y los barberos piden rentar una silla. Nadie entra a trabajar sin que lo apruebes en Equipo.'
             : 'Con este código tus clientes se unen al local y tus barberos piden entrar. Nadie entra a trabajar sin que lo apruebes en Equipo.'}
-        </Text>
-        <TouchableOpacity style={s.guardarBtn} accessibilityRole="button"
-          onPress={() => Share.share({ message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno con el código ${negocio?.codigo_acceso}` })}>
-          <Text style={s.guardarT}>Compartir el código</Text>
-        </TouchableOpacity>
+        </Nota>
+        <Boton texto="Compartir el código" icono="share-outline" style={{ marginTop: 18 }}
+          onPress={() => Share.share({ message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno con el código ${negocio?.codigo_acceso}` })} />
       </>)}
 
       {seccion === 'marca' && (<>
-      <View style={s.marcaCard}>
         <View style={s.marcaTop}>
-          <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85}>
-            <Avatar name={negocio?.nombre} uri={negocio?.logo_url} size={72} bg={COLORS.carbon} />
+          <TouchableOpacity onPress={cambiarLogo} disabled={subiendoLogo} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Cambiar el logo">
+            <Avatar name={negocio?.nombre} uri={negocio?.logo_url} size={72} />
             <View style={s.logoBadge}>
-              {subiendoLogo ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.logoBadgeT}>✎</Text>}
+              {subiendoLogo ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="pencil" size={13} color="#fff" />}
             </View>
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
+            <Etiqueta style={{ marginTop: 0 }}>Nombre del local</Etiqueta>
+            <Campo placeholder="Barbería…" value={nombre} onChangeText={setNombre} />
             <Text style={s.marcaHint}>Toca el logo para cambiarlo.</Text>
-            <Text style={s.flabel}>Nombre del local</Text>
-            <TextInput style={s.input} placeholder="Barbería…" placeholderTextColor={COLORS.textLight} value={nombre} onChangeText={setNombre} />
           </View>
         </View>
 
-        <Text style={s.flabel}>Eslogan</Text>
-        <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} value={slogan} onChangeText={setSlogan} />
+        <Etiqueta>Eslogan</Etiqueta>
+        <Campo placeholder="Tu frase de marca" value={slogan} onChangeText={setSlogan} />
 
         {/* LA DIRECCIÓN, POR PARTES. Era un solo campo de texto libre —"calle,
             sector, ciudad"— y cada dueño escribía lo que le parecía. Aquí una
             dirección sin sector no ubica a nadie, y el punto de referencia es
             literalmente cómo llega el cliente: por eso son campos y no una
             frase. Ver migración 80. */}
-        <Text style={s.flabel}>Calle y número</Text>
-        <TextInput style={s.input} placeholder="Av. Duarte 45" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+        <Etiqueta>Calle y número</Etiqueta>
+        <Campo placeholder="Av. Duarte 45" value={direccion} onChangeText={setDireccion} />
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Sector</Text>
-            <TextInput style={s.input} placeholder="Los Jardines" placeholderTextColor={COLORS.textLight} value={sector} onChangeText={setSector} />
+            <Etiqueta>Sector</Etiqueta>
+            <Campo placeholder="Los Jardines" value={sector} onChangeText={setSector} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Ciudad</Text>
-            <TextInput style={s.input} placeholder="Santiago" placeholderTextColor={COLORS.textLight} value={ciudad} onChangeText={setCiudad} />
+            <Etiqueta>Ciudad</Etiqueta>
+            <Campo placeholder="Santiago" value={ciudad} onChangeText={setCiudad} />
           </View>
         </View>
 
-        <Text style={s.flabel}>Punto de referencia</Text>
-        <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} value={referencia} onChangeText={setReferencia} />
+        <Etiqueta>Punto de referencia</Etiqueta>
+        <Campo placeholder="Frente al colmado, subiendo la loma…" value={referencia} onChangeText={setReferencia} />
 
         {/* DESPLEGABLES, NO CARRUSELES (pedido del piloto). Con veinticuatro
             países, un carrusel horizontal esconde lo que no cabe: quien no veía
             el suyo en los tres primeros no podía saber si estaba más allá o si
             no estaba, porque las dos cosas se ven igual. */}
-        <Selector etiqueta="PAÍS" titulo="¿Dónde está tu barbería?"
+        <Selector etiqueta="País" titulo="¿Dónde está tu barbería?"
           valor={pais}
           opciones={PAISES.map(p => ({ valor: p.codigo, etiqueta: p.nombre }))}
           onElegir={(v) => { setPais(v); const p = paisDe(v); if (p) setMoneda(p.moneda) }} />
@@ -375,26 +368,23 @@ export default function Config() {
         {/* La moneda se propone con el país y se puede cambiar: hay locales que
             cobran en dólares en sitios donde la moneda es otra — en Venezuela y
             Cuba es casi la norma. */}
-        <Selector etiqueta="MONEDA" titulo="¿En qué cobras?"
+        <Selector etiqueta="Moneda" titulo="¿En qué cobras?"
           valor={moneda}
           opciones={MONEDAS.map(m => ({ valor: m.codigo, etiqueta: m.etiqueta }))}
           onElegir={setMoneda} />
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Teléfono</Text>
-            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={telefono} onChangeText={setTelefono} />
+            <Etiqueta>Teléfono</Etiqueta>
+            <Campo placeholder="+1 809…" keyboardType="phone-pad" value={telefono} onChangeText={setTelefono} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Instagram</Text>
-            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+            <Etiqueta>Instagram</Etiqueta>
+            <Campo placeholder="usuario" autoCapitalize="none" value={ig} onChangeText={setIg} />
           </View>
         </View>
 
-        <TouchableOpacity style={s.guardarBtn} onPress={guardarMarca} disabled={guardandoMarca}>
-          {guardandoMarca ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar marca</Text>}
-        </TouchableOpacity>
-      </View>
+        <Boton texto="Guardar marca" onPress={guardarMarca} ocupado={guardandoMarca} style={{ marginTop: 22 }} />
       </>)}
 
       {/* ALQUILO ASIENTOS = NO PAGO NADA (migración 93).
@@ -403,23 +393,23 @@ export default function Config() {
           cobraría —de palabra— por barberos que ya pagan lo suyo, que es
           justo lo contrario del esquema. */}
       {seccion === 'suscripcion' && esRentado && (
-        <View style={s.susCard}>
+        <Tarjeta>
           <Text style={s.susTitulo}>No pagas nada por el local</Text>
-          <Text style={s.susNota}>
+          <Nota>
             Alquilas asientos, así que aquí cada barbero paga su propia silla. Tú solo los
             agrupas: les das el código, aparecen juntos para tus clientes y comparten la fila
             del local.
-          </Text>
-          <Text style={s.susNota}>
+          </Nota>
+          <Nota>
             Si además atiendes, tu silla es una más y la pagas como cualquier otra. La ves en
             tu panel de barbero, en "Mi suscripción".
-          </Text>
-        </View>
+          </Nota>
+        </Tarjeta>
       )}
 
       {seccion === 'suscripcion' && !esRentado && (
         <>
-          <View style={s.susCard}>
+          <Tarjeta>
             <View style={s.susTop}>
               <View style={{ flex: 1 }}>
                 <Text style={s.susTitulo}>{plan.titulo}</Text>
@@ -431,7 +421,7 @@ export default function Config() {
               </View>
             </View>
             <View style={s.susFoot}>
-              <Text style={s.susFootT}>Asientos: {asientos} · {SUSCRIPCION.moneda} {SUSCRIPCION.minimo} c/u, tope {SUSCRIPCION.moneda} {SUSCRIPCION.maximo}</Text>
+              <Text style={s.susFootT}>Asientos: <Text style={s.mono}>{asientos}</Text> · <Text style={s.mono}>{SUSCRIPCION.moneda} {SUSCRIPCION.minimo}</Text> c/u, tope <Text style={s.mono}>{SUSCRIPCION.moneda} {SUSCRIPCION.maximo}</Text></Text>
             </View>
 
             {/* LA PRUEBA GRATIS, DICHA DE VERDAD (migración 86).
@@ -441,22 +431,32 @@ export default function Config() {
                 quedan, que es información cierta — a diferencia de un precio que
                 nadie está cobrando todavía. */}
             {suscripcion?.estado === 'prueba' && (
-              <Text style={s.susEstado}>
-                Prueba gratis · {suscripcion.dias_restantes === 0
-                  ? 'último día'
-                  : `te quedan ${suscripcion.dias_restantes} día${suscripcion.dias_restantes === 1 ? '' : 's'}`}
-              </Text>
+              <View style={s.susEstado}>
+                <Punto color={COLORS.blue} />
+                <Text style={s.susEstadoT}>
+                  Prueba gratis · {suscripcion.dias_restantes === 0
+                    ? 'último día'
+                    : `te quedan ${suscripcion.dias_restantes} día${suscripcion.dias_restantes === 1 ? '' : 's'}`}
+                </Text>
+              </View>
             )}
             {suscripcion?.estado === 'activa' && (
-              <Text style={s.susEstado}>Al día · cubierto hasta el {fechaLarga(fechaDeISO(suscripcion.hasta!))}</Text>
+              <View style={s.susEstado}>
+                <Punto color={COLORS.success} />
+                <Text style={s.susEstadoT}>Al día · cubierto hasta el {fechaLarga(fechaDeISO(suscripcion.hasta!))}</Text>
+              </View>
             )}
             {suscripcion?.estado === 'cortesia' && (
-              <Text style={s.susEstado}>Cortesía · sin cargo</Text>
+              <View style={s.susEstado}>
+                <Punto color={COLORS.success} />
+                <Text style={s.susEstadoT}>Cortesía · sin cargo</Text>
+              </View>
             )}
             {suscripcion?.estado === 'vencida' && (
-              <Text style={[s.susEstado, { color: COLORS.danger }]}>
-                Vencida · la fila de tu local está apagada
-              </Text>
+              <View style={s.susEstado}>
+                <Punto color={COLORS.red} />
+                <Text style={[s.susEstadoT, { color: COLORS.redText }]}>Vencida · la fila de tu local está apagada</Text>
+              </View>
             )}
 
             {/* ESTO DECÍA «tu barbería sigue funcionando con normalidad», y
@@ -465,11 +465,11 @@ export default function Config() {
                 suscripción, la del dueño incluida—. Dejar el texto viejo
                 convertía la única pantalla que puede explicar el apagón en la
                 que asegura que no lo hay. */}
-            <Text style={s.susNota}>
+            <Nota>
               {suscripcion?.estado === 'vencida'
                 ? 'Sin la suscripción al día, tus barberos no aparecen en la app y nadie puede entrar a la fila ni reservar. Lo que ya estaba reservado no se toca —las citas siguen en pie— y quien llegue al local se atiende igual. Aquí puedes seguir cambiando los datos del negocio.'
                 : 'El pago dentro de la app se habilitará próximamente. Nada deja de funcionar mientras tanto.'}
-            </Text>
+            </Nota>
 
             {/* EL CUPO (migración 96). Decide QUIÉN trabaja, así que el dueño
                 tiene que verlo: si paga por dos sillas y tiene cuatro dadas de
@@ -477,15 +477,15 @@ export default function Config() {
                 porque es lo primero que va a preguntar. Solo se enseña cuando
                 hay tope: sin número no hay nada que explicar. */}
             {suscripcion?.sillas_pagadas != null && (
-              <Text style={s.susNota}>
+              <Nota>
                 Pagas por {suscripcion.sillas_pagadas} silla{suscripcion.sillas_pagadas === 1 ? '' : 's'} de
                 las {asientos} que tienes dadas de alta
                 {asientos > suscripcion.sillas_pagadas
                   ? `. Las ${asientos - suscripcion.sillas_pagadas} restantes no aparecen en la app: trabajan las más antiguas.`
                   : '.'}
-              </Text>
+              </Nota>
             )}
-          </View>
+          </Tarjeta>
         </>
       )}
 
@@ -493,21 +493,18 @@ export default function Config() {
           equipo (R11). Se hacía una sola vez en el onboarding y no se podía
           deshacer: equivocarse dejaba el local atrapado. */}
       {seccion === 'modalidad' && (<>
-      <View style={s.modRow}>
-        <TouchableOpacity style={[s.modChip, negocio?.tipo === 'espacios_rentados' && s.modChipOn]}
-          onPress={() => pedirCambioTipo('espacios_rentados')} disabled={tipoBusy}>
-          <Text style={[s.modChipT, negocio?.tipo === 'espacios_rentados' && { color: '#fff' }]}>Alquilo asientos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.modChip, negocio?.tipo === 'empleados' && s.modChipOn]}
-          onPress={() => pedirCambioTipo('empleados')} disabled={tipoBusy}>
-          <Text style={[s.modChipT, negocio?.tipo === 'empleados' && { color: '#fff' }]}>Tengo empleados</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={s.modNota}>
-        {negocio?.tipo === 'empleados'
-          ? 'Tus barberos trabajan para ti: los servicios, los precios y el horario los pones tú, y cubres su suscripción.'
-          : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
-      </Text>
+        <View style={s.modRow}>
+          <Chip texto="Alquilo asientos" activo={negocio?.tipo === 'espacios_rentados'}
+            onPress={() => { if (!tipoBusy) pedirCambioTipo('espacios_rentados') }} />
+          <Chip texto="Tengo empleados" activo={negocio?.tipo === 'empleados'}
+            onPress={() => { if (!tipoBusy) pedirCambioTipo('empleados') }} />
+          {tipoBusy && <ActivityIndicator size="small" color={COLORS.textMid} />}
+        </View>
+        <Nota>
+          {negocio?.tipo === 'empleados'
+            ? 'Tus barberos trabajan para ti: los servicios, los precios y el horario los pones tú, y cubres su suscripción.'
+            : 'Cada barbero paga su asiento y trabaja con sus reglas: pone sus servicios, sus precios y su horario, y paga su suscripción.'}
+        </Nota>
       </>)}
 
       {/* En un local de asientos alquilados el dueño NO manda sobre los puntos
@@ -516,9 +513,9 @@ export default function Config() {
           no es solo ruido — hace creer que deciden algo que no deciden. */}
       {seccion === 'funciones' && (<>
       {esRentado && (
-        <Text style={s.modNota}>
+        <Nota style={{ marginTop: 0, marginBottom: 6 }}>
           Alquilas asientos, así que los puntos y la asignación de clientes los lleva cada barbero desde su propia configuración. Aquí solo quedan las que sí son del local.
-        </Text>
+        </Nota>
       )}
       {conEmpleados && <Toggle label="Sistema de puntos" desc="Clientes acumulan y canjean puntos" value={!!config?.puntos_activos} onChange={(v) => toggle('puntos_activos', v)} />}
       {/* Sin estos dos números el interruptor no hacía nada: el trigger exige
@@ -528,26 +525,26 @@ export default function Config() {
           esto". Y el premio lo escribe el local — no tiene por qué ser un corte
           gratis; puede ser una barba, un refresco o lo que quiera regalar. */}
       {conEmpleados && !!config?.puntos_activos && (
-        <>
+        <View style={s.sangria}>
           <Stepper label="Recortes para el premio"
             desc={`Cada ${config?.visitas_para_gratis ?? 8} visitas, el cliente se gana el premio.`}
             suf="recortes"
             value={config?.visitas_para_gratis ?? 8}
             onMinus={() => ajustar('visitas_para_gratis', -1, 2, 50)} onPlus={() => ajustar('visitas_para_gratis', 1, 2, 50)} />
-          <Text style={s.flabel}>¿Qué se gana?</Text>
-          <TextInput style={s.input} value={premio} onChangeText={setPremio}
+          <Etiqueta>¿Qué se gana?</Etiqueta>
+          <Campo value={premio} onChangeText={setPremio}
             onEndEditing={() => guardarPremio()} placeholder="Corte gratis, barba gratis, un refresco…"
-            placeholderTextColor={COLORS.textLight} maxLength={60} />
-        </>
+            maxLength={60} />
+        </View>
       )}
       {conEmpleados && <Toggle label="Asignación por el administrador" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
-      <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} />
+      <Toggle label="Doble servicio por visita" desc="Permite combinar corte + manicure" value={!!config?.doble_servicio_activo} onChange={(v) => toggle('doble_servicio_activo', v)} ultima />
       </>)}
 
       {seccion === 'tiempos' && conEmpleados && (<>
-      <Text style={s.modNota}>
+      <Nota style={{ marginTop: 0, marginBottom: 6 }}>
         Valen para todo tu equipo: son tus empleados y estas reglas son las del local.
-      </Text>
+      </Nota>
       <Stepper label="Reservar con antelación"
         desc={`Nadie puede pedir una cita para dentro de menos de ${config?.anticipacion_minima_horas ?? 2} horas.`}
         suf="h" value={config?.anticipacion_minima_horas ?? 2} onMinus={() => ajustar('anticipacion_minima_horas', -1, 0, 48)} onPlus={() => ajustar('anticipacion_minima_horas', 1, 0, 48)} />
@@ -564,70 +561,59 @@ export default function Config() {
           botones sueltos —un texto rojo centrado y una caja roja— y ninguno
           contaba las consecuencias antes de tocarlo. */}
       {seccion === 'otros' && (<>
-      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
-
-      <TouchableOpacity style={s.cuentaFila} onPress={salir}>
-        <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.cuentaT}>Cerrar sesión</Text>
-          <Text style={s.cuentaD}>Tu local, tu equipo y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
-      </TouchableOpacity>
+      <Fila onPress={salir}
+        inicio={<IconoFila icono="log-out-outline" />}
+        titulo="Cerrar sesión"
+        meta="Tu local, tu equipo y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo."
+        fin={<Flecha />} />
 
       {/* Los avisos del dueño son las solicitudes para unirse al local: sin
           esto no se entera hasta que abre el panel. Ver lib/notificaciones. */}
-      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
-        <View style={s.cuentaIcono}>
-          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
-            color={avisosOn ? COLORS.success : COLORS.textMid} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
-          <Text style={s.cuentaD}>
-            {avisosOn
-              ? 'Activados. Aquí llegan las solicitudes de barberos y los avisos del local.'
-              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
-          </Text>
-        </View>
-        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
-      </TouchableOpacity>
+      <Fila ultima onPress={activarAvisos}
+        inicio={<IconoFila icono={avisosOn ? 'notifications' : 'notifications-off-outline'} color={avisosOn ? COLORS.success : COLORS.ink} />}
+        titulo="Avisos en este teléfono"
+        meta={avisosOn
+          ? 'Activados. Aquí llegan las solicitudes de barberos y los avisos del local.'
+          : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+        fin={avisosOn ? <Estado texto="Activos" color={COLORS.success} /> : <Flecha />} />
 
-      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
-      <TouchableOpacity style={s.cuentaBorrar} onPress={cerrarEsteLocal}>
-        <Ionicons name="trash-outline" size={18} color="#fff" />
-        <View style={{ flex: 1 }}>
-          <Text style={s.cuentaBorrarT}>Cerrar este local</Text>
-          <Text style={s.cuentaBorrarD}>Deja de aparecer, se cancelan las citas futuras y se vacía la fila. Se avisa a clientes y equipo. Los barberos que alquilan conservan su cuenta.</Text>
-        </View>
-      </TouchableOpacity>
+      <Rotulo>Sin vuelta atrás</Rotulo>
+      <Boton tipo="destructive" icono="trash-outline" texto="Cerrar este local" onPress={cerrarEsteLocal} style={{ marginTop: 8 }} />
+      <Nota>Deja de aparecer, se cancelan las citas futuras y se vacía la fila. Se avisa a clientes y equipo. Los barberos que alquilan conservan su cuenta.</Nota>
       </>)}
     </ScrollView>
   )
 }
 
-function Toggle({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, desc, value, onChange, ultima }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void; ultima?: boolean }) {
   return (
-    <View style={s.toggle}>
+    <View style={[s.ajuste, ultima && { borderBottomWidth: 0 }]}>
       <View style={{ flex: 1, paddingRight: 12 }}>
-        <Text style={s.toggleL}>{label}</Text>
-        <Text style={s.toggleD}>{desc}</Text>
+        <Text style={s.ajusteL}>{label}</Text>
+        <Text style={s.ajusteD}>{desc}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+      <Interruptor valor={value} onCambio={onChange} />
     </View>
   )
 }
 function Stepper({ label, desc, value, suf, onMinus, onPlus }: { label: string; desc?: string; value: number; suf: string; onMinus: () => void; onPlus: () => void }) {
   return (
-    <View style={s.stepper}>
+    <View style={s.ajuste}>
       <View style={{ flex: 1, paddingRight: 12 }}>
-        <Text style={s.toggleL}>{label}</Text>
-        {desc ? <Text style={s.toggleD}>{desc}</Text> : null}
+        <Text style={s.ajusteL}>{label}</Text>
+        {desc ? <Text style={s.ajusteD}>{desc}</Text> : null}
       </View>
       <View style={s.stepCtrl}>
-        <TouchableOpacity style={s.stepBtn} onPress={onMinus}><Text style={s.stepBtnT}>−</Text></TouchableOpacity>
-        <Text style={s.stepVal}>{value} {suf}</Text>
-        <TouchableOpacity style={s.stepBtn} onPress={onPlus}><Text style={s.stepBtnT}>+</Text></TouchableOpacity>
+        <TouchableOpacity style={s.stepBtn} onPress={onMinus} accessibilityRole="button" accessibilityLabel={`Menos ${suf}`}>
+          <Ionicons name="remove" size={18} color={COLORS.ink} />
+        </TouchableOpacity>
+        <View style={{ alignItems: 'center', minWidth: 44 }}>
+          <Text style={s.stepVal}>{value}</Text>
+          <Text style={s.stepSuf}>{suf}</Text>
+        </View>
+        <TouchableOpacity style={s.stepBtn} onPress={onPlus} accessibilityRole="button" accessibilityLabel={`Más ${suf}`}>
+          <Ionicons name="add" size={18} color={COLORS.ink} />
+        </TouchableOpacity>
       </View>
     </View>
   )
@@ -636,63 +622,32 @@ function Stepper({ label, desc, value, suf, onMinus, onPlus }: { label: string; 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12, marginTop: 14 },
-  modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
-  modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
-  modNota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 4 },
-  marcaCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 16, marginBottom: 4 },
-  marcaTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
-  marcaHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
-  logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 8, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
-  logoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
-  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
-  input: { backgroundColor: COLORS.bg, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 8, padding: 13, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
-  dosCol: { flexDirection: 'row', gap: 10 },
-  pill: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 999, paddingVertical: 9,
-    paddingHorizontal: 14, backgroundColor: COLORS.surface },
-  pillOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
-  pillT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
-  guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 8, padding: 15, alignItems: 'center', marginTop: 16 },
-  guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  susCard: { backgroundColor: COLORS.carbon, borderRadius: 8, padding: 18, marginBottom: 4 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 14, alignSelf: 'flex-start' },
+  volverT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
+  modRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  marcaTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  marcaHint: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
+  logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.ink,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg },
+  dosCol: { flexDirection: 'row', gap: 12 },
+  codeCard: { padding: 18 },
+  codeVal: { fontFamily: FONTS.mono, fontSize: 40, letterSpacing: 1, color: COLORS.ink, marginTop: 8 },
   susTop: { flexDirection: 'row', alignItems: 'flex-start' },
-  susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, paddingRight: 10 },
-  susMonto: { fontFamily: FONTS.display, fontSize: 24, color: '#fff' },
-  susTope: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.red, letterSpacing: 1 },
-  susFoot: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 14, paddingTop: 12 },
-  susFootT: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)' },
-  susEstado: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginTop: 12 },
-  susNota: { fontFamily: FONTS.medium, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 16 },
-  toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 16, marginBottom: 8 },
-  toggleL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  toggleD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8 },
-  stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  stepBtn: { width: 34, height: 34, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  stepBtnT: { fontFamily: FONTS.bold, fontSize: 20, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink, minWidth: 56, textAlign: 'center' },
-  // Menú y cuenta: LOS MISMOS valores que en barbero/config.tsx. Es la misma
-  // pantalla para otra persona, y verse distinta solo confunde a quien lleva
-  // los dos paneles — que es justo el caso del dueño que también atiende.
-  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  menuIcono: { width: 32, height: 32, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
-  menuT: { fontFamily: FONTS.extrabold, color: COLORS.ink, fontSize: 15 },
-  menuV: { fontFamily: FONTS.medium, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
-  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { fontFamily: FONTS.bold, color: COLORS.textMid, fontSize: 14.5 },
-  codeCard: { backgroundColor: COLORS.carbon, padding: 18, marginBottom: 12 },
-  codeLbl: { fontFamily: FONTS.extrabold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 2 },
-  codeVal: { fontFamily: FONTS.display, fontSize: 44, color: '#fff', letterSpacing: 3, marginTop: 4 },
-  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 14, marginBottom: 8 },
-  cuentaIcono: { width: 34, height: 34, borderRadius: 8, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
-  cuentaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.medium, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
-  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.red,
-    borderRadius: 8, padding: 14, marginBottom: 16 },
-  cuentaBorrarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  cuentaBorrarD: { fontFamily: FONTS.medium, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', marginTop: 3, lineHeight: 17 },
+  susTitulo: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
+  susDetalle: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 4, paddingRight: 10, lineHeight: 18 },
+  susMonto: { fontFamily: FONTS.mono, fontSize: 22, color: COLORS.ink },
+  susTope: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.redText },
+  susFoot: { borderTopWidth: 1, borderTopColor: COLORS.divider, marginTop: 14, paddingTop: 12 },
+  susFootT: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
+  mono: { fontFamily: FONTS.monoMedium, color: COLORS.ink },
+  susEstado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
+  susEstadoT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  sangria: { paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  ajuste: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.divider },
+  ajusteL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  ajusteD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textLight, marginTop: 2 },
+  stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  stepBtn: { width: 36, height: 36, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
+  stepVal: { fontFamily: FONTS.mono, fontSize: 16, color: COLORS.ink },
+  stepSuf: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight },
 })
