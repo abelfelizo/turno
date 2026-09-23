@@ -2,8 +2,9 @@
 -- 119 · LA FILA SE TOCA POR LA PUERTA, NO POR LA VENTANA
 -- ═══════════════════════════════════════════════════════════════════════════
 --
--- ⚠ ESCRITA Y SIN APLICAR. Toca la base de producción: se aplica solo con el
--- visto bueno explícito. Vuelta atrás: supabase/rollback_119_…sql.
+-- APLICADA el 23 sep con visto bueno. Antes, probada en seco (14/14) dentro
+-- de una transacción revertida; después, contra la base: fila_a_mano 14/14,
+-- sin_cita 27/27, motor_cola 34/34. Vuelta atrás: supabase/rollback_119_…sql.
 --
 -- LO QUE SE ENCONTRÓ (23 sep, revisando empleado frente a independiente):
 --

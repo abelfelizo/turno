@@ -294,8 +294,15 @@ exactamente lo que el servidor acepta a cada una. Lo que no cuadraba:
    alquiler cada silla paga la suya — arreglado en `lib/pricing.ts`.
 3. **🔴 La tabla de la fila estaba abierta por detrás**: un cliente podía
    insertarse con prioridad 1 o marcar su turno como atendido (visita y
-   puntos regalados). Migración **119** escrita, probada en seco (14/14) y
-   **sin aplicar**; suite `supabase/tests/fila_a_mano.test.sql`, vuelta atrás
-   en `supabase/rollback_119_…sql`.
+   puntos regalados). Migración **119 aplicada** el 23 sep: suite
+   `supabase/tests/fila_a_mano.test.sql` 14/14 contra la base, y `sin_cita`
+   (27/27) y `motor_cola` (34/34) siguen en verde. Vuelta atrás en
+   `supabase/rollback_119_…sql`.
+
+   Nota de las pruebas: `sin_cita` tiene dos casos que dependen de la hora
+   («el primer hueco respeta 1 h» y «reservar a 70 min se niega»). Pasadas
+   las 23:00 fallan porque la hora cae al día siguiente, no por la regla; con
+   el local movido a un huso de mediodía da 27/27. Conviene fijarle el huso
+   como a `obstaculos` y `madrugada`.
 4. El empleado podía encender su propia tarjeta de puntos (sin efecto). Lo
    cierra la misma 119.
