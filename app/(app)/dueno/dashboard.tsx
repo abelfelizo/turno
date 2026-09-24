@@ -1,262 +1,383 @@
+/**
+ * MI LOCAL · lo que pasa ahora en la barbería. Tablero: «D2 · Barbería · Cola».
+ *
+ * Solo hoy y solo lo que se mira de pie en el mostrador: cuántos esperan,
+ * quién está libre, a quién le toca y lo que pide atención. Lo demás tiene su
+ * pestaña: el dinero en Estadísticas, las personas en Equipo, la cartera en
+ * Clientes, el código en Ajustes (aquí queda en pequeño, arriba, para
+ * compartirlo). Antes esta pantalla lo tenía todo y la fila se repetía en la
+ * pestaña Cola con la otra mitad de las acciones.
+ *
+ * Tres cosas no se deciden aquí, y se dice por qué en vez de esconderlas:
+ *   · el orden de la fila, que lo lleva la regla (sin subir ni bajar);
+ *   · el horario de cada silla (alargar inventa disponibilidad, migración 88);
+ *   · lo que pasa en una silla ocupada, que lo cierra quien corta (76).
+ */
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl, Alert, Share } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getSesion, guardarSesion } from '../../../lib/storage'
-import { getNegocioById, getColaActiva, getSolicitudesPendientes, aprobarPerfil, rechazarPerfil, getEstadisticasNegocio, getPerfilesNegocio, desvincularBarbero, getConfiguracion, asignarCola } from '../../../lib/db'
-import { enviarPush } from '../../../lib/notificaciones'
+import {
+  getNegocioById, getColaActiva, getSolicitudesPendientes, getEstadisticasNegocio, getPerfilesNegocio,
+  getConfiguracion, asignarCola, getEstadoLocal, getLocalOperativo, marcarNoEsta,
+} from '../../../lib/db'
 import { suscribirCola, desuscribir } from '../../../lib/realtime'
-import { dinero } from '../../../lib/format'
-import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { relojesDeSilla, fechaLarga, hora12 } from '../../../lib/format'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
+import { NoCargo } from '../../../components/ui'
+import { Encabezado, Rotulo, Cifras } from '../../../components/d2'
+import { Titulo, Sub, Seccion, Nota, Opcion, AhoraNo } from '../../../components/hoja-piezas'
 import PanelBadge from '../../../components/panel-badge'
+import Hoja from '../../../components/hoja'
 
-const TIPO: Record<string, string> = { barbero: 'Barbería', manicuri_pedicuri: 'Uñas & Spa' }
+const COLOR_SILLA: Record<string, string> = {
+  libre: COLORS.success, atendiendo: COLORS.red, descanso: COLORS.textLight, inactivo: COLORS.disabled,
+}
+const ESTADO_TURNO: Record<string, { l: string; c: string }> = {
+  en_fila: { l: 'En fila', c: COLORS.textLight },
+  llamado: { l: 'Llamado', c: COLORS.redText },
+  en_camino: { l: 'En camino', c: COLORS.blue },
+  atendiendo: { l: 'En la silla', c: COLORS.redText },
+}
 
-export default function Dashboard() {
+/** Una línea que diga lo que está pasando en esa silla ahora mismo. */
+function estadoTexto(e: any): string {
+  if (!e) return 'No aparece'
+  if (e.estado === 'descanso') return e.hasta ? `En pausa · vuelve ${hora12(e.hasta)}` : 'En descanso'
+  if (e.estado === 'inactivo') return 'Inactivo'
+  if (e.estado === 'atendiendo') return e.cliente ? `Atendiendo a ${e.cliente}` : 'Ocupada'
+  return 'Libre'
+}
+
+/** Cuánto lleva esperando: el número con el que se decide a quién adelantar. */
+function esperaDe(q: any): number | null {
+  if (!q?.created_at) return null
+  const m = Math.floor((Date.now() - new Date(q.created_at).getTime()) / 60000)
+  return m > 0 ? m : null
+}
+
+export default function MiLocal() {
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [negocio, setNegocio] = useState<any>(null)
   const [cola, setCola] = useState<any[]>([])
-  const [solicitudes, setSolicitudes] = useState<any[]>([])
+  const [solicitudes, setSolicitudes] = useState(0)
   const [equipo, setEquipo] = useState<any[]>([])
   const [config, setConfig] = useState<any>(null)
+  // Estado deducido de cada silla (turno_estado_local): si está ocupada, en
+  // pausa o libre. `estado_actual` del perfil solo dice si acepta clientes.
+  const [estados, setEstados] = useState<Record<string, any>>({})
+  // «No pude preguntar» no es «nadie está al día»: sin esto un fallo de red
+  // se leería como que ninguna silla ha pagado.
+  const [estadosOk, setEstadosOk] = useState(false)
   const [perfilPropio, setPerfilPropio] = useState<string | null>(null)
-  const [stats, setStats] = useState<any>(null)
+  const [atendidosHoy, setAtendidosHoy] = useState(0)
+  const [operativo, setOperativo] = useState(true)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fallo, setFallo] = useState(false)
+  const [sel, setSel] = useState<any>(null)
+  const [ocupado, setOcupado] = useState(false)
 
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    if (!ss?.negocio_id) { setLoading(false); return }
-    setPerfilPropio(ss.perfil_id ?? null)
-    const [neg, q, sol, st, eq, cfg] = await Promise.all([
-      getNegocioById(ss.negocio_id),
-      getColaActiva(ss.negocio_id).catch(() => []),
-      getSolicitudesPendientes(ss.negocio_id).catch(() => []),
-      getEstadisticasNegocio(ss.negocio_id).catch(() => null),
-      getPerfilesNegocio(ss.negocio_id).catch(() => []),
-      getConfiguracion(ss.negocio_id).catch(() => null),
-    ])
-    setNegocio(neg); setCola(q as any[]); setSolicitudes(sol as any[]); setStats(st); setEquipo(eq as any[]); setConfig(cfg)
-    setLoading(false); setRefreshing(false)
-  }, [])
-
-  useEffect(() => {
-    cargar()
-    let sub: any
-    getSesion().then(ss => { if (ss?.negocio_id) sub = suscribirCola(ss.negocio_id, () => cargar()) })
-    return () => { if (sub) desuscribir(sub) }
-  }, [cargar])
-
-  async function aprobar(p: any) {
     try {
-      await aprobarPerfil(p.id)
-      if (p.usuario_id) enviarPush(p.usuario_id, 'Te aprobaron', `Ya puedes atender en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'agenda' })
-      cargar()
-    } catch (e: any) { Alert.alert('Error', e.message) }
-  }
-  function rechazar(p: any) {
-    Alert.alert('Rechazar', `¿Rechazar a ${p.turno_usuarios?.nombre ?? 'este profesional'}?`, [
-      { text: 'No' }, { text: 'Sí', style: 'destructive', onPress: async () => { try { await rechazarPerfil(p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } } },
-    ])
-  }
-  function asignar(item: any) {
-    const opciones = equipo.filter((p: any) => p.tipo_servicio === item.tipo_servicio || !item.tipo_servicio)
-    if (opciones.length === 0) { Alert.alert('Sin barberos', 'No hay profesionales activos para asignar.'); return }
-    Alert.alert('Asignar a…', `${item.turno_usuarios?.nombre ?? 'Cliente'} · ${item.turno_servicios?.nombre ?? ''}`,
-      [...opciones.map((p: any) => ({
-        text: p.turno_usuarios?.nombre ?? 'Profesional',
-        onPress: async () => { try { await asignarCola(item.id, p.id); cargar() } catch (e: any) { Alert.alert('Error', e.message) } },
-      })), { text: 'Cancelar', style: 'cancel' as const }])
-  }
+      setFallo(false)
+      const ss = await getSesion()
+      if (!ss?.negocio_id) return
+      setPerfilPropio(ss.perfil_id ?? null)
+      const [neg, q, sol, est, st, eq, cfg, op] = await Promise.all([
+        getNegocioById(ss.negocio_id),
+        // La fila SIN `.catch`: esta pantalla ES la fila del local. Una lista
+        // vacía por un fallo de red se lee como «no hay nadie esperando» con la
+        // barbería llena.
+        getColaActiva(ss.negocio_id),
+        getSolicitudesPendientes(ss.negocio_id).catch(() => []),
+        getEstadoLocal(ss.negocio_id).catch(() => null),
+        getEstadisticasNegocio(ss.negocio_id).catch(() => null),
+        getPerfilesNegocio(ss.negocio_id).catch(() => []),
+        getConfiguracion(ss.negocio_id).catch(() => null),
+        // Si falla se asume operativo: apagar el panel por un error de red
+        // sería contarle al dueño que no ha pagado cuando sí ha pagado.
+        getLocalOperativo(ss.negocio_id).catch(() => true),
+      ])
+      const mapa: Record<string, any> = {}
+      for (const e of ((est ?? []) as any[])) mapa[e.perfil_id] = e
+      setEstados(mapa); setEstadosOk(est != null); setOperativo(op as boolean)
+      setNegocio(neg); setCola(q as any[]); setSolicitudes((sol as any[]).length)
+      setAtendidosHoy((st as any)?.atendidosHoy ?? 0); setEquipo(eq as any[]); setConfig(cfg)
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false); setRefreshing(false)
+    }
+  }, [])
+  const correr = useRecargaAlEnfocar(cargar)
+
+  // En vivo: cualquier cambio en la fila del local recarga. Va atado al id del
+  // local ya cargado, así que la limpieza siempre tiene la suscripción que
+  // cerrar (antes se creaba después de desmontar y quedaban vivas de otro local).
+  const negocioId: string | null = negocio?.id ?? null
+  useEffect(() => {
+    if (!negocioId) return
+    const sub = suscribirCola(negocioId, () => { void correr() })
+    return () => { desuscribir(sub) }
+  }, [negocioId, correr])
+
   // Cambiar de panel es cambiar la sesión, no solo navegar: si solo navegas,
   // el distintivo sigue diciendo BARBERÍA sobre la pantalla de la silla.
   async function irAMiSilla() {
     const ss = await getSesion(); if (!ss) return
     await guardarSesion({ ...ss, panel: 'silla' })
-    router.replace('/(app)/barbero/agenda')
+    router.replace('/(app)/barbero/silla')
+  }
+  function abrirSilla(p: any) {
+    if (p.id === perfilPropio) { void irAMiSilla(); return }
+    router.push({
+      pathname: '/(app)/dueno/barbero',
+      params: { perfil: p.id, nombre: p.turno_usuarios?.nombre ?? 'Barbero', rol: p.rol ?? '' },
+    } as any)
   }
 
-  function desvincular(p: any) {
-    Alert.alert('Desvincular barbero',
-      `¿Sacar a ${p.turno_usuarios?.nombre ?? 'este barbero'} del local? Se cancelarán sus citas futuras y saldrá de la fila. Su historial y clientela lo acompañan.`,
-      [{ text: 'No' }, { text: 'Sí, desvincular', style: 'destructive', onPress: async () => {
-        try {
-          await desvincularBarbero(p.id)
-          if (p.usuario_id) enviarPush(p.usuario_id, 'Te desvincularon', `Ya no atiendes en ${negocio?.nombre ?? 'el local'}.`, { tipo: 'agenda' })
-          cargar()
-        } catch (e: any) { Alert.alert('Error', e.message) }
-      } }])
+  async function op(fn: () => Promise<any>, err: string) {
+    setOcupado(true)
+    try { await fn(); setSel(null); void correr() }
+    catch (e: any) { Alert.alert(err, e.message ?? 'Intenta de nuevo.') }
+    finally { setOcupado(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="tu local" onReintentar={() => { setLoading(true); void correr() }} /></View>
 
-  const n1 = cola.filter(c => c.prioridad === 1).length
-  const n2 = cola.filter(c => c.prioridad === 2).length
-  const n3 = cola.filter(c => c.prioridad === 3).length
+  const conEmpleados = negocio?.tipo !== 'espacios_rentados'
+  const enFila = cola.filter(c => c.estado === 'en_fila')
+  const masEspera = enFila.map(esperaDe).filter((m): m is number => m != null).sort((a, b) => b - a)[0] ?? null
+
+  const sillas = equipo.map((p: any) => {
+    const e = estados[p.id]
+    const r = e?.estado === 'atendiendo' ? relojesDeSilla(e.desde, e.fin_estimado) : null
+    const alDia = !estadosOk || !!e
+    return {
+      p, e, alDia,
+      tu: p.id === perfilPropio,
+      nombre: p.turno_usuarios?.nombre ?? 'Profesional',
+      color: p.suspendido || !alDia ? COLORS.textLight : COLOR_SILLA[e?.estado ?? 'inactivo'] ?? COLORS.textLight,
+      cerrada: e?.fila_abierta === false,
+      motivo: e?.fila_motivo ?? null,
+      libreA: r?.fin ? (r.tarde ? `pasado ${Math.abs(r.faltan ?? 0)} min` : `libre ~${r.fin}`) : null,
+      esperan: e?.en_cola ?? 0,
+    }
+  })
+  const abiertas = sillas.filter(x => x.alDia && !x.p.suspendido && !x.cerrada && (x.e?.estado === 'libre' || x.e?.estado === 'atendiendo')).length
+  const cerradas = sillas.filter(x => x.cerrada)
+  const sinPagar = sillas.filter(x => !x.alDia)
+  // EL LOCAL SIN NINGUNA SILLA AL DÍA (95 y 96): no se decide nada aquí, solo
+  // se cuenta lo que ya pasa. Un panel apagado sin explicación se lee como un
+  // martes tranquilo.
+  const apagado = estadosOk && !operativo && equipo.length > 0
+
+  // A quién se le puede asignar: sillas que trabajan hoy y hacen ese servicio.
+  const candidatos = (item: any) => sillas.filter(x =>
+    x.alDia && !x.p.suspendido && (!item?.tipo_servicio || x.p.tipo_servicio === item.tipo_servicio))
+
+  const codigo = negocio?.codigo_acceso ?? null
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); cargar() }} />}>
-      <PanelBadge />
-      <Text style={s.kicker}>Mi local</Text>
-      <Display size={30} style={{ marginBottom: 16 }}>{negocio?.nombre ?? 'Mi barbería'}</Display>
+    <View style={s.container}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 32 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void correr() }} />}>
+        <PanelBadge />
+        <Encabezado
+          titulo={negocio?.nombre ?? 'Mi local'}
+          sub={fechaLarga()}
+          derecha={codigo ? (
+            <TouchableOpacity style={s.codigo} accessibilityRole="button" accessibilityLabel="Compartir el código del local"
+              onPress={() => Share.share({ message: `Únete a ${negocio?.nombre} en Turno con el código ${codigo}` })}>
+              <Text style={s.codigoL}>CÓDIGO</Text>
+              <Text style={s.codigoV}>{codigo}</Text>
+            </TouchableOpacity>
+          ) : null} />
 
-      {/* Código de acceso */}
-      <View style={s.codeCard}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.codeLbl}>CÓDIGO DE ACCESO</Text>
-          <Text style={s.codeVal}>{negocio?.codigo_acceso ?? '—'}</Text>
-          <Text style={s.codeSub}>Compártelo con tu equipo y clientes</Text>
-        </View>
-        <TouchableOpacity style={s.share} onPress={() => Share.share({ message: `Únete a ${negocio?.nombre} en Turno con el código ${negocio?.codigo_acceso}` })}>
-          <Ionicons name="share-outline" size={22} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats rápidas */}
-      <View style={s.metrics}>
-        <View style={s.metric}><Text style={s.mNum}>{stats?.atendidosHoy ?? 0}</Text><Text style={s.mLbl}>Atendidos hoy</Text></View>
-        <View style={s.metric}><Text style={s.mNum}>{dinero(stats?.ingresosHoy ?? 0, negocio?.moneda)}</Text><Text style={s.mLbl}>Ingresos hoy</Text></View>
-      </View>
-
-      {/* Cola del local */}
-      <View style={s.colaBox}>
-        <Text style={s.colaTitle}>COLA DEL LOCAL</Text>
-        <View style={s.colaStats}>
-          <Grupo n={n1} l="Prioritario" />
-          <Grupo n={n2} l="Digital" />
-          <Grupo n={n3} l="Físico" />
-          <Grupo n={cola.length} l="Total" hl />
-        </View>
-        {cola.length > 0 && (
-          <View style={s.colaLista}>
-            {cola.map((c: any, i: number) => (
-              <View key={c.id} style={s.colaRow}>
-                <Text style={s.colaPos}>{i + 1}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.colaName}>{c.turno_usuarios?.nombre ?? 'Cliente'}</Text>
-                  <Text style={s.colaServ}>{c.turno_servicios?.nombre ?? 'Servicio'}{c.turno_servicios?.duracion_min ? ` · ${c.turno_servicios.duracion_min} min` : ''}</Text>
-                </View>
-                {config?.asignacion_por_dueno && c.estado === 'en_fila'
-                  ? <TouchableOpacity style={s.asignar} onPress={() => asignar(c)}><Text style={s.asignarT}>Asignar</Text></TouchableOpacity>
-                  : <Text style={[s.colaEstado, c.estado === 'llamado' && { color: COLORS.success }, c.estado === 'en_camino' && { color: '#8AB4FF' }]}>
-                      {c.estado === 'en_fila' ? 'En fila' : c.estado === 'llamado' ? 'Llamado' : 'En camino'}
-                    </Text>}
-              </View>
-            ))}
-          </View>
-        )}
-        {cola.length === 0 && (
-          <Text style={s.colaVacia}>Nadie en la fila ahora mismo. Cuando un cliente entre —desde la app o como walk-in— aparecerá aquí con su nombre y servicio.</Text>
-        )}
-      </View>
-
-      {/* El dueño que atiende llega a su propia silla desde aquí (servicios, horarios) */}
-      {perfilPropio && (
-        <TouchableOpacity style={s.silla} onPress={irAMiSilla}>
-          <View style={s.sillaIcon}><Ionicons name="cut-outline" size={20} color="#fff" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.sillaT}>Mi silla</Text>
-            <Text style={s.sillaD}>Tu agenda, tus servicios y tus horarios como barbero.</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />
-        </TouchableOpacity>
-      )}
-
-      {/* Solicitudes pendientes */}
-      <Text style={s.sec}>SOLICITUDES{solicitudes.length ? ` · ${solicitudes.length}` : ''}</Text>
-      {solicitudes.length === 0 && <Text style={s.empty}>No hay barberos pendientes de aprobación.</Text>}
-      {solicitudes.map((p: any) => (
-        <View key={p.id} style={s.sol}>
-          <Avatar name={p.turno_usuarios?.nombre} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
-          <View style={{ flex: 1 }}>
-            <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-            <Text style={s.solMeta}>{TIPO[p.tipo_servicio] ?? 'Barbería'} · quiere unirse</Text>
-          </View>
-          <TouchableOpacity style={s.rechazar} onPress={() => rechazar(p)}><Ionicons name="close" size={20} color={COLORS.danger} /></TouchableOpacity>
-          <TouchableOpacity style={s.aprobar} onPress={() => aprobar(p)}><Text style={s.aprobarT}>Aprobar</Text></TouchableOpacity>
-        </View>
-      ))}
-
-      {/* Alta activa: invitar a un barbero con el código del local */}
-      <Text style={s.sec}>EQUIPO{equipo.length ? ` · ${equipo.length}` : ''}</Text>
-      <TouchableOpacity style={s.agregar} onPress={() => Share.share({
-        message: `Únete a ${negocio?.nombre ?? 'mi barbería'} en Turno.\n\nDescarga la app, elige "Trabajo en una barbería" y entra con este código:\n\n${negocio?.codigo_acceso}\n\nCuando envíes la solicitud te apruebo desde mi panel.`,
-      })}>
-        <View style={s.agregarIcon}><Ionicons name="person-add-outline" size={20} color="#fff" /></View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.agregarT}>Agregar barbero</Text>
-          <Text style={s.agregarD}>Comparte el código por WhatsApp. Al solicitar, lo apruebas aquí.</Text>
-        </View>
-        <Ionicons name="share-outline" size={20} color={COLORS.textLight} />
-      </TouchableOpacity>
-
-      {equipo.map((p: any) => (
-        <View key={p.id} style={s.sol}>
-          <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={44} bg={COLORS.surfaceAlt} color={COLORS.ink} />
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push({
-            pathname: '/(app)/dueno/barbero',
-            params: { perfil: p.id, nombre: p.turno_usuarios?.nombre ?? 'Barbero', rol: p.rol ?? '' },
-          } as any)}>
-            <Text style={s.solName}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
-            <Text style={s.solMeta}>
-              {p.rol === 'barbero_renta' ? 'Renta su espacio' : p.rol === 'dueno' ? 'Dueño' : 'Empleado'}
-              {' · '}{p.estado_actual === 'disponible' ? 'Disponible' : 'En descanso'}
+        {/* LO QUE PIDE ATENCIÓN va antes que las cifras: es lo único de la
+            pantalla que espera una respuesta del dueño. */}
+        {solicitudes > 0 && (
+          <TouchableOpacity style={s.aviso} onPress={() => router.push('/(app)/dueno/equipo')} accessibilityRole="button">
+            <Text style={s.avisoT}>
+              {solicitudes === 1 ? 'Un barbero quiere entrar' : `${solicitudes} barberos quieren entrar`}
             </Text>
+            <Text style={s.avisoA}>Ver</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.desvincular} onPress={() => desvincular(p)}><Ionicons name="person-remove-outline" size={18} color={COLORS.danger} /></TouchableOpacity>
-        </View>
-      ))}
-    </ScrollView>
+        )}
+
+        {apagado ? (
+          <View style={s.apagado}>
+            <Text style={s.apagadoT}>La fila está apagada</Text>
+            <Text style={s.apagadoD}>
+              {conEmpleados
+                ? 'Ninguna silla de tu local está al día, así que por la app no entra nadie. Lo reservado sigue en pie y quien llegue al local se atiende igual.'
+                : 'Ningún barbero de tu local tiene su silla al día, así que ninguno aparece en la app. Aquí cada uno paga la suya.'}
+            </Text>
+            <TouchableOpacity style={s.apagadoBtn} onPress={() => router.push('/(app)/dueno/config')} accessibilityRole="button">
+              <Text style={s.apagadoBtnT}>{conEmpleados ? 'Ver la suscripción' : 'Ver la cuenta del local'}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ marginTop: 18 }}>
+            <Cifras items={[
+              { n: enFila.length, l: 'En fila', color: enFila.length ? COLORS.redText : undefined },
+              { n: atendidosHoy, l: 'Atendidos hoy' },
+              { n: `${abiertas}/${sillas.length}`, l: 'Sillas abiertas' },
+              { n: masEspera ? `${masEspera}′` : '—', l: 'Espera máx.' },
+            ]} />
+          </View>
+        )}
+
+        {/* LAS SILLAS. La del dueño va marcada «tú» y lleva a su panel: es la
+            única puerta a su silla, en vez de dos filas sueltas que no decían
+            cómo estaba. */}
+        <Rotulo>{conEmpleados ? 'Las sillas' : 'Quienes rentan'}{sillas.length ? ` · ${sillas.length}` : ''}</Rotulo>
+        {sillas.length === 0 && (
+          <Text style={s.vacio}>Todavía no trabaja nadie aquí. Invita a alguien desde Equipo.</Text>
+        )}
+        {sillas.map(x => (
+          <TouchableOpacity key={x.p.id} style={s.fila} onPress={() => abrirSilla(x.p)} activeOpacity={0.7} accessibilityRole="button">
+            <View style={[s.punto, { backgroundColor: x.color }]} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.nombre} numberOfLines={1}>
+                {x.nombre}{x.tu ? <Text style={s.tu}>  TÚ</Text> : null}
+              </Text>
+              <Text style={s.meta} numberOfLines={1}>
+                {x.p.suspendido ? 'Suspendido'
+                  : !x.alDia ? 'No está al día · no aparece en la app'
+                  : [estadoTexto(x.e), x.libreA, x.cerrada ? 'fila cerrada' : null,
+                     x.esperan ? `${x.esperan} ${x.esperan === 1 ? 'espera' : 'esperan'}` : null].filter(Boolean).join(' · ')}
+              </Text>
+            </View>
+            <Text style={s.ir}>{x.tu ? 'Mi silla' : ''}</Text>
+            <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+          </TouchableOpacity>
+        ))}
+        {cerradas.length > 0 && !apagado && (
+          <Text style={s.nota}>
+            {cerradas.length === sillas.length
+              ? `Nadie puede entrar a la fila por la app ahora${cerradas[0].motivo && cerradas.every(c => c.motivo === cerradas[0].motivo) ? `: ${cerradas[0].motivo}` : ''}.`
+              : `${cerradas.length} de ${sillas.length} sillas tienen la fila cerrada.`}
+            {' '}Quien llegue al local se atiende igual.
+          </Text>
+        )}
+        {sinPagar.length > 0 && !apagado && (
+          <Text style={s.nota}>
+            {sinPagar.length === 1 ? 'Una silla no está al día' : `${sinPagar.length} sillas no están al día`}: no
+            {sinPagar.length === 1 ? ' aparece' : ' aparecen'} en la app.
+            {conEmpleados ? ' La suscripción cubre las más antiguas primero.' : ' Aquí cada barbero paga la suya.'}
+          </Text>
+        )}
+
+        {/* QUIÉN ESTÁ ESPERANDO, en el orden en que se atiende. Todo lo que el
+            dueño puede hacer con alguien vive en su hoja: asignarlo (si el
+            local reparte) o marcar que no se presentó (si ya le tocó). */}
+        {!apagado && (
+          <>
+            <Rotulo>Quién está esperando{cola.length ? ` · ${cola.length}` : ''}</Rotulo>
+            {cola.length === 0 && (
+              <Text style={s.vacio}>Nadie en la fila ahora mismo.</Text>
+            )}
+            {cola.map((c: any, i: number) => {
+              const e = ESTADO_TURNO[c.estado] ?? ESTADO_TURNO.en_fila
+              const sinAsignar = c.estado === 'en_fila' && !c.perfil_id
+              const min = esperaDe(c)
+              return (
+                <TouchableOpacity key={c.id} style={s.fila} onPress={() => setSel(c)} activeOpacity={0.7} accessibilityRole="button">
+                  <Text style={s.pos}>{i + 1}</Text>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.nombre} numberOfLines={1}>
+                      {c.turno_usuarios?.nombre ?? 'Cliente'}
+                      {c.prioridad === 1 ? <Text style={s.cita}>  CITA</Text> : null}
+                    </Text>
+                    <Text style={s.meta} numberOfLines={1}>
+                      {[c.turno_servicios?.nombre ?? 'Servicio',
+                        c.turno_perfiles?.turno_usuarios?.nombre ?? null,
+                        c.espera_a_id ? 'espera su otro servicio' : null,
+                        min && c.estado === 'en_fila' ? `lleva ${min} min` : null].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                  {sinAsignar && config?.asignacion_por_dueno
+                    ? <Text style={s.asignar}>ASIGNAR</Text>
+                    : <Text style={[s.estado, { color: sinAsignar ? COLORS.redText : e.c }]}>{sinAsignar ? 'Sin asignar' : e.l}</Text>}
+                </TouchableOpacity>
+              )
+            })}
+          </>
+        )}
+      </ScrollView>
+
+      {/* LA HOJA DE UN TURNO. Lo que se puede hacer depende de en qué punto
+          está, y lo que NO se puede se dice con su motivo. */}
+      <Hoja visible={!!sel} onClose={() => setSel(null)}>
+        <Titulo>{sel?.turno_usuarios?.nombre ?? 'Turno'}</Titulo>
+        <Sub>
+          {[sel?.turno_servicios?.nombre, (ESTADO_TURNO[sel?.estado] ?? ESTADO_TURNO.en_fila).l,
+            sel?.turno_perfiles?.turno_usuarios?.nombre ? `con ${sel.turno_perfiles.turno_usuarios.nombre}` : 'sin asignar'].filter(Boolean).join(' · ')}
+        </Sub>
+
+        {sel?.estado === 'en_fila' && config?.asignacion_por_dueno && (
+          <>
+            <Seccion>{sel?.perfil_id ? 'Pasárselo a otra silla' : 'Asignar a'}</Seccion>
+            {candidatos(sel).filter(x => x.p.id !== sel?.perfil_id).map(x => (
+              <Opcion key={x.p.id} t={x.nombre + (x.tu ? ' (tú)' : '')} d={estadoTexto(x.e) + (x.esperan ? ` · ${x.esperan} en su fila` : '')}
+                disabled={ocupado} onPress={() => op(() => asignarCola(sel.id, x.p.id), 'No se pudo asignar')} />
+            ))}
+            {candidatos(sel).length === 0 && <Nota tono="gris">No hay ninguna silla trabajando que haga este servicio.</Nota>}
+          </>
+        )}
+        {sel?.estado === 'en_fila' && !config?.asignacion_por_dueno && (
+          <Nota tono="gris">Está esperando su turno. El orden lo lleva la fila: cuando le toque, el barbero lo llama.</Nota>
+        )}
+        {(sel?.estado === 'llamado' || sel?.estado === 'en_camino') && (
+          <>
+            <Nota tono="gris">Ya le tocó. Si no aparece, márcalo: el turno pasa al siguiente y queda constancia.</Nota>
+            <Opcion t="No se presentó" d="Se le llamó y no apareció" rojo disabled={ocupado}
+              onPress={() => op(() => marcarNoEsta(sel.id), 'No se pudo marcar')} />
+          </>
+        )}
+        {sel?.estado === 'atendiendo' && (
+          <Nota tono="gris">
+            Lo está atendiendo {sel?.turno_perfiles?.turno_usuarios?.nombre ?? 'un barbero'}. Lo que pase en esa silla lo cierra quien está cortando.
+          </Nota>
+        )}
+        <AhoraNo texto="Cerrar" onPress={() => setSel(null)} />
+      </Hoja>
+    </View>
   )
 }
 
-function Grupo({ n, l, hl }: { n: number; l: string; hl?: boolean }) {
-  return <View style={{ alignItems: 'center' }}><Text style={[gs.num, hl && { color: COLORS.red }]}>{n}</Text><Text style={gs.lbl}>{l}</Text></View>
-}
-const gs = StyleSheet.create({ num: { fontFamily: FONTS.display, fontSize: 30, color: '#fff' }, lbl: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 2 } })
-
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  kicker: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textLight, marginBottom: 4 },
-  codeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 12 },
-  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
-  codeVal: { fontFamily: FONTS.display, fontSize: 40, color: '#fff', letterSpacing: 3, marginTop: 4 },
-  codeSub: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 },
-  share: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  metrics: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  metric: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
-  mNum: { fontFamily: FONTS.display, fontSize: 30, color: COLORS.ink },
-  mLbl: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 4 },
-  colaBox: { backgroundColor: COLORS.carbon, borderRadius: 16, padding: 18, marginBottom: 22 },
-  colaTitle: { fontFamily: FONTS.bold, fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1, marginBottom: 14 },
-  colaStats: { flexDirection: 'row', justifyContent: 'space-between' },
-  colaLista: { marginTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 6 },
-  colaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)' },
-  colaPos: { fontFamily: FONTS.display, fontSize: 20, color: 'rgba(255,255,255,0.4)', width: 24, textAlign: 'center' },
-  colaName: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  colaServ: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  colaEstado: { fontFamily: FONTS.bold, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
-  asignar: { backgroundColor: COLORS.red, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
-  asignarT: { fontFamily: FONTS.bold, fontSize: 12, color: '#fff' },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 16 },
-  sol: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  solName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  solMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  rechazar: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
-  desvincular: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.dangerLight, alignItems: 'center', justifyContent: 'center' },
-  colaVacia: { fontFamily: FONTS.medium, fontSize: 13, color: 'rgba(255,255,255,0.55)', marginTop: 16, lineHeight: 19 },
-  silla: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 22 },
-  sillaIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' },
-  sillaT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  sillaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderStyle: 'dashed', borderRadius: 14, padding: 14, marginBottom: 10 },
-  agregarIcon: { width: 40, height: 40, borderRadius: 11, backgroundColor: COLORS.blue, alignItems: 'center', justifyContent: 'center' },
-  agregarT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  agregarD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  aprobar: { backgroundColor: COLORS.success, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
-  aprobarT: { fontFamily: FONTS.bold, fontSize: 13, color: '#fff' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  codigo: { borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 12, paddingVertical: 7, alignItems: 'flex-end', borderRadius: 999, backgroundColor: GLASS.fillStrong },
+  codigoL: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.textLight },
+  codigoV: { fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink, letterSpacing: 1 },
+  // Aviso en TINTA (Regla 1).
+  aviso: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: SOBRE.tinta.fondo, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 22 },
+  avisoT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  avisoA: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.rojo },
+  apagado: { marginTop: 18, borderWidth: 1, borderColor: GLASS.border, padding: 14, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  apagadoT: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink },
+  apagadoD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginTop: 6 },
+  apagadoBtn: { height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  apagadoBtnT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 18 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  punto: { width: 10, height: 10, borderRadius: 5 },
+  pos: { width: 32, fontFamily: FONTS.monoBold, fontSize: 14, color: COLORS.ink, textAlign: 'center' },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  tu: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.redText, letterSpacing: 1.2 },
+  cita: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.blue, letterSpacing: 1.2 },
+  meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 2 },
+  ir: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue },
+  estado: { fontFamily: FONTS.semibold, fontSize: 13 },
+  asignar: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, overflow: 'hidden' },
+  nota: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textMid, marginTop: 10 },
 })

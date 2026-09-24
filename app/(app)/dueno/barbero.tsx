@@ -1,11 +1,18 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Switch, Modal, Alert } from 'react-native'
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Switch, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
-import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad } from '../../../lib/db'
+import { getServiciosPerfil, getHorariosPerfil, crearServicio, actualizarServicio, guardarHorario, cambiarModalidad, getRolDePerfil, getPerfilPorId, suspenderBarbero, desvincularBarbero, getNegocioById, permitirCaptarSolo } from '../../../lib/db'
+import { getSesion } from '../../../lib/storage'
+import { enviarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
-import { COLORS, FONTS } from '../../../constants'
-import { Display } from '../../../components/ui'
+import { COLORS, FONTS, GLASS } from '../../../constants'
+import { Display, NoCargo } from '../../../components/ui'
+import Hoja from '../../../components/hoja'
+import Resenas from '../../../components/resenas'
+import { useGestoVolver } from '../../../components/gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Encabezado, Rotulo } from '../../../components/d2'
 
 const DIAS = [
   { n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' },
@@ -23,12 +30,22 @@ const DIAS = [
  * (`turno_perfil_admin`), no por ser el perfil.
  */
 export default function BarberoDelLocal() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const { perfil, nombre, rol } = useLocalSearchParams<{ perfil: string; nombre?: string; rol?: string }>()
-  const [modalidad, setModalidad] = useState<string>(rol ?? 'empleado')
+  // El parámetro solo sirve para pintar algo mientras carga; la verdad se
+  // pregunta a la base en `cargar()`. Si no llega ninguna de las dos se queda
+  // en NULL A PROPÓSITO: "no lo sé" no es "es un empleado". El valor por
+  // defecto era 'empleado', que es justo el que abre los controles de edición,
+  // así que un fallo de red le ofrecía al administrador tocarle los servicios
+  // y el horario a alguien que le paga por el asiento. Ver `puedoEditarle`.
+  const [modalidad, setModalidad] = useState<string | null>(rol ?? null)
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
 
   const [svModal, setSvModal] = useState<null | 'nuevo' | any>(null)
   const [svNombre, setSvNombre] = useState(''); const [svDur, setSvDur] = useState('30'); const [svPrecio, setSvPrecio] = useState('')
@@ -38,6 +55,17 @@ export default function BarberoDelLocal() {
   const [hrIni, setHrIni] = useState(9); const [hrFin, setHrFin] = useState(19); const [hrBuf, setHrBuf] = useState(10)
   const [hrBusy, setHrBusy] = useState(false)
   const [modBusy, setModBusy] = useState(false)
+  // Suspensión y baja: las dos decisiones sobre ESTA persona, aquí y no en la
+  // lista del panel, donde el botón rojo estaba a un toque de distancia.
+  const [perfilRow, setPerfilRow] = useState<any>(null)
+  const [suspBusy, setSuspBusy] = useState(false)
+  const [captaBusy, setCaptaBusy] = useState(false)
+  const [verResenas, setVerResenas] = useState(false)
+  // La modalidad del LOCAL, que desde la migración 98 decide si aquí se puede
+  // nombrar empleado a alguien. Donde alquilas asientos no hay suscripción del
+  // local de la que salga el aporte de un empleado, así que nombrarlo sería
+  // dirigirlo gratis — y el servidor lo rechaza.
+  const [tipoLocal, setTipoLocal] = useState<string | null>(null)
 
   async function aplicarModalidad(nuevo: 'empleado' | 'barbero_renta') {
     if (nuevo === modalidad) return
@@ -47,13 +75,34 @@ export default function BarberoDelLocal() {
     finally { setModBusy(false) }
   }
 
+  // Aquí NINGUNA lleva `.catch`, y es la única pantalla de la app donde se
+  // decide así. Esta es la mesa desde la que el administrador le toca los
+  // precios y la jornada a otra persona: media pantalla cargada es media
+  // pantalla inventada. Sin servicios parece que el barbero no ofrece nada;
+  // sin el rol, que no lo sabemos —lo que ya cierra la edición, pero dejando
+  // los controles a la vista y sin explicar por qué no responden—; sin el tipo
+  // de local, que aquí se puede nombrar empleado donde no se puede. Si falta
+  // cualquiera de las cinco, se dice que no cargó y se ofrece reintentar.
   const cargar = useCallback(async () => {
-    if (!perfil) { setLoading(false); return }
-    const [sv, hr] = await Promise.all([
-      getServiciosPerfil(perfil, false).catch(() => []),
-      getHorariosPerfil(perfil).catch(() => []),
-    ])
-    setServicios(sv as any[]); setHorarios(hr as any[]); setLoading(false)
+    try {
+      setFallo(false)
+      if (!perfil) return
+      const ss = await getSesion()
+      const [sv, hr, rl, pf, neg] = await Promise.all([
+        getServiciosPerfil(perfil, false),
+        getHorariosPerfil(perfil),
+        getRolDePerfil(perfil),
+        getPerfilPorId(perfil),
+        ss?.negocio_id ? getNegocioById(ss.negocio_id) : Promise.resolve(null),
+      ])
+      if (rl) setModalidad(rl)
+      setServicios(sv as any[]); setHorarios(hr as any[]); setPerfilRow(pf)
+      setTipoLocal((neg as any)?.tipo ?? null)
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false)
+    }
   }, [perfil])
   useEffect(() => { cargar() }, [cargar])
 
@@ -84,7 +133,7 @@ export default function BarberoDelLocal() {
     const h = horarioDe(n)
     setHrIni(h ? Number(String(h.hora_inicio).slice(0, 2)) : 9)
     setHrFin(h ? Number(String(h.hora_fin).slice(0, 2)) : 19)
-    setHrBuf(h?.tiempo_entre_clientes ?? 10)
+    setHrBuf(h?.tiempo_entre_clientes ?? 0)
     setHrModal({ n, h })
   }
   async function aplicarHorario(activo: boolean) {
@@ -101,58 +150,217 @@ export default function BarberoDelLocal() {
     finally { setHrBusy(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  /**
+   * SUSPENDER: parar unos días sin echar a nadie.
+   *
+   * Antes solo existía desvincular, que cancela sus citas futuras y lo saca del
+   * local. Para el empleado que no viene esta semana la única salida era echarlo
+   * y volver a aprobarlo, así que no se usaba ninguna de las dos y el barbero
+   * seguía saliendo disponible en la app mientras no estaba.
+   */
+  function cambiarSuspension() {
+    const activa = !!perfilRow?.suspendido
+    if (activa) {
+      Alert.alert('Reanudar', `${nombre || 'Este barbero'} vuelve a recibir turnos y citas desde ahora.`, [
+        { text: 'Ahora no' },
+        { text: 'Reanudar', onPress: async () => {
+          setSuspBusy(true)
+          try { await suspenderBarbero(perfil, false); await cargar() }
+          catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setSuspBusy(false) }
+        } },
+      ])
+      return
+    }
+    // LO QUE SUSPENDER HACE DE VERDAD DEPENDE DE A QUIÉN (migración 92).
+    //
+    // Este texto decía «él no podrá llamar ni atender» para todo el mundo, y
+    // para un AUTÓNOMO es falso desde la 92: al que te paga renta le quitas la
+    // fila y la fachada del local, no su negocio. Sigue atendiendo a quien tenga
+    // delante, con su agenda y su dinero. Si pudieras apagarle la app no serías
+    // su casero, serías su jefe — y entonces no es un alquiler.
+    //
+    // Prometerle al dueño un poder que el servidor le va a negar es la forma más
+    // rápida de que deje de creerse los avisos que sí son ciertos.
+    const esAutonomo = modalidad === 'barbero_renta'
+    Alert.alert('Suspender temporalmente',
+      esAutonomo
+        ? `Sale de la fila y de la fachada del local: nadie podrá pedirle turno ni reservarle cita por la app. Paga su asiento, así que su agenda y sus clientes siguen siendo suyos y puede seguir atendiendo a quien tenga delante. Para sacarlo del local, desvincular.`
+        : `Deja de entrarle trabajo: nadie podrá pedirle turno ni reservarle cita, y él no podrá llamar ni atender. Sus citas ya reservadas y su fila NO se tocan — para eso está desvincular.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Suspender', style: 'destructive', onPress: async () => {
+          setSuspBusy(true)
+          try {
+            await suspenderBarbero(perfil, true, 'no está atendiendo por ahora')
+            if (perfilRow?.usuario_id) {
+              enviarPush(perfilRow.usuario_id, 'Te suspendieron temporalmente',
+                esAutonomo
+                  ? 'Saliste de la fila del local. Tu agenda y tus clientes siguen siendo tuyos.'
+                  : 'No te entrarán turnos ni citas hasta que el local te reanude.', { tipo: 'agenda' })
+            }
+            await cargar()
+          }
+          catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setSuspBusy(false) }
+        } },
+      ])
+  }
+
+  /**
+   * CEDERLE —O QUITARLE— EL PODER DE DARSE TRABAJO (migración 107).
+   *
+   * «Solo acepta clientes por su cuenta si le dan permiso.» Por defecto el
+   * empleado recibe lo que el local le manda: no llama al siguiente de la fila
+   * ni sienta a quien entra por la puerta. Hay locales donde eso es justo al
+   * revés —el dueño no está en el salón— y por eso el permiso existe.
+   *
+   * No se ofrece al AUTÓNOMO: quien paga su asiento manda en su silla sin que
+   * nadie se lo conceda, y enseñarle un interruptor al dueño le haría creer que
+   * puede apagarle el negocio a su inquilino. El servidor ya lo tiene decidido
+   * en `turno_capta_por_su_cuenta`, que para él contesta que sí siempre.
+   *
+   * El push no es un adorno: el barbero ve el permiso al recargar la pantalla,
+   * y sin aviso se pasa la mañana sin saber que ya puede llamar.
+   */
+  function cambiarCaptacion() {
+    const dar = !perfilRow?.acepta_por_su_cuenta
+    Alert.alert(
+      dar ? 'Dejar que se sirva de la fila' : 'Quitarle ese permiso',
+      dar
+        ? `${nombre || 'Este barbero'} podrá llamar al siguiente de la fila y sentar a quien llegue sin cita, sin esperar a que se lo asignes. El orden de la fila no cambia: sigue siendo el que ve el cliente.`
+        : `${nombre || 'Este barbero'} vuelve a recibir solo lo que le asignen: atiende al cliente que tenga delante, pero no llama al siguiente ni sienta a nadie por su cuenta.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: dar ? 'Darle el permiso' : 'Quitárselo', onPress: async () => {
+          setCaptaBusy(true)
+          try {
+            await permitirCaptarSolo(perfil, dar)
+            if (perfilRow?.usuario_id) {
+              enviarPush(perfilRow.usuario_id,
+                dar ? 'Ya puedes llamar tú' : 'El local reparte el trabajo',
+                dar
+                  ? 'Puedes llamar al siguiente de la fila y atender a quien llegue sin cita.'
+                  : 'A partir de ahora te llega el trabajo asignado: atiende al que tengas delante.',
+                { tipo: 'agenda' })
+            }
+            await cargar()
+          } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+          finally { setCaptaBusy(false) }
+        } },
+      ])
+  }
+
+  function desvincular() {
+    Alert.alert('Desvincular del local',
+      `¿Sacar a ${nombre || 'este barbero'} del local? Se cancelan sus citas futuras y sale de la fila. Su historial y su clientela lo acompañan a donde vaya.`,
+      [{ text: 'No' }, { text: 'Sí, desvincular', style: 'destructive', onPress: async () => {
+        try {
+          await desvincularBarbero(perfil)
+          if (perfilRow?.usuario_id) {
+            enviarPush(perfilRow.usuario_id, 'Te desvincularon', 'Ya no atiendes en este local.', { tipo: 'agenda' })
+          }
+          router.back()
+        } catch (e: any) { Alert.alert('Error', e.message ?? 'Intenta de nuevo.') }
+      } }])
+  }
+
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  // Antes de las guardas a la fuerza: los hooks se cuentan por orden, y uno que
+  // solo se llama cuando la ficha ya cargó tumba la pantalla al cargar.
+  const volver = useGestoVolver()
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="la ficha de esta persona" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
 
   const autonomo = modalidad === 'barbero_renta'
+  /**
+   * EDITARLE LO SUYO SOLO SI CONSTA QUE ES EMPLEADO.
+   *
+   * Los controles de edición se abrían con `!autonomo`, y eso incluye el caso
+   * "todavía no sé qué es". Si `getRolDePerfil` falla —lleva su
+   * `.catch(() => null)`— la pantalla daba por empleado a alguien que puede
+   * estar pagando por su asiento, y le ofrecía al administrador tocarle los
+   * servicios y el horario. El servidor lo niega desde la migración 92, así que
+   * el cambio se deshace solo y sin explicación.
+   *
+   * En la duda no se abre: hace falta que conste que es empleado.
+   */
+  const puedoEditarle = modalidad === 'empleado'
+  const localDeAlquiler = tipoLocal === 'espacios_rentados'
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 64, paddingBottom: 40 }}>
+    <View style={s.pantalla} {...volver}><ScrollView style={s.container} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 12, paddingBottom: 40 }}>
       <TouchableOpacity style={s.volver} onPress={() => router.back()}>
-        <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Equipo</Text>
+        <Ionicons name="chevron-back" size={20} color={COLORS.textMid} /><Text style={s.volverT}>Volver</Text>
       </TouchableOpacity>
-      <Display size={28} style={{ marginBottom: 6 }}>{nombre || 'Barbero'}</Display>
+      <Encabezado titulo={nombre || 'Barbero'}
+        sub={perfilRow?.suspendido ? 'Suspendido · no le entra trabajo' : autonomo ? 'Renta su silla' : puedoEditarle ? 'Empleado del local' : null} />
 
       {/* La modalidad la hereda del tipo del local, pero una barbería de
-          empleados puede alquilar un asiento suelto. Ese cambio es del dueño:
-          el barbero nunca se lo concede a sí mismo. */}
-      <Text style={s.flabelTop}>CÓMO TRABAJA AQUÍ</Text>
-      <View style={s.modRow}>
-        <TouchableOpacity style={[s.modChip, !autonomo && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
-          <Text style={[s.modChipT, !autonomo && { color: '#fff' }]}>Empleado</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
-          <Text style={[s.modChipT, autonomo && { color: '#fff' }]}>Renta su asiento</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={s.sub}>
-        {autonomo
-          ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
-          : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
-      </Text>
+          EMPLEADOS puede alquilar un asiento suelto. Ese cambio es del dueño: el
+          barbero nunca se lo concede a sí mismo.
 
-      <View style={s.secRow}>
-        <Text style={s.sec}>SERVICIOS</Text>
-        {!autonomo && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
-      </View>
+          AL REVÉS NO (migración 98): en un local de asientos alquilados no se
+          puede nombrar empleado a nadie, porque sería dirigirlo sin aportar
+          nada a su app — allí cada silla paga la suya. El servidor lo rechaza;
+          aquí ni se ofrece, que es distinto de ofrecerlo y dar error. Para tener
+          empleados de verdad, se cambia la modalidad DEL LOCAL, y entonces la
+          barbería pasa a pagar por ellos. */}
+      <Rotulo style={{ marginBottom: 12 }}>Cómo trabaja aquí</Rotulo>
+      {localDeAlquiler ? (
+        <>
+          <View style={s.modRow}>
+            <View style={[s.modChip, s.modChipOn]}><Text style={[s.modChipT, { color: COLORS.onInk }]}>Renta su asiento</Text></View>
+          </View>
+          <Text style={s.sub}>
+            Aquí alquilas asientos, así que cada barbero es su propio negocio: paga su silla y
+            decide sus servicios, precios y horario. Si quieres tener empleados, cámbialo en
+            Ajustes → Cómo trabaja tu local; el local pasa a pagar por ellos.
+          </Text>
+        </>
+      ) : (
+        <>
+          <View style={s.modRow}>
+            <TouchableOpacity style={[s.modChip, puedoEditarle && s.modChipOn]} onPress={() => aplicarModalidad('empleado')} disabled={modBusy}>
+              <Text style={[s.modChipT, puedoEditarle && { color: COLORS.onInk }]}>Empleado</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.modChip, autonomo && s.modChipOn]} onPress={() => aplicarModalidad('barbero_renta')} disabled={modBusy}>
+              <Text style={[s.modChipT, autonomo && { color: COLORS.onInk }]}>Renta su asiento</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={s.sub}>
+            {autonomo
+              ? 'Paga su asiento, así que sus servicios, precios y horario los decide él. Aquí solo los consultas.'
+              : 'Es empleado del local: sus servicios, precios y jornada los pones tú.'}
+          </Text>
+        </>
+      )}
+
+      <Rotulo accion={puedoEditarle ? '+ Agregar' : undefined} onAccion={() => abrirServicio()} style={{ marginTop: 8 }}>Servicios</Rotulo>
       {servicios.length === 0 && <Text style={s.empty}>Todavía no tiene servicios.</Text>}
       {servicios.map((sv: any) => (
-        <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={autonomo}>
+        <View key={sv.id} style={[s.serv, !sv.activo && s.servApagado]}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={!puedoEditarle}>
             <Text style={s.servName}>{sv.nombre}</Text>
             <Text style={s.servMeta}>{sv.duracion_min} min</Text>
           </TouchableOpacity>
           <Text style={s.servPrecio}>{sv.precio}</Text>
           {autonomo
             ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
+            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />}
         </View>
       ))}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>HORARIO</Text>
+      <Rotulo>Horario</Rotulo>
       {DIAS.map(d => {
         const h = horarioDe(d.n); const abierto = h && h.activo
         return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={autonomo}>
+          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={!puedoEditarle}>
             <Text style={s.diaL}>{d.l}</Text>
             <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>
               {abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}
@@ -161,27 +369,87 @@ export default function BarberoDelLocal() {
         )
       })}
 
-      <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      {/* LO QUE DICEN SUS CLIENTES. El dueño reparte trabajo y decide a quién
+          sube el precio o a quién manda a formarse: sin leer esto lo hace a
+          ciegas, y las reseñas llevaban desde el principio guardándose para
+          nadie. */}
+      <TouchableOpacity style={[s.accionFila, { marginTop: 22 }]} onPress={() => setVerResenas(true)}>
+        <Ionicons name="star-outline" size={20} color={COLORS.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.accionFilaT}>Reseñas de sus clientes</Text>
+          <Text style={s.accionFilaD}>Promedio, reparto de estrellas y lo que escribieron.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+      </TouchableOpacity>
+
+      <Resenas perfilId={perfil} nombre={nombre} visible={verResenas} onClose={() => setVerResenas(false)} />
+
+      {/* ── LO QUE SE DECIDE SOBRE ESTA PERSONA ─────────────────────────────
+          Las dos juntas y en este orden a propósito: suspender es lo que casi
+          siempre se quiere —dos días, una semana— y desvincular es la que no
+          tiene vuelta. Cada una dice lo que hace ANTES de tocarla. */}
+      <Rotulo style={{ marginBottom: 4 }}>Su sitio en el local</Rotulo>
+
+      {/* QUIÉN LE DA EL TRABAJO (migración 107).
+          Solo para el empleado: el autónomo manda en su silla y aquí no hay
+          nada que conceder. Va antes que suspender porque es la decisión del
+          día a día; las otras dos son las de "esta persona se va". */}
+      {puedoEditarle && (
+        <TouchableOpacity style={[s.accionFila, perfilRow?.acepta_por_su_cuenta && s.accionFilaOn]}
+          onPress={cambiarCaptacion} disabled={captaBusy}>
+          <Ionicons name={perfilRow?.acepta_por_su_cuenta ? 'megaphone' : 'megaphone-outline'} size={20}
+            color={perfilRow?.acepta_por_su_cuenta ? COLORS.success : COLORS.ink} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.accionFilaT}>
+              {perfilRow?.acepta_por_su_cuenta ? 'Se sirve de la fila él mismo' : 'Le asignas tú el trabajo'}
+            </Text>
+            <Text style={s.accionFilaD}>
+              {perfilRow?.acepta_por_su_cuenta
+                ? 'Puede llamar al siguiente y atender a quien llegue sin cita. Toca para quitárselo.'
+                : 'Atiende al cliente que tenga delante, pero no llama ni sienta a nadie por su cuenta. Toca para dejarle.'}
+            </Text>
+          </View>
+          {captaBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={[s.accionFila, perfilRow?.suspendido && s.accionFilaOn]} onPress={cambiarSuspension} disabled={suspBusy}>
+        <Ionicons name={perfilRow?.suspendido ? 'play-circle-outline' : 'pause-circle-outline'} size={20}
+          color={perfilRow?.suspendido ? COLORS.success : COLORS.ink} />
+        <View style={{ flex: 1 }}>
+          <Text style={s.accionFilaT}>{perfilRow?.suspendido ? 'Reanudar' : 'Suspender temporalmente'}</Text>
+          <Text style={s.accionFilaD}>
+            {perfilRow?.suspendido
+              ? 'Ahora mismo no le entra trabajo. Toca para que vuelva a recibir turnos y citas.'
+              : 'Deja de entrarle trabajo sin sacarlo del local. Sus citas y su fila no se tocan.'}
+          </Text>
+        </View>
+        {suspBusy ? <ActivityIndicator color={COLORS.textMid} /> : null}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={s.accionFila} onPress={desvincular}>
+        <Ionicons name="person-remove-outline" size={20} color={COLORS.danger} />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.accionFilaT, { color: COLORS.danger }]}>Desvincular del local</Text>
+          <Text style={s.accionFilaD}>Se cancelan sus citas futuras y sale de la fila. No tiene vuelta atrás.</Text>
+        </View>
+      </TouchableOpacity>
+
+      <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
             <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
             <Text style={s.flabel}>Nombre</Text>
-            <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} />
+            <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} />
             <Text style={s.flabel}>Duración (min)</Text>
             <TextInput style={s.input} value={svDur} onChangeText={setSvDur} keyboardType="number-pad" />
             <Text style={s.flabel}>Precio</Text>
             <TextInput style={s.input} value={svPrecio} onChangeText={setSvPrecio} keyboardType="number-pad" />
             <TouchableOpacity style={s.btn} onPress={guardarServicio} disabled={svBusy}>
-              {svBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
+              {svBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.btnT}>Guardar</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </Hoja>
 
-      <Modal visible={!!hrModal} transparent animationType="slide" onRequestClose={() => setHrModal(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
+      <Hoja visible={!!hrModal} onClose={() => setHrModal(null)}>
             <Display size={22}>{DIAS.find(d => d.n === hrModal?.n)?.l}</Display>
             <Text style={s.flabel}>Abre</Text>
             <Paso valor={hora12(`${String(hrIni).padStart(2, '0')}:00`)} menos={() => setHrIni(Math.max(0, hrIni - 1))} mas={() => setHrIni(Math.min(23, hrIni + 1))} />
@@ -190,16 +458,14 @@ export default function BarberoDelLocal() {
             <Text style={s.flabel}>Minutos entre clientes</Text>
             <Paso valor={`${hrBuf} min`} menos={() => setHrBuf(Math.max(0, hrBuf - 5))} mas={() => setHrBuf(Math.min(60, hrBuf + 5))} />
             <TouchableOpacity style={s.btn} onPress={() => aplicarHorario(true)} disabled={hrBusy}>
-              {hrBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar</Text>}
+              {hrBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.btnT}>Guardar</Text>}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => aplicarHorario(false)} disabled={hrBusy}>
               <Text style={s.cerrarRojo}>Marcar cerrado este día</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-    </ScrollView>
+      </Hoja>
+    </ScrollView></View>
   )
 }
 
@@ -214,38 +480,45 @@ function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: ()
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+  accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  accionFilaOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  accionFilaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  accionFilaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  pantalla: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   volverT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
-  sub: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
-  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
+  sub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
+  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, marginTop: 6, marginBottom: 8 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingVertical: 11, alignItems: 'center', backgroundColor: COLORS.surface },
-  modChipOn: { backgroundColor: COLORS.carbon, borderColor: COLORS.carbon },
-  modChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink },
+  modChip: { flex: 1, borderWidth: 1, borderColor: GLASS.border, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', backgroundColor: GLASS.fillStrong },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 12 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
-  diaL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  diaH: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  accion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
+  empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  // Servicio pausado: apagado con borde punteado (Regla 2), el texto sigue legible.
+  servApagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  servEstado: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  diaL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  diaH: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
+  modalBg: { flex: 1, backgroundColor: GLASS.scrim, justifyContent: 'flex-end' },
+  modal: { backgroundColor: GLASS.hoja, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, borderWidth: 1, borderBottomWidth: 0, borderColor: GLASS.border },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 8 },
+  stepBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 20 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  stepVal: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
+  btn: { backgroundColor: COLORS.ink, borderRadius: 26, height: 52, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
-  cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.red, fontSize: 14, marginTop: 14 },
+  cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.redText, fontSize: 14, marginTop: 14 },
 })

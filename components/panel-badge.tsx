@@ -4,19 +4,18 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE } from '../constants'
+import { INICIO_DE_PANEL, NOMBRE_DE_PANEL } from '../lib/paneles'
+import type { PanelActivo } from '../types'
 
-const DESTINO: Record<string, string> = {
-  cliente: '/(app)/cliente/home',
-  barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
-}
-const ETIQUETA: Record<string, string> = { cliente: 'CLIENTE', barberia: 'BARBERÍA', silla: 'MI SILLA' }
+
+
 const ICONO: Record<string, keyof typeof Ionicons.glyphMap> = {
   cliente: 'person', barberia: 'storefront', silla: 'cut',
 }
 // Color distinto por panel: la señal más rápida de "dónde estoy".
-const FONDO: Record<string, string> = { cliente: COLORS.blue, barberia: COLORS.carbon, silla: COLORS.red }
+// Superficies pintadas (Regla 1): texto blanco en las tres.
+const FONDO: Record<string, string> = { cliente: SOBRE.azul.fondo, barberia: SOBRE.tinta.fondo, silla: SOBRE.rojo.fondo }
 
 /**
  * Distintivo del panel activo. Nace de una confusión real en el piloto: con
@@ -26,7 +25,7 @@ const FONDO: Record<string, string> = { cliente: COLORS.blue, barberia: COLORS.c
 export default function PanelBadge() {
   const router = useRouter()
   const [opciones, setOpciones] = useState<OpcionPanel[]>([])
-  const [actual, setActual] = useState<{ panel?: string; negocio_id?: string }>({})
+  const [actual, setActual] = useState<{ panel?: PanelActivo; negocio_id?: string }>({})
 
   const cargar = useCallback(async () => {
     const ss = await getSesion()
@@ -47,26 +46,26 @@ export default function PanelBadge() {
       ...ss, rol: o.rol as any, panel: o.panel, negocio_id: o.negocio_id,
       perfil_id: o.panel === 'cliente' ? undefined : o.perfil_id,
     })
-    router.replace(DESTINO[o.panel] as any)
+    router.replace(INICIO_DE_PANEL[o.panel] as any)
   }
 
   function abrir() {
     const otros = opciones.filter(o => !(o.panel === actual.panel && o.negocio_id === actual.negocio_id))
-    Alert.alert('Cambiar de panel', 'Estás en: ' + (aqui ? `${ETIQUETA[aqui.panel]} · ${aqui.negocio}` : ''),
-      [...otros.map(o => ({ text: `${ETIQUETA[o.panel]} · ${o.negocio}`, onPress: () => ir(o) })),
+    Alert.alert('Cambiar de panel', 'Estás en: ' + (aqui ? `${NOMBRE_DE_PANEL[aqui.panel]} · ${aqui.negocio}` : ''),
+      [...otros.map(o => ({ text: `${NOMBRE_DE_PANEL[o.panel]} · ${o.negocio}`, onPress: () => ir(o) })),
        { text: 'Quedarme aquí', style: 'cancel' as const }])
   }
 
   return (
     <TouchableOpacity style={[s.pill, { backgroundColor: FONDO[actual.panel] }]} onPress={abrir} activeOpacity={0.85}>
       <Ionicons name={ICONO[actual.panel]} size={13} color="#fff" />
-      <Text style={s.txt} numberOfLines={1}>{ETIQUETA[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
-      <Ionicons name="swap-horizontal" size={14} color="rgba(255,255,255,0.7)" />
+      <Text style={s.txt} numberOfLines={1}>{NOMBRE_DE_PANEL[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
+      <Ionicons name="swap-horizontal" size={14} color="#FFFFFF" />
     </TouchableOpacity>
   )
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, marginBottom: 12 },
-  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#fff', letterSpacing: 0.8, maxWidth: 220 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, marginBottom: 12 },
+  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF', letterSpacing: 1.2, maxWidth: 220 },
 })

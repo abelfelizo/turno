@@ -49,6 +49,27 @@ export function suscribirCitas(perfil_id: string, fecha: string, callback: (payl
     .subscribe()
 }
 
+/**
+ * LAS CITAS DE UN CLIENTE, desde su lado.
+ *
+ * `suscribirCitas` mira la agenda de UN barbero, que es lo que necesita él.
+ * El cliente necesita lo contrario: SUS citas, estén con quien estén. Sin
+ * esto, una cita que el barbero confirmaba, movía o cancelaba no llegaba a la
+ * pantalla del cliente hasta el refresco de cada minuto — o hasta cerrar y
+ * abrir la app, que es lo que la gente acababa haciendo.
+ */
+export function suscribirMisCitas(cliente_id: string, callback: (payload: any) => void) {
+  return supabase
+    .channel(`mis_citas_${cliente_id}_${uniq()}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: T('citas'),
+      filter: `cliente_id=eq.${cliente_id}`,
+    }, callback)
+    .subscribe()
+}
+
 export function suscribirEstadoPerfil(negocio_id: string, callback: (payload: any) => void) {
   return supabase
     .channel(`perfiles_${negocio_id}_${uniq()}`)

@@ -1,47 +1,116 @@
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Modal, TextInput, Alert } from 'react-native'
+/**
+ * CLIENTES · la cartera del barbero. Tablero: «D2 · Barbero · Clientes».
+ *
+ * Dos preguntas, dos pestañas: ¿quiénes son mis clientes? y ¿a quién hace
+ * tiempo que no veo? La lista es del local; los números de cada uno son los
+ * TUYOS («contigo»), porque en un local de sillas alquiladas cada barbero tiene
+ * su clientela y mezclarlas le daría a uno los números del otro.
+ *
+ * Contactar va en la misma línea —WhatsApp y llamar— y solo si el cliente dejó
+ * un teléfono de verdad: al que entra sin cita se le guarda «-».
+ *
+ * Se puede llegar con un cliente concreto (`?cliente=…`) desde Mi silla o la
+ * agenda: se abre su ficha directamente.
+ */
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, TextInput, Alert, Linking } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useLocalSearchParams } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { getSesion } from '../../../lib/storage'
-import { getMisClientes, getNotaBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente, getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById } from '../../../lib/db'
-import { dinero, fechaLarga, fechaDeISO } from '../../../lib/format'
+import {
+  getClientesDelLocal, getNotaBarbero, getNotasBarbero, guardarNotaBarbero, getClientesPorRecuperar, getHistorialCliente,
+  getTarjetaCliente, getFidelidad, getPreferenciasCliente, getNegocioById, getMiPerfil,
+} from '../../../lib/db'
+import { dinero, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
-import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { enviarPush } from '../../../lib/notificaciones'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
+import { NoCargo } from '../../../components/ui'
+import { Encabezado, Pestanas, Rotulo } from '../../../components/d2'
 import PanelBadge from '../../../components/panel-badge'
+import Hoja from '../../../components/hoja'
+
+const ORDENES = [
+  { k: 'recientes', l: 'Recientes' },
+  { k: 'frecuentes', l: 'Frecuentes' },
+  { k: 'nuevos', l: 'Sin venir' },
+  { k: 'az', l: 'A–Z' },
+] as const
+type Orden = typeof ORDENES[number]['k']
+
+/** Un teléfono al que se puede escribir. Al que entra sin cita se le guarda «-». */
+const telDe = (t?: string | null) => (t && /\d{7,}/.test(t.replace(/\D/g, '')) ? t : null)
+const fechaCorta = (iso?: string | null) =>
+  iso ? fechaDeISO(iso).toLocaleDateString('es-DO', { day: 'numeric', month: 'short' }).replace('.', '') : ''
+const llamar = (t: string) => Linking.openURL(`tel:${t.replace(/[^\d+]/g, '')}`)
 
 export default function Clientes() {
+  const insets = useSafeAreaInsets()
+  const { cliente, nombre: nombreParam, telefono: telParam } =
+    useLocalSearchParams<{ cliente?: string; nombre?: string; telefono?: string }>()
+  const abiertoPorParam = useRef<string | null>(null)
   const [usuarioId, setUsuarioId] = useState<string | null>(null)
+  const [negocioId, setNegocioId] = useState<string | null>(null)
+  const [perfilId, setPerfilId] = useState<string | null>(null)
+  const [local, setLocal] = useState('')
   const [clientes, setClientes] = useState<any[]>([])
   const [recuperar, setRecuperar] = useState<any[]>([])
+  const [revisita, setRevisita] = useState(30)
   const [seg, setSeg] = useState<'todos' | 'recuperar'>('todos')
+  const [orden, setOrden] = useState<Orden>('recientes')
+  const [buscar, setBuscar] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   const [activo, setActivo] = useState<any>(null)
   const [nota, setNota] = useState('')
-  const [cargandoNota, setCargandoNota] = useState(false)
+  const [cargandoFicha, setCargandoFicha] = useState(false)
   const [guardando, setGuardando] = useState(false)
-  const [negocioId, setNegocioId] = useState<string | null>(null)
+  const [notas, setNotas] = useState<Record<string, string>>({})
   const [moneda, setMoneda] = useState('')
-  const [perfilId, setPerfilId] = useState<string | null>(null)
   const [ficha, setFicha] = useState<{ historial: any[]; puntos: any; prefs: any; meta: number; premio: string } | null>(null)
 
+  // La lista va sin `.catch`: desde la migración 117 una lista vacía es una
+  // respuesta legítima —el empleado solo ve a quien ha atendido él—, así que
+  // el vacío ya significa algo y no puede significar también «sin conexión».
   const cargar = useCallback(async () => {
-    const ss = await getSesion()
-    if (!ss?.usuario_id) { setLoading(false); return }
-    setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
-    const [cl, rec, neg] = await Promise.all([
-      getMisClientes().catch(() => []),
-      ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
-      ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
-    ])
-    setClientes(cl); setRecuperar(rec as any[]); setMoneda((neg as any)?.moneda ?? '')
-    setLoading(false)
+    try {
+      setFallo(false)
+      const ss = await getSesion()
+      if (!ss?.usuario_id) return
+      setUsuarioId(ss.usuario_id); setNegocioId(ss.negocio_id ?? null); setPerfilId(ss.perfil_id ?? null)
+      const [cl, rec, neg, nts, pf] = await Promise.all([
+        ss.negocio_id ? getClientesDelLocal(ss.negocio_id) : Promise.resolve([]),
+        ss.perfil_id ? getClientesPorRecuperar(ss.perfil_id).catch(() => []) : Promise.resolve([]),
+        ss.negocio_id ? getNegocioById(ss.negocio_id).catch(() => null) : Promise.resolve(null),
+        getNotasBarbero(ss.usuario_id).catch(() => ({})),
+        ss.negocio_id ? getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null) : Promise.resolve(null),
+      ])
+      setClientes(cl); setRecuperar(rec as any[])
+      setMoneda((neg as any)?.moneda ?? ''); setLocal((neg as any)?.nombre ?? '')
+      setNotas(nts as Record<string, string>)
+      setRevisita((pf as any)?.revisita_dias ?? 30)
+    } catch {
+      setFallo(true)
+    } finally {
+      setLoading(false)
+    }
   }, [])
-  useEffect(() => { cargar() }, [cargar])
+  const correr = useRecargaAlEnfocar(cargar)
 
-  // La ficha completa: nota privada, puntos, preferencias e historial. Antes
-  // el barbero solo podía escribir una nota y no veía nada del cliente.
+  // Con un cliente en la ruta se abre su ficha. Se recuerda CUÁL se abrió, no
+  // solo que se abrió: la pestaña no se desmonta, y la próxima vez que se
+  // llegue con otro cliente tiene que abrirse el nuevo.
+  useEffect(() => {
+    if (!cliente || abiertoPorParam.current === cliente || !negocioId || !usuarioId) return
+    abiertoPorParam.current = cliente
+    const conocido = clientes.find(c => c.cliente_id === cliente)
+    abrir(conocido ?? { cliente_id: cliente, nombre: nombreParam || 'Cliente', telefono: telParam || '' })
+  }, [cliente, nombreParam, telParam, negocioId, usuarioId, clientes])
+
   async function abrir(c: any) {
-    setActivo(c); setNota(''); setFicha(null); setCargandoNota(true)
+    setActivo(c); setNota(''); setFicha(null); setCargandoFicha(true)
     const [n, hist, pts, fid, prefs] = await Promise.all([
       usuarioId ? getNotaBarbero(usuarioId, c.cliente_id).catch(() => '') : Promise.resolve(''),
       negocioId ? getHistorialCliente(c.cliente_id, negocioId).catch(() => []) : Promise.resolve([]),
@@ -59,110 +128,238 @@ export default function Clientes() {
       meta: (fid as any)?.meta ?? 8,
       premio: (fid as any)?.premio ?? 'Corte gratis',
     })
-    setCargandoNota(false)
+    setCargandoFicha(false)
   }
+
+  /** Guardar una nota no puede fallar en silencio: si no se puede, se dice. */
   async function guardar() {
-    if (!usuarioId || !activo) return
+    if (!activo) return
+    const uid = usuarioId ?? (await getSesion())?.usuario_id ?? null
+    if (!uid) { Alert.alert('No se pudo guardar', 'No encuentro tu sesión. Vuelve a entrar e inténtalo otra vez.'); return }
+    if (!activo.cliente_id) { Alert.alert('No se pudo guardar', 'A este cliente le falta la ficha; ábrelo desde la lista.'); return }
+    if (!usuarioId) setUsuarioId(uid)
     setGuardando(true)
-    try { await guardarNotaBarbero(usuarioId, activo.cliente_id, nota.trim()); setActivo(null) }
+    const texto = nota.trim()
+    try {
+      await guardarNotaBarbero(uid, activo.cliente_id, texto)
+      setNotas(prev => {
+        const sig = { ...prev }
+        if (texto) sig[activo.cliente_id] = texto; else delete sig[activo.cliente_id]
+        return sig
+      })
+      setActivo(null)
+    }
     catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
     finally { setGuardando(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  /**
+   * UN AVISO A TODOS LOS QUE HACE TIEMPO QUE NO VIENEN. Llega a su teléfono,
+   * así que antes de mandarlo se enseña el texto exacto y a cuántos: un push
+   * que no se puede deshacer no sale de un toque sin querer.
+   */
+  function avisarATodos() {
+    const destino = recuperar.filter(r => r.cliente_id)
+    if (!destino.length) return
+    const cuerpo = `Hace tiempo que no te vemos por ${local || 'la barbería'}. ¿Te guardamos un turno?`
+    Alert.alert(`Avisar a ${destino.length}`, `Les llega esto al teléfono:\n\n«${cuerpo}»`, [
+      { text: 'Ahora no', style: 'cancel' },
+      { text: 'Mandar', onPress: () => {
+        for (const r of destino) enviarPush(r.cliente_id, '¿Te guardamos un turno? 💈', cuerpo, { tipo: 'turno' })
+        Alert.alert('Enviado', `Les llegó a quienes tienen los avisos activados.`)
+      } },
+    ])
+  }
+
+  const q = buscar.trim().toLowerCase()
+  const ordenados = [...clientes]
+    .filter(c => !q || String(c.nombre ?? '').toLowerCase().includes(q))
+    .sort((a: any, b: any) => {
+      if (orden === 'frecuentes') return b.visitas - a.visitas
+      if (orden === 'az') return String(a.nombre).localeCompare(String(b.nombre), 'es')
+      if (orden === 'nuevos') {
+        if ((a.visitas === 0) !== (b.visitas === 0)) return a.visitas === 0 ? -1 : 1
+        return String(a.desde ?? '').localeCompare(String(b.desde ?? ''))
+      }
+      return String(b.ultima ?? '').localeCompare(String(a.ultima ?? ''))
+    })
+  const sinVenir = clientes.filter((c: any) => c.visitas === 0).length
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
+  if (fallo) return (
+    <View style={s.center}><NoCargo que="tus clientes" onReintentar={() => { setLoading(true); void correr() }} /></View>
+  )
+
+  const cabecera = (
+    <View>
+      <PanelBadge />
+      <Encabezado titulo="Mis clientes" />
+      <Pestanas
+        opciones={[
+          { k: 'todos', l: `Todos · ${clientes.length}` },
+          { k: 'recuperar', l: `Por recuperar · ${recuperar.length}` },
+        ] as const}
+        valor={seg} onCambio={setSeg} />
+
+      {seg === 'todos' ? (
+        <>
+          <View style={s.buscar}>
+            <Ionicons name="search" size={17} color={COLORS.textLight} />
+            <TextInput style={s.buscarT} value={buscar} onChangeText={setBuscar} placeholder="Buscar por nombre"
+              placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} autoCorrect={false} returnKeyType="search" />
+            {!!buscar && (
+              <TouchableOpacity onPress={() => setBuscar('')} hitSlop={10} accessibilityLabel="Borrar búsqueda">
+                <Ionicons name="close" size={17} color={COLORS.textMid} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={s.ordenes}>
+            {ORDENES.map(o => {
+              const on = orden === o.k
+              return (
+                <TouchableOpacity key={o.k} style={[s.orden, on && s.ordenOn]} onPress={() => setOrden(o.k)}
+                  accessibilityRole="button" accessibilityState={{ selected: on }}>
+                  <Text style={[s.ordenT, on && { color: COLORS.onInk }]}>{o.l}{o.k === 'nuevos' && sinVenir ? ` · ${sinVenir}` : ''}</Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+        </>
+      ) : recuperar.length > 0 && (
+        <View style={s.regla}>
+          <Text style={s.reglaT}>
+            Sin venir hace más de <Text style={s.b}>{revisita} días</Text>. Tú pones el número en Ajustes.
+          </Text>
+        </View>
+      )}
+    </View>
+  )
 
   return (
     <View style={s.container}>
-      <PanelBadge />
-      <Display size={30} style={{ marginBottom: 14 }}>Clientes</Display>
-
-      <View style={s.segs}>
-        <TouchableOpacity style={[s.seg, seg === 'todos' && s.segOn]} onPress={() => setSeg('todos')}><Text style={[s.segT, seg === 'todos' && s.segTOn]}>Todos</Text></TouchableOpacity>
-        <TouchableOpacity style={[s.seg, seg === 'recuperar' && s.segOn]} onPress={() => setSeg('recuperar')}><Text style={[s.segT, seg === 'recuperar' && s.segTOn]}>Por recuperar{recuperar.length ? ` · ${recuperar.length}` : ''}</Text></TouchableOpacity>
-      </View>
-
       {seg === 'todos' ? (
         <FlatList
-          data={clientes} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={s.empty}>Aún no has atendido clientes.</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={s.row} onPress={() => abrir(item)}>
-              <Avatar name={item.nombre} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.name}>{item.nombre}</Text>
-                <Text style={s.meta}>{item.visitas} visita{item.visitas === 1 ? '' : 's'} · última {item.ultima}</Text>
+          data={ordenados} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 28 }}
+          ListHeaderComponent={cabecera}
+          ListEmptyComponent={<Text style={s.vacio}>{q ? 'Nadie con ese nombre.' : 'Todavía no se ha unido nadie al local.'}</Text>}
+          renderItem={({ item }) => {
+            const tel = telDe(item.telefono)
+            return (
+              <View style={s.fila}>
+                <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => abrir(item)} activeOpacity={0.7}
+                  accessibilityRole="button" accessibilityLabel={`Ficha de ${item.nombre}`}>
+                  <Text style={s.nombre} numberOfLines={1}>{item.nombre}</Text>
+                  {/* «Contigo»: `visitas` cuenta solo las que pasaron por tus
+                      perfiles. Sin decirlo, «nunca ha venido» chocaba con un
+                      historial del local lleno de visitas con otro barbero. */}
+                  <Text style={s.meta} numberOfLines={1}>
+                    {item.visitas === 0
+                      ? `Nunca ha venido contigo${item.desde ? ` · se unió el ${fechaCorta(item.desde)}` : ''}`
+                      : `${item.visitas} ${item.visitas === 1 ? 'visita' : 'visitas'} contigo · última el ${fechaCorta(item.ultima)}`}
+                  </Text>
+                  {!!notas[item.cliente_id] && (
+                    <Text style={s.notaPrev} numberOfLines={1}>Tu nota: {notas[item.cliente_id]}</Text>
+                  )}
+                </TouchableOpacity>
+                {tel && (
+                  <>
+                    <Contacto icono="logo-whatsapp" etiqueta={`Escribir a ${item.nombre}`} onPress={() => escribirCliente(tel, item.nombre)} />
+                    <Contacto icono="call-outline" etiqueta={`Llamar a ${item.nombre}`} onPress={() => llamar(tel)} />
+                  </>
+                )}
               </View>
-              <Text style={s.total}>{item.total}</Text>
-            </TouchableOpacity>
-          )}
+            )
+          }}
         />
       ) : (
         <FlatList
           data={recuperar} keyExtractor={(c) => c.cliente_id} showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text style={s.empty}>Nadie por recuperar. Tus clientes vienen seguido 💈</Text>}
-          renderItem={({ item }) => (
-            <View style={s.row}>
-              <Avatar name={item.nombre} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={s.name}>{item.nombre}</Text>
-                <Text style={s.meta}>Hace {item.dias} días · última {item.ultima}</Text>
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 14, paddingBottom: 28 }}
+          ListHeaderComponent={cabecera}
+          ListEmptyComponent={<Text style={s.vacio}>Nadie por recuperar: tus clientes vuelven a tiempo.</Text>}
+          renderItem={({ item }) => {
+            const tel = telDe(item.telefono)
+            return (
+              <View style={s.recup}>
+                <TouchableOpacity style={s.recupFila} onPress={() => abrir(item)} activeOpacity={0.7} accessibilityRole="button">
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={[s.nombre, { fontSize: 17 }]} numberOfLines={1}>{item.nombre}</Text>
+                    <Text style={s.meta}>Última visita: {fechaCorta(item.ultima)}</Text>
+                  </View>
+                  <Text style={s.dias}>{item.dias}<Text style={s.diasD}>d</Text></Text>
+                </TouchableOpacity>
+                <View style={s.recupBtns}>
+                  {tel ? (
+                    <TouchableOpacity style={s.btnRojo} onPress={() => escribirCliente(tel, item.nombre)} accessibilityRole="button">
+                      <Text style={s.btnRojoT}>Escribirle por WhatsApp</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <Text style={[s.meta, { flex: 1 }]}>No dejó teléfono.</Text>
+                  )}
+                  <TouchableOpacity style={s.btnContorno} onPress={() => abrir(item)} accessibilityRole="button">
+                    <Text style={s.btnContornoT}>Nota</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-              {item.telefono && item.telefono !== '-' ? (
-                <TouchableOpacity style={s.wa} onPress={() => escribirCliente(item.telefono, item.nombre)}><Ionicons name="logo-whatsapp" size={20} color={COLORS.success} /></TouchableOpacity>
-              ) : null}
-            </View>
-          )}
+            )
+          }}
+          ListFooterComponent={recuperar.length > 1 ? (
+            <TouchableOpacity style={s.avisar} onPress={avisarATodos} accessibilityRole="button">
+              <Ionicons name="chatbox-outline" size={18} color={SOBRE.tinta.t1} />
+              <Text style={s.avisarT}>Mandarles un aviso a los {recuperar.length} de una vez</Text>
+              <Ionicons name="chevron-forward" size={17} color={SOBRE.tinta.t2} />
+            </TouchableOpacity>
+          ) : null}
         />
       )}
 
-      <Modal visible={!!activo} transparent animationType="slide" onRequestClose={() => setActivo(null)}>
-        <View style={s.modalBg}>
-          <View style={s.modal}>
-            <View style={s.modalHead}>
-              <View style={{ flex: 1 }}>
-                <Display size={22}>{activo?.nombre}</Display>
-                <Text style={s.modalSub}>{activo?.telefono ?? ''} · {activo?.visitas} visitas</Text>
-              </View>
-              {activo?.telefono && activo.telefono !== '-' ? (
-                <TouchableOpacity style={s.wa} onPress={() => escribirCliente(activo.telefono, activo.nombre)}><Ionicons name="logo-whatsapp" size={22} color={COLORS.success} /></TouchableOpacity>
-              ) : null}
-            </View>
+      {/* LA FICHA. Crece —tarjeta, preferencias, visitas y la nota— así que va
+          en la hoja compartida, con el teclado resuelto. */}
+      <Hoja visible={!!activo} onClose={() => setActivo(null)}>
+        <Text style={s.fTitulo}>{activo?.nombre}</Text>
+        <Text style={s.fSub}>
+          {typeof activo?.visitas === 'number'
+            ? (activo.visitas === 0 ? 'Nunca ha venido contigo' : `${activo.visitas} ${activo.visitas === 1 ? 'visita' : 'visitas'} contigo`)
+            : (telDe(activo?.telefono) ?? 'Sin datos de contacto')}
+        </Text>
+
+        {cargandoFicha ? <ActivityIndicator color={COLORS.ink} style={{ marginVertical: 26 }} /> : (
+          <>
             {ficha?.puntos && (() => {
               const disp = (ficha.puntos.visitas_totales ?? 0) - (ficha.puntos.visitas_canjeadas ?? 0)
-              const enCiclo = ficha.meta > 0 ? disp % ficha.meta : 0
               const listo = disp >= ficha.meta
               return (
-                <View style={s.puntos}>
-                  <Ionicons name={listo ? 'gift' : 'cut'} size={18} color="#fff" />
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.puntosT}>{listo ? `Le toca: ${ficha.premio}` : `${enCiclo} de ${ficha.meta} recortes`}</Text>
-                    <Text style={s.puntosD}>{listo ? 'Ya lo ganó' : `Faltan ${ficha.meta - enCiclo} para ${ficha.premio.toLowerCase()}`}</Text>
+                <View style={s.dato}>
+                  <View style={s.datoFila}>
+                    <Text style={s.datoL}>Su tarjeta contigo</Text>
+                    <Text style={[s.datoN, listo && { color: COLORS.redText }]}>{listo ? `Le toca: ${ficha.premio}` : `${disp} / ${ficha.meta}`}</Text>
                   </View>
+                  {!listo && <View style={s.barra}><View style={[s.barraLlena, { width: `${Math.min(100, (disp / Math.max(1, ficha.meta)) * 100)}%` }]} /></View>}
                 </View>
               )
             })()}
+            {!!ficha?.prefs?.tipo_corte && <Dato l="Corte" v={ficha.prefs.tipo_corte} />}
+            {!!ficha?.prefs?.largo && <Dato l="Largo" v={ficha.prefs.largo} />}
+            {!!ficha?.prefs?.barba && <Dato l="Barba" v={ficha.prefs.barba} />}
+            {/* Las alergias no son una preferencia, son un aviso: por eso se
+                ven en rojo y no como un dato más. */}
+            {!!ficha?.prefs?.alergias && <Dato l="Alergias" v={ficha.prefs.alergias} rojo />}
 
-            {ficha?.prefs && (ficha.prefs.tipo_corte || ficha.prefs.largo || ficha.prefs.barba || ficha.prefs.alergias) && (
+            {/* «En el local» porque el historial es del negocio entero y cada
+                línea puede ser con otro barbero: se dice con quién. */}
+            {!!ficha && ficha.historial.length > 0 && (
               <>
-                <Text style={s.notaLbl}>CÓMO LE GUSTA</Text>
-                <Text style={s.prefs}>
-                  {[ficha.prefs.tipo_corte, ficha.prefs.largo, ficha.prefs.barba].filter(Boolean).join(' · ')}
-                </Text>
-                {ficha.prefs.alergias ? <Text style={s.alerta}>⚠ Alergias: {ficha.prefs.alergias}</Text> : null}
-              </>
-            )}
-
-            {ficha && ficha.historial.length > 0 && (
-              <>
-                <Text style={s.notaLbl}>ÚLTIMAS VISITAS</Text>
+                <Rotulo>Últimas visitas en el local</Rotulo>
                 {ficha.historial.slice(0, 6).map((h: any) => (
                   <View key={h.id} style={s.visita}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.visitaS}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text>
-                      <Text style={s.visitaF}>
-                        {fechaLarga(fechaDeISO(h.fecha))}
-                        {h.turno_perfiles?.turno_usuarios?.nombre ? ` · ${h.turno_perfiles.turno_usuarios.nombre}` : ''}
-                      </Text>
+                    <Text style={s.visitaF}>{fechaCorta(h.fecha)}</Text>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.visitaS} numberOfLines={1}>{h.turno_servicios?.nombre ?? 'Servicio'}</Text>
+                      {!!h.turno_perfiles?.turno_usuarios?.nombre && (
+                        <Text style={s.meta} numberOfLines={1}>con {h.turno_perfiles.turno_usuarios.nombre}</Text>
+                      )}
                     </View>
                     <Text style={s.visitaP}>{dinero(h.precio_cobrado, moneda)}</Text>
                   </View>
@@ -170,52 +367,98 @@ export default function Clientes() {
               </>
             )}
 
-            <Text style={s.notaLbl}>NOTA PRIVADA</Text>
-            {cargandoNota ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 20 }} /> : (
-              <TextInput style={s.input} placeholder="Preferencias, alergias, recordatorios…" placeholderTextColor={COLORS.textLight}
-                value={nota} onChangeText={setNota} multiline />
-            )}
-            <TouchableOpacity style={s.btn} onPress={guardar} disabled={guardando}>
-              {guardando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Guardar nota</Text>}
+            <Rotulo>Tu nota · solo tú la ves</Rotulo>
+            <TextInput style={s.input} placeholder="Cómo le gusta, qué hablaron, qué recordar…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
+              value={nota} onChangeText={setNota} multiline />
+            <TouchableOpacity style={s.guardar} onPress={guardar} disabled={guardando} accessibilityRole="button">
+              {guardando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar nota</Text>}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setActivo(null)}><Text style={s.cerrar}>Cerrar</Text></TouchableOpacity>
+          </>
+        )}
+
+        {!!telDe(activo?.telefono) && (
+          <View style={s.contactoFila}>
+            <TouchableOpacity style={[s.btnContorno, { flex: 1, width: undefined }]} onPress={() => escribirCliente(telDe(activo.telefono)!, activo.nombre)}>
+              <Text style={s.btnContornoT}>WhatsApp</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[s.btnContorno, { flex: 1, width: undefined }]} onPress={() => llamar(telDe(activo.telefono)!)}>
+              <Text style={s.btnContornoT}>Llamar</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        )}
+        <TouchableOpacity onPress={() => setActivo(null)} style={{ paddingVertical: 12 }}>
+          <Text style={s.cerrar}>Cerrar</Text>
+        </TouchableOpacity>
+      </Hoja>
+    </View>
+  )
+}
+
+function Contacto({ icono, etiqueta, onPress }: { icono: any; etiqueta: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={s.contacto} onPress={onPress} accessibilityRole="button" accessibilityLabel={etiqueta} hitSlop={4}>
+      <Ionicons name={icono} size={19} color={COLORS.ink} />
+    </TouchableOpacity>
+  )
+}
+
+function Dato({ l, v, rojo }: { l: string; v: string; rojo?: boolean }) {
+  return (
+    <View style={s.dato}>
+      <View style={s.datoFila}>
+        <Text style={s.datoL}>{l}</Text>
+        <Text style={[s.datoV, rojo && { color: COLORS.redDark }]}>{v}</Text>
+      </View>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg, padding: 16, paddingTop: 72 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, textAlign: 'center', paddingVertical: 40 },
-  segs: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  seg: { flex: 1, paddingVertical: 10, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
-  segOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  segT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.textMid },
-  segTOn: { color: '#fff' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 12, marginBottom: 8 },
-  name: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  meta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  total: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  modalSub: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, marginTop: 6, marginBottom: 18 },
-  modalHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  wa: { width: 44, height: 44, borderRadius: 12, backgroundColor: COLORS.successLight, alignItems: 'center', justifyContent: 'center' },
-  puntos: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: COLORS.red, borderRadius: 12, padding: 13, marginBottom: 4 },
-  puntosT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  puntosD: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 1 },
-  prefs: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.ink, marginBottom: 4 },
-  alerta: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.red, marginBottom: 4 },
-  visita: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  visitaS: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  visitaF: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },
-  visitaP: { fontFamily: FONTS.display, fontSize: 16, color: COLORS.ink },
-  notaLbl: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 8 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, minHeight: 90, textAlignVertical: 'top', marginBottom: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center' },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
+  b: { fontFamily: FONTS.semibold, color: COLORS.ink },
+  buscar: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 16, marginTop: 16, backgroundColor: GLASS.fillStrong, borderRadius: 26 },
+  buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, paddingVertical: 0 },
+  ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
+  orden: { height: 36, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: GLASS.border, borderRadius: 18, backgroundColor: GLASS.fillStrong },
+  ordenOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  ordenT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
+  notaPrev: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 3 },
+  contacto: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  regla: { marginTop: 16, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: GLASS.fill },
+  reglaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textMid },
+  recup: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
+  recupFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  dias: { fontFamily: FONTS.monoBold, fontSize: 28, lineHeight: 32, color: COLORS.redText },
+  diasD: { fontSize: 14 },
+  recupBtns: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
+  btnRojo: { flex: 1, height: 44, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
+  btnContorno: { width: 96, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  btnContornoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  // Aviso en TINTA: texto de SOBRE.tinta (Regla 1).
+  avisar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, borderRadius: 22, backgroundColor: SOBRE.tinta.fondo, padding: 15 },
+  avisarT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: SOBRE.tinta.t1 },
+  fTitulo: { fontFamily: FONTS.bold, letterSpacing: -0.5, fontSize: 24, lineHeight: 30, color: COLORS.ink, marginTop: 4 },
+  fSub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, marginBottom: 6 },
+  dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
+  datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  datoL: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
+  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  datoN: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
+  barra: { height: 8, backgroundColor: GLASS.fillStrong, marginTop: 10, borderRadius: 4 },
+  barraLlena: { height: 8, backgroundColor: COLORS.ink, borderRadius: 4 },
+  visita: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  visitaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
+  visitaS: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
+  input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 14, marginTop: 12, minHeight: 90, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, textAlignVertical: 'top', borderRadius: 16, overflow: 'hidden' },
+  guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 26 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
+  contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textMid, fontSize: 14 },
 })

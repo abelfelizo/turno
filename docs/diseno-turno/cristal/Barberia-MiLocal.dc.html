@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Barbería · Mi local</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@500;700&amp;display=swap" rel="stylesheet"><style>
+body{margin:0;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1E4FD8}a:hover{color:#E1251B}
+.mono{font-family:"Geist Mono",ui-monospace,monospace}
+.ov{font-size:11px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase}
+/* NOCHE: cristal ahumado */
+.n{background:#0A0B0F;color:#F4F5F8}
+.n .glass{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(28px) saturate(150%);-webkit-backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 16px 36px rgba(0,0,0,.40)}
+.n .sub{color:#B9BCC7}.n .meta{color:#9A9EAB}
+.n .cap-w{background:#F4F5F8;color:#0A0B0F}
+.n .cap-g{background:rgba(255,255,255,.08);color:#F4F5F8;border:1px solid rgba(255,255,255,.18)}
+.n .line{border-top:1px solid rgba(255,255,255,.08)}
+.n .bead{background:#F4F5F8;color:#0A0B0F;box-shadow:inset 0 1px 0 #fff,0 6px 16px rgba(0,0,0,.35)}
+/* DÍA: cristal perla */
+.d{background:#ECEEF3;color:#0B0B0C}
+.d .glass{background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.75);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 12px 30px rgba(20,24,40,.10)}
+.d .sub{color:#3D3F46}.d .meta{color:#5A5D66}
+.d .cap-w{background:#0B0B0C;color:#fff}
+.d .cap-g{background:rgba(255,255,255,.55);color:#0B0B0C;border:1px solid rgba(11,11,12,.10)}
+.d .line{border-top:1px solid rgba(11,11,12,.07)}
+.d .bead{background:#0B0B0C;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(11,11,12,.25)}
+.cap{height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;text-decoration:none;box-sizing:border-box;border:0}
+.polo{height:6px;border-radius:3px;background:repeating-linear-gradient(-55deg,#E1251B 0 5px,#fff 5px 10px,#1E4FD8 10px 15px,#fff 15px 20px)}
+</style></helmet>
+<div class="n" style="width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box">
+<div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+<div style="position:absolute;width:260px;height:1300px;left:210px;top:-260px;transform:rotate(-32deg);background:repeating-linear-gradient(90deg,#E1251B 0 44px,#ffffff 44px 88px,#1E4FD8 88px 132px,#ffffff 132px 176px);filter:blur(64px);opacity:.30"></div>
+<div style="position:absolute;width:420px;height:420px;left:-180px;top:520px;border-radius:50%;background:radial-gradient(circle,rgba(30,79,216,.45),transparent 70%)"></div>
+</div>
+<div style="position:relative;padding:58px 20px 0;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+<div style="display:flex;flex-direction:column;gap:3px"><span class="sub" style="font-size:14px">miércoles, 23 de septiembre</span><h1 style="margin:0;font-size:30px;font-weight:700;letter-spacing:-.8px">Barbería Duarte</h1></div><span class="glass mono" style="border-radius:16px;padding:8px 12px;font-size:14px;font-weight:700">PRU-EMPL</span></div>
+<a href="#" class="glass" style="border-radius:26px;padding:14px 16px;display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit"><span style="width:9px;height:9px;border-radius:5px;background:#FF5A4F;box-shadow:0 0 12px #FF5A4F"></span><span style="flex:1;font-size:15px;font-weight:600">3 barberos quieren entrar</span><span style="font-size:14px;font-weight:600;color:#FF7A70">Ver</span></a>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px"><div class="glass" style="border-radius:22px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px"><span class="mono" style="font-size:24px;font-weight:700;color:inherit">5</span><span class="meta" style="font-size:12px">En fila</span></div><div class="glass" style="border-radius:22px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px"><span class="mono" style="font-size:24px;font-weight:700;color:inherit">12</span><span class="meta" style="font-size:12px">Atendidos</span></div><div class="glass" style="border-radius:22px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px"><span class="mono" style="font-size:24px;font-weight:700;color:inherit">2/3</span><span class="meta" style="font-size:12px">Sillas</span></div><div class="glass" style="border-radius:22px;padding:12px 12px 10px;display:flex;flex-direction:column;gap:2px"><span class="mono" style="font-size:24px;font-weight:700;color:inherit">18m</span><span class="meta" style="font-size:12px">Espera</span></div></div>
+<span class="ov sub" style="padding:6px 4px 0">Las sillas</span>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span style="width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600">AA</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Ana Admin <span style="font-size:12px;color:#FF7A70">· tú</span></span><span class="meta" style="font-size:13px">Luis Pérez · termina <span class="mono">10:45</span></span></div><span style="font-size:13px;font-weight:600;color:#FF7A70;white-space:nowrap">En la silla</span></div>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span style="width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600">BE</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Beto Empleado</span><span class="meta" style="font-size:13px">Libre desde las <span class="mono">10:12</span></span></div><span style="font-size:13px;font-weight:600;color:#34C77B;white-space:nowrap">Disponible</span></div>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span style="width:40px;height:40px;border-radius:20px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600">CA</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Caro Activa</span><span class="meta" style="font-size:13px">Vuelve a las <span class="mono">11:00</span></span></div><span style="font-size:13px;font-weight:600;color:#9A9EAB;white-space:nowrap">Descanso</span></div>
+
+</div>
+<nav aria-label="Secciones" class="glass" style="position:absolute;left:16px;right:16px;bottom:22px;height:66px;border-radius:33px;display:flex;align-items:center;gap:2px;padding:0 6px;box-sizing:border-box"><a href="#" aria-current="page" class="bead" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10h16M5 10V19h14v-9M4 10l2-5h12l2 5M10 19v-5h4v5"/></svg><span style="font-size:10px;font-weight:600">Mi local</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/><circle cx="17" cy="10" r="2.3"/><path d="M16 14.6c2.3.2 3.9 1.6 4.5 4.4"/></svg><span style="font-size:10px;font-weight:600">Equipo</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/><circle cx="17" cy="10" r="2.3"/><path d="M16 14.6c2.3.2 3.9 1.6 4.5 4.4"/></svg><span style="font-size:10px;font-weight:600">Clientes</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M10 20V5M15 20v-7M20 20V8"/></svg><span style="font-size:10px;font-weight:600">Estadísticas</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span style="font-size:10px;font-weight:600">Ajustes</span></a></nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

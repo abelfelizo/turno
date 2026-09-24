@@ -4,13 +4,10 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, GLASS } from '../constants'
+import { INICIO_DE_PANEL } from '../lib/paneles'
 
-const DESTINO: Record<string, string> = {
-  cliente: '/(app)/cliente/home',
-  barberia: '/(app)/dueno/dashboard',
-  silla: '/(app)/barbero/agenda',
-}
+
 
 function etiqueta(o: OpcionPanel) {
   if (o.panel === 'cliente') return `Cliente · ${o.negocio}`
@@ -59,7 +56,7 @@ export default function CambiarRol() {
     if (o.panel === 'silla' && o.perfil_id && !o.aprobado) {
       router.replace('/(auth)/barbero-pendiente'); return
     }
-    router.replace(DESTINO[o.panel] as any)
+    router.replace(INICIO_DE_PANEL[o.panel] as any)
   }
 
   return (
@@ -70,13 +67,21 @@ export default function CambiarRol() {
         return (
           <TouchableOpacity key={`${o.panel}-${o.negocio_id}`} style={[s.fila, esActual && s.filaOn]}
             onPress={() => cambiar(o)} disabled={esActual}>
-            <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.success : COLORS.textMid} />
+            <Ionicons name={icono(o.panel)} size={20} color={esActual ? COLORS.redText : COLORS.textMid} />
             <View style={{ flex: 1 }}>
               <Text style={s.txt}>{etiqueta(o)}</Text>
-              <Text style={s.det}>{!o.aprobado && o.panel === 'silla' ? 'Pendiente de aprobación' : detalle(o)}</Text>
+              {/* «Pendiente de aprobación» era la única espera posible hasta la
+                  110. Ahora la espera puede ser AL REVÉS —te invitaron y el que
+                  no ha contestado eres tú— y decirle que espera al dueño le
+                  esconde que tiene algo que hacer. */}
+              <Text style={s.det}>
+                {!o.aprobado && o.panel === 'silla'
+                  ? (o.pendiente_de === 'barbero' ? 'Te invitaron · falta que aceptes' : 'Pendiente de aprobación')
+                  : detalle(o)}
+              </Text>
             </View>
             {esActual
-              ? <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
+              ? <Text style={s.aqui}>AQUÍ</Text>
               : <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
           </TouchableOpacity>
         )
@@ -86,9 +91,14 @@ export default function CambiarRol() {
 }
 
 const s = StyleSheet.create({
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12, marginTop: 18 },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
-  filaOn: { borderColor: COLORS.success },
-  txt: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  det: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  // Filas con filete, no tarjetas blancas con borde: en D2 una lista es una
+  // lista, y las cajas sueltas son para lo que se lee aparte.
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 22 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  // El panel en el que estás: filete rojo a la izquierda, como «tu barbero»
+  // en Mi barbería. Una marca, no un recuadro verde.
+  filaOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  txt: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
+  det: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
+  aqui: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
 })

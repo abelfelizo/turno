@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador } from '../../lib/onboarding'
 import { getNegocioPorCodigo } from '../../lib/db'
-import { COLORS, FONTS } from '../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../constants'
 
 /**
  * Alta del barbero en un local.
@@ -42,8 +42,8 @@ export default function BarberoCodigo() {
   const renta = negocio?.tipo === 'espacios_rentados'
 
   return (
-    <OnbScreen paso="Tu trabajo · 2 de 3" titulo="Código del local"
-      subtitulo="Pídeselo al dueño de la barbería donde vas a trabajar.">
+    <OnbScreen paso="Tu trabajo · 3 de 4" titulo="Código del local"
+      subtitulo="Pídeselo al administrador de la barbería donde vas a trabajar.">
       <Campo label="Código de acceso" placeholder="ABC-1234" autoCapitalize="characters"
         maxLength={9} value={codigo}
         onChangeText={(t: string) => { setCodigo(t); setNegocio(null); setError('') }} />
@@ -55,18 +55,23 @@ export default function BarberoCodigo() {
           <Text style={s.cardKicker}>TE VAS A UNIR A</Text>
           <Text style={s.cardNombre}>{negocio.nombre}</Text>
           <View style={s.modalidad}>
-            <Ionicons name={renta ? 'person' : 'business'} size={16} color={COLORS.textMid} />
+            <Ionicons name={renta ? 'person' : 'business'} size={16} color={SOBRE.tinta.t2} />
             <Text style={s.modalidadT}>
+              {/* QUÉ CAMBIA SEGÚN LA MODALIDAD: quién pone las reglas y quién
+                  paga. Lo que YA NO cambia es si hay que esperar a alguien —la
+                  migración 110 lo igualó— porque entrar a un local lo firman
+                  los dos, alquile asientos o tenga empleados. Este texto decía
+                  «entras directo, sin esperar aprobación» y era la 94. */}
               {renta
-                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción.'
-                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el dueño cubre tu suscripción.'}
+                ? 'Alquila asientos: pones tus propios servicios, precios y horarios, y pagas tu suscripción. El administrador tiene que aceptarte, pero no te dirige.'
+                : 'Trabaja con empleados: los servicios, precios y el horario los pone el local, y el local cubre tu suscripción. Te dará de alta él cuando envíes la solicitud.'}
             </Text>
           </View>
         </View>
       )}
 
       {buscando
-        ? <ActivityIndicator color={COLORS.red} style={{ marginTop: 20 }} />
+        ? <ActivityIndicator color="#FFFFFF" style={{ marginTop: 20 }} />
         : negocio
           ? <BotonPrimario texto="Continuar" onPress={continuar} />
           : <BotonPrimario texto="Buscar local" onPress={verificar} disabled={codigo.trim().length < 4} />}
@@ -75,10 +80,11 @@ export default function BarberoCodigo() {
 }
 
 const s = StyleSheet.create({
-  error: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.red, marginTop: 10 },
-  card: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginTop: 16 },
-  cardKicker: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1 },
-  cardNombre: { fontFamily: FONTS.display, fontSize: 24, color: COLORS.ink, marginTop: 4 },
+  error: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.rojo, marginTop: 10 },
+  // Pantalla de entrada = tinta: la tarjeta y su texto salen de SOBRE.tinta (Regla 1).
+  card: { backgroundColor: SOBRE.tinta.elevado, borderWidth: 1, borderColor: SOBRE.tinta.borde, borderRadius: 22, padding: 16, marginTop: 16 },
+  cardKicker: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  cardNombre: { fontFamily: FONTS.bold, fontSize: 24, color: SOBRE.tinta.t1, marginTop: 4 },
   modalidad: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 12 },
-  modalidadT: { flex: 1, fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textMid, lineHeight: 18 },
+  modalidadT: { flex: 1, fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, lineHeight: 18 },
 })

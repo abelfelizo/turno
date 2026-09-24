@@ -1,6 +1,32 @@
 // ==================== ROLES ====================
 export type RolUsuario = 'dueno' | 'barbero_renta' | 'empleado' | 'cliente'
-export type TipoServicio = 'barbero' | 'manicuri_pedicuri'
+export type TipoServicio = 'barbero' | 'manicuri_pedicuri' | 'masajista' | 'facial'
+
+/**
+ * CÓMO SE LLAMA CADA OFICIO, EN UN SOLO SITIO.
+ *
+ * Antes esto vivía escrito a mano en cuatro pantallas: el selector del
+ * onboarding del profesional, el del negocio, el mapa `TIPO` del dashboard del
+ * dueño y un ternario en sus estadísticas. Con dos oficios se aguantaba; al
+ * añadir masajista y facial, cuatro copias son cuatro sitios donde olvidarse
+ * de uno — y olvidarse aquí no da error, solo deja la pantalla en blanco o
+ * diciendo "Barbería" de una masajista.
+ *
+ * `nombre` es cómo se le llama a la PERSONA ("¿a qué te dedicas?") y `local`
+ * cómo se llama al NEGOCIO ("¿qué se hace aquí?"), que no siempre es lo mismo:
+ * quien corta el pelo es barbero y su local es una barbería.
+ */
+export const OFICIOS: { id: TipoServicio; nombre: string; local: string; desc?: string }[] = [
+  { id: 'barbero',          nombre: 'Barbería',           local: 'Barbería',       desc: 'Cortes, barba, arreglos.' },
+  { id: 'manicuri_pedicuri', nombre: 'Manicure / Pedicure', local: 'Uñas & Spa',     desc: 'Manos, pies o las dos cosas.' },
+  { id: 'masajista',        nombre: 'Masajes',            local: 'Masajes',        desc: 'Masaje y relajación.' },
+  { id: 'facial',           nombre: 'Faciales',           local: 'Estética facial', desc: 'Limpieza y tratamientos de cara.' },
+]
+
+/** El nombre del oficio de una persona. Nunca devuelve vacío. */
+export function nombreOficio(t?: string | null) {
+  return OFICIOS.find(o => o.id === t)?.nombre ?? 'Servicio'
+}
 export type TipoNegocio = 'espacios_rentados' | 'empleados'
 export type EstadoActual = 'disponible' | 'ocupado' | 'descanso' | 'inactivo'
 

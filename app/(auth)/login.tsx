@@ -1,10 +1,12 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { enviarCodigo, verificarCodigo } from '../../lib/auth'
-import { COLORS, FONTS } from '../../constants'
-import { Display, Pole } from '../../components/ui'
+import { ENCENDIDA as PUERTA_PRUEBAS } from '../../lib/pruebas'
+import { COLORS, FONTS, SOBRE, BOTON_CLARO } from '../../constants'
+import { Display, VersionBundle } from '../../components/ui'
+import { TurnoLogo } from '../../components/TurnoLogo'
 
 export default function Login() {
   const router = useRouter()
@@ -30,57 +32,80 @@ export default function Login() {
     finally { setCargando(false) }
   }
 
+  // MISMO ARREGLO QUE EL ONBOARDING (ver components/onb.tsx).
+  // Aquí era peor: sin ScrollView, el titular de 68pt no deja nada que encoger,
+  // así que con el teclado abierto el campo se iba fuera de pantalla y no había
+  // forma de alcanzarlo. Ahora el contenido puede subir, y
+  // `automaticallyAdjustKeyboardInsets` lleva el foco a la vista.
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.c}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: SOBRE.tinta.fondo }}
+      contentContainerStyle={s.c}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      automaticallyAdjustKeyboardInsets
+      showsVerticalScrollIndicator={false}
+    >
       <StatusBar style="light" />
-      <Pole height={8} radius={0} style={s.poleTop} />
       <View style={s.brand}>
-        <View style={s.logo}><Text style={s.logoT}>N</Text></View>
-        <Text style={s.wordmark}>NAVAJA · BARBER CO.</Text>
+        <TurnoLogo negative size={34} />
       </View>
 
       <Text style={s.kicker}>App de reservas · Barbería</Text>
-      {/* Sin override de lineHeight: Display ya usa size×1.18, que Anton necesita
+      {/* Sin override de lineHeight: Display ya usa size×1.18, que la letra de titular necesita
           para no recortar los ascendentes (un 64 sobre fuente 68 cortaba "RESERVA"). */}
-      <Display size={68} color="#fff">Reserva{'\n'}tu <Text style={{ color: COLORS.red }}>corte</Text></Display>
+      <Display size={68} color={SOBRE.tinta.t1}>Reserva{'\n'}tu <Text style={{ color: SOBRE.tinta.rojo }}>corte</Text></Display>
 
       {paso === 'email' ? (
         <>
           <Text style={s.sub}>Entra o crea tu cuenta con tu correo. Te enviaremos un código.</Text>
-          <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={COLORS.textLight}
+          <TextInput style={s.input} placeholder="tucorreo@ejemplo.com" placeholderTextColor={SOBRE.tinta.t3} keyboardAppearance="dark" selectionColor={SOBRE.tinta.t1}
             autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={pedirCodigo} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Enviar código</Text>}
+            {cargando ? <ActivityIndicator color={BOTON_CLARO.texto} /> : <Text style={s.btnT}>Enviar código</Text>}
           </TouchableOpacity>
         </>
       ) : (
         <>
           <Text style={s.sub}>Ingresa el código que enviamos a {email}</Text>
-          <TextInput style={[s.input, s.code]} placeholder="––––––" placeholderTextColor={COLORS.textLight}
+          <TextInput style={[s.input, s.code]} placeholder="––––––" placeholderTextColor={SOBRE.tinta.t3} keyboardAppearance="dark" selectionColor={SOBRE.tinta.t1}
             keyboardType="number-pad" maxLength={10} value={codigo}
             onChangeText={t => setCodigo(t.replace(/\D/g, ''))} editable={!cargando} />
           <TouchableOpacity style={s.btn} onPress={confirmar} disabled={cargando}>
-            {cargando ? <ActivityIndicator color="#fff" /> : <Text style={s.btnT}>Confirmar</Text>}
+            {cargando ? <ActivityIndicator color={BOTON_CLARO.texto} /> : <Text style={s.btnT}>Confirmar</Text>}
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setPaso('email')} disabled={cargando}><Text style={s.link}>Cambiar correo</Text></TouchableOpacity>
         </>
       )}
-    </KeyboardAvoidingView>
+
+      {/* PUERTA DE PRUEBAS · temporal, y solo en los builds de desarrollo y
+          preview. En production la variable no existe, así que esto no se
+          compila dentro y la ruta tampoco lleva a ninguna parte (la pantalla
+          vuelve a comprobarlo por su cuenta). Ver lib/pruebas.ts. */}
+      {PUERTA_PRUEBAS && (
+        <TouchableOpacity style={s.pruebas} onPress={() => router.push('/(auth)/puerta-pruebas')}>
+          <Text style={s.pruebasT}>Entrar como un perfil de prueba</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Qué bundle corre este teléfono. En la primera pantalla de la app a
+          propósito: la pregunta «¿llegó la actualización?» hay que poder
+          contestarla sin iniciar sesión y sin conexión a la base. */}
+      <VersionBundle tinta />
+    </ScrollView>
   )
 }
 
 const s = StyleSheet.create({
-  c: { flex: 1, backgroundColor: COLORS.carbon, padding: 28, justifyContent: 'center' },
-  poleTop: { position: 'absolute', top: 0, left: 0, right: 0 },
+  c: { flexGrow: 1, padding: 28, paddingBottom: 56, justifyContent: 'center' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  logo: { width: 34, height: 34, borderRadius: 7, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  logoT: { fontFamily: FONTS.extrabold, color: '#fff', fontSize: 18 },
-  wordmark: { fontFamily: FONTS.bold, color: '#fff', fontSize: 13, letterSpacing: 1 },
-  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 12 },
-  sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginTop: 24, marginBottom: 20, lineHeight: 22 },
-  input: { backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 12, padding: 16, color: '#fff', fontSize: 16, fontFamily: FONTS.medium, marginBottom: 12 },
-  code: { textAlign: 'center', letterSpacing: 4, fontSize: 24, fontFamily: FONTS.bold },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 17, alignItems: 'center' },
-  btnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
-  link: { fontFamily: FONTS.semibold, color: '#9A9CA6', fontSize: 14, marginTop: 16, textAlign: 'center' },
+  kicker: { fontFamily: FONTS.bold, color: SOBRE.tinta.azul, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  sub: { fontFamily: FONTS.regular, fontSize: 15, color: SOBRE.tinta.t2, marginTop: 24, marginBottom: 20, lineHeight: 22 },
+  input: { backgroundColor: SOBRE.tinta.elevado, borderWidth: 1, borderColor: SOBRE.tinta.borde, borderRadius: 26, height: 52, paddingHorizontal: 18, color: SOBRE.tinta.t1, fontSize: 16, fontFamily: FONTS.regular, marginBottom: 12 },
+  code: { textAlign: 'center', letterSpacing: 1.2, fontSize: 24, fontFamily: FONTS.bold },
+  pruebas: { marginTop: 26, padding: 12, alignItems: 'center' },
+  pruebasT: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t3, textDecorationLine: 'underline' },
+  btn: { backgroundColor: BOTON_CLARO.fondo, borderRadius: 26, height: 52, justifyContent: 'center', alignItems: 'center' },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: BOTON_CLARO.texto },
+  link: { fontFamily: FONTS.semibold, color: SOBRE.tinta.t2, fontSize: 15, marginTop: 16, textAlign: 'center' },
 })

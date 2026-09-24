@@ -1,6 +1,6 @@
 import { Component, ReactNode } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE, BOTON_CLARO } from '../constants'
 import { reportError } from '../lib/reporting'
 
 type Props = { children: ReactNode }
@@ -41,10 +41,10 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 const s = StyleSheet.create({
-  c: { flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  c: { flex: 1, backgroundColor: SOBRE.tinta.fondo, alignItems: 'center', justifyContent: 'center', padding: 32 },
   emoji: { fontSize: 44, marginBottom: 12 },
-  title: { fontFamily: FONTS.extrabold, fontSize: 22, color: '#fff', marginBottom: 8 },
-  sub: { fontFamily: FONTS.medium, fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', marginBottom: 28 },
-  btn: { backgroundColor: COLORS.red, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 32 },
-  btnT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
+  title: { fontFamily: FONTS.bold, fontSize: 24, color: SOBRE.tinta.t1, marginBottom: 8 },
+  sub: { fontFamily: FONTS.regular, fontSize: 15, color: SOBRE.tinta.t2, textAlign: 'center', marginBottom: 28 },
+  btn: { backgroundColor: BOTON_CLARO.fondo, borderRadius: 26, height: 52, justifyContent: 'center', paddingHorizontal: 32 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: BOTON_CLARO.texto },
 })

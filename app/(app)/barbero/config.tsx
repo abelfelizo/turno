@@ -1,30 +1,74 @@
-import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, Modal, TextInput, Alert } from 'react-native'
+import { BackHandler, View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity, Switch, TextInput, Alert } from 'react-native'
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion, limpiarSesion } from '../../../lib/storage'
-import { guardarReglasBarbero, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
+import { guardarReglasBarbero, getSuscripcionDe, type SuscripcionDe, getConfiguracion, getNegocioById, getMiUsuario, getMiPerfil, getServiciosPerfil, actualizarEstadoPerfil, actualizarPerfil, actualizarIdentidadBarbero, crearServicio, actualizarServicio, getHorariosPerfil, guardarHorario, getMisMembresias, dejarLocal, eliminarCuenta, getBarberoNegocios, unirseProfesional } from '../../../lib/db'
 import { elegirYSubirImagen } from '../../../lib/imagenes'
 import { cerrarSesion } from '../../../lib/auth'
+import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { planDeMiSilla } from '../../../lib/pricing'
-import { COLORS, FONTS } from '../../../constants'
-import { Display, Avatar } from '../../../components/ui'
+import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
+import { Encabezado, Rotulo } from '../../../components/d2'
+import Hoja from '../../../components/hoja'
 import PanelBadge from '../../../components/panel-badge'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 // Estos tres son la ÚNICA decisión que toma el barbero sobre su estado: si
 // acepta clientes. Que esté ocupado o libre lo deduce el sistema de la silla y
 // los bloqueos, porque un estado que hay que acordarse de actualizar acaba
 // mintiendo — el barbero está cortando pelo, no tocando la app.
+// Estos textos dicen la CONSECUENCIA, no el nombre del estado. "En descanso"
+// suena a pausa de diez minutos y en realidad te saca de la lista de todos los
+// clientes hasta que vuelvas a mano: alguien lo tocó una vez y desapareció sin
+// enterarse. Un estado que no explica lo que hace es una trampa.
 const ESTADOS = [
-  { k: 'disponible', l: 'Acepto clientes', d: 'Apareces en la app y pueden entrar a tu fila.', c: COLORS.success },
-  { k: 'descanso', l: 'En descanso', d: 'Dejas de aparecer hasta que vuelvas a activarte.', c: COLORS.warning },
-  { k: 'inactivo', l: 'Inactivo', d: 'Como el descanso, pero para ausencias largas.', c: COLORS.textLight },
+  { k: 'disponible', l: 'Acepto clientes', c: COLORS.success,
+    d: 'Sales en la app y pueden pedirte turno. Estar ocupado con un cliente NO te saca de la lista: para eso está la fila.' },
+  { k: 'descanso', l: 'En descanso', c: COLORS.warning,
+    d: 'Por hoy: nadie entra a tu fila ni coge hora para lo que queda del día. Tus citas de mañana en adelante siguen abiertas y quien ya está en tu fila sigue ahí. No vuelves solo — tienes que activarte tú.' },
+  { k: 'inactivo', l: 'Inactivo', c: COLORS.textLight,
+    d: 'Para ausencias largas: cierra también la agenda futura. Nadie puede reservar contigo para ningún día hasta que vuelvas.' },
 ]
+const GRUPOS = [
+  { k: 'quien', l: 'Quién soy' },
+  { k: 'como', l: 'Cómo trabajo' },
+  { k: 'donde', l: 'Dónde y cuenta' },
+] as const
+
 const DIAS = [{ n: 1, l: 'Lunes' }, { n: 2, l: 'Martes' }, { n: 3, l: 'Miércoles' }, { n: 4, l: 'Jueves' }, { n: 5, l: 'Viernes' }, { n: 6, l: 'Sábado' }, { n: 0, l: 'Domingo' }]
 
+// POR DÓNDE LE LLEGA EL TRABAJO. No todos los barberos trabajan igual: uno de
+// barrio no usa citas en su vida, y otro solo trabaja con hora. Obligar a los
+// dos a llevar el sistema completo es pedirles que administren algo que no
+// usan, y peor: prometerle al cliente una vía que ese barbero no va a atender.
+//
+// Un campo con tres valores y no dos interruptores, porque dos booleanos dejan
+// construir "ni citas ni fila", que no es un modo de trabajo — es estar
+// cerrado, y para eso ya está el estado Inactivo de arriba.
+//
+// Los textos dicen lo que ve el CLIENTE, no el nombre del ajuste: es la única
+// forma de que el barbero sepa qué está apagando.
+const MODOS = [
+  { k: 'ambos', l: 'Citas y fila', icono: 'git-merge-outline',
+    d: 'Pueden reservarte hora y también meterse en tu fila para hoy. Es lo normal.' },
+  { k: 'solo_citas', l: 'Solo con cita', icono: 'calendar-outline',
+    // «lo sientas tú» era cierto para todos hasta la 107: al empleado sin
+    // permiso el walk-in se lo asigna la barbería. Esto lo dice sin mentirle a
+    // ninguno de los dos, porque describe la PUERTA, no quién la abre.
+    d: 'Trabajas con hora. Nadie puede meterse en tu fila desde el teléfono; quien llegue sin cita entra por la puerta, no por la app.' },
+  { k: 'solo_fila', l: 'Solo fila', icono: 'people-outline',
+    d: 'Por orden de llegada. Desaparece la opción de reservarte hora, para hoy y para cualquier día.' },
+]
+
 export default function Config() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const [sesion, setSesion] = useState<any>(null)
   const [perfil, setPerfil] = useState<any>(null)
@@ -32,6 +76,7 @@ export default function Config() {
   const [servicios, setServicios] = useState<any[]>([])
   const [horarios, setHorarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [fallo, setFallo] = useState(false)
   // modales
   const [svModal, setSvModal] = useState<any | 'nuevo' | null>(null)
   const [svN, setSvN] = useState(''); const [svD, setSvD] = useState(30); const [svP, setSvP] = useState('')
@@ -49,6 +94,8 @@ export default function Config() {
   const [cfgLocalTipo, setCfgLocalTipo] = useState<string | null>(null)
   const [reglasBusy, setReglasBusy] = useState(false)
   const [premio, setPremio] = useState('')
+  // null = el menú. Cualquier otro valor = esa sección abierta.
+  const [seccion, setSeccion] = useState<string | null>(null)
 
   async function guardarPremio() {
     if (!sesion?.perfil_id) return
@@ -59,27 +106,47 @@ export default function Config() {
     catch (e: any) { Alert.alert('No se pudo guardar', e.message ?? 'Intenta de nuevo.') }
   }
   const [locales, setLocales] = useState<any[]>([])
+  // Quién paga por SU silla (migración 93). Hasta ahora la suscripción solo
+  // existía a nivel de local y en la pantalla del dueño, así que el barbero que
+  // alquila un asiento —el que de verdad paga lo suyo— no la veía en ningún
+  // sitio.
+  const [suscripcion, setSuscripcion] = useState<SuscripcionDe | null>(null)
   const [localModal, setLocalModal] = useState(false)
   const [lcCodigo, setLcCodigo] = useState(''); const [lcBusy, setLcBusy] = useState(false)
 
+  // EN UNA PANTALLA DE CONFIGURACIÓN NO SE TAPA NINGUNA LLAMADA.
+  //
+  // En las demás pantallas un dato que no llega solo resta: se enseña menos.
+  // Aquí resta y encima INVITA A ESCRIBIR. Los campos de identidad salen vacíos
+  // y el primer "Guardar" le borra al barbero su bio, su especialidad y sus
+  // contactos, que sí estaban en la base. Los servicios salen vacíos y los
+  // vuelve a crear, duplicados. Y el rol se queda en null, que abajo cierra el
+  // menú a propósito —eso está bien— pero sin decir por qué, así que parece que
+  // la barbería le quitó permisos.
+  //
+  // Un formulario cargado a medias es peor que un formulario que no cargó.
   const cargar = useCallback(async () => {
+   try {
+    setFallo(false)
     const ss = await getSesion(); setSesion(ss)
-    if (!ss?.perfil_id || !ss?.negocio_id) { setLoading(false); return }
-    const [u, p, sv, hr, mems, cfg] = await Promise.all([
-      getMiUsuario().catch(() => null),
-      getMiPerfil(ss.usuario_id, ss.negocio_id).catch(() => null),
-      getServiciosPerfil(ss.perfil_id, false).catch(() => []),
-      getHorariosPerfil(ss.perfil_id).catch(() => []),
-      getMisMembresias(ss.usuario_id).catch(() => []),
+    if (!ss?.perfil_id || !ss?.negocio_id) return
+    const [u, p, sv, hr, mems, cfg, sus] = await Promise.all([
+      getMiUsuario(),
+      getMiPerfil(ss.usuario_id, ss.negocio_id),
+      getServiciosPerfil(ss.perfil_id, false),
+      getHorariosPerfil(ss.perfil_id),
+      getMisMembresias(ss.usuario_id),
       getConfiguracion(ss.negocio_id).catch(() => null),
+      getSuscripcionDe(ss.perfil_id).catch(() => null),
     ])
     setUsuario(u); setPerfil(p); setServicios(sv as any[]); setHorarios(hr as any[]); setCfgLocal(cfg)
+    setSuscripcion(sus)
     setPremio((p as any)?.premio ?? 'Corte gratis')
     setRolMembresia((mems as any[]).find(m => m.negocio_id === ss.negocio_id)?.rol ?? null)
     if (ss.usuario_id) {
       const [locs, neg] = await Promise.all([
-        getBarberoNegocios(ss.usuario_id).catch(() => []),
-        getNegocioById(ss.negocio_id!).catch(() => null),
+        getBarberoNegocios(ss.usuario_id),
+        getNegocioById(ss.negocio_id!),
       ])
       setCfgLocalTipo((neg as any)?.tipo ?? null)
       setLocales(locs as any[])
@@ -89,7 +156,11 @@ export default function Config() {
     setEsp(u?.especialidad ?? ''); setBio(u?.bio ?? ''); setIg(u?.instagram ?? ''); setWa(u?.whatsapp ?? '')
     // Mensaje de bienvenida: por local (se queda en el perfil).
     setMsg(p?.mensaje_bienvenida ?? '')
+   } catch {
+    setFallo(true)
+   } finally {
     setLoading(false)
+   }
   }, [])
   useEffect(() => { cargar() }, [cargar])
 
@@ -145,6 +216,13 @@ export default function Config() {
     setPerfil((p: any) => ({ ...p, estado_actual: k }))
     await actualizarEstadoPerfil(sesion.perfil_id, k).catch(() => cargar())
   }
+  /** Por dónde acepta trabajo. Se pinta antes de que conteste el servidor y se
+   *  recarga si falla: es un toque, no un formulario. */
+  async function setModo(k: string) {
+    if (!sesion?.perfil_id) return
+    setPerfil((p: any) => ({ ...p, modo_atencion: k }))
+    await actualizarPerfil(sesion.perfil_id, { modo_atencion: k }).catch(() => cargar())
+  }
   function abrirServicio(sv?: any) {
     setSvModal(sv ?? 'nuevo'); setSvN(sv?.nombre ?? ''); setSvD(sv?.duracion_min ?? 30); setSvP(String(sv?.precio ?? ''))
   }
@@ -187,13 +265,64 @@ export default function Config() {
   }
 
   // Regla de producto: el barbero decide lo suyo salvo que sea empleado.
-  const empleado = rolMembresia === 'empleado'
+  /**
+   * MIENTRAS NO SEPAMOS EL ROL, NO SE ASUME EL PERMISIVO.
+   *
+   * Esto era `rolMembresia === 'empleado'`, y `rolMembresia` sale de
+   * `getMisMembresias(...).catch(() => [])`. Si esa consulta falla —un bache de
+   * red, un filtro que cambia— el rol se queda en null, `empleado` da falso y
+   * el empleado se encuentra el menú ENTERO de un barbero autónomo: servicios
+   * editables, horario editable, reglas editables. Nada de eso llega a
+   * guardarse, porque el servidor lo rechaza desde la migración 108; lo que
+   * pasa es que la pantalla le promete lo que la base le va a negar, y el
+   * cambio se deshace solo sin decir nada.
+   *
+   * Un `rol` nulo NO es un rol: es "no lo sé". Y en la duda se cierra. Los
+   * únicos dos valores que abren la pantalla son los que de verdad mandan en
+   * su silla.
+   *
+   * Es la misma trampa que el README de las pruebas ya tenía escrita para el
+   * servidor —«devolver vacío y negarse se parecen mientras la consulta
+   * funcione»—, aquí del lado de la interfaz.
+   */
+  const empleado = rolMembresia !== 'barbero_renta' && rolMembresia !== 'dueno'
+  /**
+   * ¿LLEVA SU PROPIA TARJETA DE PUNTOS? Quien alquila, y también el dueño de
+   * un local de asientos alquilados —el barbero independiente, dueño de su
+   * local de una silla—: ahí el panel del local esconde los puntos a
+   * propósito («los lleva cada barbero»), y turno_fidelidad lee los de su
+   * perfil. Solo miraba `barbero_renta`, así que el independiente no los veía
+   * en ningún panel. El dueño de un local de EMPLEADOS no: su programa es el
+   * del local, y se pone desde el panel de la barbería.
+   */
+  const puntosPropios = rolMembresia === 'barbero_renta'
+    || (rolMembresia === 'dueno' && cfgLocalTipo === 'espacios_rentados')
 
   function horarioDe(n: number) { return horarios.find(h => h.dia_semana === n) }
   function abrirHorario(n: number) {
     const h = horarioDe(n)
-    setHrModal({ n, h }); setHrIni(h ? parseInt(h.hora_inicio) : 9); setHrFin(h ? parseInt(h.hora_fin) : 18); setHrBuf(h?.tiempo_entre_clientes ?? 10)
+    setHrModal({ n, h }); setHrIni(h ? parseInt(h.hora_inicio) : 9); setHrFin(h ? parseInt(h.hora_fin) : 18); setHrBuf(h?.tiempo_entre_clientes ?? 0)
   }
+  /** Ponerlo en los siete días sin abrir el cuadro siete veces. Solo toca los
+   *  días ya abiertos: crear horarios que el barbero no ha definido sería
+   *  inventarle una jornada. */
+  async function aplicarRespiroATodos() {
+    if (!sesion?.perfil_id) return
+    setBusy(true)
+    try {
+      await Promise.all(horarios.filter((h: any) => h.activo).map((h: any) => guardarHorario({
+        id: h.id, perfil_id: sesion.perfil_id, dia_semana: h.dia_semana,
+        hora_inicio: h.hora_inicio, hora_fin: h.hora_fin,
+        tiempo_entre_clientes: hrBuf, activo: true,
+      })))
+      setHrModal(null); cargar()
+      Alert.alert('Listo', hrBuf === 0
+        ? 'Tus días abiertos quedan sin respiro entre clientes.'
+        : `Todos tus días abiertos quedan con ${hrBuf} minutos entre clientes.`)
+    } catch (e: any) { Alert.alert('No se pudo', e.message ?? 'Intenta de nuevo.') }
+    finally { setBusy(false) }
+  }
+
   async function guardarHr(activo: boolean) {
     if (!hrModal) return
     setBusy(true)
@@ -221,9 +350,21 @@ export default function Config() {
     if (!usuario || !perfil) return
     setLcBusy(true)
     try {
-      await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
+      // La RPC devuelve el perfil ya creado, y `aprobado` dice si todavía falta
+      // la firma de alguien. Desde la migración 110 entrar a un local lo firman
+      // los DOS, en los dos tipos de local: ya no hay ninguno en el que baste
+      // con tener el código.
+      //
+      // Que siga siendo un `if` y no un texto fijo no es de adorno: si ese local
+      // ya te había INVITADO, tu solicitud es el segundo sí y entras de una.
+      // Mandar a esperar a quien ya está dentro es el fallo que este if evita.
+      const nuevo: any = await unirseProfesional({ codigo: lcCodigo.trim(), tipo_servicio: perfil.tipo_servicio, rol: 'empleado', nombre: usuario.nombre, telefono: usuario.telefono })
       setLocalModal(false); setLcCodigo('')
-      Alert.alert('Solicitud enviada', 'El dueño del local debe aprobarte. Aparecerá en "Mis locales" cuando te acepte.')
+      Alert.alert(
+        nuevo?.aprobado ? 'Ya estás dentro' : 'Solicitud enviada',
+        nuevo?.aprobado
+          ? 'Ese local ya te había invitado, así que con tu solicitud quedas dentro. Lo tienes en "Mis locales".'
+          : 'El administrador del local debe aceptarte. Aparecerá en "Mis locales" cuando lo haga.')
       cargar()
     } catch (e: any) { Alert.alert('No se pudo enviar', e.message ?? 'Revisa el código.') }
     finally { setLcBusy(false) }
@@ -247,289 +388,710 @@ export default function Config() {
       } }])
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  // Sin esto, el atrás de Android sale de Configuración entera desde dentro de
+  // una sección: el usuario pierde el sitio y no entiende por qué.
+  //
+  // VA ANTES DEL `if (loading)`, y no es cosmético. Estuvo debajo y tumbaba la
+  // pantalla entera: mientras cargaba se salía por el return y este hook no se
+  // registraba; al terminar, el render seguía de largo y React encontraba un
+  // hook más que en el render anterior. Los hooks se cuentan por orden, así que
+  // ninguno puede quedar detrás de un return condicional.
+
+  // Ver arriba: los avisos viajan de teléfono a teléfono y hasta ahora no había
+  // forma de saber si este los tenía puestos.
+  const [avisosOn, setAvisosOn] = useState(false)
+  useEffect(() => { estadoAvisos().then(e => setAvisosOn(e.permiso && e.registrado)) }, [])
+  async function activarAvisos() {
+    if (avisosOn) return
+    const token = await registrarPush()
+    setAvisosOn(!!token)
+    if (!token) {
+      Alert.alert('No se pudieron activar',
+        'El teléfono no dio permiso para avisos. Actívalo en los ajustes del sistema, en la ficha de Turno.')
+    }
+  }
+
+  useEffect(() => {
+    if (!seccion) return
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { setSeccion(null); return true })
+    return () => sub.remove()
+  }, [seccion])
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
+  if (fallo) return (
+    <View style={s.center}>
+      <NoCargo que="tu configuración" onReintentar={() => { setLoading(true); cargar() }} />
+    </View>
+  )
+
+  const TITULO: Record<string, string> = {
+    cuenta: 'Perfil público', estado: 'Estado', servicios: empleado ? 'Servicios del local' : 'Mis servicios',
+    horario: empleado ? 'Horario del local' : 'Mi horario', reglas: 'Reglas', puntos: 'Sistema de puntos',
+    recordatorios: 'Recordatorios', locales: 'Mis locales', otros: 'Otros',
+    suscripcion: 'Mi suscripción',
+  }
+
+  // El valor actual de cada fila. Es lo que convierte el menú en un resumen:
+  // sin esto habría que entrar en las nueve secciones para saber cómo está
+  // configurado el negocio.
+  const svActivos = servicios.filter((x: any) => x.activo).length
+
+  // El resumen del horario DICE QUÉ DÍAS, no cuántos. Decía "2 días abiertos"
+  // y era imposible saber si eran los que tú pusiste: de hecho no lo eran —la
+  // base tenía dos lunes duplicados (migración 65)— y un número no da forma de
+  // notarlo. "Solo lunes" sí: se compara de un vistazo con lo que hiciste.
+  //
+  // Se deduplica por día también aquí. El índice único ya lo impide en la base,
+  // pero este resumen es justo el sitio donde se vio el problema, y contar
+  // sobre un Set no cuesta nada.
+  const diasAbiertosSet = new Set(horarios.filter((h: any) => h.activo).map((h: any) => h.dia_semana))
+  const diasAbiertos = diasAbiertosSet.size
+  const resumenHorario = diasAbiertos === 0 ? 'Sin días abiertos'
+    : diasAbiertos === 7 ? 'Todos los días'
+    : DIAS.filter(d => diasAbiertosSet.has(d.n)).map(d => d.l.slice(0, 3)).join(' · ')
+  const tiemposPropios = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+    || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+  const estadoActual = ESTADOS.find(e => e.k === (perfil?.estado_actual ?? 'disponible'))
+  const modoActual = MODOS.find(m => m.k === (perfil?.modo_atencion ?? 'ambos'))
+  // Qué reglas tiene sentido enseñar. Cada ajuste vive donde su modo lo puede
+  // disparar; el resto se calla, porque un control que no hace nada enseña al
+  // barbero a desconfiar de los que sí hacen algo.
+  const daCitas = aceptaCitas(perfil)
+  const daFila = aceptaFila(perfil)
+  const localActivo = locales.find((l: any) => l.negocio_id === sesion?.negocio_id)
+
+  const MENU = [
+    { k: 'cuenta', g: 'quien', t: 'Perfil público y código', icono: 'person-outline', ver: true,
+      v: [usuario?.nombre, planDeMiSilla(rolMembresia, cfgLocalTipo).montoTexto].filter(Boolean).join(' · ') },
+    // Dos mitades de la misma decisión: si aceptas trabajo, y por dónde. La
+    // segunda solo se nombra cuando NO es la normal — "Acepto clientes · Citas
+    // y fila" en todos los perfiles sería ruido en el noventa por ciento.
+    { k: 'estado', g: 'como', t: 'Estado', icono: 'radio-button-on-outline', ver: true,
+      v: [estadoActual?.l ?? 'Acepto clientes',
+          modoActual && modoActual.k !== 'ambos' ? modoActual.l : null].filter(Boolean).join(' · ') },
+    { k: 'servicios', g: 'como', t: empleado ? 'Servicios del local' : 'Mis servicios', icono: 'cut-outline', ver: true,
+      v: empleado ? `Los pone ${negocioNombre ?? 'la barbería'}`
+        : svActivos === 0 ? 'Ninguno todavía' : `${svActivos} activo${svActivos === 1 ? '' : 's'}` },
+    { k: 'horario', g: 'como', t: empleado ? 'Horario del local' : 'Mi horario', icono: 'calendar-outline', ver: true,
+      v: empleado ? `Lo fija ${negocioNombre ?? 'la barbería'}` : resumenHorario },
+    { k: 'reglas', g: 'como', t: 'Reglas', icono: 'options-outline', ver: true,
+      v: empleado ? `Las pone ${negocioNombre ?? 'la barbería'}`
+        : tiemposPropios ? 'Uso mis propios tiempos' : `Sigo los de ${negocioNombre ?? 'la barbería'}` },
+    // Solo quien alquila su asiento lleva tarjeta propia; al empleado se la
+    // pone el local, y una fila que no decide nada solo estorba.
+    { k: 'puntos', g: 'como', t: 'Sistema de puntos', icono: 'gift-outline', ver: puntosPropios,
+      v: perfil?.puntos_activos
+        ? `Cada ${perfil?.puntos_meta ?? 8} recortes · ${premio || 'Corte gratis'}`
+        : 'Desactivado' },
+    { k: 'recordatorios', g: 'como', t: 'Recordatorios', icono: 'notifications-outline', ver: true,
+      v: `Por recuperar a los ${perfil?.revisita_dias ?? 30} días` },
+    { k: 'locales', g: 'donde', t: 'Mis locales', icono: 'storefront-outline', ver: true,
+      v: locales.length > 1 ? `${localActivo?.nombre ?? 'Local'} y ${locales.length - 1} más` : (localActivo?.nombre ?? negocioNombre ?? 'Un local') },
+    // Solo se enseña cuando la paga ÉL. Al empleado la cubre su barbería y una
+    // fila que no decide nada solo estorba — la misma razón por la que el
+    // sistema de puntos tampoco le sale.
+    { k: 'suscripcion', g: 'donde', t: 'Mi suscripción', icono: 'card-outline',
+      ver: suscripcion?.quien === 'silla',
+      v: suscripcion?.estado === 'cortesia' ? 'Cortesía'
+        : suscripcion?.estado === 'vencida' ? 'Vencida'
+        : suscripcion?.dias_restantes != null
+          ? `${suscripcion.estado === 'prueba' ? 'Prueba' : 'Activa'} · ${suscripcion.dias_restantes} días`
+          : '—' },
+    { k: 'otros', g: 'donde', t: 'Otros', icono: 'ellipsis-horizontal', ver: true,
+      v: 'Cerrar sesión, dejar el local, eliminar cuenta' },
+  ]
 
   return (
-    <ScrollView style={s.container} contentContainerStyle={{ padding: 16, paddingTop: 72, paddingBottom: 32 }}>
+    <ScrollView style={s.container} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 32 }}>
       <PanelBadge />
-      <Display size={30} style={{ marginBottom: 18 }}>Configuración</Display>
-
-      <Text style={s.sec}>MI PERFIL PÚBLICO</Text>
-      <View style={s.perfilCard}>
-        <View style={s.perfilTop}>
-          <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
-            <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} bg={COLORS.blue} />
-            <View style={s.fotoBadge}>
-              {subiendoFoto ? <ActivityIndicator color="#fff" size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
-            </View>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            {usuario?.codigo_barbero ? (
-              <View style={s.codigoBox}>
-                <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
-                <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
-                <Text style={s.codigoHint}>Compártelo: tus clientes te siguen a donde trabajes.</Text>
-              </View>
-            ) : null}
-            <Text style={s.flabel}>Especialidad</Text>
-            <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
-          </View>
-        </View>
-
-        <Text style={s.flabel}>Sobre mí</Text>
-        <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} value={bio} onChangeText={setBio} multiline />
-
-        <Text style={s.flabel}>Mensaje de bienvenida</Text>
-        <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} value={msg} onChangeText={setMsg} multiline />
-
-        <View style={s.dosCol}>
-          <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>Instagram</Text>
-            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.flabel}>WhatsApp</Text>
-            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wa} onChangeText={setWa} />
-          </View>
-        </View>
-
-        <View style={s.domicilioRow}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={s.domicilioL}>Servicio a domicilio</Text>
-            <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
-          </View>
-          <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-        </View>
-
-        <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
-          {guardandoPerfil ? <ActivityIndicator color="#fff" /> : <Text style={s.guardarT}>Guardar perfil</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
-      <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
-      <View style={{ gap: 8, marginBottom: 14 }}>
-        {ESTADOS.map(e => {
-          const on = perfil?.estado_actual === e.k
-          return (
-            <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
-              <View style={[s.dot, { backgroundColor: e.c }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
-                <Text style={s.estadoD2}>{e.d}</Text>
-              </View>
-              {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
-            </TouchableOpacity>
-          )
-        })}
-      </View>
-
-      {/* El barbero es autónomo salvo que sea EMPLEADO: ahí los servicios y el
-          horario los pone la barbería, y aquí solo se consultan. */}
-      <View style={s.secRow}>
-        <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
-        {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
-      </View>
-      {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el dueño.</Text>}
-      {servicios.map((sv: any) => (
-        <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
-            <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
-          </TouchableOpacity>
-          <Text style={s.servPrecio}>{sv.precio}</Text>
-          {empleado
-            ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
-        </View>
-      ))}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
-      {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
-      {DIAS.map(d => {
-        const h = horarioDe(d.n); const abierto = h && h.activo
-        return (
-          <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
-            <Text style={s.diaL}>{d.l}</Text>
-            <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>{abierto ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}` : 'Cerrado'}</Text>
-          </TouchableOpacity>
-        )
-      })}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
-      {(() => {
-        const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
-        return (
-          <View style={s.susCard}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.susTitulo}>{plan.titulo}</Text>
-              <Text style={s.susDetalle}>{plan.detalle}</Text>
-            </View>
-            <Text style={s.susMonto}>{plan.montoTexto}</Text>
-          </View>
-        )
-      })()}
-
-      <Text style={[s.sec, { marginTop: 18 }]}>MIS REGLAS</Text>
-      <View style={s.regla}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={s.reglaL}>Límite de fila</Text>
-          <Text style={s.reglaD}>{(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}</Text>
-        </View>
-        <View style={s.stepCtrl}>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-          <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Las reglas de tiempo eran del local y solo del local, así que el
-          dueño se las imponía a alguien que le paga un asiento. Ahora el
-          autónomo las suyas; NULL sigue significando "la del local". */}
-      {!empleado && (() => {
-        const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
-          || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
-        const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
-        const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
-        const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
-        const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
-        return (
-          <>
-            <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
-            <View style={s.regla}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={s.reglaL}>Usar mis propios tiempos</Text>
-                <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
-              </View>
-              <Switch value={propias} disabled={reglasBusy}
-                onValueChange={(v) => guardarReglas(v
-                  ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
-                  : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
-                trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-            </View>
-            {propias && (
-              <>
-                <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
-                  v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
-                <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
-                  v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
-                <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
-                  v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
-                <ReglaNum l="Avisar «voy en camino»" d={`Se activa cuando le quedan ${umb} delante.`}
-                  v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
-              </>
-            )}
-          </>
-        )
-      })()}
-
-      {rolMembresia === 'barbero_renta' && (
+      {/* ── MENÚ ─────────────────────────────────────────────────────────────
+          La pantalla era una tira de once secciones seguidas: para saber cada
+          cuántos recortes regalas había que bajar por servicios, horarios,
+          suscripción y reglas. Ahora es una lista, y cada fila LLEVA SU VALOR
+          debajo: el menú ya te cuenta cómo está el negocio sin entrar. */}
+      {seccion === null ? (
         <>
-          <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
-          <View style={s.regla}>
-            <View style={{ flex: 1, paddingRight: 12 }}>
-              <Text style={s.reglaL}>Premiar a mis clientes</Text>
-              <Text style={s.reglaD}>Tu propia tarjeta, aparte de la del local.</Text>
-            </View>
-            <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
-          </View>
-          {perfil?.puntos_activos && (
-            <>
-              {/* Se cuentan recortes, no puntos abstractos, y el premio lo
-                  escribes tú: no tiene por qué ser un corte gratis. */}
-              <View style={s.regla}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={s.reglaL}>Recortes para el premio</Text>
-                  <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
-                </View>
-                <View style={s.stepCtrl}>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-                  <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
-                  <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-                </View>
+          <Encabezado titulo="Ajustes" sub={negocioNombre ? `Tu silla en ${negocioNombre}` : null} />
+          {/* TRES GRUPOS, ORDENADOS POR QUIÉN DECIDE (docs/TABLEROS-BARBERO).
+              Los bloques estaban en el orden en que se fueron añadiendo. Ahora:
+              lo tuyo, que viaja contigo a cualquier local; cómo trabajas, que
+              al empleado se lo pone su barbería y lo ve en lectura; y dónde y
+              con qué cuenta. */}
+          {GRUPOS.map(g => {
+            const filas = MENU.filter(m => m.ver && m.g === g.k)
+            if (!filas.length) return null
+            return (
+              <View key={g.k}>
+                <Rotulo>{g.l}</Rotulo>
+                {filas.map(m => (
+                  <TouchableOpacity key={m.k} style={s.menuFila} onPress={() => setSeccion(m.k)} accessibilityRole="button">
+                    <View style={s.menuIcono}><Ionicons name={m.icono as any} size={17} color={COLORS.ink} /></View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={s.menuT}>{m.t}</Text>
+                      <Text style={s.menuV} numberOfLines={1}>{m.v}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={17} color={COLORS.textLight} />
+                  </TouchableOpacity>
+                ))}
+                {/* Cambiar de panel es navegación, no configuración: va con la
+                    cuenta, no enterrado dentro de «Mis locales». */}
+                {g.k === 'donde' && <View style={{ marginTop: 14 }}><CambiarRol /></View>}
               </View>
-              <Text style={s.flabel}>¿Qué se gana?</Text>
-              <TextInput style={s.input} value={premio} onChangeText={setPremio}
-                onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
-                placeholderTextColor={COLORS.textLight} maxLength={60} />
-            </>
-          )}
+            )
+          })}
+        </>
+      ) : (
+        <TouchableOpacity style={s.volver} onPress={() => setSeccion(null)}>
+          <Ionicons name="chevron-back" size={20} color={COLORS.textMid} />
+          <Text style={s.volverT}>Ajustes</Text>
+        </TouchableOpacity>
+      )}
+      {seccion && <View style={{ marginBottom: 14 }}><Encabezado titulo={TITULO[seccion]} /></View>}
+
+      {seccion === 'cuenta' && (
+        <>
+        <Text style={s.sec}>MI PERFIL PÚBLICO</Text>
+        <View style={s.perfilCard}>
+          <View style={s.perfilTop}>
+            <TouchableOpacity onPress={cambiarFoto} disabled={subiendoFoto} activeOpacity={0.85}>
+              <Avatar name={usuario?.nombre} uri={usuario?.foto_url} size={72} />
+              <View style={s.fotoBadge}>
+                {subiendoFoto ? <ActivityIndicator color={COLORS.onInk} size="small" /> : <Text style={s.fotoBadgeT}>✎</Text>}
+              </View>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              {usuario?.codigo_barbero ? (
+                <View style={s.codigoBox}>
+                  <Text style={s.codigoLbl}>TU CÓDIGO DE BARBERO</Text>
+                  <Text style={s.codigoVal}>{usuario.codigo_barbero}</Text>
+                  <Text style={s.codigoHint}>Compártelo: tus clientes te siguen a donde trabajes.</Text>
+                </View>
+              ) : null}
+              <Text style={s.flabel}>Especialidad</Text>
+              <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={esp} onChangeText={setEsp} />
+            </View>
+          </View>
+  
+          <Text style={s.flabel}>Sobre mí</Text>
+          <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={bio} onChangeText={setBio} multiline />
+  
+          <Text style={s.flabel}>Mensaje de bienvenida</Text>
+          <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={msg} onChangeText={setMsg} multiline />
+  
+          <View style={s.dosCol}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.flabel}>Instagram</Text>
+              <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={ig} onChangeText={setIg} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.flabel}>WhatsApp</Text>
+              <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={wa} onChangeText={setWa} />
+            </View>
+          </View>
+  
+          <View style={s.domicilioRow}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.domicilioL}>Servicio a domicilio</Text>
+              <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
+            </View>
+            <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
+          </View>
+  
+          <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
+            {guardandoPerfil ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar perfil</Text>}
+          </TouchableOpacity>
+        </View>
+  
+        <Text style={[s.sec, { marginTop: 18 }]}>SUSCRIPCIÓN</Text>
+        {(() => {
+          const plan = planDeMiSilla(rolMembresia, cfgLocalTipo)
+          return (
+            <View style={s.susCard}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.susTitulo}>{plan.titulo}</Text>
+                <Text style={s.susDetalle}>{plan.detalle}</Text>
+              </View>
+              <Text style={s.susMonto}>{plan.montoTexto}</Text>
+            </View>
+          )
+        })()}
         </>
       )}
 
-      <Text style={[s.sec, { marginTop: 18 }]}>RECORDATORIO DE RE-VISITA</Text>
-      <View style={s.regla}>
-        <View style={{ flex: 1, paddingRight: 12 }}>
-          <Text style={s.reglaL}>Marcar "por recuperar"</Text>
-          <Text style={s.reglaD}>Clientes sin venir hace {perfil?.revisita_dias ?? 30} días aparecen para darles seguimiento.</Text>
+      {seccion === 'estado' && (
+        <>
+        <Text style={s.sec}>¿ACEPTAS CLIENTES?</Text>
+        <Text style={s.nota}>Si estás ocupado no hace falta tocar nada: la app lo sabe por tu silla. Esto es solo para dejar de aparecer.</Text>
+        <View style={{ gap: 8, marginBottom: 14 }}>
+          {ESTADOS.map(e => {
+            const on = perfil?.estado_actual === e.k
+            return (
+              <TouchableOpacity key={e.k} style={[s.estado, on && { borderColor: e.c }]} onPress={() => setEstado(e.k)}>
+                <View style={[s.dot, { backgroundColor: e.c }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{e.l}</Text>
+                  <Text style={s.estadoD2}>{e.d}</Text>
+                </View>
+                {on && <Text style={[s.estadoActivo, { color: e.c }]}>Activo</Text>}
+              </TouchableOpacity>
+            )
+          })}
         </View>
-        <View style={s.stepCtrl}>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', -5, 5, 180, 30)}><Text style={s.stepT}>−</Text></TouchableOpacity>
-          <Text style={s.stepVal}>{perfil?.revisita_dias ?? 30}d</Text>
-          <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', 5, 5, 180, 30)}><Text style={s.stepT}>+</Text></TouchableOpacity>
-        </View>
-      </View>
 
-      <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
-      {locales.map((l: any) => {
-        const activo = l.negocio_id === sesion?.negocio_id
-        return (
-          <TouchableOpacity key={l.negocio_id} style={[s.local, activo && s.localOn]} onPress={() => cambiarLocal(l)} disabled={activo}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.localN}>{l.nombre}</Text>
-              <Text style={s.localE}>{activo ? 'Local activo' : 'Toca para cambiar'}</Text>
+        {/* Va aquí y no en "Reglas" porque es la misma decisión que la de
+            arriba vista desde otro lado: aquella dice SI aceptas trabajo, esta
+            dice POR DÓNDE. Separarlas en dos secciones obligaría a recordar en
+            cuál está cada mitad. */}
+        <Text style={[s.sec, { marginTop: 22 }]}>¿POR DÓNDE TE LLEGAN?</Text>
+        {/* AL EMPLEADO ESTO SE LO PONE SU BARBERÍA (migración 108).
+            `modo_atencion` entró en el trigger que vigila lo que no es tuyo, y
+            la silla ya no puede escribírselo. La pantalla seguía ofreciendo los
+            tres: el empleado tocaba uno, la tarjeta se pintaba —el cambio es
+            optimista— y al volver el servidor se deshacía sin decir nada. Es
+            justo lo que advierte el comentario de MIS REGLAS, dos secciones más
+            abajo, aplicado a esta. */}
+        <Text style={s.nota}>
+          {empleado
+            ? `Por dónde te llega el trabajo lo decide ${negocioNombre ?? 'tu barbería'}. Sigues pudiendo pausarte arriba cuando lo necesites.`
+            : 'Lo que apagues aquí desaparece de la app de tus clientes. Tú puedes seguir sentando a quien llegue por la puerta en cualquiera de los tres.'}
+        </Text>
+        <View style={{ gap: 8, marginBottom: 14 }}>
+          {MODOS.filter(m => !empleado || (perfil?.modo_atencion ?? 'ambos') === m.k).map(m => {
+            const on = (perfil?.modo_atencion ?? 'ambos') === m.k
+            return (
+              <TouchableOpacity key={m.k} style={[s.estado, on && { borderColor: COLORS.red }]}
+                onPress={() => setModo(m.k)} disabled={empleado}>
+                <Ionicons name={m.icono as any} size={19} color={on ? COLORS.redText : COLORS.textLight} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{m.l}</Text>
+                  <Text style={s.estadoD2}>{m.d}</Text>
+                </View>
+                {on && <Text style={[s.estadoActivo, { color: COLORS.redText }]}>Activo</Text>}
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+        </>
+      )}
+
+      {seccion === 'servicios' && (
+        <>
+        {/* El barbero es autónomo salvo que sea EMPLEADO: ahí los servicios y el
+            horario los pone la barbería, y aquí solo se consultan. */}
+        <View style={s.secRow}>
+          <Text style={s.sec}>{empleado ? 'SERVICIOS DEL LOCAL' : 'MIS SERVICIOS'}</Text>
+          {!empleado && <TouchableOpacity onPress={() => abrirServicio()}><Text style={s.accion}>+ Agregar</Text></TouchableOpacity>}
+        </View>
+        {empleado && <Text style={s.deLocal}>Los define {negocioNombre ?? 'tu barbería'}. Si algo no cuadra, háblalo con el administrador.</Text>}
+        {/* La lista vacía era un encabezado solo, sin una línea que dijera qué
+            pasa. Y lo que hay que decir no es lo mismo para los dos: el
+            autónomo puede arreglarlo con el botón de arriba; el empleado no
+            puede tocar nada aquí, así que se le dice a quién preguntarle. */}
+        {servicios.length === 0 && (
+          <Text style={s.vacio}>
+            {empleado
+              ? `Todavía no te han puesto servicios. Pídeselos a ${negocioNombre ?? 'tu barbería'}.`
+              : 'Todavía no tienes servicios. Agrega el primero con “+ Agregar”: sin al menos uno, nadie puede pedirte turno.'}
+          </Text>
+        )}
+        {servicios.map((sv: any) => (
+          <View key={sv.id} style={[s.serv, !sv.activo && s.servApagado]}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
+              <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
+            </TouchableOpacity>
+            <Text style={s.servPrecio}>{sv.precio}</Text>
+            {empleado
+              ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
+              : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />}
+          </View>
+        ))}
+        </>
+      )}
+
+      {seccion === 'horario' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'HORARIO DEL LOCAL' : 'MIS HORARIOS'}</Text>
+        {empleado && <Text style={s.deLocal}>Tu jornada la fija la barbería. Para un rato fuera, usa “Bloquear hora” en tu agenda.</Text>}
+        {/* LA JORNADA SEMBRADA (migración 85). Antes el perfil nacía sin horario
+            y con la fila cerrada, sin decírselo a nadie: se montaba la barbería,
+            se repartía el código y no entraba ni una persona. Ahora nace con una
+            jornada de 09:00 a 18:00 — pero esa jornada la puso el sistema, no
+            él, y podría no ser la suya. Se avisa hasta que toque un día; a
+            partir de ahí el aviso desaparece solo. */}
+        {/* Al empleado este aviso le mandaba a tocar un día que tiene
+            deshabilitado: los días de arriba llevan `disabled={empleado}`. Un
+            cartel que pide algo imposible es peor que ningún cartel. */}
+        {perfil?.jornada_sembrada && (
+          <View style={s.sembrada}>
+            <Ionicons name="information-circle" size={18} color={COLORS.ink} />
+            <Text style={s.sembradaT}>
+              {empleado
+                ? `Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día. Si no es el tuyo, díselo a ${negocioNombre ?? 'tu barbería'}: el horario lo cambia el local.`
+                : 'Este horario lo pusimos nosotros para que tu fila pudiera abrir desde el primer día. Toca cualquier día para dejarlo como de verdad trabajas.'}
+            </Text>
+          </View>
+        )}
+        {DIAS.map(d => {
+          const h = horarioDe(d.n); const abierto = h && h.activo
+          return (
+            <TouchableOpacity key={d.n} style={s.dia} onPress={() => abrirHorario(d.n)} disabled={empleado}>
+              <Text style={s.diaL}>{d.l}</Text>
+              {/* Si el cierre va por detrás de la apertura, la jornada acaba al
+                  día siguiente: sin el "+1" la lista decía "9 PM – 3 AM" como
+                  si fuera un día de seis horas al revés. */}
+              <Text style={[s.diaH, !abierto && { color: COLORS.textLight }]}>
+                {abierto
+                  ? `${hora12(h.hora_inicio)} – ${hora12(h.hora_fin)}${h.hora_fin < h.hora_inicio ? ' +1' : ''}`
+                  : 'Cerrado'}
+              </Text>
+            </TouchableOpacity>
+          )
+        })}
+        </>
+      )}
+
+      {seccion === 'reglas' && (
+        <>
+        {/* «MIS reglas» no, si el empleado no pone ninguna: el menú ya le dice
+            "Las pone la barbería" y al entrar se encontraba el título
+            contrario. */}
+        <Text style={[s.sec, { marginTop: 18 }]}>{empleado ? 'REGLAS DEL LOCAL' : 'MIS REGLAS'}</Text>
+        {empleado && (
+          <Text style={s.deLocal}>
+            Las pone {negocioNombre ?? 'tu barbería'}. Aquí las ves para saber con qué cuentas.
+          </Text>
+        )}
+        {/* Cada regla vive solo si su modo la puede disparar. Enseñar ajustes
+            que no hacen nada no es inofensivo: el barbero los mueve, no pasa
+            nada, y deja de fiarse del resto de la pantalla.
+
+            El límite de fila lo comprueba turno_entrar_a_cola, que en "solo
+            citas" está cerrada — así que ahí no cabe nadie a quien limitar. */}
+        {/* Y el límite de fila, por lo mismo: también está en el trigger de la
+            108. Al empleado se le enseña el número —le sirve para saber cuánta
+            gente le puede entrar— pero sin los botones, que no hacían nada. */}
+        {daFila && (
+          <View style={s.regla}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={s.reglaL}>Límite de fila</Text>
+              <Text style={s.reglaD}>
+                {(perfil?.limite_cola ?? 0) === 0 ? 'Sin límite' : `Máx. ${perfil.limite_cola} clientes esperando`}
+                {empleado ? ` · lo pone ${negocioNombre ?? 'tu barbería'}` : ''}
+              </Text>
             </View>
-            {activo ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} /> : <Ionicons name="swap-horizontal" size={20} color={COLORS.textLight} />}
-          </TouchableOpacity>
-        )
-      })}
-      <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
-        <Ionicons name="add" size={18} color={COLORS.red} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
+            {empleado ? (
+              <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+            ) : (
+              <View style={s.stepCtrl}>
+                <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(-1)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                <Text style={s.stepVal}>{(perfil?.limite_cola ?? 0) === 0 ? '∞' : perfil.limite_cola}</Text>
+                <TouchableOpacity style={s.stepBtn} onPress={() => ajustarLimite(1)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
+        {!daFila && (
+          <Text style={s.deLocal}>Trabajas solo con cita, así que no hay fila que limitar. Cámbialo en Estado si quieres volver a tenerla.</Text>
+        )}
+  
+        {/* Las reglas de tiempo eran del local y solo del local, así que el
+            dueño se las imponía a alguien que le paga un asiento. Ahora el
+            autónomo las suyas; NULL sigue significando "la del local". */}
+        {!empleado && (() => {
+          const propias = perfil?.anticipacion_minima_horas != null || perfil?.ventana_llegada_min != null
+            || perfil?.gracia_cita_min != null || perfil?.umbral_confirmacion != null
+          const ant = perfil?.anticipacion_minima_horas ?? cfgLocal?.anticipacion_minima_horas ?? 2
+          const ven = perfil?.ventana_llegada_min ?? cfgLocal?.ventana_llegada_min ?? 10
+          const gra = perfil?.gracia_cita_min ?? cfgLocal?.gracia_cita_min ?? 5
+          const umb = perfil?.umbral_confirmacion ?? cfgLocal?.umbral_confirmacion ?? 2
+          return (
+            <>
+              <Text style={[s.sec, { marginTop: 18 }]}>MIS TIEMPOS</Text>
+              <View style={s.regla}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={s.reglaL}>Usar mis propios tiempos</Text>
+                  <Text style={s.reglaD}>{propias ? 'Mandan los tuyos, no los del local.' : `Ahora sigues los de ${negocioNombre ?? 'la barbería'}.`}</Text>
+                </View>
+                <Switch value={propias} disabled={reglasBusy}
+                  onValueChange={(v) => guardarReglas(v
+                    ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
+                    : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
+                  trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
+              </View>
+              {propias && (
+                <>
+                  {/* Estas dos solo existen si hay citas: la antelación la lee
+                      turno_slots_disponibles y la tolerancia la usa
+                      turno_llamar_siguiente para respetar una cita confirmada.
+                      Sin citas, ninguna de las dos llega a ejecutarse nunca. */}
+                  {daCitas && (
+                    <ReglaNum l="Reservar con antelación" d={`Nadie te pide cita para dentro de menos de ${ant} h.`}
+                      v={ant} suf="h" onSet={(x) => guardarReglas({ anticipacion: Math.max(0, Math.min(48, x)) })} />
+                  )}
+                  {/* Esta SÍ va en los tres modos: la ventana de llegada corre
+                      cada vez que llamas a alguien, y llamar se hace siempre —
+                      incluso en "solo citas", donde la fila se llena con quien
+                      no llegó a su hora. */}
+                  <ReglaNum l="Espera tras llamar" d={`El turno expira si no llega en ${ven} min.`}
+                    v={ven} suf="min" paso={5} onSet={(x) => guardarReglas({ ventana: Math.max(5, Math.min(60, x)) })} />
+                  {daCitas && (
+                    <ReglaNum l="Tolerancia de cita" d={`Aguantas ${gra} min a quien llega tarde.`}
+                      v={gra} suf="min" paso={5} onSet={(x) => guardarReglas({ gracia: Math.max(0, Math.min(60, x)) })} />
+                  )}
+                  {/* Decía: «Avisar "voy en camino" · Se activa cuando le
+                      quedan 2 delante». No se entendía, y con razón: no dice
+                      QUIÉN avisa a quién, ni qué pasa. Lo que hace es mandarle
+                      al cliente el aviso de que se acerca su turno, con el
+                      botón para contestar que ya viene — para que el barbero
+                      sepa si esperarlo. El número es cuándo se manda. */}
+                  <ReglaNum l="Aviso de «ya casi te toca»"
+                    d={umb === 0
+                      ? 'Ahora mismo solo se le avisa cuando lo llamas.'
+                      : `Se le avisa al cliente cuando le ${umb === 1 ? 'quede 1 persona' : `queden ${umb} personas`} delante, y puede contestarte «voy en camino».`}
+                    v={umb} suf="" onSet={(x) => guardarReglas({ umbral: Math.max(0, Math.min(10, x)) })} />
+                </>
+              )}
+            </>
+          )
+        })()}
+        </>
+      )}
+
+      {seccion === 'puntos' && (
+        <>
+        {puntosPropios && (
+          <>
+            <Text style={[s.sec, { marginTop: 18 }]}>MI PROGRAMA DE FIDELIDAD</Text>
+            <View style={s.regla}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.reglaL}>Premiar a mis clientes</Text>
+                <Text style={s.reglaD}>Tu propia tarjeta: cuenta las visitas contigo, y viaja contigo.</Text>
+              </View>
+              <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
+            </View>
+            {perfil?.puntos_activos && (
+              <>
+                {/* Se cuentan recortes, no puntos abstractos, y el premio lo
+                    escribes tú: no tiene por qué ser un corte gratis. */}
+                <View style={s.regla}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={s.reglaL}>Recortes para el premio</Text>
+                    <Text style={s.reglaD}>Cada {perfil?.puntos_meta ?? 8} visitas contigo.</Text>
+                  </View>
+                  <View style={s.stepCtrl}>
+                    <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', -1, 2, 30, 8)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+                    <Text style={s.stepVal}>{perfil?.puntos_meta ?? 8}</Text>
+                    <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('puntos_meta', 1, 2, 30, 8)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+                  </View>
+                </View>
+                <Text style={s.flabel}>¿Qué se gana?</Text>
+                <TextInput style={s.input} value={premio} onChangeText={setPremio}
+                  onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
+                  placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} maxLength={60} />
+              </>
+            )}
+          </>
+        )}
+        </>
+      )}
+
+      {seccion === 'recordatorios' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>RECORDATORIO DE RE-VISITA</Text>
+        <View style={s.regla}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={s.reglaL}>Marcar "por recuperar"</Text>
+            <Text style={s.reglaD}>Clientes sin venir hace {perfil?.revisita_dias ?? 30} días aparecen para darles seguimiento.</Text>
+          </View>
+          <View style={s.stepCtrl}>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', -5, 5, 180, 30)}><Text style={s.stepT}>−</Text></TouchableOpacity>
+            <Text style={s.stepVal}>{perfil?.revisita_dias ?? 30}d</Text>
+            <TouchableOpacity style={s.stepBtn} onPress={() => ajustarPuntos('revisita_dias', 5, 5, 180, 30)}><Text style={s.stepT}>+</Text></TouchableOpacity>
+          </View>
+        </View>
+        </>
+      )}
+
+      {/* MI SUSCRIPCIÓN. Solo la ve quien la paga: en un local de asientos
+          alquilados, cada silla; al empleado lo cubre su barbería y lo que ésta
+          pague no es asunto suyo (migración 93).
+
+          ESTA PANTALLA DECÍA QUE NO PASABA NADA AL VENCERSE, y desde la
+          migración 95 sí pasa: la silla deja de aparecer, deja de aceptar
+          trabajo y deja de operar la fila. O sea que la única pantalla que
+          puede explicarle al barbero por qué se quedó invisible le estaba
+          diciendo que todo iba bien. Un letrero que miente en esa dirección es
+          peor que no tener letrero: el barbero da por hecho que la app no
+          funciona y se va.
+
+          Sigue sin haber botón de pagar, y decirlo es más honesto que enseñar
+          uno que no lleva a ningún sitio. */}
+      {seccion === 'suscripcion' && suscripcion && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>MI SUSCRIPCIÓN</Text>
+        <View style={[s.miSusCard, suscripcion.estado === 'vencida' && s.miSusCardOff]}>
+          <Text style={[s.miSusEstado, suscripcion.estado === 'vencida' && { color: COLORS.danger }]}>
+            {suscripcion.estado === 'cortesia' ? 'Cortesía'
+              : suscripcion.estado === 'vencida' ? 'Vencida · tu silla está apagada'
+              : suscripcion.estado === 'prueba' ? 'Prueba gratis'
+              : 'Al día'}
+          </Text>
+          <Text style={s.miSusD}>
+            {suscripcion.estado === 'cortesia'
+              ? 'Tu espacio está cubierto sin fecha de vencimiento.'
+              : suscripcion.estado === 'vencida'
+                ? 'Se te pasó la fecha, así que por la app no te entra nadie: no apareces en la barbería y nadie puede pedirte turno ni reservarte cita.'
+                : `Te quedan ${suscripcion.dias_restantes} días${suscripcion.hasta ? `, hasta el ${suscripcion.hasta}` : ''}.`}
+          </Text>
+          {suscripcion.estado === 'vencida' && (
+            <Text style={s.miSusD}>
+              Lo que YA tenías sigue en pie: tus citas reservadas, tu agenda, tus clientes y tu
+              historial no se tocan. Y quien llegue a la barbería lo atiendes igual — la silla es
+              tuya. Lo único que se apagó es la fila digital.
+            </Text>
+          )}
+          <Text style={s.miSusNota}>
+            Esta silla es tuya y la pagas tú, trabajes donde trabajes. Si el local donde estás
+            no paga la app, a ti no te afecta.
+          </Text>
+        </View>
+        </>
+      )}
+
+      {seccion === 'locales' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>MIS LOCALES</Text>
+        {locales.map((l: any) => {
+          const activo = l.negocio_id === sesion?.negocio_id
+          return (
+            <TouchableOpacity key={l.negocio_id} style={[s.local, activo && s.localOn]} onPress={() => cambiarLocal(l)} disabled={activo}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.localN}>{l.nombre}</Text>
+                <Text style={s.localE}>{activo ? 'Local activo' : 'Toca para cambiar'}</Text>
+              </View>
+              {activo ? <Ionicons name="checkmark-circle" size={22} color={COLORS.success} /> : <Ionicons name="swap-horizontal" size={20} color={COLORS.textLight} />}
+            </TouchableOpacity>
+          )
+        })}
+        <TouchableOpacity style={s.otroLocal} onPress={() => setLocalModal(true)}>
+          <Ionicons name="add" size={18} color={COLORS.ink} /><Text style={s.otroLocalT}>Trabajar en otro local</Text>
+        </TouchableOpacity>
+
+        {/* LA SALIDA.
+            El dueño de un local de asientos alquilados no manda en la silla de
+            quien le renta (migración 92) y no puede apagarle la app — pero sí
+            puede dejar de alquilarle. Para que eso sea "se acabó el trato" y no
+            "se acabó tu negocio", el barbero tiene que poder montar el suyo.
+            Y hasta ahora no podía: negocio-tipo solo se alcanza desde welcome,
+            y a welcome solo se llega con CERO membresías. El que trabaja en dos
+            sitios y lo sacan de uno se quedaba sin puerta. */}
+        <TouchableOpacity style={s.otroLocal} onPress={() => router.push('/(auth)/barbero-tipo')}>
+          <Ionicons name="storefront-outline" size={17} color={COLORS.ink} />
+          <Text style={s.otroLocalT}>Montar mi propio espacio</Text>
+        </TouchableOpacity>
+        <Text style={s.otroLocalD}>
+          Tu código, tu fila y tu agenda, sin depender de ningún local. Puedes tenerlo a la vez
+          que trabajas en otro sitio.
+        </Text>
+
+        <CambiarRol />
+        </>
+      )}
+
+      {/* Eran tres botones con tres estilos que no se parecían en nada: una
+          caja con borde, un texto suelto y un texto subrayado más pequeño. Y el
+          orden visual no decía nada de la gravedad — "eliminar mi cuenta", lo
+          único irreversible, era lo más discreto de los tres.
+
+          Ahora son filas iguales, cada una con lo que hace debajo, ordenadas de
+          menos a más grave. Eliminar va aparte y en rojo lleno: el único que no
+          tiene vuelta atrás no debería parecerse a los otros dos. */}
+      {seccion === 'otros' && (
+        <>
+        <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
+
+        <TouchableOpacity style={s.cuentaFila} onPress={salir}>
+          <View style={s.cuentaIcono}><Ionicons name="log-out-outline" size={18} color={COLORS.textMid} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaT}>Cerrar sesión</Text>
+            <Text style={s.cuentaD}>Tu local y tus clientes siguen igual. Para volver a entrar necesitas un código nuevo.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={s.cuentaFila} onPress={dejarEsteLocal}>
+          <View style={s.cuentaIcono}><Ionicons name="exit-outline" size={18} color={COLORS.textMid} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaT}>Dejar {negocioNombre ?? 'este local'}</Text>
+            <Text style={s.cuentaD}>Se cancelan tus citas futuras y sales de la fila. Tu historial y tu código de barbero te siguen.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />
+        </TouchableOpacity>
+
+  
+      {/* AVISOS. Reportado: "aún no he recibido la primera notificación". En la
+          base había UN solo push token en todo el sistema: los avisos van de
+          teléfono a teléfono, así que si el que tiene que recibirlos no
+          registró el suyo, se mandan a nadie y no falla nada visible. Aquí se
+          ve y se arregla. */}
+      <TouchableOpacity style={s.cuentaFila} onPress={activarAvisos}>
+        <View style={s.cuentaIcono}>
+          <Ionicons name={avisosOn ? 'notifications' : 'notifications-off-outline'} size={18}
+            color={avisosOn ? COLORS.success : COLORS.textMid} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.cuentaT}>Avisos en este teléfono</Text>
+          <Text style={s.cuentaD}>
+            {avisosOn
+              ? 'Activados. Aquí llegan los turnos, las citas y los avisos del local.'
+              : 'Apagados: en este teléfono no vas a recibir nada. Toca para activarlos.'}
+          </Text>
+        </View>
+        {!avisosOn && <Ionicons name="chevron-forward" size={18} color={COLORS.textLight} />}
       </TouchableOpacity>
 
-      <CambiarRol />
-
-      <Text style={[s.sec, { marginTop: 18 }]}>CUENTA</Text>
-      
-      <TouchableOpacity style={s.dejar} onPress={dejarEsteLocal}><Text style={s.dejarT}>Dejar este local</Text></TouchableOpacity>
-      <TouchableOpacity style={s.salir} onPress={salir}><Text style={s.salirT}>Cerrar sesión</Text></TouchableOpacity>
-      <TouchableOpacity style={s.eliminar} onPress={eliminarMiCuenta}><Text style={s.eliminarT}>Eliminar mi cuenta</Text></TouchableOpacity>
+      <Text style={[s.sec, { marginTop: 22 }]}>SIN VUELTA ATRÁS</Text>
+        <TouchableOpacity style={s.cuentaBorrar} onPress={eliminarMiCuenta}>
+          <Ionicons name="trash-outline" size={18} color={COLORS.redText} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.cuentaBorrarT}>Eliminar mi cuenta</Text>
+            <Text style={s.cuentaBorrarD}>Borra tus datos, cancela todo lo que tengas abierto y no se puede deshacer.</Text>
+          </View>
+        </TouchableOpacity>
+        </>
+      )}
 
       {/* Modal: trabajar en otro local */}
-      <Modal visible={localModal} transparent animationType="slide" onRequestClose={() => setLocalModal(false)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={localModal} onClose={() => setLocalModal(false)}>
           <Display size={22}>Trabajar en otro local</Display>
           <Text style={s.flabel}>Código del local</Text>
-          <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} value={lcCodigo} onChangeText={setLcCodigo} />
+          <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={lcCodigo} onChangeText={setLcCodigo} />
           {/* Ya no se pregunta "¿empleado o rento silla?": la modalidad la pone
               el local y el servidor la deriva de su tipo. */}
           <Text style={s.nota}>Si el local alquila asientos entrarás como independiente; si trabaja con empleados, como empleado. Lo define la barbería.</Text>
-          <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={unirseAOtroLocal} disabled={lcBusy}>{lcBusy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Enviar solicitud</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setLocalModal(false)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
 
       {/* Modal servicio */}
-      <Modal visible={!!svModal} transparent animationType="slide" onRequestClose={() => setSvModal(null)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
           <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
           <Text style={s.flabel}>Nombre</Text>
-          <TextInput style={s.input} placeholder="Corte, Barba…" placeholderTextColor={COLORS.textLight} value={svN} onChangeText={setSvN} />
+          <TextInput style={s.input} placeholder="Corte, Barba…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={svN} onChangeText={setSvN} />
           <Text style={s.flabel}>Precio</Text>
-          <TextInput style={s.input} placeholder="500" keyboardType="number-pad" placeholderTextColor={COLORS.textLight} value={svP} onChangeText={setSvP} />
+          <TextInput style={s.input} placeholder="500" keyboardType="number-pad" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={svP} onChangeText={setSvP} />
           <Text style={s.flabel}>Duración</Text>
           <View style={s.stepRow}>
             <TouchableOpacity style={s.stepBtn} onPress={() => setSvD(Math.max(5, svD - 5))}><Text style={s.stepT}>−</Text></TouchableOpacity>
             <Text style={s.stepVal}>{svD} min</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setSvD(Math.min(180, svD + 5))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.mbtn} onPress={guardarSv} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Guardar</Text>}</TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={guardarSv} disabled={busy}>{busy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Guardar</Text>}</TouchableOpacity>
           <TouchableOpacity onPress={() => setSvModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
 
       {/* Modal horario */}
-      <Modal visible={!!hrModal} transparent animationType="slide" onRequestClose={() => setHrModal(null)}>
-        <View style={s.mbg}><View style={s.modal}>
+      <Hoja visible={!!hrModal} onClose={() => setHrModal(null)}>
           <Display size={22}>{DIAS.find(d => d.n === hrModal?.n)?.l}</Display>
           <Text style={s.flabel}>Apertura</Text>
           <View style={s.stepRow}>
@@ -537,23 +1099,53 @@ export default function Config() {
             <Text style={s.stepVal}>{hora12(`${String(hrIni).padStart(2, '0')}:00`)}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrIni(Math.min(23, hrIni + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
+          {/* TURNOS DE MADRUGADA (migración 113). El botón − topaba en
+              `hrIni + 1`: con esa cuenta, un local abierto de 9 de la noche a 3
+              de la mañana —normal en Navidad y Nochevieja— no se podía ni
+              escribir. Ahora el cierre da la vuelta al reloj y, cuando queda
+              por detrás de la apertura, se dice con todas las letras de qué día
+              es. Cierre igual a apertura sigue significando día cerrado, así
+              que ése es el único valor que se salta. */}
           <Text style={s.flabel}>Cierre</Text>
           <View style={s.stepRow}>
-            <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.max(hrIni + 1, hrFin - 1))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-            <Text style={s.stepVal}>{hora12(`${String(hrFin).padStart(2, '0')}:00`)}</Text>
-            <TouchableOpacity style={s.stepBtn} onPress={() => setHrFin(Math.min(24, hrFin + 1))}><Text style={s.stepT}>+</Text></TouchableOpacity>
+            <TouchableOpacity style={s.stepBtn}
+              onPress={() => setHrFin(f => { const x = f - 1 < 0 ? 24 : f - 1; return x === hrIni ? (x - 1 < 0 ? 24 : x - 1) : x })}>
+              <Text style={s.stepT}>−</Text>
+            </TouchableOpacity>
+            <Text style={s.stepVal}>{hora12(`${String(hrFin % 24).padStart(2, '0')}:00`)}</Text>
+            <TouchableOpacity style={s.stepBtn}
+              onPress={() => setHrFin(f => { const x = f + 1 > 24 ? 0 : f + 1; return x === hrIni ? (x + 1 > 24 ? 0 : x + 1) : x })}>
+              <Text style={s.stepT}>+</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={s.flabel}>Minutos entre clientes</Text>
+          {(hrFin % 24) <= hrIni && (
+            <Text style={s.cruza}>
+              Cierras a las {hora12(`${String(hrFin % 24).padStart(2, '0')}:00`)} del día siguiente.
+              Tu fila sigue abierta toda la madrugada.
+            </Text>
+          )}
+          {/* El respiro es POR DÍA: el sábado no se trabaja como el martes. Pero
+              nada lo decía, así que parecía global — y ponerlo en los siete días
+              obligaba a abrir este cuadro siete veces. De ahí el atajo. */}
+          <Text style={s.flabel}>Respiro entre clientes · solo este día</Text>
           <View style={s.stepRow}>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.max(0, hrBuf - 5))}><Text style={s.stepT}>−</Text></TouchableOpacity>
-            <Text style={s.stepVal}>{hrBuf} min</Text>
+            <Text style={s.stepVal}>{hrBuf === 0 ? 'Sin respiro' : `${hrBuf} min`}</Text>
             <TouchableOpacity style={s.stepBtn} onPress={() => setHrBuf(Math.min(60, hrBuf + 5))}><Text style={s.stepT}>+</Text></TouchableOpacity>
           </View>
-          <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
+          <Text style={s.bufNota}>
+            {hrBuf === 0
+              ? 'Los clientes van pegados, uno detrás de otro. Es como trabaja la mayoría.'
+              : `Se dejan ${hrBuf} minutos libres entre un cliente y el siguiente. En una jornada de 9 horas son casi ${Math.round(hrBuf * 9 * 60 / 45 / 60)} h de silla vacía.`}
+          </Text>
+          <TouchableOpacity style={s.aplicarTodos} onPress={aplicarRespiroATodos} disabled={busy}>
+            <Ionicons name="copy-outline" size={16} color={COLORS.ink} />
+            <Text style={s.aplicarTodosT}>Usar este respiro todos los días</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.mbtn} onPress={() => guardarHr(true)} disabled={busy}>{busy ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.mbtnT}>Abrir este día</Text>}</TouchableOpacity>
           <TouchableOpacity style={s.mbtnGhost} onPress={() => guardarHr(false)} disabled={busy}><Text style={s.mbtnGhostT}>Marcar cerrado</Text></TouchableOpacity>
           <TouchableOpacity onPress={() => setHrModal(null)}><Text style={s.cerrar}>Cancelar</Text></TouchableOpacity>
-        </View></View>
-      </Modal>
+        </Hoja>
     </ScrollView>
   )
 }
@@ -575,76 +1167,101 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
+  menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  menuIcono: { width: 40, height: 40, backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
+  menuT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
+  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 13, marginTop: 2 },
+  volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
+  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 15 },
+  bufNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 17, marginTop: -4, marginBottom: 10 },
+  aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
+  aplicarTodosT: { color: COLORS.blue, fontSize: 14, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  perfilCard: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 16, padding: 16, marginBottom: 18 },
+  perfilCard: { paddingBottom: 6, marginBottom: 18 },
   perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
-  perfilHint: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
-  codigoBox: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 12, marginBottom: 10 },
-  codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 },
-  codigoVal: { fontFamily: FONTS.display, fontSize: 22, color: '#fff', letterSpacing: 3, marginTop: 2 },
-  codigoHint: { fontFamily: FONTS.medium, fontSize: 10, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
-  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
-  fotoBadgeT: { color: '#fff', fontSize: 13, fontFamily: FONTS.bold },
-  multiline: { minHeight: 64, textAlignVertical: 'top' },
+  perfilHint: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
+  // Caja de TINTA: texto de SOBRE.tinta (Regla 1).
+  codigoBox: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 14, marginBottom: 10 },
+  codigoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  codigoVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: SOBRE.tinta.t1, letterSpacing: 1.2, marginTop: 2 },
+  codigoHint: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 3 },
+  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg, borderRadius: 13 },
+  fotoBadgeT: { color: COLORS.onInk, fontSize: 13, fontFamily: FONTS.semibold },
+  multiline: { height: undefined, minHeight: 88, paddingVertical: 14, borderRadius: 18, textAlignVertical: 'top' },
   dosCol: { flexDirection: 'row', gap: 10 },
-  domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.borderSoft },
-  domicilioL: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  domicilioD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  guardarBtn: { backgroundColor: COLORS.carbon, borderRadius: 12, padding: 15, alignItems: 'center', marginTop: 14 },
-  guardarT: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbon, borderRadius: 14, padding: 16, marginBottom: 8 },
-  susTitulo: { fontFamily: FONTS.bold, fontSize: 15, color: '#fff' },
-  susDetalle: { fontFamily: FONTS.medium, fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 3 },
-  susMonto: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
-  regla: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
-  reglaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  reglaD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: GLASS.hairline },
+  domicilioL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  domicilioD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  guardarBtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
+  susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 16, marginBottom: 8 },
+  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 3 },
+  susMonto: { fontFamily: FONTS.monoBold, fontSize: 20, color: SOBRE.tinta.t1 },
+  regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  reglaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  reglaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  accion: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
-  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 16 },
+  accion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
+  estado: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: GLASS.border, padding: 15, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
   dot: { width: 12, height: 12, borderRadius: 6 },
-  estadoD2: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  estadoT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.textMid, flex: 1 },
-  estadoActivo: { fontFamily: FONTS.bold, fontSize: 12 },
-  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrecio: { fontFamily: FONTS.display, fontSize: 20, color: COLORS.ink },
-  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
-  nota: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
-  deLocal: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
-  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, marginBottom: 8 },
-  diaL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
+  estadoD2: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  estadoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textMid, flex: 1 },
+  estadoActivo: { fontFamily: FONTS.semibold, fontSize: 12 },
+  serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  // Servicio pausado: apagado con borde punteado (Regla 2), el texto sigue legible.
+  servApagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  servEstado: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  nota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
+  deLocal: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
+  sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 4, marginTop: -4, marginBottom: 12 },
+  sembradaT: { flex: 1, fontFamily: FONTS.regular, fontSize: 13, color: COLORS.ink, lineHeight: 18 },
+  cruza: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.redText, marginTop: 6, marginBottom: 2, lineHeight: 17 },
+  dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  diaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  local: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginBottom: 8 },
-  localOn: { borderColor: COLORS.success },
-  localN: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  localE: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 14, padding: 13, marginBottom: 8 },
-  otroLocalT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.red },
+  local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  localOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  localN: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink },
+  localE: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: GLASS.border, borderRadius: 22, height: 44, marginTop: 12, marginBottom: 8, backgroundColor: GLASS.fillStrong },
+  otroLocalT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  otroLocalD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
+  miSusCard: { borderWidth: 1, borderColor: GLASS.border, padding: 16, marginBottom: 12, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  // Vencida se ve distinto porque ya no es un dato, es una consecuencia: la
+  // silla está apagada y el barbero tiene que poder verlo sin leer el párrafo.
+  miSusCardOff: { borderColor: COLORS.border, backgroundColor: COLORS.dangerLight},
+  miSusEstado: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
+  miSusD: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
+  miSusNota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
-  rolChip: { flex: 1, paddingVertical: 12, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center' },
-  rolChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  rolChipT: { fontFamily: FONTS.bold, fontSize: 14, color: COLORS.ink },
-  dejar: { padding: 14, alignItems: 'center', borderWidth: 1, borderColor: COLORS.dangerLight, borderRadius: 12, marginBottom: 8 },
-  dejarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.danger },
-  salir: { padding: 16, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.danger },
-  eliminar: { padding: 12, alignItems: 'center', marginBottom: 12 },
-  eliminarT: { fontFamily: FONTS.medium, fontSize: 13, color: COLORS.textLight, textDecorationLine: 'underline' },
-  mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, fontSize: 15, fontFamily: FONTS.medium, color: COLORS.ink },
-  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  rolChip: { flex: 1, height: 44, justifyContent: 'center', borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', backgroundColor: GLASS.fillStrong, borderRadius: 22 },
+  rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink},
+  rolChipT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
+  cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  cuentaIcono: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fillStrong },
+  cuentaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
+  cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
+  mbg: { flex: 1, backgroundColor: GLASS.scrim, justifyContent: 'flex-end' },
+  modal: { backgroundColor: GLASS.hoja, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, borderWidth: 1, borderBottomWidth: 0, borderColor: GLASS.border },
+  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, borderRadius: 26, overflow: 'hidden' },
+  stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 16, color: COLORS.ink },
-  mbtn: { backgroundColor: COLORS.red, borderRadius: 14, padding: 16, alignItems: 'center', marginTop: 18 },
-  mbtnT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  stepVal: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  mbtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 18, borderRadius: 26 },
+  mbtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   mbtnGhost: { padding: 14, alignItems: 'center', marginTop: 6 },
   mbtnGhostT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 12 },

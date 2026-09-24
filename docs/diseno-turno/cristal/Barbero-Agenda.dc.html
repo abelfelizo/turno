@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Barbero · Agenda</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@500;700&amp;display=swap" rel="stylesheet"><style>
+body{margin:0;font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1E4FD8}a:hover{color:#E1251B}
+.mono{font-family:"Geist Mono",ui-monospace,monospace}
+.ov{font-size:11px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase}
+/* NOCHE: cristal ahumado */
+.n{background:#0A0B0F;color:#F4F5F8}
+.n .glass{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);backdrop-filter:blur(28px) saturate(150%);-webkit-backdrop-filter:blur(28px) saturate(150%);box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 16px 36px rgba(0,0,0,.40)}
+.n .sub{color:#B9BCC7}.n .meta{color:#9A9EAB}
+.n .cap-w{background:#F4F5F8;color:#0A0B0F}
+.n .cap-g{background:rgba(255,255,255,.08);color:#F4F5F8;border:1px solid rgba(255,255,255,.18)}
+.n .line{border-top:1px solid rgba(255,255,255,.08)}
+.n .bead{background:#F4F5F8;color:#0A0B0F;box-shadow:inset 0 1px 0 #fff,0 6px 16px rgba(0,0,0,.35)}
+/* DÍA: cristal perla */
+.d{background:#ECEEF3;color:#0B0B0C}
+.d .glass{background:rgba(255,255,255,.34);border:1px solid rgba(255,255,255,.75);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.9),0 12px 30px rgba(20,24,40,.10)}
+.d .sub{color:#3D3F46}.d .meta{color:#5A5D66}
+.d .cap-w{background:#0B0B0C;color:#fff}
+.d .cap-g{background:rgba(255,255,255,.55);color:#0B0B0C;border:1px solid rgba(11,11,12,.10)}
+.d .line{border-top:1px solid rgba(11,11,12,.07)}
+.d .bead{background:#0B0B0C;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 14px rgba(11,11,12,.25)}
+.cap{height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;text-decoration:none;box-sizing:border-box;border:0}
+.polo{height:6px;border-radius:3px;background:repeating-linear-gradient(-55deg,#E1251B 0 5px,#fff 5px 10px,#1E4FD8 10px 15px,#fff 15px 20px)}
+</style></helmet>
+<div class="d" style="width:390px;height:844px;position:relative;overflow:hidden;box-sizing:border-box">
+<div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+<div style="position:absolute;width:260px;height:1300px;left:210px;top:-260px;transform:rotate(-32deg);background:repeating-linear-gradient(90deg,#E1251B 0 44px,#ffffff 44px 88px,#1E4FD8 88px 132px,#ffffff 132px 176px);filter:blur(64px);opacity:.34"></div>
+<div style="position:absolute;width:420px;height:420px;left:-180px;top:520px;border-radius:50%;background:radial-gradient(circle,rgba(30,79,216,.18),transparent 70%)"></div>
+</div>
+<div style="position:relative;padding:58px 20px 0;display:flex;flex-direction:column;gap:16px">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+<div style="display:flex;flex-direction:column;gap:3px"><span class="sub" style="font-size:14px">Barbería Duarte</span><h1 style="margin:0;font-size:30px;font-weight:700;letter-spacing:-.8px">Mi agenda</h1></div></div>
+<div class="glass" style="border-radius:26px;padding:14px 16px;display:flex;align-items:center;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><span class="ov meta">Tu código de barbero</span><span class="mono" style="font-size:26px;font-weight:700;letter-spacing:1px">ANA-4821</span></div><button class="cap cap-w" style="height:44px;padding:0 16px;font-size:14px;gap:6px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 8l4-4 4 4M5 13v6h14v-6"/></svg> Compartir</button></div>
+<div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px"><span class="glass" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span class="meta" style="font-size:11px;font-weight:600">Mar</span><span class="mono" style="font-size:19px;font-weight:700">22</span></span><span class="bead" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span style="font-size:11px;font-weight:600">Hoy</span><span class="mono" style="font-size:19px;font-weight:700">23</span></span><span class="glass" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span class="meta" style="font-size:11px;font-weight:600">Jue</span><span class="mono" style="font-size:19px;font-weight:700">24</span></span><span class="glass" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span class="meta" style="font-size:11px;font-weight:600">Vie</span><span class="mono" style="font-size:19px;font-weight:700">25</span></span><span class="glass" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span class="meta" style="font-size:11px;font-weight:600">Sáb</span><span class="mono" style="font-size:19px;font-weight:700">26</span></span><span class="glass" style="height:64px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px"><span class="meta" style="font-size:11px;font-weight:600">Dom</span><span class="mono" style="font-size:19px;font-weight:700">27</span></span></div>
+<span class="ov sub" style="padding:6px 4px 0">Citas de hoy · 4</span>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span class="mono" style="width:52px;font-size:16px;font-weight:700">10:00</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Pedro Ruiz</span><span class="meta" style="font-size:13px">Corte y barba</span></div><span style="font-size:13px;font-weight:600;color:#5A5D66;white-space:nowrap">Atendida</span></div>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span class="mono" style="width:52px;font-size:16px;font-weight:700">11:00</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Laura Mena</span><span class="meta" style="font-size:13px">Corte clásico</span></div><span style="font-size:13px;font-weight:600;color:#0B0B0C;white-space:nowrap">Confirmada</span></div>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span class="mono" style="width:52px;font-size:16px;font-weight:700">12:30</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Marcos Rivas</span><span class="meta" style="font-size:13px">Fade clásico</span></div><span style="font-size:13px;font-weight:600;color:#1E4FD8;white-space:nowrap">En camino</span></div>
+<div class="glass" style="border-radius:22px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+<span class="mono" style="width:52px;font-size:16px;font-weight:700">15:00</span><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">Juan Soto</span><span class="meta" style="font-size:13px">Corte clásico</span></div><span style="font-size:13px;font-weight:600;color:#5A5D66;white-space:nowrap">Sin confirmar</span></div>
+
+</div>
+<nav aria-label="Secciones" class="glass" style="position:absolute;left:16px;right:16px;bottom:22px;height:66px;border-radius:33px;display:flex;align-items:center;gap:2px;padding:0 6px;box-sizing:border-box"><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/><path d="M8.6 8 20 18M8.6 16 20 6"/></svg><span style="font-size:10px;font-weight:600">Mi silla</span></a><a href="#" aria-current="page" class="bead" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span style="font-size:10px;font-weight:600">Agenda</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="9" r="3"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/><circle cx="17" cy="10" r="2.3"/><path d="M16 14.6c2.3.2 3.9 1.6 4.5 4.4"/></svg><span style="font-size:10px;font-weight:600">Clientes</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V11M10 20V5M15 20v-7M20 20V8"/></svg><span style="font-size:10px;font-weight:600">Estadísticas</span></a><a href="#" style="flex:1;height:54px;border-radius:27px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:inherit;opacity:.82"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span style="font-size:10px;font-weight:600">Ajustes</span></a></nav>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

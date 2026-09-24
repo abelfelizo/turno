@@ -46,7 +46,7 @@ export function planIndependiente(): Plan {
 
 /** Empleado: lo cubre el dueño del local. */
 export function planCubierto(): Plan {
-  return { clave: 'cubierto', titulo: 'Tu suscripción', detalle: 'Incluida: la cubre el dueño del local.', monto: 0, montoTexto: 'Incluida' }
+  return { clave: 'cubierto', titulo: 'Tu suscripción', detalle: 'Incluida: la cubre el administrador del local.', monto: 0, montoTexto: 'Incluida' }
 }
 
 /**
@@ -60,13 +60,23 @@ export function planCubierto(): Plan {
  */
 export function planDeMiSilla(rol: string | null | undefined, tipoNegocio?: string | null): Plan {
   if (rol === 'barbero_renta') return planIndependiente()
+  // En un local de asientos alquilados CADA silla se paga aparte, también la
+  // del dueño (turno_suscripcion_de responde quien = 'silla', migración 93).
+  // Decía «tu asiento va dentro del plan del local», que es lo contrario: al
+  // barbero independiente —dueño de su local de una silla— le prometía algo
+  // que el servidor no le da, y la sección «Mi suscripción» de la misma
+  // pantalla le contaba sus días de prueba por silla.
+  if (rol === 'dueno' && tipoNegocio === 'espacios_rentados') {
+    return {
+      ...planIndependiente(),
+      detalle: 'Aquí cada silla lleva su propio plan, también la tuya: la pagas aparte, como cada barbero que trabaje contigo.',
+    }
+  }
   if (rol === 'dueno') {
     return {
       clave: 'dueno',
       titulo: 'Tu suscripción',
-      detalle: tipoNegocio === 'espacios_rentados'
-        ? 'Tu asiento va dentro del plan del local, que pagas tú. Los barberos que te alquilan pagan el suyo aparte.'
-        : 'Tu asiento va dentro del plan del local, que pagas tú.',
+      detalle: 'Tu asiento va dentro del plan del local, que pagas tú.',
       monto: 0,
       montoTexto: 'En el plan del local',
     }

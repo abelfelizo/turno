@@ -5,7 +5,7 @@ import { getAuthSession } from '../lib/auth'
 import { getMiUsuario, getMisMembresias, getMiPerfil } from '../lib/db'
 import { guardarSesion, limpiarSesion, getSesion } from '../lib/storage'
 import { registrarPush } from '../lib/notificaciones'
-import { COLORS } from '../constants'
+import { COLORS, SOBRE } from '../constants'
 import type { RolUsuario, PanelActivo } from '../types'
 
 export default function Index() {
@@ -53,15 +53,15 @@ export default function Index() {
       await guardarSesion({ usuario_id: usuario.id, negocio_id: m.negocio_id, perfil_id, rol, panel })
       registrarPush() // fire-and-forget: registra/actualiza el token push del usuario
 
-      if (panel === 'cliente') router.replace('/(app)/cliente/home')
+      if (panel === 'cliente') router.replace('/(app)/cliente/turno')
       else if (panel === 'barberia') router.replace('/(app)/dueno/dashboard')
-      else router.replace('/(app)/barbero/agenda')
+      else router.replace('/(app)/barbero/silla')
     })().catch(() => router.replace('/(auth)/login'))
   }, [])
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primary }}>
-      <ActivityIndicator color={COLORS.gold} size="large" />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: SOBRE.tinta.fondo }}>
+      <ActivityIndicator color="#FFFFFF" size="large" />
     </View>
   )
 }

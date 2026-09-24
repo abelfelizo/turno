@@ -1,12 +1,17 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRecargaAlEnfocar } from '../../../lib/recarga'
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion } from '../../../lib/storage'
-import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita } from '../../../lib/db'
-import { COLORS, FONTS } from '../../../constants'
-import { hora12, dinero, fechaISOLocal } from '../../../lib/format'
-import { Display, Chip, Avatar } from '../../../components/ui'
+import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas, getMiPreferido } from '../../../lib/db'
+import { aceptaCitas } from '../../../lib/atencion'
+import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
+import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
+import { Display, Avatar, NoCargo } from '../../../components/ui'
+import { useGestoVolver } from '../../../components/gestos'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 function proximosDias(n: number) {
@@ -16,6 +21,9 @@ function proximosDias(n: number) {
 }
 
 export default function Agendar() {
+  // El hueco de arriba lo dice el sistema, no un número: en un teléfono con
+  // isla dinámica 72 px se quedaban cortos y en uno sin muesca sobraban.
+  const insets = useSafeAreaInsets()
   const router = useRouter()
   const params = useLocalSearchParams<{ perfil?: string; servicio?: string; reagendar?: string }>()
   const [perfiles, setPerfiles] = useState<any[]>([])
@@ -28,19 +36,70 @@ export default function Agendar() {
   const [personas, setPersonas] = useState(1)
   const [diasActivos, setDiasActivos] = useState<Set<number> | null>(null)
   const [loading, setLoading] = useState(true)
+  /** «No hay horarios» y «no pude preguntar» no son lo mismo. Ver NoCargo. */
+  const [fallo, setFallo] = useState(false)
   const [cargandoSlots, setCargandoSlots] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const dias = proximosDias(14)
 
-  useEffect(() => {
-    (async () => {
+  /**
+   * LA RESERVA SE REHACE CADA VEZ QUE SE ABRE.
+   *
+   * Esta pantalla es una pestaña oculta, y las pestañas no se desmontan al
+   * salir de ellas. Cargaba los barberos UNA vez, la primera que se abría, y
+   * nunca más. Con dos barberías eso creaba citas en el local equivocado: la
+   * abrías estando en uno, cambiabas al otro, volvías a reservar, y la lista
+   * seguía siendo la del primero. Elegías barbero creyendo estar en un sitio
+   * y la cita se creaba en el otro — con su barbero, su precio y su hora. Así
+   * se quedó «Prueba Empleados» con cero citas y «Prueba Alquiler» con todas.
+   *
+   * Ahora cada vez que se abre: formulario en blanco, barberos del local que
+   * está en la sesión AHORA, y la preselección que traiga ESTA visita. Los
+   * parámetros se leen de una ref porque la función se creó en el primer
+   * render: leídos por cierre, serían los de la primera vez para siempre.
+   *
+   * La carga entera va dentro de un try: `getPerfilesNegocio` no llevaba
+   * `.catch` y `setLoading(false)` estaba suelto al final, así que un tirón de
+   * red dejaba esta pantalla girando y sin salida.
+   */
+  const paramsRef = useRef(params)
+  paramsRef.current = params
+  const cargar = useCallback(async () => {
+    try {
+      setFallo(false)
+      const params = paramsRef.current
+      // Lo de la visita anterior fuera: una reserva a medio hacer de otro
+      // barbero —o de otro local— no puede aparecer ya rellena.
+      setPerfil(null); setServicio(null); setFecha(''); setHora(''); setPersonas(1)
       const ss = await getSesion()
       if (ss?.negocio_id) {
         const [ps, neg] = await Promise.all([
-          getPerfilesNegocio(ss.negocio_id) as Promise<any[]>,
+          // soloAlDia: el cliente no elige entre barberos que no puede usar
+          // (migración 96). La 95 ya hace que reservarle una cita rebote.
+          getPerfilesNegocio(ss.negocio_id, { soloAlDia: true }) as Promise<any[]>,
           getNegocioById(ss.negocio_id).catch(() => null),
         ])
-        setPerfiles(ps); setNegocio(neg)
+        // Quien trabaja SOLO POR ORDEN DE LLEGADA no da citas: su agenda no
+        // tiene huecos y turno_agendar_cita lo rechaza. Listarlo aquí sería
+        // llevar al cliente a una pantalla vacía sin explicarle por qué.
+        const conCitas = (ps as any[]).filter(aceptaCitas)
+        setPerfiles(conCitas); setNegocio(neg)
+
+        // TU BARBERO, YA ELEGIDO (migración 83). Quien tiene barbero de
+        // confianza no debería tener que buscarlo en la tira cada vez que
+        // reserva: si da citas, entra preseleccionado con su primer servicio.
+        // Se salta cuando la pantalla viene con un barbero por parámetro, que
+        // es reprogramar una cita concreta y ahí manda la cita.
+        if (!params.perfil) {
+          const pref = await getMiPreferido(ss.negocio_id).catch(() => null)
+          const suyo = pref ? conCitas.find((x: any) => x.id === pref) : null
+          if (suyo) {
+            setPerfil(suyo)
+            const sv = (suyo.turno_servicios ?? []).filter((x: any) => x.activo)[0]
+            if (sv) setServicio(sv)
+          }
+        }
+
         // Preselección al reprogramar
         if (params.perfil) {
           const p = ps.find((x: any) => x.id === params.perfil)
@@ -51,9 +110,13 @@ export default function Agendar() {
           }
         }
       }
+    } catch {
+      setFallo(true)
+    } finally {
       setLoading(false)
-    })()
+    }
   }, [])
+  useRecargaAlEnfocar(cargar)
 
   // Días en que el barbero trabaja (para deshabilitar los cerrados)
   useEffect(() => {
@@ -71,6 +134,20 @@ export default function Agendar() {
 
   async function confirmar() {
     if (!perfil || !servicio || !fecha || !hora) return
+    /**
+     * LA ÚLTIMA COMPROBACIÓN ANTES DE CREAR NADA: ¿este barbero es del local
+     * en el que estoy? La cita se crea en el local DEL BARBERO —el servidor lo
+     * saca del perfil—, así que si la lista estuviera vieja, la cita iría a
+     * parar a otra barbería sin que nada lo dijera. Recargar al abrir ya lo
+     * evita; esto es para el día que otro camino deje la lista vieja.
+     */
+    const ssAhora = await getSesion()
+    if (perfil.negocio_id && ssAhora?.negocio_id && perfil.negocio_id !== ssAhora.negocio_id) {
+      Alert.alert('Cambiaste de barbería',
+        'Este barbero es de otro local. Te enseñamos los de la barbería en la que estás ahora.')
+      await cargar()
+      return
+    }
     setEnviando(true)
     try {
       if (params.reagendar) {
@@ -81,45 +158,85 @@ export default function Agendar() {
       } else {
         await agendarCita(perfil.id, servicio.id, fecha, hora)
       }
+      // El barbero se enteraba de sus propias citas solo al abrir la agenda.
+      const yo = await getMiUsuario().catch(() => null)
+      if (perfil.usuario_id) {
+        avisos.barberoNuevaCita(perfil.usuario_id, yo?.nombre ?? 'Un cliente',
+          `${fechaLarga(fechaDeISO(fecha))} a las ${hora12(hora)}`)
+      }
+      // Los recordatorios (T-24h y T-2h) los agenda el propio teléfono, porque
+      // este proyecto no tiene pg_net y la base no puede despertar a nadie. Se
+      // reprograman aquí y no solo en Inicio: quien reservaba y se salía sin
+      // volver a esa pantalla se quedaba sin recordatorio.
+      const sesion = await getSesion()
+      if (sesion?.usuario_id && sesion?.negocio_id) {
+        const mias = await getMisCitas(sesion.usuario_id, sesion.negocio_id).catch(() => [])
+        programarRecordatoriosCitas((mias as any[]).map(c => ({
+          fecha: c.fecha, hora_inicio: c.hora_inicio, servicio: c.turno_servicios?.nombre,
+        })))
+      }
       const titulo = params.reagendar ? 'Cita reprogramada' : personas > 1 ? 'Grupo agendado' : 'Cita agendada'
       const detalle = personas > 1 ? `${personas} personas · ${servicio.nombre} el ${fecha} desde las ${hora12(hora)}.` : `${servicio.nombre} el ${fecha} a las ${hora12(hora)}.`
-      Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/home') }])
+      Alert.alert(titulo, detalle, [{ text: 'Listo', onPress: () => router.replace('/(app)/cliente/turno') }])
     } catch (e: any) { Alert.alert('No se pudo agendar', e.message ?? 'Intenta otro horario.') }
     finally { setEnviando(false) }
   }
 
-  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.red} /></View>
+  // Deslizar desde el borde izquierdo vuelve atrás (components/gestos.tsx).
+  // ARRIBA DE LAS GUARDAS, y no es colocación: es obligatorio. React lleva la
+  // cuenta de los hooks por ORDEN de llamada, así que si esto queda debajo del
+  // `if (loading) return`, el primer render no lo llama y el segundo sí —
+  // «Rendered more hooks than during the previous render» y pantalla muerta.
+  const volver = useGestoVolver()
+
+  if (loading) return <View style={s.center}><ActivityIndicator size="large" color={COLORS.ink} /></View>
+  if (fallo) return <View style={s.center}><NoCargo que="los horarios" onReintentar={() => { setLoading(true); cargar() }} /></View>
 
   return (
-    <View style={s.container}>
+    <View style={s.container} {...volver}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={s.header}>
+      <View style={[s.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={s.back} onPress={() => router.back()}><Ionicons name="chevron-back" size={22} color={COLORS.ink} /></TouchableOpacity>
-        <Display size={24}>Reservar</Display>
+        <View style={{ flex: 1 }}>
+          <Display size={24}>{params.reagendar ? 'Cambiar la cita' : 'Reservar una cita'}</Display>
+          <Text style={s.subtitulo}>Eliges el día y la hora. Te guardan el sitio.</Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         {/* resumen del servicio elegido (carbón) */}
         {servicio && (
           <View style={s.mini}>
-            <View style={s.miniIcon}><Ionicons name="cut" size={20} color="#fff" /></View>
+            <View style={s.miniCuerpo}>
+            <View style={s.miniIcon}><Ionicons name="cut" size={20} color={SOBRE.tinta.t1} /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.miniName}>{servicio.nombre}</Text>
               <Text style={s.miniMeta}>con {perfil?.turno_usuarios?.nombre ?? '—'} · {servicio.duracion_min} min</Text>
             </View>
             <Text style={s.miniPrice}>{dinero(servicio.precio, negocio?.moneda)}</Text>
+            </View>
           </View>
         )}
 
         <Text style={s.sec}>1 · BARBERO</Text>
+        {/* Un local entero en modo "solo fila" deja esta tira VACÍA, y una tira
+            vacía no explica nada: parecía que la pantalla no había cargado.
+            Inicio ya lo avisa antes de entrar; si aun así se llega aquí —por un
+            enlace de reprogramar, por ejemplo— hay que decirlo. */}
+        {perfiles.length === 0 && (
+          <Text style={s.vacio}>
+            Aquí nadie está tomando citas ahora mismo. En esta barbería se atiende por orden de llegada:
+            entra a la fila digital desde “Mi turno”.
+          </Text>
+        )}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }} contentContainerStyle={{ gap: 8 }}>
           {perfiles.map((p: any) => {
             const on = perfil?.id === p.id
             return (
               <TouchableOpacity key={p.id} style={[s.bChip, on && s.bChipOn]} onPress={() => { setPerfil(p); setServicio(null); setFecha(''); setHora('') }}>
-                <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={48} bg={on ? '#fff' : COLORS.blue} color={on ? COLORS.red : '#fff'} />
-                <Text style={[s.bChipT, on && { color: '#fff' }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
-                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
+                <Avatar name={p.turno_usuarios?.nombre} uri={p.turno_usuarios?.foto_url} size={48} bg={on ? '#fff' : COLORS.blueLight} color={on ? COLORS.red : COLORS.blue} />
+                <Text style={[s.bChipT, on && { color: COLORS.onInk }]} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Barbero'}</Text>
+                {p.turno_usuarios?.especialidad ? <Text style={[s.bChipEsp, on && { color: COLORS.onInk }]} numberOfLines={1}>{p.turno_usuarios.especialidad}</Text> : null}
               </TouchableOpacity>
             )
           })}
@@ -167,8 +284,8 @@ export default function Agendar() {
                 const cerrado = diasActivos != null && !diasActivos.has(d.wd)
                 return (
                   <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn, cerrado && s.diaOff]} disabled={cerrado} onPress={() => setFecha(d.fecha)}>
-                    <Text style={[s.diaTxt, on && { color: 'rgba(255,255,255,0.85)' }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
-                    <Text style={[s.diaNum, on && { color: '#fff' }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
+                    <Text style={[s.diaTxt, on && { color: COLORS.onInk }, cerrado && { color: COLORS.disabled }]}>{d.dia}</Text>
+                    <Text style={[s.diaNum, on && { color: COLORS.onInk }, cerrado && { color: COLORS.disabled }]}>{d.num}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -179,67 +296,104 @@ export default function Agendar() {
         {fecha && (
           <>
             <Text style={[s.sec, { marginTop: 22 }]}>4 · HORA</Text>
-            {cargandoSlots ? <ActivityIndicator color={COLORS.red} style={{ marginVertical: 16 }} /> :
+            {cargandoSlots ? <ActivityIndicator color={COLORS.ink} style={{ marginVertical: 16 }} /> :
               slots.length === 0 ? <Text style={s.empty}>No hay horarios disponibles ese día.</Text> :
                 <View style={s.slots}>
+                  {/* Cuadradas y sin la píldora azul de antes: es el último
+                      toque antes de confirmar y tiene que leerse como el
+                      resto de la app, no como un control prestado. */}
                   {slots.map(t => (
-                    <View key={t} style={{ width: '31%' }}>
-                      <Chip tone="blue" selected={hora === t} onPress={() => setHora(t)}>{hora12(t)}</Chip>
-                    </View>
+                    <TouchableOpacity key={t} style={[s.slot, hora === t && s.slotOn]} onPress={() => setHora(t)}>
+                      <Text style={[s.slotT, hora === t && { color: '#FFFFFF' }]}>{hora12(t)}</Text>
+                    </TouchableOpacity>
                   ))}
                 </View>}
           </>
         )}
       </ScrollView>
 
-      {hora ? (
+      {/* EL PIE NO APARECE DE LA NADA. Salía solo al elegir la hora, y hasta
+          ese momento la pantalla no tenía fondo: no se veía adónde llevaba
+          todo esto ni cuánto iba a costar. Ahora está siempre y dice lo que
+          falta, que es la única pregunta abierta mientras se rellena. */}
+      {perfiles.length > 0 && (
         <View style={s.ctaWrap}>
-          <TouchableOpacity style={s.cta} onPress={confirmar} disabled={enviando}>
-            {enviando ? <ActivityIndicator color="#fff" /> : <Text style={s.ctaT}>{personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'} · {hora12(hora)}</Text>}
+          <View style={s.recuento}>
+            <Text style={s.recuentoT} numberOfLines={1}>
+              {!perfil ? 'Elige con quién'
+                : !servicio ? 'Elige qué te haces'
+                : !fecha ? 'Elige el día'
+                : !hora ? 'Elige la hora'
+                : `${fechaLarga(fechaDeISO(fecha))} · ${hora12(hora)}`}
+            </Text>
+            {!!servicio && (
+              <Text style={s.recuentoP}>
+                {dinero((servicio.precio ?? 0) * personas, negocio?.moneda)}
+              </Text>
+            )}
+          </View>
+          <TouchableOpacity style={[s.cta, !hora && s.ctaOff]} onPress={confirmar} disabled={enviando || !hora}>
+            {enviando ? <ActivityIndicator color="#FFFFFF" /> : (
+              <Text style={[s.ctaT, !hora && { color: COLORS.disabled }]}>
+                {params.reagendar ? 'Cambiar la cita'
+                  : personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      ) : null}
+      )}
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingTop: 60, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderRadius: 11, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  mini: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: COLORS.carbon, borderRadius: 16, padding: 14, marginBottom: 20 },
-  miniIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center' },
-  miniName: { fontFamily: FONTS.bold, fontSize: 14, color: '#fff' },
-  miniMeta: { fontFamily: FONTS.medium, fontSize: 12, color: '#9A9CA6', marginTop: 2 },
-  miniPrice: { fontFamily: FONTS.display, fontSize: 20, color: '#fff' },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.5, marginBottom: 12 },
-  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', gap: 6 },
-  bChipOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  bChipT: { fontFamily: FONTS.bold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
-  bChipEsp: { fontFamily: FONTS.medium, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
-  bienvenida: { backgroundColor: COLORS.surfaceAlt, borderRadius: 12, padding: 14, marginBottom: 20 },
-  bienvenidaT: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
-  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, padding: 14, marginBottom: 8 },
-  servOn: { borderColor: COLORS.red, backgroundColor: COLORS.redLight },
-  servName: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  servMeta: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  servPrice: { fontFamily: FONTS.display, fontSize: 22, color: COLORS.ink },
-  personas: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 14, marginTop: 22 },
-  personasL: { fontFamily: FONTS.bold, fontSize: 15, color: COLORS.ink },
-  personasD: { fontFamily: FONTS.medium, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
+  back: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  mini: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, marginBottom: 20, overflow: 'hidden' },
+  miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  miniIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: SOBRE.tinta.elevado, alignItems: 'center', justifyContent: 'center' },
+  miniName: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  miniMeta: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 2 },
+  miniPrice: { fontFamily: FONTS.monoBold, fontSize: 20, color: SOBRE.tinta.t1 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', gap: 6, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  bChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
+  bChipEsp: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, textAlign: 'center' },
+  bienvenida: { paddingVertical: 4, marginBottom: 20 },
+  bienvenidaT: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
+  serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
+  servOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
+  servPrice: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink },
+  personas: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, marginTop: 16, borderTopWidth: 1, borderTopColor: GLASS.hairline },
+  personasL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  personasD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.surfaceAlt, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.bold, fontSize: 17, color: COLORS.ink, minWidth: 22, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderRadius: 12, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
-  diaOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
-  diaOff: { opacity: 0.4, backgroundColor: COLORS.surfaceAlt },
-  diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
-  diaNum: { fontFamily: FONTS.extrabold, fontSize: 20, color: COLORS.ink, marginTop: 2 },
+  stepVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
+  dia: { width: 58, height: 66, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fillStrong },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  // Regla 2: cerrado = apagado con borde punteado, nunca opacidad.
+  diaOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  diaTxt: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textMid },
+  diaNum: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  empty: { fontFamily: FONTS.medium, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
-  ctaWrap: { padding: 16, paddingBottom: 28, borderTopWidth: 1, borderTopColor: COLORS.border, backgroundColor: COLORS.bg },
-  cta: { backgroundColor: COLORS.red, borderRadius: 14, padding: 17, alignItems: 'center' },
-  ctaT: { fontFamily: FONTS.bold, fontSize: 16, color: '#fff' },
+  empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
+  ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
+  recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11, gap: 10 },
+  recuentoT: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, textTransform: 'capitalize' },
+  recuentoP: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  cta: { backgroundColor: COLORS.red, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 26, borderWidth: 1, borderColor: COLORS.red },
+  ctaOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  ctaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#FFFFFF' },
+  subtitulo: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
+  slot: { width: '31%', height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  slotT: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.ink },
 })

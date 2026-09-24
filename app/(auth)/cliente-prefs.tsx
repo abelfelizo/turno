@@ -4,7 +4,7 @@ import { Alert, TouchableOpacity, Text, StyleSheet } from 'react-native'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador, resetBorrador } from '../../lib/onboarding'
 import { guardarPreferencias, getMiUsuario } from '../../lib/db'
-import { COLORS } from '../../constants'
+import { COLORS, SOBRE } from '../../constants'
 
 export default function ClientePrefs() {
   const router = useRouter()
@@ -53,5 +53,5 @@ export default function ClientePrefs() {
 
 const s = StyleSheet.create({
   link: { alignItems: 'center', padding: 16, marginTop: 4 },
-  linkT: { color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' },
+  linkT: { color: SOBRE.tinta.t2, fontSize: 15, fontWeight: '600' },
 })
