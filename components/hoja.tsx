@@ -82,6 +82,6 @@ const s = StyleSheet.create({
   fondo: { flex: 1, justifyContent: 'flex-end' },
   telon: { ...StyleSheet.absoluteFillObject, backgroundColor: GLASS.scrim },
   // Liquid glass: radio 32 arriba, vidrio claro con borde blanco.
-  hoja: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26, borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', borderWidth: 1, borderColor: GLASS.border, borderBottomWidth: 0 },
-  vidrio: { backgroundColor: GLASS.fillStrong },
+  hoja: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 26, borderTopLeftRadius: 36, borderTopRightRadius: 36, overflow: 'hidden', borderWidth: 1, borderColor: GLASS.border, borderBottomWidth: 0 },
+  vidrio: { backgroundColor: GLASS.hoja },
 })

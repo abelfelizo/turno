@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
-import { COLORS, FONTS } from '../../constants'
+import { COLORS, FONTS, SOBRE, BOTON_CLARO } from '../../constants'
 import { cerrarSesion } from '../../lib/auth'
 import { Display } from '../../components/ui'
 import { TurnoLogo } from '../../components/TurnoLogo'
@@ -17,7 +17,7 @@ export default function Welcome() {
       </View>
 
       <Text style={s.kicker}>Bienvenido</Text>
-      <Display size={56} color="#fff" style={{ marginBottom: 10 }}>¿Cómo{'\n'}entras?</Display>
+      <Display size={56} color={SOBRE.tinta.t1} style={{ marginBottom: 10 }}>¿Cómo{'\n'}entras?</Display>
       <Text style={s.sub}>Elige tu rol para continuar.</Text>
 
       <TouchableOpacity style={s.btn} onPress={() => router.push('/(auth)/negocio-tipo')}>
@@ -41,14 +41,15 @@ export default function Welcome() {
 }
 
 const s = StyleSheet.create({
-  c: { flex: 1, backgroundColor: COLORS.carbon, padding: 28, justifyContent: 'center' },
+  c: { flex: 1, backgroundColor: SOBRE.tinta.fondo, padding: 28, justifyContent: 'center' },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 40 },
-  kicker: { fontFamily: FONTS.bold, color: COLORS.blue, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
-  sub: { fontFamily: FONTS.regular, fontSize: 15, color: '#C7C8CF', marginBottom: 28 },
-  btn: { width: '100%', padding: 17, backgroundColor: '#FFFFFF', borderRadius: 8, alignItems: 'center', marginBottom: 10 },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#0B0B0C' },
-  btn2: { width: '100%', padding: 16, backgroundColor: COLORS.carbonEl, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.carbonBorder, marginBottom: 10 },
-  btn2T: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+  kicker: { fontFamily: FONTS.bold, color: SOBRE.tinta.azul, fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
+  sub: { fontFamily: FONTS.regular, fontSize: 15, color: SOBRE.tinta.t2, marginBottom: 28 },
+  // Regla 3 sobre tinta: principal blanco, secundario de contorno; 52, pastilla.
+  btn: { width: '100%', height: 52, justifyContent: 'center', backgroundColor: BOTON_CLARO.fondo, borderRadius: 26, alignItems: 'center', marginBottom: 10 },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: BOTON_CLARO.texto },
+  btn2: { width: '100%', height: 52, justifyContent: 'center', backgroundColor: 'transparent', borderRadius: 26, alignItems: 'center', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)', marginBottom: 10 },
+  btn2T: { fontFamily: FONTS.semibold, fontSize: 16, color: SOBRE.tinta.t1 },
   salir: { marginTop: 22, padding: 8, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#9A9CA6' },
+  salirT: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t2 },
 })

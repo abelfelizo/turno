@@ -34,7 +34,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'rea
 import { useState } from 'react'
 import { useUpdates, reloadAsync } from 'expo-updates'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, FONTS, GLASS } from '../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../constants'
 
 export function AvisoActualizacion() {
   const { isDownloading, isUpdatePending } = useUpdates()
@@ -73,7 +73,8 @@ export function AvisoActualizacion() {
 const s = StyleSheet.create({
   barra: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingVertical: 9, paddingHorizontal: 14 },
-  bajando: { backgroundColor: COLORS.carbonEl, borderRadius: 8 },
-  lista: { backgroundColor: GLASS.ink, borderRadius: 26 },
-  texto: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
+  // Tinta con su texto blanco (Regla 1), en pastilla.
+  bajando: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 999 },
+  lista: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 999 },
+  texto: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t1 },
 })

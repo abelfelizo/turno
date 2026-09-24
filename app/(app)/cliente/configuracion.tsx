@@ -200,31 +200,32 @@ function Campo({ label, ...props }: any) {
     <View style={{ marginTop: 13 }}>
       <Text style={s.campoLbl}>{String(label).toUpperCase()}</Text>
       <TextInput
-        style={[s.campo, props.multiline && { minHeight: 76, textAlignVertical: 'top' }]}
-        placeholderTextColor={COLORS.textLight}
+        style={[s.campo, props.multiline && { height: undefined, minHeight: 88, paddingVertical: 14, borderRadius: 18, textAlignVertical: 'top' }]}
+        placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
         {...props} />
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  prefNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
-  campoLbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textMid },
-  campo: { marginTop: 6, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 13, paddingVertical: 12, fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink, borderRadius: 16, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
+  prefNota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 10, lineHeight: 18 },
+  campoLbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.textMid },
+  // Campo (Regla 3/4): 52 de alto, pastilla; el de varias líneas, caja de 18.
+  campo: { marginTop: 6, borderWidth: 1, borderColor: GLASS.border, height: 52, paddingHorizontal: 18, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, borderRadius: 26, overflow: 'hidden', backgroundColor: GLASS.fillStrong },
   guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 8 },
-  nombre: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 28, lineHeight: 30, color: COLORS.ink },
-  tel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  nombre: { fontFamily: FONTS.bold, letterSpacing: -0.8, fontSize: 30, lineHeight: 34, color: COLORS.ink },
+  tel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  cuentaIcono: { width: 34, height: 34, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: GLASS.fill },
+  cuentaIcono: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fillStrong },
   cuentaT: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, padding: 14, marginBottom: 24, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
   cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.redText },
-  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
   // La misma sección que el resto de la app: rótulo con filete negro debajo.
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginTop: 22, marginBottom: 2 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginTop: 22, marginBottom: 2 },
 })

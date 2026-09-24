@@ -5,7 +5,7 @@ import { getAuthSession } from '../lib/auth'
 import { getMiUsuario, getMisMembresias, getMiPerfil } from '../lib/db'
 import { guardarSesion, limpiarSesion, getSesion } from '../lib/storage'
 import { registrarPush } from '../lib/notificaciones'
-import { COLORS } from '../constants'
+import { COLORS, SOBRE } from '../constants'
 import type { RolUsuario, PanelActivo } from '../types'
 
 export default function Index() {
@@ -60,7 +60,7 @@ export default function Index() {
   }, [])
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primary }}>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: SOBRE.tinta.fondo }}>
       <ActivityIndicator color="#FFFFFF" size="large" />
     </View>
   )

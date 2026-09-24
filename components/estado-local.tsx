@@ -19,7 +19,7 @@
  * a medias. Aquí solo se mira.
  */
 import { View, Text, StyleSheet } from 'react-native'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE, RADIO } from '../constants'
 import { relojesDeSilla, hora12 } from '../lib/format'
 import { PuntoVivo } from './ui'
 
@@ -50,8 +50,8 @@ export type SillaEstado = {
 const COLOR: Record<string, string> = {
   libre: COLORS.okNoche,
   atendiendo: COLORS.redSoft,
-  descanso: '#A3A3A3',
-  inactivo: 'rgba(255,255,255,0.35)',
+  descanso: SOBRE.tinta.pausa,
+  inactivo: SOBRE.tinta.linea,
 }
 
 export default function EstadoLocal({ sillas, delante, esperaMin }: {
@@ -98,7 +98,7 @@ export default function EstadoLocal({ sillas, delante, esperaMin }: {
       <View style={s.head}>
         {/* Baja con la línea del rótulo: la fila se alinea arriba por la cifra. */}
         <View style={{ marginTop: 3 }}>
-          <PuntoVivo color={abierto ? COLORS.success : 'rgba(255,255,255,0.4)'} vivo={abierto} />
+          <PuntoVivo color={abierto ? SOBRE.tinta.ok : SOBRE.tinta.t3} vivo={abierto} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.lbl}>LA BARBERÍA AHORA</Text>
@@ -176,22 +176,22 @@ const s = StyleSheet.create({
   // Fondo carbón, como el cuadro del barbero y la cola del dueño: es la misma
   // información y por eso tiene el mismo peso visual en las tres pantallas.
   // El relleno se va al cuerpo: el poste tiene que llegar a los dos cantos.
-  card: { backgroundColor: COLORS.carbon, borderRadius: 8, marginBottom: 16, overflow: 'hidden' },
+  card: { backgroundColor: SOBRE.tinta.fondo, borderRadius: RADIO.pintada, marginBottom: 16, overflow: 'hidden' },
   cuerpo: { padding: 18 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  lbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 1 },
-  titulo: { fontFamily: FONTS.semibold, fontSize: 17, color: '#fff', marginTop: 3 },
-  detalle: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.onCarbonMid, marginTop: 8, lineHeight: 18 },
+  lbl: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  titulo: { fontFamily: FONTS.semibold, fontSize: 17, color: SOBRE.tinta.t1, marginTop: 3 },
+  detalle: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 8, lineHeight: 18 },
   figura: { alignItems: 'flex-end' },
-  figuraN: { fontFamily: FONTS.monoBold, fontSize: 40, lineHeight: 42, color: COLORS.redSoft },
-  figuraL: { fontFamily: FONTS.bold, fontSize: 9, letterSpacing: 1.4, color: COLORS.onCarbonMid, marginTop: 1 },
+  figuraN: { fontFamily: FONTS.monoBold, fontSize: 40, lineHeight: 42, color: SOBRE.tinta.rojo },
+  figuraL: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: SOBRE.tinta.t2, marginTop: 1 },
   sillas: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 14 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },
-  punto: { width: 7, height: 7, borderRadius: 4 },
-  chipT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
-  chipD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: SOBRE.tinta.elevado,
+    borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, maxWidth: '100%' },
+  punto: { width: 8, height: 8, borderRadius: 4 },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t1, flexShrink: 1 },
+  chipD: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2 },
   porques: { marginTop: 12, gap: 5 },
-  porque: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, lineHeight: 17 },
-  porqueQuien: { fontFamily: FONTS.semibold, color: COLORS.onCarbonMid },
+  porque: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, lineHeight: 18 },
+  porqueQuien: { fontFamily: FONTS.semibold, color: SOBRE.tinta.t1 },
 })

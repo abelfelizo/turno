@@ -11,7 +11,7 @@ import { planDueno } from '../../../lib/pricing'
 import { PAISES, MONEDAS, paisDe } from '../../../lib/paises'
 import Selector from '../../../components/selector'
 import { fechaLarga, fechaDeISO } from '../../../lib/format'
-import { SUSCRIPCION, COLORS, FONTS, GLASS } from '../../../constants'
+import { SUSCRIPCION, COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
 import { Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import PanelBadge from '../../../components/panel-badge'
@@ -334,12 +334,12 @@ export default function Config() {
           <View style={{ flex: 1 }}>
             <Text style={s.marcaHint}>Toca el logo para cambiarlo.</Text>
             <Text style={s.flabel}>Nombre del local</Text>
-            <TextInput style={s.input} placeholder="Barbería…" placeholderTextColor={COLORS.textLight} value={nombre} onChangeText={setNombre} />
+            <TextInput style={s.input} placeholder="Barbería…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={nombre} onChangeText={setNombre} />
           </View>
         </View>
 
         <Text style={s.flabel}>Eslogan</Text>
-        <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} value={slogan} onChangeText={setSlogan} />
+        <TextInput style={s.input} placeholder="Tu frase de marca" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={slogan} onChangeText={setSlogan} />
 
         {/* LA DIRECCIÓN, POR PARTES. Era un solo campo de texto libre —"calle,
             sector, ciudad"— y cada dueño escribía lo que le parecía. Aquí una
@@ -347,21 +347,21 @@ export default function Config() {
             literalmente cómo llega el cliente: por eso son campos y no una
             frase. Ver migración 80. */}
         <Text style={s.flabel}>Calle y número</Text>
-        <TextInput style={s.input} placeholder="Av. Duarte 45" placeholderTextColor={COLORS.textLight} value={direccion} onChangeText={setDireccion} />
+        <TextInput style={s.input} placeholder="Av. Duarte 45" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={direccion} onChangeText={setDireccion} />
 
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
             <Text style={s.flabel}>Sector</Text>
-            <TextInput style={s.input} placeholder="Los Jardines" placeholderTextColor={COLORS.textLight} value={sector} onChangeText={setSector} />
+            <TextInput style={s.input} placeholder="Los Jardines" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={sector} onChangeText={setSector} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.flabel}>Ciudad</Text>
-            <TextInput style={s.input} placeholder="Santiago" placeholderTextColor={COLORS.textLight} value={ciudad} onChangeText={setCiudad} />
+            <TextInput style={s.input} placeholder="Santiago" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={ciudad} onChangeText={setCiudad} />
           </View>
         </View>
 
         <Text style={s.flabel}>Punto de referencia</Text>
-        <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} value={referencia} onChangeText={setReferencia} />
+        <TextInput style={s.input} placeholder="Frente al colmado, subiendo la loma…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={referencia} onChangeText={setReferencia} />
 
         {/* DESPLEGABLES, NO CARRUSELES (pedido del piloto). Con veinticuatro
             países, un carrusel horizontal esconde lo que no cabe: quien no veía
@@ -383,11 +383,11 @@ export default function Config() {
         <View style={s.dosCol}>
           <View style={{ flex: 1 }}>
             <Text style={s.flabel}>Teléfono</Text>
-            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={telefono} onChangeText={setTelefono} />
+            <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={telefono} onChangeText={setTelefono} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.flabel}>Instagram</Text>
-            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+            <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={ig} onChangeText={setIg} />
           </View>
         </View>
 
@@ -537,7 +537,7 @@ export default function Config() {
           <Text style={s.flabel}>¿Qué se gana?</Text>
           <TextInput style={s.input} value={premio} onChangeText={setPremio}
             onEndEditing={() => guardarPremio()} placeholder="Corte gratis, barba gratis, un refresco…"
-            placeholderTextColor={COLORS.textLight} maxLength={60} />
+            placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} maxLength={60} />
         </>
       )}
       {conEmpleados && <Toggle label="Asignación por el administrador" desc="Tú asignas el barbero; el cliente no elige" value={!!config?.asignacion_por_dueno} onChange={(v) => toggle('asignacion_por_dueno', v)} />}
@@ -613,7 +613,7 @@ function Toggle({ label, desc, value, onChange }: { label: string; desc: string;
         <Text style={s.toggleL}>{label}</Text>
         <Text style={s.toggleD}>{desc}</Text>
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+      <Switch value={value} onValueChange={onChange} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
     </View>
   )
 }
@@ -638,58 +638,59 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12, marginTop: 14 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, paddingVertical: 12, alignItems: 'center', backgroundColor: 'transparent' },
-  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
-  modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
+  modChip: { flex: 1, borderWidth: 1, borderColor: GLASS.border, borderRadius: 22, height: 44, justifyContent: 'center', alignItems: 'center', backgroundColor: GLASS.fillStrong },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink},
+  modChipT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   modNota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 4 },
   marcaCard: { backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 16, marginBottom: 4 },
   marcaTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   marcaHint: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
-  logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 16, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
+  logoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, borderRadius: 13, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.surface },
   logoBadgeT: { color: COLORS.onInk, fontSize: 13, fontFamily: FONTS.semibold },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 10 },
-  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
   dosCol: { flexDirection: 'row', gap: 10 },
-  pill: { borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: GLASS.fill },
-  pillOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  pill: { borderWidth: 1, borderColor: GLASS.border, borderRadius: 18, height: 36, justifyContent: 'center', paddingHorizontal: 14, backgroundColor: GLASS.fillStrong },
+  pillOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink},
   pillT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
-  guardarBtn: { backgroundColor: COLORS.ink, borderRadius: 26, padding: 15, alignItems: 'center', marginTop: 16 },
-  guardarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
-  susCard: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 18, marginBottom: 4 },
+  guardarBtn: { backgroundColor: COLORS.ink, borderRadius: 26, height: 52, justifyContent: 'center', alignItems: 'center', marginTop: 16 },
+  guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
+  // Plan en TINTA: todo su texto sale de SOBRE.tinta (Regla 1).
+  susCard: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 18, marginBottom: 4 },
   susTop: { flexDirection: 'row', alignItems: 'flex-start' },
-  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
-  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 4, paddingRight: 10 },
-  susMonto: { fontFamily: FONTS.monoBold, fontSize: 24, color: '#fff' },
-  susTope: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.redSoft, letterSpacing: 1 },
-  susFoot: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', marginTop: 14, paddingTop: 12 },
-  susFootT: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid },
-  susEstado: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.redSoft, marginTop: 12 },
-  susNota: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.onCarbonMid, marginTop: 8, lineHeight: 16 },
+  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 4, paddingRight: 10 },
+  susMonto: { fontFamily: FONTS.monoBold, fontSize: 24, color: SOBRE.tinta.t1 },
+  susTope: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.rojo, letterSpacing: 1.2 },
+  susFoot: { borderTopWidth: 1, borderTopColor: SOBRE.tinta.linea, marginTop: 14, paddingTop: 12 },
+  susFootT: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2 },
+  susEstado: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.rojo, marginTop: 12 },
+  susNota: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 8, lineHeight: 17 },
   toggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 16, marginBottom: 8 },
   toggleL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   toggleD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 8 },
   stepCtrl: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  stepBtn: { width: 34, height: 34, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   stepBtnT: { fontFamily: FONTS.semibold, fontSize: 20, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink, minWidth: 56, textAlign: 'center' },
   // Menú y cuenta: LOS MISMOS valores que en barbero/config.tsx. Es la misma
   // pantalla para otra persona, y verse distinta solo confunde a quien lleva
   // los dos paneles — que es justo el caso del dueño que también atiende.
   menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  menuIcono: { width: 36, height: 36, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  menuIcono: { width: 40, height: 40, backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   menuT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
-  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 13, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 14.5 },
-  codeCard: { backgroundColor: GLASS.ink, padding: 18, marginBottom: 12, borderRadius: 26 },
-  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onCarbonMid, letterSpacing: 1.2 },
-  codeVal: { fontFamily: FONTS.monoBold, fontSize: 44, color: '#fff', letterSpacing: 1.2, marginTop: 4 },
+  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 15 },
+  codeCard: { backgroundColor: SOBRE.tinta.fondo, padding: 18, marginBottom: 12, borderRadius: 22 },
+  codeLbl: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  codeVal: { fontFamily: FONTS.monoBold, fontSize: 44, color: SOBRE.tinta.t1, letterSpacing: 1.2, marginTop: 4 },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 8 },
-  cuentaIcono: { width: 34, height: 34, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
+  cuentaIcono: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   cuentaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: GLASS.border },
   cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
-  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
 })

@@ -45,7 +45,7 @@ export function useOpcionesTabs() {
       shadowOpacity: 0,
     },
     tabBarItemStyle: { marginVertical: 5, borderRadius: 31, overflow: 'hidden' as const, paddingTop: 5, paddingBottom: 7, height: 62 },
-    tabBarLabelStyle: { fontSize: 10, lineHeight: 13, fontFamily: FONTS.semibold, marginTop: 1 },
+    tabBarLabelStyle: { fontSize: 11, lineHeight: 13, fontFamily: FONTS.semibold, marginTop: 1 },
     tabBarBackground: () => (
       <BlurView intensity={55} tint={GLASS.tinte} style={[StyleSheet.absoluteFill, { backgroundColor: GLASS.fill }]} />
     ),

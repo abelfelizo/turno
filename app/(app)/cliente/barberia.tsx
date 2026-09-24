@@ -33,7 +33,7 @@ import {
 } from '../../../lib/db'
 import { dinero } from '../../../lib/format'
 import { direccionCompleta } from '../../../lib/paises'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE, BOTON_CLARO } from '../../../constants'
 import { Avatar, NoCargo } from '../../../components/ui'
 import Resenas from '../../../components/resenas'
 
@@ -210,7 +210,7 @@ export default function MiBarberia() {
             </View>
             {listo && (
               <TouchableOpacity style={s.canjear} onPress={() => canjear(t.perfil_id)} disabled={canjeando}>
-                {canjeando ? <ActivityIndicator color={COLORS.carbon} />
+                {canjeando ? <ActivityIndicator color={BOTON_CLARO.texto} />
                   : <Text style={s.canjearT} numberOfLines={1}>Canjear: {t.premio}</Text>}
               </TouchableOpacity>
             )}
@@ -285,7 +285,7 @@ function Barbero({ perfil, estado, preferido, abierto, onAbrir, onFila, onAgenda
     : COLORS.blue
 
   return (
-    <View style={[s.barbero, preferido && { borderLeftColor: COLORS.red }]}>
+    <View style={s.barbero}>
       <View style={s.bHead}>
         <Avatar name={u.nombre} uri={u.foto_url} size={46}
           bg={preferido ? COLORS.red : COLORS.blueLight} color={preferido ? '#fff' : COLORS.blue} />
@@ -372,24 +372,24 @@ function Contacto({ whatsapp, telefono, instagram, nombre }: any) {
   return (
     <View style={s.contacto}>
       {!!wa && (
-        <TouchableOpacity style={[s.ico, { borderColor: COLORS.success }]}
+        <TouchableOpacity style={s.ico}
           accessibilityRole="button" accessibilityLabel="Escribir por WhatsApp"
           onPress={() => abrir(`whatsapp://send?phone=${wa}`, `https://wa.me/${wa}`)}>
-          <Ionicons name="logo-whatsapp" size={15} color={COLORS.success} />
+          <Ionicons name="logo-whatsapp" size={18} color={COLORS.success} />
         </TouchableOpacity>
       )}
       {!!ig && (
-        <TouchableOpacity style={[s.ico, { borderColor: COLORS.red }]}
+        <TouchableOpacity style={s.ico}
           accessibilityRole="button" accessibilityLabel="Ver su Instagram"
           onPress={() => abrir(`instagram://user?username=${ig}`, `https://instagram.com/${ig}`)}>
-          <Ionicons name="logo-instagram" size={15} color={COLORS.ink} />
+          <Ionicons name="logo-instagram" size={18} color={COLORS.ink} />
         </TouchableOpacity>
       )}
       {!!tel && (
-        <TouchableOpacity style={[s.ico, { borderColor: COLORS.ink }]}
+        <TouchableOpacity style={s.ico}
           accessibilityRole="button" accessibilityLabel="Llamar"
           onPress={() => abrir(`tel:${tel}`)}>
-          <Ionicons name="call" size={14} color={COLORS.ink} />
+          <Ionicons name="call" size={17} color={COLORS.ink} />
         </TouchableOpacity>
       )}
     </View>
@@ -410,62 +410,64 @@ const s = StyleSheet.create({
   centro: { flex: 1, backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center' },
 
   marca: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },
-  marcaN: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 28, lineHeight: 29, color: COLORS.ink },
-  marcaS: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  marcaN: { fontFamily: FONTS.bold, letterSpacing: -0.8, fontSize: 30, lineHeight: 34, color: COLORS.ink },
+  marcaS: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
   marcaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 4, lineHeight: 17 },
 
-  chipLocal: { paddingVertical: 7, paddingHorizontal: 13, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
-  chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
-  chipLocalT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid },
+  chipLocal: { height: 36, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: GLASS.border, borderRadius: 18, backgroundColor: GLASS.fillStrong },
+  chipLocalOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  chipLocalT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
 
-  fidel: { marginTop: 18, backgroundColor: GLASS.ink, borderRadius: 26, padding: 17 },
+  fidel: { marginTop: 18, backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 17 },
   fidelHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 },
-  fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 10.5, letterSpacing: 1.2, color: COLORS.onCarbonMid },
-  fidelNum: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff' },
-  barra: { height: 10, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: 12, borderRadius: 5 },
+  fidelLbl: { flex: 1, fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: SOBRE.tinta.t2 },
+  fidelNum: { fontFamily: FONTS.monoBold, fontSize: 22, color: SOBRE.tinta.t1 },
+  barra: { height: 10, backgroundColor: SOBRE.tinta.elevado, marginTop: 12, borderRadius: 5 },
   barraFill: { height: 10, backgroundColor: COLORS.red, borderRadius: 5 },
   fidelFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 11, gap: 10 },
-  fidelPremio: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.onCarbonMid },
-  fidelFaltan: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff' },
+  fidelPremio: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t2 },
+  fidelFaltan: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t1 },
 
   vale: { marginTop: 10, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 13, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: GLASS.fill },
   valeN: { fontFamily: FONTS.monoBold, fontSize: 15, color: COLORS.ink },
   valeD: { flex: 1, fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textMid },
 
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 10, marginBottom: 10 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, marginTop: 10, marginBottom: 10 },
   secRegla: { height: 0, marginTop: 4 },
-  nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 11, lineHeight: 18 },
+  nota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 11, lineHeight: 18 },
   vacio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 10 },
 
   barbero: { backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 8, marginTop: 16 },
   bHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   bNombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  bNombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  bTuyo: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
+  bNombre: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink, flexShrink: 1 },
+  bTuyo: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' },
   bMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
-  bEstado: { fontFamily: FONTS.semibold, fontSize: 11.5 },
+  bEstado: { fontFamily: FONTS.semibold, fontSize: 13 },
 
   contacto: { flexDirection: 'row', gap: 6, marginLeft: 3 },
-  ico: { width: 30, height: 30, borderWidth: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },
+  // Botón de icono: círculo de 44 en cristal (Regla 3).
+  ico: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
 
   servicio: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, backgroundColor: GLASS.fillStrong, borderRadius: 16, padding: 14, marginTop: 8 },
-  svN: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
-  svD: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
+  svN: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  svD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 1 },
   svP: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
 
   bAcciones: { flexDirection: 'row', gap: 9, marginTop: 13 },
-  bBtn: { flex: 1, height: 46, alignItems: 'center', justifyContent: 'center' },
-  bBtnRojo: { backgroundColor: COLORS.ink, borderRadius: 26 },
-  bBtnContorno: { borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
+  bBtn: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  bBtnRojo: { backgroundColor: COLORS.ink },
+  bBtnContorno: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong },
   bBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
 
   plegado: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 12, borderTopWidth: 1, borderTopColor: GLASS.hairline },
-  plegadoT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid },
+  plegadoT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
 
-  canjear: { backgroundColor: GLASS.fill, padding: 14, alignItems: 'center', marginTop: 14, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
-  canjearT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.carbon, letterSpacing: 0 },
+  // Principal sobre tinta: blanco con texto negro (Regla 3).
+  canjear: { backgroundColor: BOTON_CLARO.fondo, height: 44, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', marginTop: 14, borderRadius: 22 },
+  canjearT: { fontFamily: FONTS.semibold, fontSize: 15, color: BOTON_CLARO.texto, letterSpacing: 0 },
   salir: { marginTop: 26, paddingVertical: 13, alignItems: 'center' },
-  salirT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
+  salirT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
   agregar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24, borderWidth: 1, borderColor: GLASS.border, padding: 15, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
   agregarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
 })

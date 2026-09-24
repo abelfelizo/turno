@@ -55,7 +55,7 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
       <Hoja visible={abierto} onClose={cerrar}>
         <Display size={22}>{titulo ?? etiqueta}</Display>
         {opciones.length >= buscarDesde && (
-          <TextInput style={s.busca} placeholder="Buscar…" placeholderTextColor={COLORS.textLight}
+          <TextInput style={s.busca} placeholder="Buscar…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
             value={busca} onChangeText={setBusca} autoCorrect={false} />
         )}
         {/* La hoja ya limita su alto; esto deja que la lista larga se recorra
@@ -68,7 +68,7 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
               <TouchableOpacity key={o.valor} style={s.fila}
                 onPress={() => { onElegir(o.valor); cerrar() }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.filaT, activa && { color: COLORS.red }]}>{o.etiqueta}</Text>
+                  <Text style={[s.filaT, activa && { color: COLORS.redText }]}>{o.etiqueta}</Text>
                   {o.nota ? <Text style={s.filaN}>{o.nota}</Text> : null}
                 </View>
                 {activa && <Ionicons name="checkmark" size={19} color={COLORS.ink} />}
@@ -83,10 +83,10 @@ export default function Selector({ etiqueta, valor, opciones, onElegir, titulo, 
 }
 
 const s = StyleSheet.create({
-  label: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.textMid, letterSpacing: 0.4, marginBottom: 6, marginTop: 12 },
-  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingVertical: 13, paddingHorizontal: 13 },
+  label: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textMid, letterSpacing: 0.4, marginBottom: 6, marginTop: 12 },
+  caja: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, minHeight: 52, paddingVertical: 13, paddingHorizontal: 18 },
   valor: { flex: 1, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink },
-  busca: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
+  busca: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, marginTop: 14 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   filaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   filaN: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },

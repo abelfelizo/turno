@@ -12,7 +12,7 @@
       "fallbackToCacheTimeout": 0
     },
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "scheme": "turno",
     "ios": {
       "supportsTablet": false,

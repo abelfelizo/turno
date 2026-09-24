@@ -12,7 +12,7 @@ import {
 } from '@expo-google-fonts/geist'
 import { GeistMono_500Medium, GeistMono_700Bold } from '@expo-google-fonts/geist-mono'
 import { Text } from 'react-native'
-import { COLORS, NOCHE } from '../constants'
+import { COLORS, NOCHE, SOBRE } from '../constants'
 import { ErrorBoundary } from '../components/error-boundary'
 import { AvisoActualizacion } from '../components/actualizacion'
 import { faltaConfiguracion } from '../lib/supabase'
@@ -98,18 +98,18 @@ export default function RootLayout() {
   // Una actualización publicada sin las variables del servidor. Antes esto
   // cerraba la app al abrir, sin decir nada; ahora al menos se lee.
   if (faltaConfiguracion) return (
-    <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginBottom: 10, textAlign: 'center' }}>
+    <View style={{ flex: 1, backgroundColor: SOBRE.tinta.fondo, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <Text style={{ color: SOBRE.tinta.t1, fontSize: 17, fontWeight: '700', marginBottom: 10, textAlign: 'center' }}>
         Esta versión salió mal publicada
       </Text>
-      <Text style={{ color: '#B9BAC0', fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
+      <Text style={{ color: SOBRE.tinta.t2, fontSize: 14, lineHeight: 20, textAlign: 'center' }}>
         Le faltan los datos del servidor, así que no puede conectarse. No es tu
         teléfono ni tu cuenta: hay que volver a publicar la actualización.
       </Text>
     </View>
   )
 
-  if (!loaded) return <View style={{ flex: 1, backgroundColor: COLORS.carbon, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FFFFFF" size="large" /></View>
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: SOBRE.tinta.fondo, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#FFFFFF" size="large" /></View>
   // SafeAreaProvider envuelve TODO: es de donde salen las medidas reales del
   // teléfono (la barra de gestos, los botones de Android, la muesca). Sin él,
   // useSafeAreaInsets devuelve ceros y las barras de abajo vuelven a quedar

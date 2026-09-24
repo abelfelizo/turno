@@ -272,7 +272,7 @@ function SinCita({ datos, servicios, moneda, enFila, ocupado, acciones, setHoja 
 
           <Seccion>Su nombre · si quiere</Seccion>
           <TextInput style={s.input} value={nombre} onChangeText={setNombre} placeholder="Para su ficha y su tarjeta"
-            placeholderTextColor={COLORS.textLight} autoCapitalize="words" returnKeyType="done" maxLength={60} />
+            placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} autoCapitalize="words" returnKeyType="done" maxLength={60} />
 
           {noLlegan.length > 0 && elegido && (
             <Nota tono="ambar">
@@ -597,7 +597,7 @@ function Ficha({ f, sesion, moneda, setHoja }: Props & { f: Extract<HojaSilla, {
 }
 
 const s = StyleSheet.create({
-  titulo: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 26, lineHeight: 30, color: COLORS.ink, marginTop: 4 },
+  titulo: { fontFamily: FONTS.bold, letterSpacing: -0.5, fontSize: 24, lineHeight: 30, color: COLORS.ink, marginTop: 4 },
   sub: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: COLORS.textMid, marginTop: 4, marginBottom: 8 },
   b: { fontFamily: FONTS.semibold, color: COLORS.ink },
   secT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.ink },
@@ -607,39 +607,39 @@ const s = StyleSheet.create({
   dato: { paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
   datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   datoL: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
-  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
+  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   tarjetaN: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
   barra: { height: 8, backgroundColor: GLASS.fillStrong, marginTop: 10, borderRadius: 4 },
   barraLlena: { height: 8, backgroundColor: COLORS.ink, borderRadius: 4 },
   opc: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   opcT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  opcD: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 17, color: COLORS.textMid, marginTop: 2 },
+  opcD: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 17, color: COLORS.textMid, marginTop: 2 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, paddingHorizontal: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
-  servSel: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
-  servN: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
-  servD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  servSel: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  servN: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  servD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
   servP: { fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
   vacio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginVertical: 14 },
-  input: { borderWidth: 1, borderColor: GLASS.border, height: 50, paddingHorizontal: 14, marginTop: 12, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16, overflow: 'hidden' },
+  input: { borderWidth: 1, borderColor: GLASS.border, height: 52, paddingHorizontal: 18, marginTop: 12, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16, overflow: 'hidden' },
   chips: { flexDirection: 'row', gap: 8, marginTop: 10, marginBottom: 4 },
-  chip: { flex: 1, height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fill, borderRadius: 23 },
-  chipSel: { backgroundColor: COLORS.ink, borderRadius: 26 },
+  chip: { flex: 1, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fillStrong, borderRadius: 22 },
+  chipSel: { backgroundColor: COLORS.ink},
   chipT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16, paddingHorizontal: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
   localAqui: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
-  localN: { flex: 1, fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 20, color: COLORS.ink },
-  aqui: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden', borderRadius: 999 },
+  localN: { flex: 1, fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink },
+  aqui: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden', borderRadius: 999 },
   visita: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   visitaF: { width: 62, fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
   todo: { paddingVertical: 14 },
-  todoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.blue },
+  todoT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.blue },
   pie: { borderTopWidth: 1, borderTopColor: GLASS.hairline, marginTop: 18, paddingTop: 16, gap: 4 },
   resumen: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   resumenT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid },
   resumenP: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink },
-  rojo: { height: 56, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 28 },
-  rojoT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
-  contorno: { height: 54, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 27, backgroundColor: GLASS.fill },
+  rojo: { height: 52, backgroundColor: COLORS.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 26 },
+  rojoT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#FFFFFF' },
+  contorno: { height: 52, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderRadius: 26, backgroundColor: GLASS.fillStrong },
   contornoT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink, letterSpacing: 0 },
   ahoraNo: { alignItems: 'center', paddingVertical: 12 },
   ahoraNoT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },

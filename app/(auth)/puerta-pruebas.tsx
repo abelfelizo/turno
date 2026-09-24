@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { entrarConClave, cerrarSesion } from '../../lib/auth'
 import { limpiarSesion } from '../../lib/storage'
 import { ENCENDIDA, CLAVE, REPARTO } from '../../lib/pruebas'
-import { COLORS, FONTS } from '../../constants'
+import { COLORS, FONTS, SOBRE } from '../../constants'
 import { Display, VersionBundle } from '../../components/ui'
 
 /**
@@ -52,9 +52,9 @@ export default function PuertaPruebas() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: COLORS.carbon }} contentContainerStyle={s.c}>
+    <ScrollView style={{ flex: 1, backgroundColor: SOBRE.tinta.fondo }} contentContainerStyle={s.c}>
       <StatusBar style="light" />
-      <Display size={34} style={{ color: '#fff', marginBottom: 6 }}>Puerta de pruebas</Display>
+      <Display size={34} style={{ color: SOBRE.tinta.t1, marginBottom: 6 }}>Puerta de pruebas</Display>
       <Text style={s.sub}>
         Cuentas de mentira, sesión de verdad. Entras como cualquiera de ellos y el servidor
         te trata igual que a un usuario real.
@@ -73,7 +73,7 @@ export default function PuertaPruebas() {
               </View>
               {entrando === p.email
                 ? <ActivityIndicator color="#FFFFFF" />
-                : <Ionicons name="chevron-forward" size={20} color={COLORS.textLight} />}
+                : <Ionicons name="chevron-forward" size={20} color={SOBRE.tinta.t3} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -87,24 +87,24 @@ export default function PuertaPruebas() {
           pantalla a la que se llega sin iniciar sesión: cuando la duda es «¿me
           llegó la actualización?», la respuesta tiene que estar antes de la
           puerta, no detrás. */}
-      <VersionBundle />
+      <VersionBundle tinta />
     </ScrollView>
   )
 }
 
 const s = StyleSheet.create({
-  c: { padding: 24, paddingTop: 72, paddingBottom: 48, backgroundColor: COLORS.carbon, flexGrow: 1 },
-  sub: { fontFamily: FONTS.regular, fontSize: 14, color: '#C7C8CF', lineHeight: 20 },
-  grupo: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.blue, letterSpacing: 1.4, marginBottom: 10 },
+  c: { padding: 24, paddingTop: 72, paddingBottom: 48, backgroundColor: SOBRE.tinta.fondo, flexGrow: 1 },
+  sub: { fontFamily: FONTS.regular, fontSize: 14, color: SOBRE.tinta.t2, lineHeight: 20 },
+  grupo: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.azul, letterSpacing: 1.2, marginBottom: 10 },
   ficha: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder,
-    borderRadius: 8, padding: 14, marginBottom: 8,
+    backgroundColor: SOBRE.tinta.elevado, borderWidth: 1, borderColor: SOBRE.tinta.borde,
+    borderRadius: 18, padding: 14, marginBottom: 8,
   },
-  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
-  papel: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.redSoft, marginTop: 2 },
-  para: { fontFamily: FONTS.regular, fontSize: 12, color: '#9A9CA6', marginTop: 4, lineHeight: 17 },
-  apagada: { fontFamily: FONTS.semibold, fontSize: 15, color: '#C7C8CF', textAlign: 'center' },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  papel: { fontFamily: FONTS.semibold, fontSize: 12, color: SOBRE.tinta.rojo, marginTop: 2 },
+  para: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 4, lineHeight: 17 },
+  apagada: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t2, textAlign: 'center' },
   volver: { marginTop: 28, padding: 12, alignItems: 'center' },
-  volverT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#9A9CA6' },
+  volverT: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t2 },
 })

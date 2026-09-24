@@ -26,7 +26,7 @@ import { dinero, fechaDeISO } from '../../../lib/format'
 import { escribirCliente } from '../../../lib/whatsapp'
 import { enviarPush } from '../../../lib/notificaciones'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo } from '../../../components/d2'
 import PanelBadge from '../../../components/panel-badge'
@@ -206,7 +206,7 @@ export default function Clientes() {
           <View style={s.buscar}>
             <Ionicons name="search" size={17} color={COLORS.textLight} />
             <TextInput style={s.buscarT} value={buscar} onChangeText={setBuscar} placeholder="Buscar por nombre"
-              placeholderTextColor={COLORS.textLight} autoCorrect={false} returnKeyType="search" />
+              placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} autoCorrect={false} returnKeyType="search" />
             {!!buscar && (
               <TouchableOpacity onPress={() => setBuscar('')} hitSlop={10} accessibilityLabel="Borrar búsqueda">
                 <Ionicons name="close" size={17} color={COLORS.textMid} />
@@ -285,7 +285,7 @@ export default function Clientes() {
               <View style={s.recup}>
                 <TouchableOpacity style={s.recupFila} onPress={() => abrir(item)} activeOpacity={0.7} accessibilityRole="button">
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[s.nombre, { fontSize: 16.5 }]} numberOfLines={1}>{item.nombre}</Text>
+                    <Text style={[s.nombre, { fontSize: 17 }]} numberOfLines={1}>{item.nombre}</Text>
                     <Text style={s.meta}>Última visita: {fechaCorta(item.ultima)}</Text>
                   </View>
                   <Text style={s.dias}>{item.dias}<Text style={s.diasD}>d</Text></Text>
@@ -307,9 +307,9 @@ export default function Clientes() {
           }}
           ListFooterComponent={recuperar.length > 1 ? (
             <TouchableOpacity style={s.avisar} onPress={avisarATodos} accessibilityRole="button">
-              <Ionicons name="chatbox-outline" size={18} color="#fff" />
+              <Ionicons name="chatbox-outline" size={18} color={SOBRE.tinta.t1} />
               <Text style={s.avisarT}>Mandarles un aviso a los {recuperar.length} de una vez</Text>
-              <Ionicons name="chevron-forward" size={17} color={COLORS.onCarbonMid} />
+              <Ionicons name="chevron-forward" size={17} color={SOBRE.tinta.t2} />
             </TouchableOpacity>
           ) : null}
         />
@@ -334,7 +334,7 @@ export default function Clientes() {
                 <View style={s.dato}>
                   <View style={s.datoFila}>
                     <Text style={s.datoL}>Su tarjeta contigo</Text>
-                    <Text style={[s.datoN, listo && { color: COLORS.red }]}>{listo ? `Le toca: ${ficha.premio}` : `${disp} / ${ficha.meta}`}</Text>
+                    <Text style={[s.datoN, listo && { color: COLORS.redText }]}>{listo ? `Le toca: ${ficha.premio}` : `${disp} / ${ficha.meta}`}</Text>
                   </View>
                   {!listo && <View style={s.barra}><View style={[s.barraLlena, { width: `${Math.min(100, (disp / Math.max(1, ficha.meta)) * 100)}%` }]} /></View>}
                 </View>
@@ -368,7 +368,7 @@ export default function Clientes() {
             )}
 
             <Rotulo>Tu nota · solo tú la ves</Rotulo>
-            <TextInput style={s.input} placeholder="Cómo le gusta, qué hablaron, qué recordar…" placeholderTextColor={COLORS.textLight}
+            <TextInput style={s.input} placeholder="Cómo le gusta, qué hablaron, qué recordar…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
               value={nota} onChangeText={setNota} multiline />
             <TouchableOpacity style={s.guardar} onPress={guardar} disabled={guardando} accessibilityRole="button">
               {guardando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.guardarT}>Guardar nota</Text>}
@@ -418,36 +418,37 @@ const s = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 36, textAlign: 'center' },
   b: { fontFamily: FONTS.semibold, color: COLORS.ink },
-  buscar: { flexDirection: 'row', alignItems: 'center', gap: 9, height: 46, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 12, marginTop: 16, backgroundColor: GLASS.fill, borderRadius: 23 },
-  buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, paddingVertical: 0 },
+  buscar: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 52, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 16, marginTop: 16, backgroundColor: GLASS.fillStrong, borderRadius: 26 },
+  buscarT: { flex: 1, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, paddingVertical: 0 },
   ordenes: { flexDirection: 'row', gap: 7, marginTop: 12, marginBottom: 4, flexWrap: 'wrap' },
-  orden: { paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: GLASS.border, borderRadius: 999, backgroundColor: GLASS.fill },
-  ordenOn: { backgroundColor: COLORS.ink, borderRadius: 26 },
-  ordenT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
+  orden: { height: 36, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: GLASS.border, borderRadius: 18, backgroundColor: GLASS.fillStrong },
+  ordenOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  ordenT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  nombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
-  meta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
+  nombre: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  meta: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
   notaPrev: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.blue, marginTop: 3 },
-  contacto: { width: 42, height: 42, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: GLASS.fill },
+  contacto: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
   regla: { marginTop: 16, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: GLASS.fill },
-  reglaT: { fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 18, color: COLORS.textMid },
+  reglaT: { fontFamily: FONTS.regular, fontSize: 13, lineHeight: 18, color: COLORS.textMid },
   recup: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
   recupFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dias: { fontFamily: FONTS.monoBold, fontSize: 28, lineHeight: 32, color: COLORS.redText },
   diasD: { fontSize: 14 },
   recupBtns: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 12 },
   btnRojo: { flex: 1, height: 44, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.onInk },
-  btnContorno: { width: 96, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fill },
-  btnContornoT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
-  avisar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, borderRadius: 26, backgroundColor: GLASS.ink, padding: 15 },
-  avisarT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
-  fTitulo: { fontFamily: FONTS.bold, letterSpacing: -0.6, fontSize: 26, lineHeight: 31, color: COLORS.ink, marginTop: 4 },
+  btnRojoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
+  btnContorno: { width: 96, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  btnContornoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  // Aviso en TINTA: texto de SOBRE.tinta (Regla 1).
+  avisar: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 20, borderRadius: 22, backgroundColor: SOBRE.tinta.fondo, padding: 15 },
+  avisarT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 14, color: SOBRE.tinta.t1 },
+  fTitulo: { fontFamily: FONTS.bold, letterSpacing: -0.5, fontSize: 24, lineHeight: 30, color: COLORS.ink, marginTop: 4 },
   fSub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, marginBottom: 6 },
   dato: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: GLASS.hairline },
   datoFila: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   datoL: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
-  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
+  datoV: { flex: 1, textAlign: 'right', fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   datoN: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
   barra: { height: 8, backgroundColor: GLASS.fillStrong, marginTop: 10, borderRadius: 4 },
   barraLlena: { height: 8, backgroundColor: COLORS.ink, borderRadius: 4 },
@@ -455,7 +456,7 @@ const s = StyleSheet.create({
   visitaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
   visitaS: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   visitaP: { fontFamily: FONTS.monoBold, fontSize: 16, color: COLORS.ink },
-  input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 13, marginTop: 12, minHeight: 90, fontFamily: FONTS.regular, fontSize: 14.5, color: COLORS.ink, textAlignVertical: 'top', borderRadius: 16, overflow: 'hidden' },
+  input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 14, marginTop: 12, minHeight: 90, fontFamily: FONTS.regular, fontSize: 15, color: COLORS.ink, textAlignVertical: 'top', borderRadius: 16, overflow: 'hidden' },
   guardar: { height: 52, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', marginTop: 12, borderRadius: 26 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   contactoFila: { flexDirection: 'row', gap: 10, marginTop: 14 },

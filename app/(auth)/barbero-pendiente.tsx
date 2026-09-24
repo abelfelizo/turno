@@ -6,7 +6,7 @@ import { cerrarSesion } from '../../lib/auth'
 import { getSesion } from '../../lib/storage'
 import { getMiPerfil, getMisInvitaciones, responderInvitacion } from '../../lib/db'
 import { suscribirPerfil, desuscribir } from '../../lib/realtime'
-import { COLORS } from '../../constants'
+import { COLORS, SOBRE } from '../../constants'
 
 /**
  * LA SALA DE ESPERA, QUE AHORA TIENE DOS PUERTAS (migración 110).
@@ -147,7 +147,7 @@ export default function BarberoPendiente() {
 }
 
 const s = StyleSheet.create({
-  aviso: { color: COLORS.onCarbonMid, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 14 },
+  aviso: { color: SOBRE.tinta.t2, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 14 },
   link: { alignItems: 'center', padding: 16, marginTop: 4 },
-  linkT: { color: COLORS.onCarbonMid, fontSize: 14, fontWeight: '600' },
+  linkT: { color: SOBRE.tinta.t2, fontSize: 15, fontWeight: '600' },
 })

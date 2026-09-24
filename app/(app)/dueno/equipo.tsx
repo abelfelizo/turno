@@ -25,7 +25,7 @@ import {
 } from '../../../lib/db'
 import { enviarPush } from '../../../lib/notificaciones'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE, BOTON_CLARO } from '../../../constants'
 import { nombreOficio } from '../../../types'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Rotulo } from '../../../components/d2'
@@ -191,10 +191,10 @@ export default function Equipo() {
                 </View>
                 <TouchableOpacity style={s.solNo} onPress={() => rechazar(p)} disabled={ocupado === p.id}
                   accessibilityRole="button" accessibilityLabel={`Rechazar a ${p.turno_usuarios?.nombre ?? ''}`}>
-                  <Ionicons name="close" size={20} color="#fff" />
+                  <Ionicons name="close" size={20} color={SOBRE.tinta.t1} />
                 </TouchableOpacity>
                 <TouchableOpacity style={s.solSi} onPress={() => aprobar(p)} disabled={ocupado === p.id} accessibilityRole="button">
-                  {ocupado === p.id ? <ActivityIndicator color="#0B0B0C" size="small" /> : <Text style={s.solSiT}>APROBAR</Text>}
+                  {ocupado === p.id ? <ActivityIndicator color={BOTON_CLARO.texto} size="small" /> : <Text style={s.solSiT}>APROBAR</Text>}
                 </TouchableOpacity>
               </View>
             ))}
@@ -209,7 +209,7 @@ export default function Equipo() {
           const tu = p.id === perfilPropio
           const cod = p.turno_usuarios?.codigo_barbero
           return (
-            <View key={p.id} style={[s.fila, p.suspendido && { opacity: 0.75 }]}>
+            <View key={p.id} style={[s.fila, p.suspendido && s.filaApagada]}>
               <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => abrir(p)} activeOpacity={0.7} accessibilityRole="button">
                 <View style={s.nombreFila}>
                   <Text style={s.nombre} numberOfLines={1}>{p.turno_usuarios?.nombre ?? 'Profesional'}</Text>
@@ -282,7 +282,7 @@ export default function Equipo() {
           escríbelo aquí. Le llega la invitación y decide él: invitar no le mete en el local.
         </Sub>
         <TextInput style={s.input} value={codigoInv} onChangeText={t => setCodigoInv(t.toUpperCase())}
-          placeholder="JUAN-4821" placeholderTextColor={COLORS.textLight}
+          placeholder="JUAN-4821" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
           autoCapitalize="characters" autoCorrect={false} />
         <View style={{ marginTop: 14 }}>
           <BotonRojo texto="Invitar" onPress={invitar} ocupado={invEnviando} disabled={!codigoInv.trim()} />
@@ -296,27 +296,29 @@ export default function Equipo() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, lineHeight: 19, color: COLORS.textMid, paddingVertical: 18 },
-  solicitudes: { marginTop: 18, backgroundColor: GLASS.ink, padding: 14, borderRadius: 26 },
-  solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginBottom: 4 },
-  sol: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)' },
-  solNombre: { fontFamily: FONTS.semibold, fontSize: 15.5, color: '#fff' },
-  solMeta: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid, marginTop: 2 },
-  solNo: { width: 42, height: 42, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center', borderRadius: 21 },
-  solSi: { height: 42, paddingHorizontal: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 21, borderWidth: 0 },
-  solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#0B0B0C' },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 19, color: COLORS.textMid, paddingVertical: 18 },
+  // Solicitudes en TINTA: texto de SOBRE.tinta; aprobar = botón claro; rechazar = contorno (Reglas 1 y 3).
+  solicitudes: { marginTop: 18, backgroundColor: SOBRE.tinta.fondo, padding: 14, borderRadius: 22 },
+  solT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: SOBRE.tinta.t2, marginBottom: 4 },
+  sol: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderTopWidth: 1, borderTopColor: SOBRE.tinta.linea },
+  solNombre: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  solMeta: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 2 },
+  solNo: { width: 44, height: 44, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  solSi: { height: 44, paddingHorizontal: 16, backgroundColor: BOTON_CLARO.fondo, alignItems: 'center', justifyContent: 'center', minWidth: 92, borderRadius: 22, borderWidth: 0 },
+  solSiT: { fontFamily: FONTS.semibold, fontSize: 15, color: BOTON_CLARO.texto },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  filaApagada: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15.5, color: COLORS.ink },
-  tu: { fontFamily: FONTS.bold, fontSize: 10.5, color: COLORS.red, letterSpacing: 1 },
+  nombre: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
+  tu: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.redText, letterSpacing: 1.2 },
   chips: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
-  chip: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1, color: COLORS.ink, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  chip: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.ink, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, overflow: 'hidden' },
   chipAzul: { color: COLORS.blue, borderColor: COLORS.border },
   chipRojo: { color: COLORS.redText, borderColor: COLORS.border },
-  meta: { flexShrink: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
-  icono: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fill },
-  reactivar: { height: 38, paddingHorizontal: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: GLASS.fill },
-  reactivarT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.ink },
-  cuadro: { width: 36, height: 36, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  meta: { flexShrink: 1, fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
+  icono: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  reactivar: { height: 44, paddingHorizontal: 16, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  reactivarT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
+  cuadro: { width: 40, height: 40, backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   input: { borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, padding: 14, marginTop: 14, fontSize: 17, fontFamily: FONTS.bold, color: COLORS.ink, letterSpacing: 1.2, borderRadius: 16, overflow: 'hidden' },
 })

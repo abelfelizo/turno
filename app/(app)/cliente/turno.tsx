@@ -581,13 +581,14 @@ const s = StyleSheet.create({
   detrasM: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   detrasX: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.danger },
 
-  nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
+  nota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 14, lineHeight: 18 },
 
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, marginTop: 12, marginBottom: 10, textTransform: 'uppercase' },
-  cita: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 14, marginBottom: 8 },
-  citaFecha: { width: 52, height: 52, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
-  citaDia: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink, lineHeight: 22 },
-  citaMes: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textMid, letterSpacing: 0.6 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, marginTop: 12, marginBottom: 10, textTransform: 'uppercase' },
+  cita: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, padding: 14, marginBottom: 8 },
+  // La FECHA es sólida (como lo elegido): radio 16, texto del sólido.
+  citaFecha: { width: 52, height: 52, borderRadius: 16, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center' },
+  citaDia: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.onInk, lineHeight: 22 },
+  citaMes: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.onInk, letterSpacing: 1.2 },
   citaServ: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   citaMeta: { fontFamily: FONTS.mono, fontSize: 13, color: COLORS.ink, marginTop: 2 },
   citaDia2: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 1, textTransform: 'capitalize' },

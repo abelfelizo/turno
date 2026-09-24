@@ -14,7 +14,7 @@ import Svg, { Defs, Pattern, Rect } from 'react-native-svg'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Image, ViewStyle, TextStyle, StyleProp, Animated, Easing, useColorScheme } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import * as Updates from 'expo-updates'
-import { COLORS, THEME, Theme, RADIUS, FONTS, TYPE, ESTADO_COLOR, GLASS } from '../constants'
+import { COLORS, THEME, Theme, RADIO, FONTS, TYPE, ESTADO_COLOR, GLASS, POSTE_ROJO, SOBRE } from '../constants'
 
 type IconName = keyof typeof Ionicons.glyphMap
 
@@ -27,9 +27,9 @@ export function Icon({ name, size = 22, color = COLORS.ink }: { name: IconName; 
   return <Ionicons name={name} size={size} color={color} />
 }
 
-/** Título de pantalla. Sin mayúsculas forzadas (h1 = 28/700, −0.6). */
-export function Display({ children, size = 28, color = COLORS.ink, style }: { children: ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle> }) {
-  return <Text style={[TYPE.h1, { fontSize: size, color, letterSpacing: size >= 22 ? -0.6 : -0.2, lineHeight: Math.round(size * 1.2), includeFontPadding: false }, style]}>{children}</Text>
+/** Título de pantalla. Sin mayúsculas forzadas (h1 = 30/700, −0.8). */
+export function Display({ children, size = 30, color = COLORS.ink, style }: { children: ReactNode; size?: number; color?: string; style?: StyleProp<TextStyle> }) {
+  return <Text style={[TYPE.h1, { fontSize: size, color, letterSpacing: size >= 24 ? -0.8 : -0.2, lineHeight: Math.round(size * 1.2), includeFontPadding: false }, style]}>{children}</Text>
 }
 
 export function SectionLabel({ children, action, onAction }: { children: ReactNode; action?: string; onAction?: () => void }) {
@@ -52,11 +52,13 @@ export function Card({ children, variant = 'plain', style, onPress }: {
 }
 
 /**
- * primary = negro (acción principal normal)
- * accent  = rojo (SOLO el CTA final: confirmar una reserva o entrar a la fila)
- * secondary / outline = borde gris
- * destructive = borde gris + texto rojo («Salir», «Cancelar cita»)
- * dark = alias de primary
+ * Regla 3 · botones sobre cristal.
+ * primary = sólido (negro de día, blanco de noche)
+ * accent  = rojo (SOLO lo urgente o el paso final: entrar a la fila, confirmar)
+ * secondary / outline = cristal fuerte con borde
+ * destructive = cristal fuerte + texto rojo («Salir», «Cancelar cita»)
+ * apagado = borde punteado y color «Apagado»; nunca opacidad.
+ * dark = alias de primary. Alto 52, radio 26.
  */
 export function Button({ label, onPress, variant = 'primary', icon, iconRight, loading, disabled, style }: {
   label: string; onPress: () => void; variant?: 'primary' | 'accent' | 'secondary' | 'dark' | 'outline' | 'destructive'
@@ -66,14 +68,15 @@ export function Button({ label, onPress, variant = 'primary', icon, iconRight, l
     primary: { bg: COLORS.ink, fg: COLORS.onInk, bd: COLORS.ink },
     dark: { bg: COLORS.ink, fg: COLORS.onInk, bd: COLORS.ink },
     accent: { bg: COLORS.red, fg: '#FFFFFF', bd: COLORS.red },
-    secondary: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
-    outline: { bg: 'transparent', fg: COLORS.ink, bd: COLORS.border },
-    destructive: { bg: 'transparent', fg: COLORS.redText, bd: COLORS.border },
+    secondary: { bg: GLASS.fillStrong, fg: COLORS.ink, bd: GLASS.border },
+    outline: { bg: GLASS.fillStrong, fg: COLORS.ink, bd: GLASS.border },
+    destructive: { bg: GLASS.fillStrong, fg: COLORS.redText, bd: GLASS.border },
   }[variant]
-  const off = disabled || loading
+  // Cargando no es «apagado»: conserva su color y enseña el giro.
+  const off = disabled && !loading
   return (
-    <TouchableOpacity onPress={onPress} disabled={off} activeOpacity={0.85}
-      style={[s.btn, { backgroundColor: off && map.bg !== 'transparent' ? COLORS.surfaceAlt : map.bg, borderColor: off ? COLORS.surfaceAlt : map.bd }, style]}>
+    <TouchableOpacity onPress={onPress} disabled={disabled || loading} activeOpacity={0.85}
+      style={[s.btn, off ? s.btnOff : { backgroundColor: map.bg, borderColor: map.bd }, style]}>
       {loading ? <ActivityIndicator color={map.fg} /> : (
         <View style={s.btnInner}>
           {icon && <Ionicons name={icon} size={18} color={off ? COLORS.disabled : map.fg} />}
@@ -110,17 +113,18 @@ export function Badge({ children, tone = 'gray' }: { children: ReactNode; tone?:
   )
 }
 
-/** Texto de estado para filas de lista. */
+/** Texto de estado para filas de lista. Toma el color del tema EN USO (antes
+ *  leía siempre el de día y de noche pintaba negro sobre fondo oscuro). */
 export function StatusText({ estado, label }: { estado: string; label: string }) {
-  return <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: THEME.light[ESTADO_COLOR[estado] ?? 'text3'] }}>{label}</Text>
+  return <Text style={{ fontFamily: FONTS.semibold, fontSize: 13, color: COLORS[ESTADO_COLOR[estado] ?? 'text3'] }}>{label}</Text>
 }
 
 /** Chip de selección (barberías, filtros). Activo = negro. `tone` se ignora (v3). */
 export function Chip({ children, selected, disabled, onPress }: { children: ReactNode; selected?: boolean; disabled?: boolean; tone?: 'red' | 'blue'; onPress?: () => void }) {
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
-      style={[s.chip, selected ? { backgroundColor: COLORS.ink, borderColor: COLORS.ink } : { borderColor: COLORS.border }]}>
-      <Text style={[s.chipT, { color: selected ? COLORS.onInk : disabled ? COLORS.disabled : COLORS.textMid }]}>{children}</Text>
+      style={[s.chip, selected ? { backgroundColor: COLORS.ink, borderColor: COLORS.ink } : disabled ? s.apagado : null]}>
+      <Text style={[s.chipT, { color: selected ? COLORS.onInk : disabled ? COLORS.disabled : COLORS.ink }]}>{children}</Text>
     </TouchableOpacity>
   )
 }
@@ -129,7 +133,7 @@ export function Chip({ children, selected, disabled, onPress }: { children: Reac
 export function TimeSlot({ label, selected, disabled, onPress }: { label: string; selected?: boolean; disabled?: boolean; onPress?: () => void }) {
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
-      style={[s.slot, { backgroundColor: selected ? COLORS.red : COLORS.bg, borderColor: selected ? COLORS.red : disabled ? COLORS.divider : COLORS.border }]}>
+      style={[s.slot, selected ? { backgroundColor: COLORS.red, borderColor: COLORS.red } : disabled ? s.apagado : null]}>
       <Text style={{ fontFamily: FONTS.mono, fontSize: 14, color: selected ? '#FFFFFF' : disabled ? COLORS.disabled : COLORS.ink, textDecorationLine: disabled ? 'line-through' : 'none' }}>{label}</Text>
     </TouchableOpacity>
   )
@@ -137,12 +141,11 @@ export function TimeSlot({ label, selected, disabled, onPress }: { label: string
 
 /** Chip de día. flex:1 dentro de una fila con gap 6. */
 export function DayChip({ day, num, selected, disabled, onPress }: { day: string; num: number | string; selected?: boolean; disabled?: boolean; onPress?: () => void }) {
-  const bg = selected ? COLORS.ink : disabled ? COLORS.surfaceAlt : COLORS.bg
   const fg = selected ? COLORS.onInk : disabled ? COLORS.disabled : COLORS.ink
   return (
     <TouchableOpacity disabled={disabled} onPress={onPress} activeOpacity={0.8}
-      style={[s.day, { backgroundColor: bg, borderColor: selected ? COLORS.ink : disabled ? COLORS.surfaceAlt : COLORS.border }]}>
-      <Text style={{ fontFamily: FONTS.medium, fontSize: 12, color: fg }}>{day}</Text>
+      style={[s.day, selected ? { backgroundColor: COLORS.ink, borderColor: COLORS.ink } : disabled ? s.apagado : null]}>
+      <Text style={{ fontFamily: FONTS.semibold, fontSize: 11, color: fg }}>{day}</Text>
       <Text style={{ fontFamily: FONTS.monoBold, fontSize: 18, color: fg }}>{num}</Text>
     </TouchableOpacity>
   )
@@ -163,9 +166,9 @@ export function ListRow({ leading, title, meta, trailing, onPress }: { leading?:
   return onPress ? <TouchableOpacity onPress={onPress} activeOpacity={0.8}>{body}</TouchableOpacity> : body
 }
 
-/** Cuadro de posición en cola (32×32, mono). */
+/** Puesto en la fila: círculo de 40, mono (el mismo principio de fila que el avatar). */
 export function QueueNumber({ n }: { n: number | string }) {
-  return <View style={[s.avatar, { width: 32, height: 32, borderRadius: RADIUS.sm, backgroundColor: COLORS.surfaceAlt }]}><Text style={{ fontFamily: FONTS.monoBold, fontSize: 14, color: COLORS.ink }}>{n}</Text></View>
+  return <View style={[s.avatar, { width: 40, height: 40, borderRadius: 20, backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border }]}><Text style={{ fontFamily: FONTS.monoBold, fontSize: 14, color: COLORS.ink }}>{n}</Text></View>
 }
 
 /**
@@ -187,7 +190,7 @@ export function Pole({ height = 14, radius = 0, style, ancho = 6 }: {
       <Svg width="100%" height="100%">
         <Defs>
           <Pattern id={`poste${uid}`} width={p} height={p} patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
-            <Rect width={ancho} height={p} fill="#E1251B" />
+            <Rect width={ancho} height={p} fill={POSTE_ROJO} />
             <Rect x={ancho} width={ancho} height={p} fill="#FFFFFF" />
             <Rect x={ancho * 2} width={ancho} height={p} fill="#1E4FD8" />
             <Rect x={ancho * 3} width={ancho} height={p} fill="#FFFFFF" />
@@ -313,13 +316,13 @@ const s = StyleSheet.create({
   noCargo: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
   noCargoT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink, textAlign: 'center', marginTop: 6 },
   noCargoD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, textAlign: 'center', lineHeight: 19 },
-  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.ink, borderRadius: 26, paddingVertical: 11, paddingHorizontal: 20, marginTop: 10 },
-  noCargoBtnT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.onInk },
+  noCargoBtn: { flexDirection: 'row', alignItems: 'center', gap: 7, backgroundColor: COLORS.ink, height: 44, borderRadius: 22, paddingHorizontal: 20, marginTop: 10 },
+  noCargoBtnT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
   version: { paddingVertical: 14, alignItems: 'center' },
-  versionT: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textLight, textAlign: 'center' },
-  versionD: { fontFamily: FONTS.regular, fontSize: 10.5, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
+  versionT: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, textAlign: 'center' },
+  versionD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, textAlign: 'center', marginTop: 2 },
   perfFila: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12 },
-  ticket: { backgroundColor: COLORS.carbon, borderRadius: 8, overflow: 'hidden' },
+  ticket: { backgroundColor: SOBRE.tinta.fondo, borderRadius: RADIO.pintada, overflow: 'hidden' },
   ticketCuerpo: { paddingVertical: 16, paddingLeft: 22, paddingRight: 18 },
   ticketPerf: { height: 18, justifyContent: 'center' },
   muesca: { position: 'absolute', width: 18, height: 18, borderRadius: 9 },
@@ -328,20 +331,23 @@ const s = StyleSheet.create({
   puntoHalo: { position: 'absolute', width: 10, height: 10, borderRadius: 5 },
   puntoNucleo: { width: 10, height: 10, borderRadius: 5 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 },
-  section: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase' },
+  section: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase' },
   sectionAction: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight },
   card: { backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, padding: 14, borderWidth: 1, borderColor: GLASS.border },
-  cardDark: { backgroundColor: GLASS.ink, borderColor: GLASS.border, borderRadius: 26 },
-  btn: { height: 52, borderRadius: RADIUS.sm, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  cardDark: { backgroundColor: SOBRE.tinta.fondo, borderColor: SOBRE.tinta.borde, borderRadius: RADIO.tarjeta },
+  btn: { height: 52, borderRadius: 26, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  /** Regla 2: lo apagado lleva borde punteado y el color «Apagado», nunca opacidad. */
+  btnOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  apagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   btnInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 16 },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   badge: { borderRadius: 999, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: GLASS.fill },
   badgeT: { fontFamily: FONTS.semibold, fontSize: 13 },
-  chip: { borderWidth: 1, borderRadius: RADIUS.sm, paddingVertical: 8, paddingHorizontal: 14, alignItems: 'center' },
+  chip: { height: 36, borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: GLASS.fillStrong, borderColor: GLASS.border },
   chipT: { fontFamily: FONTS.semibold, fontSize: 14 },
-  slot: { height: 44, borderRadius: RADIUS.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flex: 1 },
-  day: { flex: 1, height: 62, borderRadius: RADIUS.sm, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  slot: { height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flex: 1, backgroundColor: GLASS.fillStrong, borderColor: GLASS.border },
+  day: { flex: 1, height: 62, borderRadius: RADIO.caja, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: GLASS.fillStrong, borderColor: GLASS.border },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   kv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   kvK: { fontFamily: FONTS.regular, fontSize: 15, color: COLORS.textMid },
@@ -401,7 +407,8 @@ export function NoCargo({ onReintentar, que }: { onReintentar: () => void; que?:
  * sirve Metro, no expo-updates. Por eso todo va envuelto — que una pantalla de
  * ajustes se caiga por el cartelito de la versión sería el colmo.
  */
-export function VersionBundle() {
+/** `tinta`: va sobre una pantalla de tinta (login, puerta de pruebas): usa su gris (Regla 1). */
+export function VersionBundle({ tinta }: { tinta?: boolean } = {}) {
   let linea = 'Versión no disponible'
   let detalle = ''
   try {
@@ -421,8 +428,8 @@ export function VersionBundle() {
   }
   return (
     <View style={s.version}>
-      <Text style={s.versionT}>{linea}</Text>
-      {!!detalle && <Text style={s.versionD}>{detalle}</Text>}
+      <Text style={[s.versionT, tinta && { color: SOBRE.tinta.t3 }]}>{linea}</Text>
+      {!!detalle && <Text style={[s.versionD, tinta && { color: SOBRE.tinta.t3 }]}>{detalle}</Text>}
     </View>
   )
 }

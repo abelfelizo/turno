@@ -315,7 +315,7 @@ export default function BarberoDelLocal() {
       {localDeAlquiler ? (
         <>
           <View style={s.modRow}>
-            <View style={[s.modChip, s.modChipOn]}><Text style={[s.modChipT, { color: '#fff' }]}>Renta su asiento</Text></View>
+            <View style={[s.modChip, s.modChipOn]}><Text style={[s.modChipT, { color: COLORS.onInk }]}>Renta su asiento</Text></View>
           </View>
           <Text style={s.sub}>
             Aquí alquilas asientos, así que cada barbero es su propio negocio: paga su silla y
@@ -344,7 +344,7 @@ export default function BarberoDelLocal() {
       <Rotulo accion={puedoEditarle ? '+ Agregar' : undefined} onAccion={() => abrirServicio()} style={{ marginTop: 8 }}>Servicios</Rotulo>
       {servicios.length === 0 && <Text style={s.empty}>Todavía no tiene servicios.</Text>}
       {servicios.map((sv: any) => (
-        <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
+        <View key={sv.id} style={[s.serv, !sv.activo && s.servApagado]}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={!puedoEditarle}>
             <Text style={s.servName}>{sv.nombre}</Text>
             <Text style={s.servMeta}>{sv.duracion_min} min</Text>
@@ -352,7 +352,7 @@ export default function BarberoDelLocal() {
           <Text style={s.servPrecio}>{sv.precio}</Text>
           {autonomo
             ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
+            : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />}
         </View>
       ))}
 
@@ -438,7 +438,7 @@ export default function BarberoDelLocal() {
       <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
             <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
             <Text style={s.flabel}>Nombre</Text>
-            <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} />
+            <TextInput style={s.input} value={svNombre} onChangeText={setSvNombre} placeholder="Corte, barba…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} />
             <Text style={s.flabel}>Duración (min)</Text>
             <TextInput style={s.input} value={svDur} onChangeText={setSvDur} keyboardType="number-pad" />
             <Text style={s.flabel}>Precio</Text>
@@ -481,41 +481,43 @@ function Paso({ valor, menos, mas }: { valor: string; menos: () => void; mas: ()
 
 const s = StyleSheet.create({
   accionFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  accionFilaOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
+  accionFilaOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
   accionFilaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  accionFilaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  accionFilaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   pantalla: { flex: 1 },
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   volver: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   volverT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },
   sub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginBottom: 18, lineHeight: 18 },
-  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1, marginTop: 6, marginBottom: 8 },
+  flabelTop: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, marginTop: 6, marginBottom: 8 },
   modRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  modChip: { flex: 1, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 11, alignItems: 'center', backgroundColor: 'transparent' },
-  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  modChip: { flex: 1, borderWidth: 1, borderColor: GLASS.border, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', backgroundColor: GLASS.fillStrong },
+  modChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   modChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textLight, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   accion: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginBottom: 12 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  // Servicio pausado: apagado con borde punteado (Regla 2), el texto sigue legible.
+  servApagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  servEstado: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight, width: 52, textAlign: 'right' },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   diaL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   diaH: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid },
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: GLASS.fill, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
+  modalBg: { flex: 1, backgroundColor: GLASS.scrim, justifyContent: 'flex-end' },
+  modal: { backgroundColor: GLASS.hoja, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, borderWidth: 1, borderBottomWidth: 0, borderColor: GLASS.border },
   flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 12 },
-  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 16, padding: 14, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, borderRadius: 26, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 8 },
-  stepBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: GLASS.border, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center' },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.ink },
-  btn: { backgroundColor: COLORS.ink, borderRadius: 26, padding: 16, alignItems: 'center', marginTop: 20 },
+  btn: { backgroundColor: COLORS.ink, borderRadius: 26, height: 52, justifyContent: 'center', alignItems: 'center', marginTop: 20 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   cerrar: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.textLight, fontSize: 14, marginTop: 14 },
   cerrarRojo: { fontFamily: FONTS.semibold, textAlign: 'center', color: COLORS.redText, fontSize: 14, marginTop: 14 },

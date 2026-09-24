@@ -194,34 +194,35 @@ export default function HojaPedir({
 }
 
 const s = StyleSheet.create({
-  fondo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  hoja: { backgroundColor: GLASS.fill, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 18, paddingBottom: 18, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
+  fondo: { flex: 1, backgroundColor: GLASS.scrim, justifyContent: 'flex-end' },
+  // Hoja sólida, esquinas de arriba 36 (Reglas 1 y 4).
+  hoja: { backgroundColor: GLASS.hoja, borderTopLeftRadius: 36, borderTopRightRadius: 36, paddingHorizontal: 20, paddingBottom: 18, borderWidth: 1, borderBottomWidth: 0, borderColor: GLASS.border },
   cab: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  sub: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 4, lineHeight: 18 },
-  cerrar: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: GLASS.border, borderRadius: 17, backgroundColor: GLASS.fill },
+  sub: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 4, lineHeight: 18 },
+  cerrar: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: GLASS.border, borderRadius: 22, backgroundColor: GLASS.fillStrong },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 20, paddingVertical: 14 },
 
   cualquiera: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  cualquieraIco: { width: 38, height: 38, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 19, backgroundColor: GLASS.fill },
+  cualquieraIco: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fillStrong },
   cualquieraT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  cualquieraD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 2 },
+  cualquieraD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 2 },
 
   // El apagado se ve, no se esconde: el que viene a buscar a su barbero tiene
   // que poder leer a qué hora vuelve sin salir de aquí.
-  apagado: { opacity: 0.5 },
+  apagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   barbero: { marginTop: 16 },
   barberoMio: {  },
   barberoHead: { flexDirection: 'row', alignItems: 'center', gap: 11 },
   nombreFila: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  barberoN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 19, color: COLORS.ink, flexShrink: 1 },
-  mio: { fontFamily: FONTS.bold, fontSize: 8.5, letterSpacing: 0.5, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 999 },
+  barberoN: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink, flexShrink: 1 },
+  mio: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onInk, backgroundColor: COLORS.ink, paddingHorizontal: 6, paddingVertical: 2, overflow: 'hidden', borderRadius: 999 },
   barberoMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   pausa: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 9 },
-  pausaT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, flexShrink: 1 },
-  sinServ: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 10 },
+  pausaT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, flexShrink: 1 },
+  sinServ: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 10 },
 
   serv: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, marginTop: 1, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   servN: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  servD: { fontFamily: FONTS.regular, fontSize: 11.5, color: COLORS.textMid, marginTop: 1 },
+  servD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 1 },
   servP: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
 })

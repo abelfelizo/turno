@@ -24,7 +24,7 @@ import {
 } from '../../../lib/db'
 import { dinero, fechaISOLocal, fechaDeISO } from '../../../lib/format'
 import { useRecargaAlEnfocar } from '../../../lib/recarga'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
 import { NoCargo } from '../../../components/ui'
 import { Encabezado, Pestanas, Rotulo, Cifras } from '../../../components/d2'
 import Resenas from '../../../components/resenas'
@@ -260,34 +260,34 @@ export default function Stats() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  lbl: { fontFamily: FONTS.bold, fontSize: 10, letterSpacing: 1.2, color: COLORS.textLight },
+  lbl: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.textLight },
   grande: { fontFamily: FONTS.monoBold, fontSize: 44, lineHeight: 52, letterSpacing: -1, color: COLORS.ink, marginTop: 6 },
-  chip: { alignSelf: 'flex-start', backgroundColor: COLORS.ink, paddingHorizontal: 11, paddingVertical: 6, marginTop: 8, borderRadius: 26 },
-  chipT: { fontFamily: FONTS.semibold, fontSize: 11.5, color: COLORS.onInk },
+  chip: { alignSelf: 'flex-start', backgroundColor: COLORS.ink, paddingHorizontal: 12, paddingVertical: 6, marginTop: 8, borderRadius: 999 },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onInk },
   vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, paddingVertical: 22 },
-  barra: { flexDirection: 'row', height: 14, marginTop: 10, overflow: 'hidden' },
+  barra: { flexDirection: 'row', height: 14, marginTop: 10, overflow: 'hidden', borderRadius: 7 },
   leyenda: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 10 },
   leyItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  leyCuadro: { width: 9, height: 9 },
+  leyCuadro: { width: 10, height: 10, borderRadius: 5 },
   leyT: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.ink },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   servN: { width: 104, fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink },
-  servBarra: { flex: 1, height: 10, backgroundColor: COLORS.border },
+  servBarra: { flex: 1, height: 10, backgroundColor: GLASS.fillStrong, borderRadius: 5, overflow: 'hidden' },
   servLlena: { height: 10, backgroundColor: COLORS.ink, borderRadius: 5 },
   servC: { width: 34, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
-  resenas: { marginTop: 24, borderRadius: 26, backgroundColor: GLASS.ink, overflow: 'hidden' },
+  resenas: { marginTop: 24, borderRadius: 22, backgroundColor: SOBRE.tinta.fondo, overflow: 'hidden' },
   resFila: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  resNota: { fontFamily: FONTS.monoBold, fontSize: 40, lineHeight: 46, color: '#fff' },
-  resT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff' },
-  resD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 3 },
-  resVer: { fontFamily: FONTS.semibold, fontSize: 12, color: '#fff' },
-  resCita: { marginTop: 13, paddingTop: 13, borderTopWidth: 1, borderTopColor: COLORS.carbonDash, borderStyle: 'dashed', fontFamily: FONTS.regular, fontSize: 12.5, lineHeight: 19, color: COLORS.onCarbonMid },
+  resNota: { fontFamily: FONTS.monoBold, fontSize: 40, lineHeight: 46, color: SOBRE.tinta.t1 },
+  resT: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  resD: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 3 },
+  resVer: { fontFamily: FONTS.semibold, fontSize: 13, color: SOBRE.tinta.t1 },
+  resCita: { marginTop: 13, paddingTop: 13, borderTopWidth: 1, borderTopColor: SOBRE.tinta.linea, borderStyle: 'dashed', fontFamily: FONTS.regular, fontSize: 13, lineHeight: 19, color: SOBRE.tinta.t2 },
   fila: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   filaF: { width: 58, fontFamily: FONTS.monoBold, fontSize: 17, color: COLORS.ink },
-  filaN: { fontFamily: FONTS.semibold, fontSize: 14.5, color: COLORS.ink },
+  filaN: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   filaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textMid, marginTop: 2 },
   filaP: { fontFamily: FONTS.monoBold, fontSize: 18, color: COLORS.ink },
-  verMas: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.blue, textAlign: 'center', paddingVertical: 14 },
-  nota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 18, lineHeight: 18 },
+  verMas: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.blue, textAlign: 'center', paddingVertical: 14 },
+  nota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 18, lineHeight: 18 },
   b: { fontFamily: FONTS.semibold, color: COLORS.ink },
 })

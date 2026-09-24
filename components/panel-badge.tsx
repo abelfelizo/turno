@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { getSesion, guardarSesion } from '../lib/storage'
 import { getMisRoles, type OpcionPanel } from '../lib/db'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE } from '../constants'
 import { INICIO_DE_PANEL, NOMBRE_DE_PANEL } from '../lib/paneles'
 import type { PanelActivo } from '../types'
 
@@ -14,7 +14,8 @@ const ICONO: Record<string, keyof typeof Ionicons.glyphMap> = {
   cliente: 'person', barberia: 'storefront', silla: 'cut',
 }
 // Color distinto por panel: la señal más rápida de "dónde estoy".
-const FONDO: Record<string, string> = { cliente: '#1E4FD8', barberia: '#0B0B0C', silla: '#E1251B' }
+// Superficies pintadas (Regla 1): texto blanco en las tres.
+const FONDO: Record<string, string> = { cliente: SOBRE.azul.fondo, barberia: SOBRE.tinta.fondo, silla: SOBRE.rojo.fondo }
 
 /**
  * Distintivo del panel activo. Nace de una confusión real en el piloto: con
@@ -59,12 +60,12 @@ export default function PanelBadge() {
     <TouchableOpacity style={[s.pill, { backgroundColor: FONDO[actual.panel] }]} onPress={abrir} activeOpacity={0.85}>
       <Ionicons name={ICONO[actual.panel]} size={13} color="#fff" />
       <Text style={s.txt} numberOfLines={1}>{NOMBRE_DE_PANEL[actual.panel]}{aqui ? ` · ${aqui.negocio}` : ''}</Text>
-      <Ionicons name="swap-horizontal" size={14} color="rgba(255,255,255,0.7)" />
+      <Ionicons name="swap-horizontal" size={14} color="#FFFFFF" />
     </TouchableOpacity>
   )
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 12 },
-  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF', letterSpacing: 1, maxWidth: 220 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, marginBottom: 12 },
+  txt: { fontFamily: FONTS.bold, fontSize: 11, color: '#FFFFFF', letterSpacing: 1.2, maxWidth: 220 },
 })

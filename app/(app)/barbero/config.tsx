@@ -10,7 +10,7 @@ import { estadoAvisos, registrarPush } from '../../../lib/notificaciones'
 import { hora12 } from '../../../lib/format'
 import { planDeMiSilla } from '../../../lib/pricing'
 import { aceptaCitas, aceptaFila } from '../../../lib/atencion'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import CambiarRol from '../../../components/cambiar-rol'
 import { Encabezado, Rotulo } from '../../../components/d2'
@@ -568,24 +568,24 @@ export default function Config() {
                 </View>
               ) : null}
               <Text style={s.flabel}>Especialidad</Text>
-              <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} value={esp} onChangeText={setEsp} />
+              <TextInput style={s.input} placeholder="Fade, barba, diseño…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={esp} onChangeText={setEsp} />
             </View>
           </View>
   
           <Text style={s.flabel}>Sobre mí</Text>
-          <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} value={bio} onChangeText={setBio} multiline />
+          <TextInput style={[s.input, s.multiline]} placeholder="Cuéntale a tus clientes tu estilo y experiencia." placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={bio} onChangeText={setBio} multiline />
   
           <Text style={s.flabel}>Mensaje de bienvenida</Text>
-          <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} value={msg} onChangeText={setMsg} multiline />
+          <TextInput style={[s.input, s.multiline]} placeholder="Lo verá el cliente al pedir turno contigo." placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={msg} onChangeText={setMsg} multiline />
   
           <View style={s.dosCol}>
             <View style={{ flex: 1 }}>
               <Text style={s.flabel}>Instagram</Text>
-              <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} value={ig} onChangeText={setIg} />
+              <TextInput style={s.input} placeholder="usuario" autoCapitalize="none" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={ig} onChangeText={setIg} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.flabel}>WhatsApp</Text>
-              <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} value={wa} onChangeText={setWa} />
+              <TextInput style={s.input} placeholder="+1 809…" keyboardType="phone-pad" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={wa} onChangeText={setWa} />
             </View>
           </View>
   
@@ -594,7 +594,7 @@ export default function Config() {
               <Text style={s.domicilioL}>Servicio a domicilio</Text>
               <Text style={s.domicilioD}>Indica que también atiendes a domicilio.</Text>
             </View>
-            <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+            <Switch value={!!perfil?.domicilio_activo} onValueChange={toggleDomicilio} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
           </View>
   
           <TouchableOpacity style={s.guardarBtn} onPress={guardarPerfil} disabled={guardandoPerfil}>
@@ -661,12 +661,12 @@ export default function Config() {
             return (
               <TouchableOpacity key={m.k} style={[s.estado, on && { borderColor: COLORS.red }]}
                 onPress={() => setModo(m.k)} disabled={empleado}>
-                <Ionicons name={m.icono as any} size={19} color={on ? COLORS.red : COLORS.textLight} />
+                <Ionicons name={m.icono as any} size={19} color={on ? COLORS.redText : COLORS.textLight} />
                 <View style={{ flex: 1 }}>
                   <Text style={[s.estadoT, on && { color: COLORS.ink }]}>{m.l}</Text>
                   <Text style={s.estadoD2}>{m.d}</Text>
                 </View>
-                {on && <Text style={[s.estadoActivo, { color: COLORS.red }]}>Activo</Text>}
+                {on && <Text style={[s.estadoActivo, { color: COLORS.redText }]}>Activo</Text>}
               </TouchableOpacity>
             )
           })}
@@ -695,14 +695,14 @@ export default function Config() {
           </Text>
         )}
         {servicios.map((sv: any) => (
-          <View key={sv.id} style={[s.serv, !sv.activo && { opacity: 0.5 }]}>
+          <View key={sv.id} style={[s.serv, !sv.activo && s.servApagado]}>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => abrirServicio(sv)} disabled={empleado}>
               <Text style={s.servName}>{sv.nombre}</Text><Text style={s.servMeta}>{sv.duracion_min} min</Text>
             </TouchableOpacity>
             <Text style={s.servPrecio}>{sv.precio}</Text>
             {empleado
               ? <Text style={s.servEstado}>{sv.activo ? 'Activo' : 'Inactivo'}</Text>
-              : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />}
+              : <Switch value={sv.activo} onValueChange={() => toggleSv(sv)} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />}
           </View>
         ))}
         </>
@@ -816,7 +816,7 @@ export default function Config() {
                   onValueChange={(v) => guardarReglas(v
                     ? { anticipacion: ant, ventana: ven, gracia: gra, umbral: umb }
                     : { anticipacion: null, ventana: null, gracia: null, umbral: null })}
-                  trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+                  trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
               </View>
               {propias && (
                 <>
@@ -867,7 +867,7 @@ export default function Config() {
                 <Text style={s.reglaL}>Premiar a mis clientes</Text>
                 <Text style={s.reglaD}>Tu propia tarjeta: cuenta las visitas contigo, y viaja contigo.</Text>
               </View>
-              <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.red, false: '#D8D6D1' }} thumbColor="#fff" />
+              <Switch value={!!perfil?.puntos_activos} onValueChange={togglePuntos} trackColor={{ true: COLORS.ink, false: COLORS.disabled }} thumbColor={COLORS.bg} ios_backgroundColor={COLORS.disabled} />
             </View>
             {perfil?.puntos_activos && (
               <>
@@ -887,7 +887,7 @@ export default function Config() {
                 <Text style={s.flabel}>¿Qué se gana?</Text>
                 <TextInput style={s.input} value={premio} onChangeText={setPremio}
                   onEndEditing={guardarPremio} placeholder="Corte gratis, barba gratis, un refresco…"
-                  placeholderTextColor={COLORS.textLight} maxLength={60} />
+                  placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} maxLength={60} />
               </>
             )}
           </>
@@ -1065,7 +1065,7 @@ export default function Config() {
       <Hoja visible={localModal} onClose={() => setLocalModal(false)}>
           <Display size={22}>Trabajar en otro local</Display>
           <Text style={s.flabel}>Código del local</Text>
-          <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} value={lcCodigo} onChangeText={setLcCodigo} />
+          <TextInput style={s.input} placeholder="Ej. DEM-A2B1" autoCapitalize="characters" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={lcCodigo} onChangeText={setLcCodigo} />
           {/* Ya no se pregunta "¿empleado o rento silla?": la modalidad la pone
               el local y el servidor la deriva de su tipo. */}
           <Text style={s.nota}>Si el local alquila asientos entrarás como independiente; si trabaja con empleados, como empleado. Lo define la barbería.</Text>
@@ -1077,9 +1077,9 @@ export default function Config() {
       <Hoja visible={!!svModal} onClose={() => setSvModal(null)}>
           <Display size={22}>{svModal === 'nuevo' ? 'Nuevo servicio' : 'Editar servicio'}</Display>
           <Text style={s.flabel}>Nombre</Text>
-          <TextInput style={s.input} placeholder="Corte, Barba…" placeholderTextColor={COLORS.textLight} value={svN} onChangeText={setSvN} />
+          <TextInput style={s.input} placeholder="Corte, Barba…" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={svN} onChangeText={setSvN} />
           <Text style={s.flabel}>Precio</Text>
-          <TextInput style={s.input} placeholder="500" keyboardType="number-pad" placeholderTextColor={COLORS.textLight} value={svP} onChangeText={setSvP} />
+          <TextInput style={s.input} placeholder="500" keyboardType="number-pad" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink} value={svP} onChangeText={setSvP} />
           <Text style={s.flabel}>Duración</Text>
           <View style={s.stepRow}>
             <TouchableOpacity style={s.stepBtn} onPress={() => setSvD(Math.max(5, svD - 5))}><Text style={s.stepT}>−</Text></TouchableOpacity>
@@ -1168,38 +1168,39 @@ function ReglaNum({ l, d, v, suf, paso = 1, onSet }: { l: string; d?: string; v:
 
 const s = StyleSheet.create({
   menuFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  menuIcono: { width: 36, height: 36, backgroundColor: GLASS.fillStrong, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  menuIcono: { width: 40, height: 40, backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   menuT: { fontFamily: FONTS.semibold, color: COLORS.ink, fontSize: 15 },
-  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 12.5, marginTop: 2 },
+  menuV: { fontFamily: FONTS.regular, color: COLORS.textMid, fontSize: 13, marginTop: 2 },
   volver: { flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 10 },
-  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 14.5 },
-  bufNota: { color: COLORS.textMid, fontSize: 12.5, lineHeight: 17, marginTop: -4, marginBottom: 10 },
+  volverT: { fontFamily: FONTS.semibold, color: COLORS.textMid, fontSize: 15 },
+  bufNota: { color: COLORS.textMid, fontSize: 13, lineHeight: 17, marginTop: -4, marginBottom: 10 },
   aplicarTodos: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, marginBottom: 6 },
-  aplicarTodosT: { color: COLORS.blue, fontSize: 13.5, fontWeight: '700' },
+  aplicarTodosT: { color: COLORS.blue, fontSize: 14, fontWeight: '700' },
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   secRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   perfilCard: { paddingBottom: 6, marginBottom: 18 },
   perfilTop: { flexDirection: 'row', gap: 14, marginBottom: 4 },
   perfilHint: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginBottom: 8 },
-  codigoBox: { backgroundColor: GLASS.ink, borderRadius: 26, padding: 12, marginBottom: 10 },
-  codigoLbl: { fontFamily: FONTS.bold, fontSize: 9, color: COLORS.onCarbonMid, letterSpacing: 1 },
-  codigoVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: '#fff', letterSpacing: 1.2, marginTop: 2 },
-  codigoHint: { fontFamily: FONTS.regular, fontSize: 10, color: COLORS.onCarbonMid, marginTop: 3 },
-  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg, borderRadius: 16 },
+  // Caja de TINTA: texto de SOBRE.tinta (Regla 1).
+  codigoBox: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 14, marginBottom: 10 },
+  codigoLbl: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  codigoVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: SOBRE.tinta.t1, letterSpacing: 1.2, marginTop: 2 },
+  codigoHint: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 3 },
+  fotoBadge: { position: 'absolute', right: -4, bottom: -4, width: 26, height: 26, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: COLORS.bg, borderRadius: 13 },
   fotoBadgeT: { color: COLORS.onInk, fontSize: 13, fontFamily: FONTS.semibold },
-  multiline: { minHeight: 64, textAlignVertical: 'top' },
+  multiline: { height: undefined, minHeight: 88, paddingVertical: 14, borderRadius: 18, textAlignVertical: 'top' },
   dosCol: { flexDirection: 'row', gap: 10 },
   domicilioRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: GLASS.hairline },
   domicilioL: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   domicilioD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   guardarBtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 16, borderRadius: 26 },
   guardarT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
-  susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: GLASS.ink, borderRadius: 26, padding: 16, marginBottom: 8 },
-  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
-  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 3 },
-  susMonto: { fontFamily: FONTS.monoBold, fontSize: 20, color: '#fff' },
+  susCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, padding: 16, marginBottom: 8 },
+  susTitulo: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  susDetalle: { fontFamily: FONTS.regular, fontSize: 12, color: SOBRE.tinta.t2, marginTop: 3 },
+  susMonto: { fontFamily: FONTS.monoBold, fontSize: 20, color: SOBRE.tinta.t1 },
   regla: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   reglaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   reglaD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
@@ -1211,53 +1212,55 @@ const s = StyleSheet.create({
   estadoT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.textMid, flex: 1 },
   estadoActivo: { fontFamily: FONTS.semibold, fontSize: 12 },
   serv: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 13, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
+  // Servicio pausado: apagado con borde punteado (Regla 2), el texto sigue legible.
+  servApagado: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrecio: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  servEstado: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textLight, width: 52, textAlign: 'right' },
+  servEstado: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight, width: 52, textAlign: 'right' },
   nota: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, lineHeight: 17, marginBottom: 6 },
   deLocal: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: -6, marginBottom: 10, lineHeight: 17 },
-  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, lineHeight: 19, paddingVertical: 10, marginBottom: 6 },
   sembrada: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 4, marginTop: -4, marginBottom: 12 },
-  sembradaT: { flex: 1, fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.ink, lineHeight: 18 },
+  sembradaT: { flex: 1, fontFamily: FONTS.regular, fontSize: 13, color: COLORS.ink, lineHeight: 18 },
   cruza: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.redText, marginTop: 6, marginBottom: 2, lineHeight: 17 },
   dia: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   diaL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   diaH: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  localOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
-  localN: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 18, color: COLORS.ink },
+  localOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
+  localN: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink },
   localE: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
-  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: GLASS.border, borderRadius: 24, height: 48, marginTop: 12, marginBottom: 8, backgroundColor: GLASS.fill },
+  otroLocal: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: GLASS.border, borderRadius: 22, height: 44, marginTop: 12, marginBottom: 8, backgroundColor: GLASS.fillStrong },
   otroLocalT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
-  otroLocalD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
+  otroLocalD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, lineHeight: 17, paddingHorizontal: 4, marginTop: -2, marginBottom: 10 },
   miSusCard: { borderWidth: 1, borderColor: GLASS.border, padding: 16, marginBottom: 12, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
   // Vencida se ve distinto porque ya no es un dato, es una consecuencia: la
   // silla está apagada y el barbero tiene que poder verlo sin leer el párrafo.
-  miSusCardOff: { borderColor: COLORS.border, backgroundColor: COLORS.dangerLight, borderRadius: 8 },
-  miSusEstado: { fontFamily: FONTS.semibold, fontSize: 20, color: COLORS.ink },
-  miSusD: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
-  miSusNota: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
+  miSusCardOff: { borderColor: COLORS.border, backgroundColor: COLORS.dangerLight},
+  miSusEstado: { fontFamily: FONTS.semibold, fontSize: 17, color: COLORS.ink },
+  miSusD: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 19, marginTop: 6 },
+  miSusNota: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, lineHeight: 17, marginTop: 12 },
   rolRow: { flexDirection: 'row', gap: 10 },
-  rolChip: { flex: 1, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard },
-  rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  rolChip: { flex: 1, height: 44, justifyContent: 'center', borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', backgroundColor: GLASS.fillStrong, borderRadius: 22 },
+  rolChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink},
   rolChipT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.ink },
   cuentaFila: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
-  cuentaIcono: { width: 32, height: 32, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fill },
+  cuentaIcono: { width: 40, height: 40, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: GLASS.fillStrong },
   cuentaT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  cuentaD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
+  cuentaD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3, lineHeight: 17 },
   cuentaBorrar: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: GLASS.fill, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
   cuentaBorrarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.redText },
-  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
-  mbg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: GLASS.fill, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24, paddingBottom: 40, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard },
-  flabel: { fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
-  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, padding: 13, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, borderRadius: 16, overflow: 'hidden' },
+  cuentaBorrarD: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 3, lineHeight: 17 },
+  mbg: { flex: 1, backgroundColor: GLASS.scrim, justifyContent: 'flex-end' },
+  modal: { backgroundColor: GLASS.hoja, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, borderWidth: 1, borderBottomWidth: 0, borderColor: GLASS.border },
+  flabel: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, marginBottom: 7, marginTop: 14 },
+  input: { backgroundColor: GLASS.fillStrong, borderWidth: 1, borderColor: GLASS.border, height: 52, paddingHorizontal: 18, fontSize: 15, fontFamily: FONTS.regular, color: COLORS.ink, borderRadius: 26, overflow: 'hidden' },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
-  stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fill },
+  stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
-  stepVal: { fontFamily: FONTS.monoBold, fontSize: 19, color: COLORS.ink },
-  mbtn: { backgroundColor: COLORS.ink, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 18, borderRadius: 27 },
+  stepVal: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
+  mbtn: { backgroundColor: COLORS.ink, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 18, borderRadius: 26 },
   mbtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk },
   mbtnGhost: { padding: 14, alignItems: 'center', marginTop: 6 },
   mbtnGhostT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.textMid },

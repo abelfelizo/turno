@@ -13,9 +13,9 @@
  */
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE, BOTON_CLARO } from '../constants'
 import { Pole, PuntoVivo } from './ui'
-import { Cifra } from './tarjeta-turno'
+import { Cifra, DegradadoTurno } from './tarjeta-turno'
 import type { ModoSilla, Accion, Senal } from '../lib/silla'
 
 const SENAL: Record<Senal | 'tenue', string> = {
@@ -41,16 +41,23 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
   mas?: { texto: string; onPress: () => void }
 }) {
   const rojo = modo.fondo === 'rojo'
-  const tenue = rojo ? 'rgba(255,255,255,0.72)' : COLORS.onCarbonMid
-  const filete = rojo ? 'rgba(255,255,255,0.28)' : COLORS.carbonDash
+  // «En la silla» va en el degradado, como el turno del cliente (lienzo S5).
+  const deg = !rojo && modo.poste && modo.estado === 'EN LA SILLA'
+  // Regla 1: la superficie decide el texto. Las señales de color solo sobre la tinta.
+  const sup = rojo ? SOBRE.rojo : deg ? SOBRE.degradado : SOBRE.tinta
+  const pintada = rojo || deg
+  const tenue = sup.t2
+  const filete = sup.linea
   const senal = SENAL[modo.senal]
+  const textoEstado = pintada ? sup.t1 : senal
   // El punto late cuando la silla está viva: libre, trabajando, alguien viene.
   // Apagado cuando no pasa nada —cerrado, sin pagar, sin red—: un punto que
   // late sobre un local cerrado dice lo contrario del texto que tiene al lado.
   const vivo = !['neutro', 'rojo'].includes(modo.senal) && modo.estado !== 'SIN CONEXIÓN'
 
   return (
-    <View style={[s.card, { backgroundColor: rojo ? COLORS.red : COLORS.carbon }]}>
+    <View style={[s.card, { backgroundColor: deg ? SOBRE.degradado.fondo : rojo ? SOBRE.rojo.fondo : SOBRE.tinta.fondo }]}>
+      {deg && <DegradadoTurno />}
       <View style={s.cuerpo}>
         <TouchableOpacity
           disabled={!variosLocales} onPress={onCambiarLocal} activeOpacity={0.75}
@@ -70,18 +77,18 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
         <View style={s.estadoFila}>
           <View style={s.estadoIzq}>
             <PuntoVivo color={senal} vivo={vivo} />
-            <Text style={[s.estadoT, { color: senal }]} numberOfLines={1}>{modo.estado}</Text>
+            <Text style={[s.estadoT, { color: textoEstado }]} numberOfLines={1}>{modo.estado}</Text>
           </View>
           {!!modo.derecha && <Text style={[s.derecha, { color: tenue }]} numberOfLines={1}>{modo.derecha}</Text>}
         </View>
 
         {!!modo.cifra && (
-          <Cifra valor={modo.cifra} rotulo={modo.rotulo ?? ''} color={SENAL[modo.cifraSenal ?? 'blanco']}
+          <Cifra valor={modo.cifra} rotulo={modo.rotulo ?? ''} color={pintada ? sup.t1 : SENAL[modo.cifraSenal ?? 'blanco']} rotColor={sup.t2}
             latiendo={modo.latiendo} />
         )}
 
-        <Text style={[s.texto, { color: rojo ? '#FFFFFF' : '#D5D8DF' }]}>
-          {!!modo.destacado && <Text style={s.destacado}>{modo.destacado}</Text>}
+        <Text style={[s.texto, { color: sup.t2 }]}>
+          {!!modo.destacado && <Text style={[s.destacado, { color: sup.t1 }]}>{modo.destacado}</Text>}
           {modo.cuerpo}
         </Text>
 
@@ -93,10 +100,10 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
                 const apagado = b.tipo === 'apagado'
                 return (
                   <TouchableOpacity key={b.accion}
-                    style={[s.btn, { flex: b.peso ?? 1 }, ESTILO_BTN[b.tipo], ocupado && !apagado && { opacity: 0.55 }]}
+                    style={[s.btn, { flex: b.peso ?? 1 }, ESTILO_BTN[b.tipo], apagado && { borderColor: sup.dis }]}
                     onPress={() => onAccion(b.accion)} disabled={apagado || ocupado} activeOpacity={0.85}
                     accessibilityRole="button" accessibilityState={{ disabled: apagado || !!ocupado }}>
-                    <Text style={[s.btnT, { color: TEXTO_BTN[b.tipo] }]} numberOfLines={1}>{b.texto}</Text>
+                    <Text style={[s.btnT, { color: apagado ? sup.dis : TEXTO_BTN[b.tipo] }]} numberOfLines={1}>{b.texto}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -119,31 +126,33 @@ export default function TarjetaSilla({ modo, local, variosLocales, onCambiarLoca
   )
 }
 
+// Regla 3 · botones sobre superficie pintada. Apagado: borde punteado y el
+// color «Apagado» de la superficie, nunca opacidad.
 const ESTILO_BTN = StyleSheet.create({
-  claro: { backgroundColor: '#FFFFFF', borderRadius: 8 },
-  rojo: { backgroundColor: COLORS.red, borderRadius: 24 },
-  contorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 24 },
-  apagado: { borderWidth: 1, borderColor: COLORS.carbonDash, borderRadius: 8 },
+  claro: { backgroundColor: BOTON_CLARO.fondo },
+  rojo: { backgroundColor: SOBRE.rojo.fondo },
+  contorno: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)' },
+  apagado: { borderWidth: 1.5, borderStyle: 'dashed' },
 })
-const TEXTO_BTN = { claro: '#0B0B0C', rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: '#6B6B6B' }
+const TEXTO_BTN = { claro: BOTON_CLARO.texto, rojo: '#FFFFFF', contorno: '#FFFFFF', apagado: SOBRE.tinta.dis }
 
 const s = StyleSheet.create({
   card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' },
   cuerpo: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 },
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  local: { flex: 1, fontFamily: FONTS.semibold, fontSize: 18, lineHeight: 23, color: '#fff' },
+  local: { flex: 1, fontFamily: FONTS.semibold, fontSize: 17, lineHeight: 22, color: '#FFFFFF' },
   filete: { height: 1, marginVertical: 14 },
   posteFino: { marginVertical: 14 },
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7, flexShrink: 1 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, flexShrink: 1 },
-  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 12.5 },
-  texto: { fontFamily: FONTS.regular, fontSize: 14, lineHeight: 20, marginTop: 12 },
-  destacado: { fontFamily: FONTS.semibold, color: '#FFFFFF' },
+  derecha: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 13 },
+  texto: { fontFamily: FONTS.regular, fontSize: 15, lineHeight: 21, marginTop: 12 },
+  destacado: { fontFamily: FONTS.semibold },
   pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  btn: { height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
+  btn: { height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 },
   btnT: { fontFamily: FONTS.semibold, fontSize: 15 },
   nota: { fontFamily: FONTS.regular, fontSize: 12, lineHeight: 17, marginTop: 10 },
   mas: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 4, marginTop: 12, paddingVertical: 4 },
-  masT: { fontFamily: FONTS.semibold, fontSize: 12.5, textDecorationLine: 'underline' },
+  masT: { fontFamily: FONTS.semibold, fontSize: 13, textDecorationLine: 'underline' },
 })

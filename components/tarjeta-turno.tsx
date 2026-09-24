@@ -39,7 +39,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native'
 import { useEffect, useRef } from 'react'
 import { Ionicons } from '@expo/vector-icons'
-import { COLORS, FONTS } from '../constants'
+import { COLORS, FONTS, SOBRE, BOTON_CLARO, RADIO } from '../constants'
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg'
 import { Pole, PuntoVivo } from './ui'
 import { hora12, relojesDeSilla } from '../lib/format'
@@ -170,16 +170,18 @@ export function soloConCita(sillas: SillaEstado[]): boolean {
 /**
  * EL COLOR DE LA TARJETA DEL TURNO: rojo arriba a la izquierda, vino en el
  * centro y azul abajo a la derecha, un poco translúcido para que la luz del
- * fondo se note (muestra «Cristal propio», aprobada el 23 sep).
+ * fondo se note (muestra «Cristal propio», aprobada el 23 sep). Opaco: es una
+ * superficie pintada y su texto (SOBRE.degradado) se midió sobre el color
+ * macizo; con transparencia, de día el fondo claro lo aguaba.
  */
-function DegradadoTurno() {
+export function DegradadoTurno() {
   return (
     <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
       <Defs>
         <LinearGradient id="turno" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#B22820" stopOpacity={0.94} />
-          <Stop offset="0.48" stopColor="#782446" stopOpacity={0.9} />
-          <Stop offset="1" stopColor="#243EB2" stopOpacity={0.94} />
+          <Stop offset="0" stopColor="#B22820" stopOpacity={1} />
+          <Stop offset="0.48" stopColor="#782446" stopOpacity={1} />
+          <Stop offset="1" stopColor="#243EB2" stopOpacity={1} />
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" fill="url(#turno)" />
@@ -206,8 +208,12 @@ export default function TarjetaTurno(p: Props) {
   // Colores de estado de la línea gráfica de Turno (handoff § 4): llamado en
   // rojo, en camino en azul; lo demás, la tinta. Solo el color: los textos y
   // los botones siguen siendo los de siempre.
-  const fondo = llamado ? (urgente ? COLORS.redDark : COLORS.red) : enCamino ? COLORS.blue : COLORS.carbon
-  const tenue = llamado || enCamino ? 'rgba(255,255,255,0.72)' : COLORS.onCarbonMid
+  // Regla 1: cada superficie trae su texto. `sup` decide todo lo de dentro.
+  // (El urgente ya no oscurece el rojo: de noche eso lo volvía salmón con
+  // texto blanco. La urgencia la dice la cifra latiendo.)
+  const sup = llamado ? SOBRE.rojo : enCamino ? SOBRE.azul : p.turno ? SOBRE.degradado : SOBRE.tinta
+  const fondo = llamado ? SOBRE.rojo.fondo : enCamino ? SOBRE.azul.fondo : SOBRE.tinta.fondo
+  const tenue = sup.t2
 
   /**
    * EL POSTE SOLO EN DOS SITIOS DE ESTA TARJETA (handoff § 1): el talón del
@@ -243,15 +249,15 @@ export default function TarjetaTurno(p: Props) {
 
         {poste
           ? <Pole height={6} radius={3} ancho={5} style={s.posteFino} />
-          : <View style={[s.filete, { backgroundColor: llamado ? 'rgba(255,255,255,0.28)' : COLORS.carbonDash }]} />}
+          : <View style={[s.filete, { backgroundColor: sup.linea }]} />}
 
-        {p.turno ? <ConTurno {...p} llamado={llamado} enSilla={enSilla} urgente={urgente} tenue={tenue} />
+        {p.turno ? <ConTurno {...p} llamado={llamado} enSilla={enSilla} urgente={urgente} tenue={tenue} sup={sup} />
                  : <SinTurno {...p} abierto={abierto} libres={libres} sinServicio={sinServicio} motivoComun={motivoComun} />}
       </View>
   )
 
   return (
-    <View style={[s.card, { backgroundColor: degradado ? 'transparent' : fondo }]}>
+    <View style={[s.card, { backgroundColor: degradado ? SOBRE.degradado.fondo : fondo }]}>
       {degradado && <DegradadoTurno />}
       {cuerpo}
     </View>
@@ -271,16 +277,16 @@ export default function TarjetaTurno(p: Props) {
  */
 export function TarjetaEsqueleto() {
   return (
-    <View style={[s.card, { backgroundColor: COLORS.carbon }]} accessibilityLabel="Cargando tu turno">
+    <View style={[s.card, { backgroundColor: SOBRE.tinta.fondo }]} accessibilityLabel="Cargando tu turno">
       <View style={s.cuerpo}>
         <View style={[s.hueso, { height: 26, width: '62%' }]} />
-        <View style={[s.filete, { backgroundColor: COLORS.carbonDash }]} />
+        <View style={[s.filete, { backgroundColor: SOBRE.tinta.linea }]} />
         <View style={[s.hueso, { height: 11, width: '38%' }]} />
         <View style={[s.hueso, { height: 52, width: '45%', marginTop: 14 }]} />
         <View style={[s.hueso, { height: 10, width: '30%', marginTop: 10 }]} />
         <View style={{ flexDirection: 'row', gap: 9, marginTop: 24 }}>
-          <View style={[s.hueso, { height: 50, flex: 1 }]} />
-          <View style={[s.hueso, { height: 50, flex: 1, opacity: 0.55 }]} />
+          <View style={[s.hueso, { height: 44, borderRadius: 22, flex: 1 }]} />
+          <View style={[s.hueso, { height: 44, borderRadius: 22, flex: 1 }]} />
         </View>
       </View>
     </View>
@@ -427,7 +433,7 @@ function SinTurno(p: Props & { abierto: boolean; libres: number; sinServicio: bo
 
 /* ─────────────────────── CON TURNO · manda tu turno ─────────────────────── */
 
-function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: boolean; tenue: string }) {
+function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: boolean; tenue: string; sup: Sup }) {
   // Camino dicho y llegada dicha no son lo mismo: solo la segunda cierra el
   // asunto. Ver `llego` en TurnoVivo.
   const llego = !!p.turno?.llego
@@ -456,7 +462,7 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
   return (
     <>
       <View style={s.estadoFila}>
-        <Text style={[s.estadoT, { color: p.llamado ? '#fff' : COLORS.onCarbonMid }]}>
+        <Text style={[s.estadoT, { color: p.llamado ? p.sup.t1 : p.sup.t2 }]}>
           {p.llamado ? '¡ES TU TURNO!'
             : p.enSilla ? 'EN LA SILLA'
             : llego ? 'YA LLEGASTE'
@@ -469,7 +475,8 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
       <Cifra
         valor={cifra}
         rotulo={rotulo}
-        color="#fff"
+        color={p.sup.t1}
+        rotColor={p.sup.t2}
         // «Eres el siguiente» todavía NO es rojo macizo: aún no te han llamado.
         filete={!p.llamado && p.puesto === 1}
         // E12 · Solo cuando de verdad se acaba el tiempo. Late despacio, no
@@ -492,7 +499,7 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
           tocar el puesto: la pausa mueve el reloj, no la fila. */}
       {pausado && (
         <View style={s.pausa}>
-          <Ionicons name="pause-circle-outline" size={16} color={COLORS.ambarNoche} />
+          <Ionicons name="pause-circle-outline" size={16} color={p.sup.t1} />
           <Text style={s.pausaT}>
             Tu barbero está en pausa{pausado.hasta ? ` hasta las ${hora12(pausado.hasta)}` : ''}.
             Tu turno sigue en pie.
@@ -500,7 +507,7 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
         </View>
       )}
       {!p.llamado && !p.enSilla && p.etaMin != null && (
-        <View style={s.eta}><Text style={s.etaT}>≈ {p.etaMin}′ de espera</Text></View>
+        <View style={[s.eta, { backgroundColor: p.sup.elevado }]}><Text style={s.etaT}>≈ {p.etaMin}′ de espera</Text></View>
       )}
 
       {/* EN LA SILLA NO HAY BOTONES: ya estás sentado, no hay nada que
@@ -509,9 +516,9 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
           registró. */}
       {!p.enSilla && (
         llego ? (
-          <View style={s.pieSolo}>
+          <View style={[s.pieSolo, { borderTopColor: p.sup.linea }]}>
             <View style={s.enCamino}>
-              <PuntoVivo color={COLORS.okNoche} vivo />
+              <PuntoVivo color={p.sup.t1} vivo />
               <Text style={s.enCaminoT}>Ya llegaste · el barbero lo sabe</Text>
             </View>
             <TouchableOpacity onPress={p.onCancelar} hitSlop={8}>
@@ -525,6 +532,7 @@ function ConTurno(p: Props & { llamado: boolean; enSilla: boolean; urgente: bool
             secundario={null}
             nota={p.bloqueo ?? undefined}
             cancelar={{ texto: p.llamado ? 'No puedo ir' : 'Cancelar', onPress: p.onCancelar, color: p.tenue }}
+            sup={p.sup}
           />
         )
       )}
@@ -551,8 +559,8 @@ export function ordinal(n: number): string {
 
 /* ─────────────────────────────── piezas ─────────────────────────────────── */
 
-export function Cifra({ valor, rotulo, color, filete, latiendo }: {
-  valor: string; rotulo: string; color: string; filete?: boolean; latiendo?: boolean
+export function Cifra({ valor, rotulo, color, rotColor = SOBRE.tinta.t2, filete, latiendo }: {
+  valor: string; rotulo: string; color: string; rotColor?: string; filete?: boolean; latiendo?: boolean
 }) {
   /**
    * El latido va por `opacity` y con el driver nativo, así que corre en el
@@ -591,7 +599,7 @@ export function Cifra({ valor, rotulo, color, filete, latiendo }: {
         {num}
         {!!suf && <Text style={[s.cifraSufijo, largo && { fontSize: 22 }]}>{suf}</Text>}
       </Animated.Text>
-      <Text style={s.cifraRot}>{rotulo}</Text>
+      <Text style={[s.cifraRot, { color: rotColor }]}>{rotulo}</Text>
     </View>
   )
 }
@@ -600,8 +608,8 @@ function Sillas({ sillas }: { sillas: SillaEstado[] }) {
   const COLOR: Record<string, string> = {
     libre: COLORS.okNoche,
     atendiendo: COLORS.redSoft,
-    descanso: '#A3A3A3',
-    inactivo: 'rgba(255,255,255,0.35)',
+    descanso: SOBRE.tinta.pausa,
+    inactivo: SOBRE.tinta.linea,
   }
   return (
     <View style={s.sillas}>
@@ -640,28 +648,32 @@ function Sillas({ sillas }: { sillas: SillaEstado[] }) {
  * sueltos tenían el tamaño de la decisión principal y competían con la cifra,
  * que es lo que hay que leer primero. Aquí son la consecuencia del dato.
  */
-function Pie({ principal, secundario, cancelar, nota }: {
+type Sup = typeof SOBRE[keyof typeof SOBRE]
+
+function Pie({ principal, secundario, cancelar, nota, sup = SOBRE.tinta }: {
   principal: { texto: string; onPress?: () => void; claro?: boolean } | null
   secundario: { texto: string; onPress?: () => void } | null
   cancelar?: { texto: string; onPress?: () => void; color: string }
   /** Ocupa el sitio del botón principal cuando ese botón no se puede tocar. */
   nota?: string
+  /** La superficie donde va: decide los colores del pie (Regla 1). */
+  sup?: Sup
 }) {
   return (
     <>
-      <View style={[s.filete, { backgroundColor: COLORS.carbonDash, marginTop: 16, marginBottom: 14 }]} />
+      <View style={[s.filete, { backgroundColor: sup.linea, marginTop: 16, marginBottom: 14 }]} />
       <View style={s.pie}>
         {!!nota && (
-          <View style={s.nota}>
-            <Ionicons name="lock-closed" size={13} color={COLORS.onCarbonMid} />
-            <Text style={s.notaT}>{nota}</Text>
+          <View style={[s.nota, { borderColor: sup.dis }]}>
+            <Ionicons name="lock-closed" size={13} color={sup.dis} />
+            <Text style={[s.notaT, { color: sup.dis }]}>{nota}</Text>
           </View>
         )}
         {principal && (
           <TouchableOpacity
             style={[s.btn, principal.claro ? s.btnClaro : s.btnRojo]}
             onPress={principal.onPress} activeOpacity={0.85}>
-            <Text style={[s.btnT, principal.claro && { color: '#0B0B0C' }]}>{principal.texto}</Text>
+            <Text style={[s.btnT, principal.claro && { color: BOTON_CLARO.texto }]}>{principal.texto}</Text>
           </TouchableOpacity>
         )}
         {secundario && (
@@ -681,11 +693,11 @@ function Pie({ principal, secundario, cancelar, nota }: {
 
 const s = StyleSheet.create({
   card: { borderRadius: 28, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' },
-  hueso: { backgroundColor: 'rgba(255,255,255,0.11)', borderRadius: 8, marginTop: 12 },
+  hueso: { backgroundColor: SOBRE.tinta.elevado, borderRadius: RADIO.caja, marginTop: 12 },
   cuerpo: { paddingHorizontal: 18, paddingTop: 17, paddingBottom: 18 },
 
   cab: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  local: { fontFamily: FONTS.semibold, fontSize: 20, lineHeight: 25, color: '#fff', letterSpacing: -0.3 },
+  local: { fontFamily: FONTS.semibold, fontSize: 17, lineHeight: 22, color: '#FFFFFF', letterSpacing: -0.2 },
   localSub: { fontFamily: FONTS.regular, fontSize: 12, marginTop: 3 },
 
   filete: { height: 1, marginVertical: 14 },
@@ -694,8 +706,8 @@ const s = StyleSheet.create({
   estadoFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   estadoIzq: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   estadoT: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2 },
-  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid },
-  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 13, color: '#fff' },
+  estadoDer: { flex: 1, textAlign: 'right', fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2 },
+  codigo: { flex: 1, textAlign: 'right', fontFamily: FONTS.monoBold, fontSize: 13, color: '#FFFFFF' },
 
   cifraCaja: { marginTop: 6 },
   cifraFilete: {  },
@@ -708,39 +720,40 @@ const s = StyleSheet.create({
    */
   cifra: { fontFamily: FONTS.monoBold, fontSize: 76, lineHeight: 82, letterSpacing: -3 },
   cifraSufijo: { fontFamily: FONTS.monoBold, fontSize: 34 },
-  cifraRot: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, color: COLORS.onCarbonMid, marginTop: 6 },
+  cifraRot: { fontFamily: FONTS.bold, fontSize: 11, letterSpacing: 1.2, marginTop: 6 },
 
-  motivo: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.onCarbonMid, marginTop: 12, lineHeight: 20 },
-  servicio: { fontFamily: FONTS.semibold, fontSize: 18, color: '#fff', marginTop: 14 },
+  motivo: { fontFamily: FONTS.regular, fontSize: 15, color: SOBRE.tinta.t2, marginTop: 12, lineHeight: 21 },
+  servicio: { fontFamily: FONTS.semibold, fontSize: 17, color: '#FFFFFF', marginTop: 14 },
   servicioMeta: { fontFamily: FONTS.regular, fontSize: 13, marginTop: 2 },
-  consecuencia: { fontFamily: FONTS.semibold, fontSize: 13.5, color: '#fff', marginTop: 10 },
+  consecuencia: { fontFamily: FONTS.semibold, fontSize: 14, color: '#FFFFFF', marginTop: 10 },
   pausa: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 13 },
-  pausaT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#fff', lineHeight: 18 },
+  pausaT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 13, color: '#FFFFFF', lineHeight: 18 },
 
-  eta: { alignSelf: 'flex-start', marginTop: 12, backgroundColor: '#1F1F1F', borderRadius: 8, paddingVertical: 7, paddingHorizontal: 14 },
-  etaT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  eta: { alignSelf: 'flex-start', marginTop: 12, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  etaT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#FFFFFF' },
 
   sillas: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 15 },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 8, paddingVertical: 6, paddingHorizontal: 11, maxWidth: '100%' },
-  punto: { width: 7, height: 7, borderRadius: 4 },
-  chipT: { fontFamily: FONTS.semibold, fontSize: 12.5, color: '#fff', flexShrink: 1 },
-  chipD: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.onCarbonMid },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: SOBRE.tinta.elevado,
+    borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, maxWidth: '100%' },
+  punto: { width: 8, height: 8, borderRadius: 4 },
+  chipT: { fontFamily: FONTS.semibold, fontSize: 13, color: '#FFFFFF', flexShrink: 1 },
+  chipD: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2 },
 
   pie: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pieSolo: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
-    borderTopWidth: 1, borderTopColor: COLORS.carbonDash, paddingTop: 14 },
-  btn: { flex: 1, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  btnRojo: { backgroundColor: COLORS.red, borderRadius: 8 },
-  btnClaro: { backgroundColor: '#fff', borderRadius: 8 },
-  btnContorno: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 },
-  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#fff' },
+    borderTopWidth: 1, paddingTop: 14 },
+  // Regla 3 · botones sobre superficie pintada: 44 de alto, radio 22.
+  btn: { flex: 1, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  btnRojo: { backgroundColor: SOBRE.rojo.fondo },
+  btnClaro: { backgroundColor: BOTON_CLARO.fondo },
+  btnContorno: { borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.6)' },
+  btnT: { fontFamily: FONTS.semibold, fontSize: 15, color: '#FFFFFF' },
   nota: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-    height: 48, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.08)' },
-  notaT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.onCarbonMid },
+    height: 44, borderRadius: 22, borderWidth: 1.5, borderStyle: 'dashed' },
+  notaT: { fontFamily: FONTS.semibold, fontSize: 13 },
   btnCancelar: { paddingHorizontal: 4 },
   cancelar: { fontFamily: FONTS.semibold, fontSize: 14 },
 
   enCamino: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  enCaminoT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
+  enCaminoT: { fontFamily: FONTS.semibold, fontSize: 14, color: '#FFFFFF' },
 })

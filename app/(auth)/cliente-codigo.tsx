@@ -4,7 +4,7 @@ import { Alert, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador, resetBorrador } from '../../lib/onboarding'
 import { unirseCliente, getBarberoPorCodigo, getBarberoNegocios, registrarUsuario, seguirBarberoEnNegocio } from '../../lib/db'
-import { COLORS, FONTS } from '../../constants'
+import { COLORS, FONTS, SOBRE } from '../../constants'
 
 export default function ClienteCodigo() {
   const router = useRouter()
@@ -95,8 +95,8 @@ export default function ClienteCodigo() {
 }
 
 const s = StyleSheet.create({
-  opcion: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.carbonEl, borderWidth: 1, borderColor: COLORS.carbonBorder, borderRadius: 8, padding: 18, marginBottom: 12 },
-  opcionT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
-  opcionD: { fontFamily: FONTS.regular, fontSize: 13, color: '#9A9CA6', marginTop: 2 },
-  volver: { fontFamily: FONTS.semibold, fontSize: 14, color: '#9A9CA6', textAlign: 'center', marginTop: 8 },
+  opcion: { flexDirection: 'row', alignItems: 'center', backgroundColor: SOBRE.tinta.elevado, borderWidth: 1, borderColor: SOBRE.tinta.borde, borderRadius: 22, padding: 18, marginBottom: 12 },
+  opcionT: { fontFamily: FONTS.semibold, fontSize: 16, color: SOBRE.tinta.t1 },
+  opcionD: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 2 },
+  volver: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t2, textAlign: 'center', marginTop: 8 },
 })

@@ -91,13 +91,13 @@ export default function BuscarBarbero() {
             copia de un papel mirando una letra cada vez. Apretado y en
             cuerpo normal se salta un carácter y el error llega al final. */}
         <View style={s.buscarRow}>
-          <TextInput style={s.input} placeholder="BD4K" placeholderTextColor={COLORS.border}
+          <TextInput style={s.input} placeholder="BD4K" placeholderTextColor={COLORS.textLight} selectionColor={COLORS.ink}
             autoCapitalize="characters" autoCorrect={false} maxLength={9}
             value={codigo} onChangeText={t => setCodigo(t.toUpperCase())}
             onSubmitEditing={buscar} returnKeyType="go" />
-          <TouchableOpacity style={[s.buscarBtn, (buscando || codigo.trim().length < 4) && s.buscarBtnOff]}
+          <TouchableOpacity style={[s.buscarBtn, codigo.trim().length < 4 && s.buscarBtnOff]}
             onPress={buscar} disabled={buscando || codigo.trim().length < 4}>
-            {buscando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={s.buscarBtnT}>Entrar</Text>}
+            {buscando ? <ActivityIndicator color={COLORS.onInk} /> : <Text style={[s.buscarBtnT, codigo.trim().length < 4 && { color: COLORS.disabled }]}>Entrar</Text>}
           </TouchableOpacity>
         </View>
         <Text style={s.hint}>
@@ -139,21 +139,22 @@ export default function BuscarBarbero() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: GLASS.fill },
-  hint: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
+  back: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  hint: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 10, marginBottom: 26, lineHeight: 18 },
   buscarRow: { flexDirection: 'row', gap: 9, marginTop: 12 },
-  input: { flex: 1, height: 56, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 14, fontFamily: FONTS.monoBold, fontSize: 26, letterSpacing: 1.2, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 16 },
-  buscarBtn: { width: 112, backgroundColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 26 },
-  buscarBtnOff: { backgroundColor: COLORS.border, borderRadius: 8 },
+  input: { flex: 1, height: 52, borderWidth: 1, borderColor: GLASS.border, paddingHorizontal: 18, fontFamily: FONTS.monoBold, fontSize: 24, letterSpacing: 1.2, color: COLORS.ink, backgroundColor: GLASS.fillStrong, borderRadius: 26 },
+  buscarBtn: { width: 112, height: 52, backgroundColor: COLORS.ink, borderWidth: 1, borderColor: COLORS.ink, alignItems: 'center', justifyContent: 'center', borderRadius: 26 },
+  // Regla 2: apagado con borde punteado, nunca un gris lleno con texto blanco.
+  buscarBtnOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
   buscarBtnT: { fontFamily: FONTS.semibold, fontSize: 16, color: COLORS.onInk, letterSpacing: 0 },
   card: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 18, marginBottom: 16, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14 },
-  nombre: { fontFamily: FONTS.semibold, letterSpacing: -0.3, fontSize: 21, color: COLORS.ink },
+  nombre: { fontFamily: FONTS.semibold, letterSpacing: -0.2, fontSize: 17, color: COLORS.ink },
   esp: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.blue, marginTop: 2 },
   bio: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textLight, marginTop: 6 },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 12 },
   local: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 15, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, paddingHorizontal: 14, marginBottom: 8 },
   localT: { flex: 1, fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
-  agregar: { paddingVertical: 9, paddingHorizontal: 14, backgroundColor: COLORS.ink, borderRadius: 26 },
-  agregarT: { fontFamily: FONTS.semibold, fontSize: 14, color: COLORS.onInk },
+  agregar: { height: 44, justifyContent: 'center', paddingHorizontal: 16, backgroundColor: COLORS.ink, borderRadius: 22 },
+  agregarT: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.onInk },
 })

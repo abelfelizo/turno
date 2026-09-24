@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { OnbScreen, Campo, BotonPrimario } from '../../components/onb'
 import { borrador } from '../../lib/onboarding'
 import { getNegocioPorCodigo } from '../../lib/db'
-import { COLORS, FONTS, GLASS } from '../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../constants'
 
 /**
  * Alta del barbero en un local.
@@ -55,7 +55,7 @@ export default function BarberoCodigo() {
           <Text style={s.cardKicker}>TE VAS A UNIR A</Text>
           <Text style={s.cardNombre}>{negocio.nombre}</Text>
           <View style={s.modalidad}>
-            <Ionicons name={renta ? 'person' : 'business'} size={16} color={COLORS.textMid} />
+            <Ionicons name={renta ? 'person' : 'business'} size={16} color={SOBRE.tinta.t2} />
             <Text style={s.modalidadT}>
               {/* QUÉ CAMBIA SEGÚN LA MODALIDAD: quién pone las reglas y quién
                   paga. Lo que YA NO cambia es si hay que esperar a alguien —la
@@ -80,10 +80,11 @@ export default function BarberoCodigo() {
 }
 
 const s = StyleSheet.create({
-  error: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.redSoft, marginTop: 10 },
-  card: { backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioCard, padding: 16, marginTop: 16 },
-  cardKicker: { fontFamily: FONTS.bold, fontSize: 10, color: COLORS.textLight, letterSpacing: 1 },
-  cardNombre: { fontFamily: FONTS.bold, fontSize: 24, color: COLORS.ink, marginTop: 4 },
+  error: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.rojo, marginTop: 10 },
+  // Pantalla de entrada = tinta: la tarjeta y su texto salen de SOBRE.tinta (Regla 1).
+  card: { backgroundColor: SOBRE.tinta.elevado, borderWidth: 1, borderColor: SOBRE.tinta.borde, borderRadius: 22, padding: 16, marginTop: 16 },
+  cardKicker: { fontFamily: FONTS.bold, fontSize: 11, color: SOBRE.tinta.t2, letterSpacing: 1.2 },
+  cardNombre: { fontFamily: FONTS.bold, fontSize: 24, color: SOBRE.tinta.t1, marginTop: 4 },
   modalidad: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', marginTop: 12 },
-  modalidadT: { flex: 1, fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, lineHeight: 18 },
+  modalidadT: { flex: 1, fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, lineHeight: 18 },
 })

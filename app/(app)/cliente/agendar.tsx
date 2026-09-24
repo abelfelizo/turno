@@ -7,7 +7,7 @@ import { getSesion } from '../../../lib/storage'
 import { getPerfilesNegocio, slotsDisponibles, agendarCita, agendarGrupo, getNegocioById, getHorariosPerfil, cancelarCita, getMiUsuario, getMisCitas, getMiPreferido } from '../../../lib/db'
 import { aceptaCitas } from '../../../lib/atencion'
 import { avisos, programarRecordatoriosCitas } from '../../../lib/notificaciones'
-import { COLORS, FONTS, GLASS } from '../../../constants'
+import { COLORS, FONTS, GLASS, SOBRE } from '../../../constants'
 import { dinero, fechaDeISO, fechaISOLocal, fechaLarga, hora12 } from '../../../lib/format'
 import { Display, Avatar, NoCargo } from '../../../components/ui'
 import { useGestoVolver } from '../../../components/gestos'
@@ -208,7 +208,7 @@ export default function Agendar() {
         {servicio && (
           <View style={s.mini}>
             <View style={s.miniCuerpo}>
-            <View style={s.miniIcon}><Ionicons name="cut" size={20} color="#fff" /></View>
+            <View style={s.miniIcon}><Ionicons name="cut" size={20} color={SOBRE.tinta.t1} /></View>
             <View style={{ flex: 1 }}>
               <Text style={s.miniName}>{servicio.nombre}</Text>
               <Text style={s.miniMeta}>con {perfil?.turno_usuarios?.nombre ?? '—'} · {servicio.duracion_min} min</Text>
@@ -284,8 +284,8 @@ export default function Agendar() {
                 const cerrado = diasActivos != null && !diasActivos.has(d.wd)
                 return (
                   <TouchableOpacity key={d.fecha} style={[s.dia, on && s.diaOn, cerrado && s.diaOff]} disabled={cerrado} onPress={() => setFecha(d.fecha)}>
-                    <Text style={[s.diaTxt, on && { color: COLORS.onInk }, cerrado && { color: COLORS.textLight }]}>{d.dia}</Text>
-                    <Text style={[s.diaNum, on && { color: COLORS.onInk }, cerrado && { color: COLORS.textLight }]}>{d.num}</Text>
+                    <Text style={[s.diaTxt, on && { color: COLORS.onInk }, cerrado && { color: COLORS.disabled }]}>{d.dia}</Text>
+                    <Text style={[s.diaNum, on && { color: COLORS.onInk }, cerrado && { color: COLORS.disabled }]}>{d.num}</Text>
                   </TouchableOpacity>
                 )
               })}
@@ -304,7 +304,7 @@ export default function Agendar() {
                       resto de la app, no como un control prestado. */}
                   {slots.map(t => (
                     <TouchableOpacity key={t} style={[s.slot, hora === t && s.slotOn]} onPress={() => setHora(t)}>
-                      <Text style={[s.slotT, hora === t && { color: '#fff' }]}>{hora12(t)}</Text>
+                      <Text style={[s.slotT, hora === t && { color: '#FFFFFF' }]}>{hora12(t)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>}
@@ -333,8 +333,8 @@ export default function Agendar() {
             )}
           </View>
           <TouchableOpacity style={[s.cta, !hora && s.ctaOff]} onPress={confirmar} disabled={enviando || !hora}>
-            {enviando ? <ActivityIndicator color="#fff" /> : (
-              <Text style={s.ctaT}>
+            {enviando ? <ActivityIndicator color="#FFFFFF" /> : (
+              <Text style={[s.ctaT, !hora && { color: COLORS.disabled }]}>
                 {params.reagendar ? 'Cambiar la cita'
                   : personas > 1 ? `Confirmar ${personas} espacios` : 'Confirmar cita'}
               </Text>
@@ -350,23 +350,23 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: 'transparent' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingBottom: 12 },
-  back: { width: 36, height: 36, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: GLASS.fill },
-  mini: { backgroundColor: GLASS.ink, borderRadius: 26, marginBottom: 20, overflow: 'hidden' },
+  back: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  mini: { backgroundColor: SOBRE.tinta.fondo, borderRadius: 22, marginBottom: 20, overflow: 'hidden' },
   miniCuerpo: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
-  miniIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.inkPill, alignItems: 'center', justifyContent: 'center' },
-  miniName: { fontFamily: FONTS.semibold, fontSize: 14, color: '#fff' },
-  miniMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.onCarbonMid, marginTop: 2 },
-  miniPrice: { fontFamily: FONTS.monoBold, fontSize: 20, color: '#fff' },
-  vacio: { fontFamily: FONTS.regular, fontSize: 13.5, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
-  sec: { fontFamily: FONTS.bold, fontSize: 12, color: COLORS.textMid, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 },
+  miniIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: SOBRE.tinta.elevado, alignItems: 'center', justifyContent: 'center' },
+  miniName: { fontFamily: FONTS.semibold, fontSize: 15, color: SOBRE.tinta.t1 },
+  miniMeta: { fontFamily: FONTS.regular, fontSize: 13, color: SOBRE.tinta.t2, marginTop: 2 },
+  miniPrice: { fontFamily: FONTS.monoBold, fontSize: 20, color: SOBRE.tinta.t1 },
+  vacio: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, lineHeight: 19, marginBottom: 16 },
+  sec: { fontFamily: FONTS.bold, fontSize: 11, color: COLORS.textMid, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 12 },
   bChip: { width: 104, paddingHorizontal: 10, paddingVertical: 12, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', gap: 6, borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
-  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
+  bChipOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
   bChipT: { fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.ink, textAlign: 'center' },
-  bChipEsp: { fontFamily: FONTS.regular, fontSize: 11, color: COLORS.textLight, textAlign: 'center' },
+  bChipEsp: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, textAlign: 'center' },
   bienvenida: { paddingVertical: 4, marginBottom: 20 },
   bienvenidaT: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textMid, fontStyle: 'italic' },
   serv: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 2, backgroundColor: GLASS.fill, borderWidth: 1, borderColor: GLASS.border, borderRadius: GLASS.radioFila, marginBottom: 8 },
-  servOn: { backgroundColor: GLASS.fillStrong, borderRadius: 16, paddingHorizontal: 12 },
+  servOn: { backgroundColor: GLASS.fillStrong, paddingHorizontal: 12 },
   servName: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   servMeta: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2 },
   servPrice: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink },
@@ -374,25 +374,26 @@ const s = StyleSheet.create({
   personasL: { fontFamily: FONTS.semibold, fontSize: 15, color: COLORS.ink },
   personasD: { fontFamily: FONTS.regular, fontSize: 12, color: COLORS.textLight, marginTop: 2, paddingRight: 10 },
   stepRow2: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 42, height: 42, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: GLASS.fill },
+  stepBtn: { width: 44, height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
   stepT: { fontFamily: FONTS.bold, fontSize: 22, color: COLORS.ink },
   stepVal: { fontFamily: FONTS.monoBold, fontSize: 22, color: COLORS.ink, minWidth: 24, textAlign: 'center' },
-  dia: { width: 58, height: 66, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: GLASS.radioCard, backgroundColor: GLASS.fill },
-  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink, borderRadius: 26 },
-  diaOff: { opacity: 0.35 },
-  diaTxt: { fontFamily: FONTS.semibold, fontSize: 12, color: COLORS.textLight },
+  dia: { width: 58, height: 66, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 16, backgroundColor: GLASS.fillStrong },
+  diaOn: { backgroundColor: COLORS.ink, borderColor: COLORS.ink },
+  // Regla 2: cerrado = apagado con borde punteado, nunca opacidad.
+  diaOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  diaTxt: { fontFamily: FONTS.semibold, fontSize: 11, color: COLORS.textMid },
   diaNum: { fontFamily: FONTS.monoBold, fontSize: 24, lineHeight: 26, color: COLORS.ink, marginTop: 2 },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   empty: { fontFamily: FONTS.regular, fontSize: 14, color: COLORS.textLight, paddingVertical: 16 },
   ctaWrap: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 24, borderTopWidth: 1, borderTopColor: GLASS.hairline, backgroundColor: GLASS.fill, borderRadius: GLASS.radioCard, borderWidth: 1, borderColor: GLASS.border },
   recuento: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 11, gap: 10 },
-  recuentoT: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 12.5, color: COLORS.textMid, textTransform: 'capitalize' },
+  recuentoT: { flexShrink: 1, fontFamily: FONTS.semibold, fontSize: 13, color: COLORS.textMid, textTransform: 'capitalize' },
   recuentoP: { fontFamily: FONTS.monoBold, fontSize: 20, color: COLORS.ink },
-  cta: { backgroundColor: COLORS.red, height: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 28 },
-  ctaOff: { backgroundColor: COLORS.border, borderRadius: 8 },
-  ctaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#fff' },
-  subtitulo: { fontFamily: FONTS.regular, fontSize: 12.5, color: COLORS.textMid, marginTop: 3 },
-  slot: { width: '31%', height: 46, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 23, backgroundColor: GLASS.fill },
-  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red, borderRadius: 26 },
-  slotT: { fontFamily: FONTS.semibold, fontSize: 13.5, color: COLORS.ink },
+  cta: { backgroundColor: COLORS.red, height: 52, alignItems: 'center', justifyContent: 'center', borderRadius: 26, borderWidth: 1, borderColor: COLORS.red },
+  ctaOff: { backgroundColor: 'transparent', borderColor: COLORS.disabled, borderStyle: 'dashed' },
+  ctaT: { fontFamily: FONTS.semibold, fontSize: 16, color: '#FFFFFF' },
+  subtitulo: { fontFamily: FONTS.regular, fontSize: 13, color: COLORS.textMid, marginTop: 3 },
+  slot: { width: '31%', height: 44, borderWidth: 1, borderColor: GLASS.border, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: GLASS.fillStrong },
+  slotOn: { backgroundColor: COLORS.red, borderColor: COLORS.red },
+  slotT: { fontFamily: FONTS.mono, fontSize: 14, color: COLORS.ink },
 })
